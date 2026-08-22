@@ -1,4 +1,4 @@
-# Fitrack — Phase 1 Research: Hevy Feature Inventory & Proposed Clone Scope
+# logEZ — Phase 1 Research: Hevy Feature Inventory & Proposed Clone Scope
 
 **Date:** 2026-08-22 · **Status:** awaiting scope confirmation before Phase 2 (planning)
 **Sources:** 9 research reports in [docs/research/](research/) — Hevy's official help centre (read via the Zendesk API), hevyapp.com feature pages, hevy.com/pricing, the official OpenAPI spec recovered from api.hevyapp.com, Hevy's production web-app JS bundle, the Google Play listing, and community API clients (HA-hevy, hevy-mcp, and live exercise-catalog dumps).
@@ -59,9 +59,9 @@ Core vocabulary: a **Routine** is a saved template; a **Workout** is a live logg
 
 ## 3. Feature inventory — Pro-tier equivalent
 
-The entire Pro tier is surprisingly small. **Bold** = becomes default-unlocked in Fitrack:
+The entire Pro tier is surprisingly small. **Bold** = becomes default-unlocked in logEZ:
 
-| Pro feature | Free limit | Fitrack |
+| Pro feature | Free limit | logEZ |
 |---|---|---|
 | **Unlimited routines** | 4 max | Unlimited, no cap code at all |
 | **Unlimited custom exercises** | 7 max | Unlimited |
@@ -74,11 +74,11 @@ The entire Pro tier is surprisingly small. **Bold** = becomes default-unlocked i
 
 Universal limits (not tier-gated): **150-set cap per workout/routine** (Hevy keeps it even on Pro — proposed: keep as a sanity guard, trivially removable).
 
-Pricing context only: Pro is $2.99/mo, $23.99/yr, $74.99 lifetime. No pricing/paywall/license code exists in Fitrack.
+Pricing context only: Pro is $2.99/mo, $23.99/yr, $74.99 lifetime. No pricing/paywall/license code exists in logEZ.
 
 ## 4. Social features — explicit exclusion list
 
-Everything below exists in Hevy and will **not** exist in Fitrack:
+Everything below exists in Hevy and will **not** exist in logEZ:
 
 1. Home **following feed** (posted workouts, likes, comments, comment replies/likes)
 2. **Discover feed** (workouts from strangers; not even disableable in real Hevy)
@@ -95,7 +95,7 @@ Everything below exists in Hevy and will **not** exist in Fitrack:
 
 **What survives the removal:** Home tab becomes *your own workout history* (Hevy itself confirms this is what the feed shows with zero followed users); Workout and Profile tabs are already ~fully personal; exercise details keep charts/records minus the leaderboard tab; workout details keep stats/notes/PRs minus like/comment/share rows.
 
-## 5. Proposed Fitrack core feature set (= Free + Pro − social − cloud)
+## 5. Proposed logEZ core feature set (= Free + Pro − social − cloud)
 
 **A. Routines & programs** — unlimited routines, folders (programs = folders), full routine builder (sets, weight, reps/rep-range, duration, set types, per-exercise rest timer, notes, supersets, reorder, duplicate), save-past-workout-as-routine, routine-values auto-update w/ toggle.
 
@@ -118,7 +118,7 @@ Everything below exists in Hevy and will **not** exist in Fitrack:
 - **Entities & fields**: full OpenAPI schemas for Workout, WorkoutExercise, Set, Routine (adds `rest_seconds`/exercise + `rep_range`/set), ExerciseTemplate, RoutineFolder, BodyMeasurement (17 fields), ExerciseHistory — in [research/api-data-model.md](research/api-data-model.md). Canonical units: kg / meters / seconds; display conversion only.
 - **Enums**: set type `{warmup, normal, failure, dropset}`; RPE `{6,7,7.5,8,8.5,9,9.5,10}`; 20 muscle groups; 9 equipment categories; 8 exercise types + 2 built-in-only stair-machine types (`floors_duration`, `steps_duration` via `custom_metric`). UI↔API type mapping table (incl. the `reps_only` vs `bodyweight_weighted` trap): [research/followup-1.md](research/followup-1.md).
 - **1RM formula**: NOT Epley — a fixed 30-entry percentage table (`1RM = weight / pct[reps]`, 0 reps → 0, >30 reps clamps to 0.50), Brzycki-rounded for 1–10 reps, custom-flattened 11–30; display rounds to 1 decimal; per-workout top set makes the chart point. Kotlin drop-in: [research/followup-0.md](research/followup-0.md).
-- **RPE asymmetry**: logged sets carry RPE; the consumer routine builder cannot set target RPE (that's Hevy Coach-only). Fitrack: `rpe` on logged sets; optional `targetRpe` column decision deferred to Phase 2. [research/followup-2.md](research/followup-2.md)
+- **RPE asymmetry**: logged sets carry RPE; the consumer routine builder cannot set target RPE (that's Hevy Coach-only). logEZ: `rpe` on logged sets; optional `targetRpe` column decision deferred to Phase 2. [research/followup-2.md](research/followup-2.md)
 - **Bodyweight volume rules**: bodyweight counts toward volume only for 100 %-bodyweight built-ins (Pull up, Chin up, Dips, Handstand push-up); assisted = bodyweight − assistance; weighted = bodyweight + added load; `weight_kg` stores only the added/assistance amount; custom bodyweight exercises never add bodyweight to volume.
 - **PR matrix** (per exercise type): weight+reps → Heaviest Weight, Best 1RM, Best Set Volume, Best Session Volume · bodyweight → Best Set (reps), Most Session Reps · assisted → Most Reps (set), Best Total Reps · weighted bodyweight → Heaviest Weight, Best Set Volume · duration → Best Time · weight+duration → Heaviest Weight, Best Time · distance+duration → Longest Distance, Longest Time. Warm-up sets excluded from stats/PRs unless the setting includes them.
 - **CSV export schema** (verified against a real export): `title, start_time, end_time, description, exercise_title, superset_id, exercise_notes, set_index, set_type, weight_kg, reps, distance_km, duration_seconds, rpe` — one row per set, dates like `22 Dec 2025, 08:00`, weights always kg.
@@ -127,6 +127,6 @@ Everything below exists in Hevy and will **not** exist in Fitrack:
 ## 7. Open questions before Phase 2
 
 1. **Scope confirmation** — is §5 (Free + Pro − social − cloud/AI) the right feature set? Anything to add/cut?
-2. **Hevy data migration** — you use Hevy already; should the Phase-2 plan include an importer for your real Hevy CSV export (recommended — the schema is verified) so Fitrack starts with your full history?
+2. **Hevy data migration** — you use Hevy already; should the Phase-2 plan include an importer for your real Hevy CSV export (recommended — the schema is verified) so logEZ starts with your full history?
 3. **150-set cap** — keep Hevy's universal sanity cap, or remove entirely?
 4. **Deferred list** — agree that widgets / Wear OS / Health Connect sit in Phase 4, or promote any of them?
