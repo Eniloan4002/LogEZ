@@ -45,7 +45,7 @@ android {
     }
 }
 
-// M1 will populate this once the Room entities land; harmless no-op until then.
+// PHASE2_PLAN.md §10.4 — exportSchema=true from day one; schemas/ is committed alongside code.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }

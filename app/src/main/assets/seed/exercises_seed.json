@@ -1,0 +1,278 @@
+{
+  "seedVersion": 1,
+  "_note": "PLACEHOLDER — validates the seed pipeline (SeedManager, all enums/equipment/bodyweight-eligibility branches). The frozen, Owner-approved 400-exercise library (PHASE2_PLAN.md §7.9) replaces this file wholesale in a later sub-step; the mechanism itself does not change.",
+  "exercises": [
+    {
+      "id": "seed-bench-press-barbell",
+      "name": "Bench Press (Barbell)",
+      "exerciseType": "WEIGHT_REPS",
+      "primaryMuscleGroup": "CHEST",
+      "secondaryMuscleGroups": ["TRICEPS", "SHOULDERS"],
+      "equipment": "BARBELL",
+      "instructions": [
+        "Lie on the bench with eyes under the bar; grip slightly wider than shoulder width.",
+        "Unrack and lower the bar to mid-chest with elbows about 45 degrees from your sides.",
+        "Press back up to lockout, keeping feet planted and upper back tight."
+      ]
+    },
+    {
+      "id": "seed-back-squat-barbell",
+      "name": "Back Squat (Barbell)",
+      "exerciseType": "WEIGHT_REPS",
+      "primaryMuscleGroup": "QUADRICEPS",
+      "secondaryMuscleGroups": ["GLUTES", "HAMSTRINGS"],
+      "equipment": "BARBELL",
+      "instructions": [
+        "Set the bar across your upper back and step out of the rack.",
+        "Bend hips and knees together, sitting down until thighs pass parallel.",
+        "Drive through your feet to stand, keeping the bar over mid-foot."
+      ]
+    },
+    {
+      "id": "seed-bicep-curl-dumbbell",
+      "name": "Bicep Curl (Dumbbell)",
+      "exerciseType": "WEIGHT_REPS",
+      "primaryMuscleGroup": "BICEPS",
+      "secondaryMuscleGroups": ["FOREARMS"],
+      "equipment": "DUMBBELL",
+      "instructions": [
+        "Stand holding a dumbbell in each hand, arms fully extended.",
+        "Curl both weights toward your shoulders without swinging your elbows.",
+        "Lower under control back to the starting position."
+      ]
+    },
+    {
+      "id": "seed-lat-pulldown-cable",
+      "name": "Lat Pulldown (Cable)",
+      "exerciseType": "WEIGHT_REPS",
+      "primaryMuscleGroup": "LATS",
+      "secondaryMuscleGroups": ["BICEPS"],
+      "equipment": "MACHINE",
+      "instructions": [
+        "Sit and grip the bar wider than shoulder width, thighs braced under the pads.",
+        "Pull the bar down to your upper chest, driving your elbows down and back.",
+        "Let the bar rise under control until your arms are extended."
+      ]
+    },
+    {
+      "id": "seed-goblet-squat-kettlebell",
+      "name": "Goblet Squat (Kettlebell)",
+      "exerciseType": "WEIGHT_REPS",
+      "primaryMuscleGroup": "QUADRICEPS",
+      "secondaryMuscleGroups": ["GLUTES"],
+      "equipment": "KETTLEBELL",
+      "instructions": [
+        "Hold a kettlebell vertically at your chest with both hands.",
+        "Squat down between your knees, keeping your chest up and elbows inside your knees.",
+        "Drive back up to standing."
+      ]
+    },
+    {
+      "id": "seed-push-up",
+      "name": "Push Up",
+      "exerciseType": "REPS_ONLY",
+      "primaryMuscleGroup": "CHEST",
+      "secondaryMuscleGroups": ["TRICEPS", "SHOULDERS"],
+      "equipment": "NONE",
+      "instructions": [
+        "Set your hands slightly wider than shoulder width in a plank position.",
+        "Lower your chest toward the floor, keeping your body in a straight line.",
+        "Press back up to full arm extension."
+      ]
+    },
+    {
+      "id": "seed-bodyweight-squat",
+      "name": "Bodyweight Squat",
+      "exerciseType": "REPS_ONLY",
+      "primaryMuscleGroup": "QUADRICEPS",
+      "secondaryMuscleGroups": ["GLUTES"],
+      "equipment": "NONE",
+      "instructions": [
+        "Stand with feet shoulder width apart, arms out for balance.",
+        "Bend hips and knees to squat down until thighs pass parallel.",
+        "Stand back up to full hip extension."
+      ]
+    },
+    {
+      "id": "seed-pull-up",
+      "name": "Pull Up",
+      "exerciseType": "REPS_ONLY",
+      "primaryMuscleGroup": "LATS",
+      "secondaryMuscleGroups": ["BICEPS"],
+      "equipment": "NONE",
+      "instructions": [
+        "Hang from a bar with an overhand grip, wider than shoulder width.",
+        "Pull your chin above the bar, driving your elbows down toward your hips.",
+        "Lower under control to a full hang."
+      ],
+      "isBodyweightVolumeEligible": true
+    },
+    {
+      "id": "seed-chin-up",
+      "name": "Chin Up",
+      "exerciseType": "REPS_ONLY",
+      "primaryMuscleGroup": "BICEPS",
+      "secondaryMuscleGroups": ["LATS"],
+      "equipment": "NONE",
+      "instructions": [
+        "Hang from a bar with an underhand, shoulder-width grip.",
+        "Pull your chin above the bar, keeping your elbows close to your body.",
+        "Lower under control to a full hang."
+      ],
+      "isBodyweightVolumeEligible": true
+    },
+    {
+      "id": "seed-dips",
+      "name": "Dips",
+      "exerciseType": "REPS_ONLY",
+      "primaryMuscleGroup": "TRICEPS",
+      "secondaryMuscleGroups": ["CHEST", "SHOULDERS"],
+      "equipment": "NONE",
+      "instructions": [
+        "Support yourself on parallel bars with arms extended.",
+        "Lower your body by bending your elbows until your shoulders dip below them.",
+        "Press back up to full arm extension."
+      ],
+      "isBodyweightVolumeEligible": true
+    },
+    {
+      "id": "seed-handstand-push-up",
+      "name": "Handstand Push Up",
+      "exerciseType": "REPS_ONLY",
+      "primaryMuscleGroup": "SHOULDERS",
+      "secondaryMuscleGroups": ["TRICEPS"],
+      "equipment": "NONE",
+      "instructions": [
+        "Kick up into a handstand against a wall, hands shoulder width apart.",
+        "Lower your head toward the floor by bending your elbows.",
+        "Press back up to a full handstand."
+      ],
+      "isBodyweightVolumeEligible": true
+    },
+    {
+      "id": "seed-pull-up-weighted",
+      "name": "Pull Up (Weighted)",
+      "exerciseType": "BODYWEIGHT_WEIGHTED",
+      "primaryMuscleGroup": "LATS",
+      "secondaryMuscleGroups": ["BICEPS"],
+      "equipment": "PLATE",
+      "instructions": [
+        "Attach a weight plate to a dip belt and hang from a pull-up bar.",
+        "Pull your chin above the bar, driving your elbows down toward your hips.",
+        "Lower under control to a full hang."
+      ],
+      "isBodyweightVolumeEligible": true
+    },
+    {
+      "id": "seed-push-up-weighted",
+      "name": "Push Up (Weighted)",
+      "exerciseType": "BODYWEIGHT_WEIGHTED",
+      "primaryMuscleGroup": "CHEST",
+      "secondaryMuscleGroups": ["TRICEPS"],
+      "equipment": "PLATE",
+      "instructions": [
+        "Have a partner place a weight plate across your upper back in a plank position.",
+        "Lower your chest toward the floor, keeping your body straight.",
+        "Press back up to full arm extension."
+      ],
+      "isBodyweightVolumeEligible": false
+    },
+    {
+      "id": "seed-pull-up-assisted",
+      "name": "Pull Up (Assisted)",
+      "exerciseType": "BODYWEIGHT_ASSISTED",
+      "primaryMuscleGroup": "LATS",
+      "secondaryMuscleGroups": ["BICEPS"],
+      "equipment": "MACHINE",
+      "instructions": [
+        "Kneel on the assisted pull-up machine's platform and grip the bar overhand.",
+        "Pull your chin above the bar using the counterweight assistance.",
+        "Lower under control to a full hang."
+      ],
+      "isBodyweightVolumeEligible": true
+    },
+    {
+      "id": "seed-plank",
+      "name": "Plank",
+      "exerciseType": "DURATION",
+      "primaryMuscleGroup": "ABDOMINALS",
+      "secondaryMuscleGroups": [],
+      "equipment": "NONE",
+      "instructions": [
+        "Support yourself on your forearms and toes, elbows under your shoulders.",
+        "Hold a straight line from head to heels without letting your hips sag."
+      ]
+    },
+    {
+      "id": "seed-wall-sit",
+      "name": "Wall Sit",
+      "exerciseType": "DURATION",
+      "primaryMuscleGroup": "QUADRICEPS",
+      "secondaryMuscleGroups": [],
+      "equipment": "NONE",
+      "instructions": [
+        "Lean against a wall and slide down until your thighs are parallel to the floor.",
+        "Hold the position with your knees over your ankles."
+      ]
+    },
+    {
+      "id": "seed-running",
+      "name": "Running",
+      "exerciseType": "DISTANCE_DURATION",
+      "primaryMuscleGroup": "CARDIO",
+      "secondaryMuscleGroups": [],
+      "equipment": "NONE",
+      "instructions": [
+        "Run at a steady pace, landing under your hips with a relaxed upper body."
+      ]
+    },
+    {
+      "id": "seed-rowing-machine",
+      "name": "Rowing Machine",
+      "exerciseType": "DISTANCE_DURATION",
+      "primaryMuscleGroup": "CARDIO",
+      "secondaryMuscleGroups": ["LATS", "BICEPS"],
+      "equipment": "MACHINE",
+      "instructions": [
+        "Drive with your legs first, then lean back and pull the handle to your ribs.",
+        "Reverse the sequence to return to the catch position."
+      ]
+    },
+    {
+      "id": "seed-farmers-walk-dumbbell",
+      "name": "Farmers Walk (Dumbbell)",
+      "exerciseType": "WEIGHT_DISTANCE",
+      "primaryMuscleGroup": "TRAPS",
+      "secondaryMuscleGroups": ["FOREARMS"],
+      "equipment": "DUMBBELL",
+      "instructions": [
+        "Pick up a heavy dumbbell in each hand and stand tall.",
+        "Walk forward with short, controlled steps, keeping your shoulders back."
+      ]
+    },
+    {
+      "id": "seed-stair-machine-floors",
+      "name": "Stair Machine (Floors)",
+      "exerciseType": "FLOORS_DURATION",
+      "primaryMuscleGroup": "CARDIO",
+      "secondaryMuscleGroups": ["QUADRICEPS", "GLUTES"],
+      "equipment": "MACHINE",
+      "instructions": [
+        "Step continuously on the stair machine at a steady pace.",
+        "Keep your torso upright rather than leaning on the handrails."
+      ]
+    },
+    {
+      "id": "seed-stair-machine-steps",
+      "name": "Stair Machine (Steps)",
+      "exerciseType": "STEPS_DURATION",
+      "primaryMuscleGroup": "CARDIO",
+      "secondaryMuscleGroups": ["QUADRICEPS", "GLUTES"],
+      "equipment": "MACHINE",
+      "instructions": [
+        "Step continuously on the stair machine at a steady pace.",
+        "Keep your torso upright rather than leaning on the handrails."
+      ]
+    }
+  ]
+}
