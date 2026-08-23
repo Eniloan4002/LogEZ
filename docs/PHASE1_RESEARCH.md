@@ -1,6 +1,6 @@
 # logEZ — Phase 1 Research: Hevy Feature Inventory & Proposed Clone Scope
 
-**Date:** 2026-08-22 · **Status:** awaiting scope confirmation before Phase 2 (planning)
+**Date:** 2026-08-22 · **Status:** scope APPROVED by Owner 2026-08-22 — §7 answers: scope as proposed; no Hevy-CSV importer (fresh start; export stays); 150-set cap removed; widgets/Wear OS/Health Connect deferred to Phase 4. See `docs/PHASE2_PLAN.md`.
 **Sources:** 9 research reports in [docs/research/](research/) — Hevy's official help centre (read via the Zendesk API), hevyapp.com feature pages, hevy.com/pricing, the official OpenAPI spec recovered from api.hevyapp.com, Hevy's production web-app JS bundle, the Google Play listing, and community API clients (HA-hevy, hevy-mcp, and live exercise-catalog dumps).
 
 ---
