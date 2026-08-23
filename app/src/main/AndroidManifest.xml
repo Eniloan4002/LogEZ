@@ -10,6 +10,14 @@
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
 
+    <!-- M4b (PHASE2_PLAN.md §9.2/§9.3/§9.4/§9.7): live-workout foreground service, its ongoing
+         notification, and the rest-timer's bounded doze-insurance wake lock. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:name=".LogEzApplication"
         android:allowBackup="true"
@@ -30,6 +38,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- §9.2: specialUse — shortService caps at ~3min (workouts run 30-120min+); health
+             requires body-sensor permissions this app has no use for. -->
+        <service
+            android:name=".feature.workout.service.WorkoutSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="@string/notification_workout_fgs_subtype" />
+        </service>
 
     </application>
 

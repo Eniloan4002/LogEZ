@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,6 +53,7 @@ import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.StartResult
+import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
 
 private sealed class ReorderTarget {
@@ -90,17 +90,18 @@ fun WorkoutTabScreen(
     var movingRoutineId by remember { mutableStateOf<String?>(null) }
     var pendingStart by remember { mutableStateOf<PendingStart?>(null) }
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
+    val startSession = rememberStartWorkoutSession(onNavigateToLogger)
 
     fun startEmpty() = scope.launch {
         when (val result = viewModel.startEmptyWorkout()) {
-            is StartResult.Started -> onNavigateToLogger(result.workoutId)
+            is StartResult.Started -> startSession(result.workoutId)
             is StartResult.AlreadyInProgress -> { pendingStart = PendingStart.Empty; inProgressWorkoutId = result.workoutId }
         }
     }
 
     fun startRoutine(routineId: String) = scope.launch {
         when (val result = viewModel.startRoutine(routineId)) {
-            is StartResult.Started -> onNavigateToLogger(result.workoutId)
+            is StartResult.Started -> startSession(result.workoutId)
             is StartResult.AlreadyInProgress -> { pendingStart = PendingStart.Routine(routineId); inProgressWorkoutId = result.workoutId }
         }
     }
@@ -122,21 +123,9 @@ fun WorkoutTabScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            uiState.inProgressWorkoutId?.let { inProgressId ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)
-                        .clickable { onNavigateToLogger(inProgressId) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.workout_resume_banner_title), style = MaterialTheme.typography.titleSmall)
-                            Text(uiState.inProgressWorkoutTitle.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        }
-                        TextButton(onClick = { onNavigateToLogger(inProgressId) }) { Text(stringResource(R.string.workout_resume_action)) }
-                    }
-                }
-            }
+            // M4b: the global WorkoutMiniBar (docked above the bottom tab bar on every tab, §5.1.3)
+            // now covers "in-progress workout, tap to resume" — this tab's own banner would just
+            // duplicate it whenever the user is actually on this tab.
             FilledTonalButton(
                 onClick = { startEmpty() },
                 modifier = Modifier.fillMaxWidth().padding(Spacing.md),
@@ -307,7 +296,7 @@ fun WorkoutTabScreen(
             title = { Text(stringResource(R.string.workout_resume_title)) },
             text = { Text(stringResource(R.string.workout_resume_body)) },
             confirmButton = {
-                TextButton(onClick = { pendingStart = null; existingId?.let(onNavigateToLogger) }) {
+                TextButton(onClick = { pendingStart = null; existingId?.let(startSession) }) {
                     Text(stringResource(R.string.workout_resume_action))
                 }
             },
@@ -319,7 +308,7 @@ fun WorkoutTabScreen(
                             is PendingStart.Empty -> viewModel.discardInProgressAndStartEmpty()
                             is PendingStart.Routine -> viewModel.discardInProgressAndStartRoutine(pending.routineId)
                         }
-                        onNavigateToLogger(newId)
+                        startSession(newId)
                     }
                 }) {
                     Text(stringResource(R.string.workout_resume_discard_action))

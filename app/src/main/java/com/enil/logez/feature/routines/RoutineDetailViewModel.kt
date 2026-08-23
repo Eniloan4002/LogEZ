@@ -9,7 +9,9 @@ import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
+import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
+import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,13 +27,22 @@ class RoutineDetailViewModel @Inject constructor(
     routineRepository: RoutineRepository,
     exerciseRepository: ExerciseRepository,
     private val workoutStarter: WorkoutStarter,
+    private val sessionController: WorkoutSessionController,
 ) : ViewModel() {
     private val routineId: String = checkNotNull(savedStateHandle[ROUTINE_ID_ARG])
 
-    suspend fun startRoutine() = workoutStarter.startFromRoutineOrConflict(routineId)
+    suspend fun startRoutine(): StartResult {
+        val result = workoutStarter.startFromRoutineOrConflict(routineId)
+        if (result is StartResult.Started) sessionController.startSession(result.workoutId)
+        return result
+    }
+
     suspend fun discardInProgressAndStart(): String {
         workoutStarter.discardInProgress()
-        return workoutStarter.startFromRoutine(routineId)
+        sessionController.endSession()
+        val id = workoutStarter.startFromRoutine(routineId)
+        sessionController.startSession(id)
+        return id
     }
 
     val uiState: StateFlow<RoutineDetailUiState> = combine(

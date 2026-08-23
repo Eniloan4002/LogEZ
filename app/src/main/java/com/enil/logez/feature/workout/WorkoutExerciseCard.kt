@@ -20,11 +20,14 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -42,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.Spacing
@@ -51,6 +55,8 @@ import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.feature.routines.TargetField
 import com.enil.logez.feature.routines.targetFields
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /** One `workout_exercises` card (PHASE2_PLAN.md §5.1.3): header, notes, PREVIOUS-aware set table with check-off. */
 @Composable
@@ -66,6 +72,15 @@ internal fun WorkoutExerciseCard(
     viewModel: WorkoutLoggerViewModel,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
+    showRestTimer: Boolean = false,
+    restRemainingMillisFlow: Flow<Long?> = emptyFlow(),
+    onRestAdjust: (Int) -> Unit = {},
+    onRestSkip: () -> Unit = {},
+    inlineTimerEnabled: Boolean = true,
+    inlineTimerSetId: String? = null,
+    inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
+    onStartInlineTimer: (setId: String) -> Unit = {},
+    onStopInlineTimer: (setId: String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -131,7 +146,19 @@ internal fun WorkoutExerciseCard(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
             )
 
-            SetTable(exercise = exercise, viewModel = viewModel)
+            if (showRestTimer) {
+                RestTimerBar(remainingMillisFlow = restRemainingMillisFlow, onMinus15 = { onRestAdjust(-15) }, onPlus15 = { onRestAdjust(15) }, onSkip = onRestSkip)
+            }
+
+            SetTable(
+                exercise = exercise,
+                viewModel = viewModel,
+                inlineTimerEnabled = inlineTimerEnabled,
+                inlineTimerSetId = inlineTimerSetId,
+                inlineTimerSecondsFlow = inlineTimerSecondsFlow,
+                onStartInlineTimer = onStartInlineTimer,
+                onStopInlineTimer = onStopInlineTimer,
+            )
 
             TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
                 Text(stringResource(R.string.routine_builder_add_set))
@@ -140,9 +167,43 @@ internal fun WorkoutExerciseCard(
     }
 }
 
+/**
+ * §5.1.4 — countdown bar below the notes area, inside the triggering exercise's card. Leaf
+ * composable (spine rule): only this bar recomposes every second, driven by its own flow
+ * collection — the parent Card/Screen never reads a per-second value.
+ */
 @Composable
-private fun SetTable(exercise: WorkoutExerciseUiModel, viewModel: WorkoutLoggerViewModel) {
+private fun RestTimerBar(remainingMillisFlow: Flow<Long?>, onMinus15: () -> Unit, onPlus15: () -> Unit, onSkip: () -> Unit) {
+    val remainingMillis by remainingMillisFlow.collectAsStateWithLifecycle(null)
+    val remainingSeconds = remainingMillis?.let { (it + 999) / 1000 } ?: return
+    Column(modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${stringResource(R.string.workout_rest_timer_label)} ${"%d:%02d".format(remainingSeconds / 60, remainingSeconds % 60)}",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onMinus15) { Text(stringResource(R.string.workout_rest_timer_minus_15)) }
+            TextButton(onClick = onPlus15) { Text(stringResource(R.string.workout_rest_timer_plus_15)) }
+            TextButton(onClick = onSkip) { Text(stringResource(R.string.workout_rest_timer_skip)) }
+        }
+        val fraction = ((remainingSeconds.coerceAtMost(300)) / 300f).coerceIn(0f, 1f)
+        LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun SetTable(
+    exercise: WorkoutExerciseUiModel,
+    viewModel: WorkoutLoggerViewModel,
+    inlineTimerEnabled: Boolean,
+    inlineTimerSetId: String?,
+    inlineTimerSecondsFlow: Flow<Int?>,
+    onStartInlineTimer: (setId: String) -> Unit,
+    onStopInlineTimer: (setId: String) -> Unit,
+) {
     val fields = exercise.exerciseType.targetFields()
+    val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
     val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -170,6 +231,11 @@ private fun SetTable(exercise: WorkoutExerciseUiModel, viewModel: WorkoutLoggerV
                     onDistanceChange = { viewModel.updateDistance(exercise.id, set.id, it) },
                     onCustomMetricChange = { viewModel.updateCustomMetric(exercise.id, set.id, it) },
                     onToggleCheck = { viewModel.toggleCheck(exercise.id, set.id) },
+                    showInlineTimer = showInlineTimer,
+                    inlineTimerRunning = inlineTimerSetId == set.id,
+                    inlineTimerSecondsFlow = inlineTimerSecondsFlow,
+                    onStartInlineTimer = { onStartInlineTimer(set.id) },
+                    onStopInlineTimer = { onStopInlineTimer(set.id) },
                 )
                 if (set.failureError) {
                     Text(
@@ -208,6 +274,11 @@ private fun SetRow(
     onDistanceChange: (Double?) -> Unit,
     onCustomMetricChange: (Double?) -> Unit,
     onToggleCheck: () -> Unit,
+    showInlineTimer: Boolean = false,
+    inlineTimerRunning: Boolean = false,
+    inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
+    onStartInlineTimer: () -> Unit = {},
+    onStopInlineTimer: () -> Unit = {},
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     val rowBackground = if (set.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
@@ -242,7 +313,22 @@ private fun SetRow(
             IntCell(value = set.reps, onValueChange = onRepsChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))
         }
         if (TargetField.DURATION in fields) {
-            IntCell(value = set.durationSeconds, onValueChange = onDurationChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))
+            // Leaf-scoped (spine rule): only collected/ticking while this exact row is the running inline timer.
+            val liveInlineSeconds by (if (inlineTimerRunning) inlineTimerSecondsFlow else emptyFlow()).collectAsStateWithLifecycle(null)
+            IntCell(
+                value = if (inlineTimerRunning) liveInlineSeconds else set.durationSeconds,
+                onValueChange = onDurationChange,
+                enabled = !set.isCompleted && !inlineTimerRunning,
+                modifier = Modifier.weight(1f),
+            )
+            if (showInlineTimer && !set.isCompleted) {
+                IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        if (inlineTimerRunning) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(if (inlineTimerRunning) R.string.workout_inline_timer_stop else R.string.workout_inline_timer_start),
+                    )
+                }
+            }
         }
         if (TargetField.DISTANCE in fields) {
             NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))

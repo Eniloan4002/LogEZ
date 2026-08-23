@@ -6,10 +6,14 @@ import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
+import com.enil.logez.fakes.FakeElapsedRealtimeClock
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.workout.WorkoutStarter
+import com.enil.logez.feature.workout.session.WorkoutSessionController
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -36,7 +40,8 @@ class WorkoutTabViewModelTest {
 
     private fun newViewModel(routineRepo: FakeRoutineRepository, clock: FakeClock = FakeClock()): WorkoutTabViewModel {
         val workoutRepo = FakeWorkoutRepository()
-        return WorkoutTabViewModel(routineRepo, workoutRepo, WorkoutStarter(workoutRepo, routineRepo, clock), clock)
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        return WorkoutTabViewModel(routineRepo, workoutRepo, WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, clock)
     }
 
     @Test

@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.StartResult
+import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,10 +49,11 @@ fun RoutineDetailScreen(
     val scope = rememberCoroutineScope()
     var showResumeDialog by remember { mutableStateOf(false) }
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
+    val startSession = rememberStartWorkoutSession(onNavigateToLogger)
 
     fun start() = scope.launch {
         when (val result = viewModel.startRoutine()) {
-            is StartResult.Started -> onNavigateToLogger(result.workoutId)
+            is StartResult.Started -> startSession(result.workoutId)
             is StartResult.AlreadyInProgress -> { showResumeDialog = true; inProgressWorkoutId = result.workoutId }
         }
     }
@@ -106,12 +108,12 @@ fun RoutineDetailScreen(
             title = { Text(stringResource(R.string.workout_resume_title)) },
             text = { Text(stringResource(R.string.workout_resume_body)) },
             confirmButton = {
-                TextButton(onClick = { showResumeDialog = false; inProgressWorkoutId?.let(onNavigateToLogger) }) {
+                TextButton(onClick = { showResumeDialog = false; inProgressWorkoutId?.let(startSession) }) {
                     Text(stringResource(R.string.workout_resume_action))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showResumeDialog = false; scope.launch { onNavigateToLogger(viewModel.discardInProgressAndStart()) } }) {
+                TextButton(onClick = { showResumeDialog = false; scope.launch { startSession(viewModel.discardInProgressAndStart()) } }) {
                     Text(stringResource(R.string.workout_resume_discard_action))
                 }
             },

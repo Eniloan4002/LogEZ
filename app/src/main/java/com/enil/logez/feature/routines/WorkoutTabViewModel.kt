@@ -7,7 +7,9 @@ import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
+import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -23,6 +25,7 @@ class WorkoutTabViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
     private val workoutRepository: WorkoutRepository,
     private val workoutStarter: WorkoutStarter,
+    private val sessionController: WorkoutSessionController,
     private val clock: Clock,
 ) : ViewModel() {
     val uiState: StateFlow<WorkoutTabUiState> = combine(
@@ -103,15 +106,32 @@ class WorkoutTabViewModel @Inject constructor(
         return newRoutineId
     }
 
-    suspend fun startEmptyWorkout() = workoutStarter.startEmptyOrConflict()
-    suspend fun startRoutine(routineId: String) = workoutStarter.startFromRoutineOrConflict(routineId)
+    suspend fun startEmptyWorkout(): StartResult {
+        val result = workoutStarter.startEmptyOrConflict()
+        if (result is StartResult.Started) sessionController.startSession(result.workoutId)
+        return result
+    }
+
+    suspend fun startRoutine(routineId: String): StartResult {
+        val result = workoutStarter.startFromRoutineOrConflict(routineId)
+        if (result is StartResult.Started) sessionController.startSession(result.workoutId)
+        return result
+    }
+
     suspend fun discardInProgressAndStartEmpty(): String {
         workoutStarter.discardInProgress()
-        return workoutStarter.startEmpty()
+        sessionController.endSession()
+        val id = workoutStarter.startEmpty()
+        sessionController.startSession(id)
+        return id
     }
+
     suspend fun discardInProgressAndStartRoutine(routineId: String): String {
         workoutStarter.discardInProgress()
-        return workoutStarter.startFromRoutine(routineId)
+        sessionController.endSession()
+        val id = workoutStarter.startFromRoutine(routineId)
+        sessionController.startSession(id)
+        return id
     }
 }
 

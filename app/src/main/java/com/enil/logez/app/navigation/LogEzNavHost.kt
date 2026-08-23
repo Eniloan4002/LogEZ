@@ -115,8 +115,13 @@ fun LogEzNavHost(
             arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
         ) {
             WorkoutLoggerScreen(
-                onFinished = { navController.popBackStack(LogEzDestination.Workout.route, inclusive = false) },
-                onDiscarded = { navController.popBackStack(LogEzDestination.Workout.route, inclusive = false) },
+                // M4b: the Logger is now reachable from any tab (mini-bar tap-to-expand) or
+                // directly from a cold start (§9.5 recovery) -- a target-route pop assuming
+                // "Workout" is always an ancestor in the back stack silently no-ops (and strands
+                // the user on the finished/discarded Logger) whenever it isn't. A plain pop
+                // always returns to whatever was actually beneath this destination.
+                onFinished = { navController.popBackStack() },
+                onDiscarded = { navController.popBackStack() },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
             )

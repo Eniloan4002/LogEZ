@@ -13,6 +13,7 @@ import com.enil.logez.core.data.dao.MeasurementDao
 import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
 import com.enil.logez.core.data.dao.WorkoutDao
+import com.enil.logez.core.di.ActiveSessionDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -51,5 +52,14 @@ object DataModule {
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("logez_settings") },
+        )
+
+    /** §9.5 — a separate store from settings, deliberately: session state is transient/process-recovery-only. */
+    @Provides
+    @Singleton
+    @ActiveSessionDataStore
+    fun provideActiveSessionDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.preferencesDataStoreFile("logez_active_session") },
         )
 }

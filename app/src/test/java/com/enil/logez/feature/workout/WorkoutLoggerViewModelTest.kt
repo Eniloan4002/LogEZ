@@ -11,12 +11,18 @@ import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
+import com.enil.logez.fakes.FakeElapsedRealtimeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.workout.session.SetCompletionUseCase
+import com.enil.logez.feature.workout.session.WorkoutSessionController
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -50,10 +56,15 @@ class WorkoutLoggerViewModelTest {
         workoutId: String = "w1",
         workoutRepo: FakeWorkoutRepository = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout(workoutId))),
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
+        settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
         clock: FakeClock = FakeClock(currentMillis = 10_000L),
-    ) = WorkoutLoggerViewModel(
-        SavedStateHandle(mapOf("workoutId" to workoutId)), workoutRepo, exerciseRepo, FakeSettingsRepository(), clock,
-    )
+        sessionController: WorkoutSessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher())),
+    ): WorkoutLoggerViewModel {
+        val setCompletionUseCase = SetCompletionUseCase(workoutRepo, settingsRepo, sessionController, clock)
+        return WorkoutLoggerViewModel(
+            SavedStateHandle(mapOf("workoutId" to workoutId)), workoutRepo, exerciseRepo, settingsRepo, sessionController, setCompletionUseCase, clock,
+        )
+    }
 
     private fun anInProgressWorkout(id: String, routineId: String? = null, startedAt: Long = 5_000L) = WorkoutEntity(
         id = id, routineId = routineId, title = "Push Day", notes = null, status = WorkoutStatus.IN_PROGRESS,
@@ -277,5 +288,118 @@ class WorkoutLoggerViewModelTest {
         val added = vm.uiState.value.exercises.single()
         assertEquals(1, added.sets.size)
         assertNull(added.sets[0].weightKg)
+    }
+
+    @Test
+    fun `toggleCheck completing a set starts a rest timer end-to-end through the session controller`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = 60, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo)
+
+        vm.toggleCheck("we1", "s1")
+
+        assertEquals(60_000L, vm.restRemainingMillisFlow.first())
+    }
+
+    @Test
+    fun `togglePause pauses and resumes the session's elapsed timer`() = runTest {
+        val clock = FakeClock(currentMillis = 0L)
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1", startedAt = 0L)))
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, clock = clock, sessionController = sessionController)
+
+        clock.currentMillis = 20_000L
+        vm.togglePause()
+        assertTrue(vm.uiState.value.isPaused)
+        clock.currentMillis = 999_000L // must not count while paused
+        assertEquals(20L, vm.elapsedSecondsFlow.first())
+
+        vm.togglePause()
+        assertFalse(vm.uiState.value.isPaused)
+    }
+
+    @Test
+    fun `finish clears the session so the mini-bar and service both stand down`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1", startedAt = 10_000L)))
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(currentMillis = 70_000L), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, clock = FakeClock(currentMillis = 70_000L), sessionController = sessionController)
+
+        vm.finish()
+
+        assertNull(sessionController.state.value.workoutId)
+    }
+
+    @Test
+    fun `discard clears the session so the mini-bar and service both stand down`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1")))
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, sessionController = sessionController)
+
+        vm.discard()
+
+        assertNull(sessionController.state.value.workoutId)
+    }
+
+    @Test
+    fun `discard clears the running rest timer before deleting, so it can't fire for a gone workout`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1")))
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        sessionController.startRestTimer("we1", 90)
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, sessionController = sessionController)
+
+        vm.discard()
+
+        assertNull(sessionController.state.value.restDeadlineElapsedRealtimeMillis)
+        assertNull(workoutRepo.getById("w1"))
+    }
+
+    @Test
+    fun `completing a set stops and commits its running inline timer instead of orphaning it`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Plank", ExerciseType.DURATION)))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = 0, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 0L)
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, sessionController = sessionController)
+
+        vm.startInlineTimer("we1", "s1")
+        elapsedClock.currentMillis = 42_000L
+        vm.toggleCheck("we1", "s1")
+
+        // Without the stop-on-complete, the timer would keep ticking with no UI control left to
+        // stop it (the play/pause button only renders for uncompleted sets) and its elapsed value
+        // would never reach durationSeconds.
+        assertNull(sessionController.state.value.inlineTimer)
+        assertEquals(42, workoutRepo.getSetsForWorkoutExercise("we1").single().durationSeconds)
+    }
+
+    @Test
+    fun `deleting a set clears its running inline timer instead of leaving a dangling pointer`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Plank", ExerciseType.DURATION)))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, sessionController = sessionController)
+
+        vm.startInlineTimer("we1", "s1")
+        vm.removeSet("we1", "s1")
+
+        assertNull(sessionController.state.value.inlineTimer)
     }
 }

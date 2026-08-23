@@ -2,12 +2,14 @@ package com.enil.logez.core.data.di
 
 import com.enil.logez.core.data.media.ExerciseMediaStore
 import com.enil.logez.core.data.media.ExerciseMediaStoreImpl
+import com.enil.logez.core.data.repository.ActiveSessionRepositoryImpl
 import com.enil.logez.core.data.repository.ExerciseRepositoryImpl
 import com.enil.logez.core.data.repository.MeasurementRepositoryImpl
 import com.enil.logez.core.data.repository.PersonalRecordsRepositoryImpl
 import com.enil.logez.core.data.repository.RoutineRepositoryImpl
 import com.enil.logez.core.data.repository.SettingsRepositoryImpl
 import com.enil.logez.core.data.repository.WorkoutRepositoryImpl
+import com.enil.logez.core.domain.repository.ActiveSessionRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.MeasurementRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
@@ -50,4 +52,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindExerciseMediaStore(impl: ExerciseMediaStoreImpl): ExerciseMediaStore
+
+    @Binds
+    @Singleton
+    abstract fun bindActiveSessionRepository(impl: ActiveSessionRepositoryImpl): ActiveSessionRepository
 }
