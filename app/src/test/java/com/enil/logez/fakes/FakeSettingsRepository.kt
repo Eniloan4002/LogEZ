@@ -1,6 +1,5 @@
 package com.enil.logez.fakes
 
-import com.enil.logez.core.common.ThemeMode
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
@@ -17,7 +16,6 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     private val state = MutableStateFlow(initial)
     override val settings = state
 
-    override suspend fun setThemeMode(value: ThemeMode) { state.value = state.value.copy(themeMode = value) }
     override suspend fun setWeightUnit(value: WeightUnit) { state.value = state.value.copy(weightUnit = value) }
     override suspend fun setDistanceUnit(value: DistanceUnit) { state.value = state.value.copy(distanceUnit = value) }
     override suspend fun setFirstDayOfWeek(value: DayOfWeek) { state.value = state.value.copy(firstDayOfWeek = value) }

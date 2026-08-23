@@ -7,7 +7,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.enil.logez.core.common.ThemeMode
 import com.enil.logez.feature.analytics.ProfileScreen
 import com.enil.logez.feature.exercises.CustomExerciseEditorScreen
 import com.enil.logez.feature.exercises.ExerciseDetailScreen
@@ -22,8 +21,6 @@ import com.enil.logez.feature.routines.WorkoutTabScreen
 @Composable
 fun LogEzNavHost(
     navController: NavHostController,
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -41,8 +38,6 @@ fun LogEzNavHost(
         }
         composable(LogEzDestination.Profile.route) {
             ProfileScreen(
-                themeMode = themeMode,
-                onThemeModeChange = onThemeModeChange,
                 onExercisesClick = { navController.navigate(ExerciseRoutes.LIBRARY) },
             )
         }

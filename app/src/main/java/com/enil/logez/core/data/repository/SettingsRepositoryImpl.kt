@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.enil.logez.core.common.ThemeMode
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
@@ -29,7 +28,6 @@ class SettingsRepositoryImpl @Inject constructor(
     private val dataStore: DataStore<Preferences>,
 ) : SettingsRepository {
     private object Keys {
-        val THEME_MODE = stringPreferencesKey("themeMode")
         val WEIGHT_UNIT = stringPreferencesKey("weightUnit")
         val DISTANCE_UNIT = stringPreferencesKey("distanceUnit")
         val FIRST_DAY_OF_WEEK = stringPreferencesKey("firstDayOfWeek")
@@ -58,7 +56,6 @@ class SettingsRepositoryImpl @Inject constructor(
     override val settings: Flow<UserSettings> = dataStore.data.map { prefs ->
         val defaults = UserSettings()
         UserSettings(
-            themeMode = prefs[Keys.THEME_MODE]?.let { ThemeMode.valueOf(it) } ?: defaults.themeMode,
             weightUnit = prefs[Keys.WEIGHT_UNIT]?.let { WeightUnit.valueOf(it) } ?: defaults.weightUnit,
             distanceUnit = prefs[Keys.DISTANCE_UNIT]?.let { DistanceUnit.valueOf(it) } ?: defaults.distanceUnit,
             firstDayOfWeek = prefs[Keys.FIRST_DAY_OF_WEEK]?.let { DayOfWeek.valueOf(it) } ?: defaults.firstDayOfWeek,
@@ -84,7 +81,6 @@ class SettingsRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME_MODE] = value.name }
     override suspend fun setWeightUnit(value: WeightUnit) = edit { it[Keys.WEIGHT_UNIT] = value.name }
     override suspend fun setDistanceUnit(value: DistanceUnit) = edit { it[Keys.DISTANCE_UNIT] = value.name }
     override suspend fun setFirstDayOfWeek(value: DayOfWeek) = edit { it[Keys.FIRST_DAY_OF_WEEK] = value.name }

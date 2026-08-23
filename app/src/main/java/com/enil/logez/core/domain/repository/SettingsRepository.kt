@@ -1,6 +1,5 @@
 package com.enil.logez.core.domain.repository
 
-import com.enil.logez.core.common.ThemeMode
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.Flow
 interface SettingsRepository {
     val settings: Flow<UserSettings>
 
-    suspend fun setThemeMode(value: ThemeMode)
     suspend fun setWeightUnit(value: WeightUnit)
     suspend fun setDistanceUnit(value: DistanceUnit)
     suspend fun setFirstDayOfWeek(value: DayOfWeek)

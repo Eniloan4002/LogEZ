@@ -1,12 +1,10 @@
 package com.enil.logez.core.domain.model
 
-import com.enil.logez.core.common.ThemeMode
 import java.time.DayOfWeek
 
-/** Every value in PHASE2_PLAN.md §5.2's Settings tree, aggregated for a single observable read. */
+/** Every value in PHASE2_PLAN.md §5.2's Settings tree, aggregated for a single observable read. Theme is dark-only (Owner directive) — no theme-mode setting. */
 data class UserSettings(
     // Preferences
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val weightUnit: WeightUnit = WeightUnit.KG,
     val distanceUnit: DistanceUnit = DistanceUnit.KM,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
