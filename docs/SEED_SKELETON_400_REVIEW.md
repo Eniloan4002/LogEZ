@@ -1,6 +1,6 @@
 # logEZ Exercise Library — Frozen Skeleton (400 exercises)
 
-**Status:** awaiting Owner approval per PHASE2_PLAN.md §7.9 step 2 — this is names + taxonomy only, no instructions written yet. Instructions are the next sub-step, only after this list is approved.
+**Status:** Owner-approved 2026-08-24 (P-018) and shipped as `app/src/main/assets/seed/exercises_seed.json` (seedVersion 2), superseding the 21-exercise placeholder. Names + taxonomy only — instruction text (`instructions: []` on every row) is a follow-up sub-step, not yet started.
 
 **Total:** 400 exercises across 20 muscle groups, matching the §7.1 target distribution exactly (0% deviation on every muscle group).
 

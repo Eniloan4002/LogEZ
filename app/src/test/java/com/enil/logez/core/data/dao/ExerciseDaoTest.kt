@@ -132,4 +132,38 @@ class ExerciseDaoTest : RoomDatabaseTestBase() {
         assertEquals(3, dao.count())
         assertEquals(2, dao.seedCount())
     }
+
+    @Test
+    fun `pruneRetiredSeeds soft-deletes seed rows absent from the current file, never custom ones`() = runTest {
+        // Models §7.9's library swap: "seed-old" is a placeholder id the new seed file dropped,
+        // "seed-kept" is one it still carries, and "custom-a" is the user's own exercise.
+        dao.insertIgnore(listOf(seedExercise(id = "seed-old"), seedExercise(id = "seed-kept")))
+        dao.upsert(seedExercise(id = "custom-a").copy(isCustom = true))
+
+        dao.pruneRetiredSeeds(currentSeedIds = listOf("seed-kept"), updatedAt = 9_000L)
+
+        assertTrue(dao.getById("seed-old")!!.isDeleted)
+        assertEquals(9_000L, dao.getById("seed-old")!!.updatedAt)
+        assertFalse("still in the current file — must survive", dao.getById("seed-kept")!!.isDeleted)
+        assertFalse("never touches custom rows regardless of id overlap", dao.getById("custom-a")!!.isDeleted)
+        // A retired id still resolves by id — history logged against it must stay readable.
+        assertEquals("seed-old", dao.getById("seed-old")!!.id)
+    }
+
+    @Test
+    fun `pruneRetiredSeeds revives an id that reappears in a later file`() = runTest {
+        dao.insertIgnore(listOf(seedExercise(id = "seed-a")))
+        dao.pruneRetiredSeeds(currentSeedIds = emptyList(), updatedAt = 1_000L)
+        assertTrue(dao.getById("seed-a")!!.isDeleted)
+
+        // The seed pipeline's own updateSeedFields path always writes isDeleted = false for an id
+        // that IS in the current file — this exercises that the row is not stuck deleted forever.
+        dao.updateSeedFields(
+            id = "seed-a", name = "Bench Press (Barbell)", primaryMuscleGroup = MuscleGroup.CHEST,
+            secondaryMuscleGroups = emptyList(), equipment = Equipment.BARBELL, instructions = "x",
+            isBodyweightVolumeEligible = false, isDeleted = false, updatedAt = 2_000L,
+        )
+
+        assertFalse(dao.getById("seed-a")!!.isDeleted)
+    }
 }

@@ -11,17 +11,27 @@ import org.junit.Test
 
 /**
  * PHASE2_PLAN.md §10.5 — runs against the raw seed asset, a plain JVM test with no Room/Android
- * dependency. Validates the CURRENT placeholder file (§7.9's frozen 400-exercise library is a
- * later sub-step); once that lands, the eligible-ID-set and entry-count assertions below get
- * updated to the frozen literals — the structural checks themselves don't change.
+ * dependency. Validates the frozen 400-exercise library (§7.9, Owner-approved 2026-08-24, P-018;
+ * see docs/seed-skeleton-400.json and docs/SEED_SKELETON_400_REVIEW.md for the source list and
+ * its distribution rationale). Instruction text is a deliberate follow-up sub-step — every entry
+ * ships `instructions: []` for now — so this file does NOT assert non-empty instructions; that
+ * assertion returns once the instruction-writing pass lands.
  */
 class SeedLibraryValidationTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Exactly the 6 rows this placeholder deliberately marks eligible (see the JSON's own comments). */
-    private val expectedEligibleIds = setOf(
-        "seed-pull-up", "seed-chin-up", "seed-dips", "seed-handstand-push-up",
-        "seed-pull-up-weighted", "seed-pull-up-assisted",
+    private val expectedExerciseCount = 400
+
+    /**
+     * The 4 base bodyweight movements plus their weighted/assisted variants, exactly as
+     * docs/SEED_SKELETON_400_REVIEW.md's 🔵 markers define (Handstand Push Up has no
+     * weighted/assisted variant in the 400, so it contributes only its own row).
+     */
+    private val expectedEligibleNames = setOf(
+        "Pull Up", "Pull Up (Weighted)", "Pull Up (Assisted)", "Pull Up (Band)",
+        "Chin Up", "Chin Up (Weighted)", "Chin Up (Assisted)",
+        "Dips", "Dips (Weighted)", "Dips (Assisted)",
+        "Handstand Push Up",
     )
 
     private fun loadSeedFile(): ExerciseSeedFile {
@@ -31,14 +41,12 @@ class SeedLibraryValidationTest {
     }
 
     @Test
-    fun `file parses and every entry has a well-formed id and non-blank fields`() {
+    fun `file parses, has the frozen 400-entry count, and every entry has well-formed id and name`() {
         val seedFile = loadSeedFile()
-        assertTrue(seedFile.exercises.isNotEmpty())
+        assertEquals(expectedExerciseCount, seedFile.exercises.size)
         seedFile.exercises.forEach { e ->
             assertTrue("blank id", e.id.isNotBlank())
             assertTrue("blank name for ${e.id}", e.name.isNotBlank())
-            assertTrue("no instructions for ${e.id}", e.instructions.isNotEmpty())
-            e.instructions.forEach { step -> assertTrue("blank instruction step in ${e.id}", step.isNotBlank()) }
         }
     }
 
@@ -61,8 +69,8 @@ class SeedLibraryValidationTest {
 
     @Test
     fun `isBodyweightVolumeEligible is set on exactly the intended rows`() {
-        val actual = loadSeedFile().exercises.filter { it.isBodyweightVolumeEligible }.map { it.id }.toSet()
-        assertEquals(expectedEligibleIds, actual)
+        val actual = loadSeedFile().exercises.filter { it.isBodyweightVolumeEligible }.map { it.name }.toSet()
+        assertEquals(expectedEligibleNames, actual)
     }
 
     @Test

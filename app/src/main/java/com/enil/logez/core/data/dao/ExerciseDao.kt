@@ -72,4 +72,13 @@ interface ExerciseDao {
     /** Soft delete (custom exercises only — spine entity 1). */
     @Query("UPDATE exercises SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id AND is_custom = 1")
     suspend fun softDeleteCustom(id: String, updatedAt: Long)
+
+    /**
+     * §7.9's library-swap step: any seed row (`is_custom = 0`) whose id is no longer in the
+     * current seed file is retired — soft delete only, never hard delete, so a workout logged
+     * against a superseded id (e.g. the old 21-entry placeholder set) keeps resolving by id on
+     * its History/Detail screens even though the exercise no longer appears in Browse/Create.
+     */
+    @Query("UPDATE exercises SET is_deleted = 1, updated_at = :updatedAt WHERE is_custom = 0 AND id NOT IN (:currentSeedIds)")
+    suspend fun pruneRetiredSeeds(currentSeedIds: List<String>, updatedAt: Long)
 }

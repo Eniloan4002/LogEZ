@@ -23,10 +23,11 @@ import kotlinx.serialization.json.Json
  * `exercise_type` is never touched by an update, and custom exercises (`is_custom = 1`) are
  * never touched at all (enforced by [ExerciseDao.updateSeedFields]'s own WHERE clause).
  *
- * NOTE: `exercises_seed.json` currently ships a small placeholder set (~18 exercises spanning
- * every ExerciseType/Equipment and the 4 bodyweight-eligible seeds), proving the pipeline end to
- * end. The frozen, Owner-approved 400-exercise library (§7.9) is the next sub-step — this file
- * only needs updating with the real content; nothing about the mechanism changes.
+ * A seed bump also *retires* rows: any prior seed id absent from the current file is soft
+ * deleted, never hard deleted (§7.9). This is how the placeholder 18-exercise proof-of-pipeline
+ * set at seedVersion 1 was superseded by the frozen 400-exercise library at seedVersion 2 without
+ * orphaning workouts already logged against the old ids — they keep resolving by id, they just
+ * stop appearing in Browse/Create.
  */
 @Singleton
 class SeedManager @Inject constructor(
@@ -61,6 +62,8 @@ class SeedManager @Inject constructor(
                 )
             }
         }
+
+        exerciseDao.pruneRetiredSeeds(entities.map { it.id }, now)
 
         dataStore.edit { it[lastAppliedSeedVersionKey] = file.seedVersion }
     }
