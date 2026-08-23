@@ -106,4 +106,28 @@ class FakeRoutineRepository(
         exercisesState.update { it + exercises }
         setsState.update { it + sets }
     }
+
+    /** §8.10 values-only update — mirrors the real query in leaving the rep-range columns alone. */
+    override suspend fun updateRoutineSetTargets(
+        id: String,
+        targetWeightKg: Double?,
+        targetReps: Int?,
+        targetDurationSeconds: Int?,
+        targetDistanceMeters: Double?,
+    ) {
+        setsState.update { list ->
+            list.map {
+                if (it.id != id) {
+                    it
+                } else {
+                    it.copy(
+                        targetWeightKg = targetWeightKg,
+                        targetReps = targetReps,
+                        targetDurationSeconds = targetDurationSeconds,
+                        targetDistanceMeters = targetDistanceMeters,
+                    )
+                }
+            }
+        }
+    }
 }

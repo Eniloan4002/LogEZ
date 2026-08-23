@@ -144,6 +144,30 @@ interface RoutineDao {
     suspend fun deleteExercisesForRoutine(routineId: String)
 
     /**
+     * §8.10 "Update Routine Values" (M4c): a values-only, in-place target refresh. Deliberately
+     * NOT `updateRoutineStructure`, which deletes and re-inserts every row and would mint new
+     * ids for a save that changed no structure at all. Rep-range columns are intentionally
+     * absent from the SET list — rep-range targets never auto-update.
+     */
+    @Query(
+        """
+        UPDATE routine_sets
+        SET target_weight_kg = :targetWeightKg,
+            target_reps = :targetReps,
+            target_duration_seconds = :targetDurationSeconds,
+            target_distance_meters = :targetDistanceMeters
+        WHERE id = :id
+        """,
+    )
+    suspend fun updateRoutineSetTargets(
+        id: String,
+        targetWeightKg: Double?,
+        targetReps: Int?,
+        targetDurationSeconds: Int?,
+        targetDistanceMeters: Double?,
+    )
+
+    /**
      * Whole-structure insert: a routine plus its exercises and sets in one transaction.
      * Used by seed/test setup now; the routine builder's diff-based in-place update (only
      * touching what actually changed) is M3 work, landing alongside the builder UI it serves.

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 interface PersonalRecordsRepository {
     suspend fun rebuildFor(exerciseId: String, records: List<PersonalRecordEntity>)
     suspend fun getForWorkout(workoutId: String): List<PersonalRecordEntity>
+    suspend fun getForExercise(exerciseId: String): List<PersonalRecordEntity>
     fun observeForWorkout(workoutId: String): Flow<List<PersonalRecordEntity>>
     fun observeForExercise(exerciseId: String): Flow<List<PersonalRecordEntity>>
 }

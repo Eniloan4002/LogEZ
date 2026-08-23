@@ -15,8 +15,11 @@ import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeElapsedRealtimeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeMeasurementRepository
+import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.workout.finish.LivePrDetector
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import kotlinx.coroutines.CoroutineScope
@@ -61,8 +64,12 @@ class WorkoutLoggerViewModelTest {
         sessionController: WorkoutSessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher())),
     ): WorkoutLoggerViewModel {
         val setCompletionUseCase = SetCompletionUseCase(workoutRepo, settingsRepo, sessionController, clock)
+        val livePrDetector = LivePrDetector(
+            workoutRepo, exerciseRepo, FakePersonalRecordsRepository(), FakeMeasurementRepository(), clock,
+        )
         return WorkoutLoggerViewModel(
-            SavedStateHandle(mapOf("workoutId" to workoutId)), workoutRepo, exerciseRepo, settingsRepo, sessionController, setCompletionUseCase, clock,
+            SavedStateHandle(mapOf("workoutId" to workoutId)), workoutRepo, exerciseRepo, settingsRepo,
+            sessionController, setCompletionUseCase, livePrDetector, clock,
         )
     }
 
@@ -236,17 +243,23 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
-    fun `finish marks the workout COMPLETED with a computed duration`() = runTest {
+    fun `prepareForFinish freezes the duration but leaves the workout IN_PROGRESS for the Save screen`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
         val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1", startedAt = 10_000L)))
-        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, clock = FakeClock(currentMillis = 70_000L))
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, clock = clock, sessionController = sessionController)
 
-        val ok = vm.finish()
+        clock.currentMillis = 70_000L
+        val ok = vm.prepareForFinish()
 
         assertTrue(ok)
         val workout = workoutRepo.getById("w1")!!
-        assertEquals(WorkoutStatus.COMPLETED, workout.status)
-        assertEquals(70_000L, workout.endedAt)
-        assertEquals(60, workout.durationSeconds) // (70_000 - 10_000) / 1000
+        assertEquals(60, workout.durationSeconds) // 60s of session-controller elapsed time
+        // §5.1.8: nothing is finalized until the Save screen's transaction — killing the app here
+        // must leave a recoverable IN_PROGRESS workout, not a half-completed one.
+        assertEquals(WorkoutStatus.IN_PROGRESS, workout.status)
+        assertNull(workout.endedAt)
     }
 
     @Test
@@ -324,13 +337,54 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
-    fun `finish clears the session so the mini-bar and service both stand down`() = runTest {
+    fun `prepareForFinish keeps the stored duration when no live session is tracking this workout`() = runTest {
+        // Regression: re-entering Finish after a previous attempt (which already ended the
+        // session) read the empty session as 0s and clobbered the real duration with zero.
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1", startedAt = 10_000L).copy(durationSeconds = 1800)),
+        )
+        val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        // Deliberately NOT started — mirrors a session already ended by an earlier Finish.
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, sessionController = sessionController)
+
+        vm.prepareForFinish()
+
+        assertEquals(1800, workoutRepo.getById("w1")!!.durationSeconds)
+    }
+
+    @Test
+    fun `a second Finish after backing out of the Save screen keeps the duration the first one stored`() = runTest {
+        // The real repro the previous test missed by pre-seeding the duration: it is the FIRST
+        // prepareForFinish that stores 2700s, and the second call — same ViewModel instance,
+        // reached by backing out of the Save screen — that used to overwrite it with the
+        // durationSeconds = 0 the stale in-memory entity still carried from init.
+        val clock = FakeClock(currentMillis = 10_000L)
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1", startedAt = 10_000L)))
+        val sessionController = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        sessionController.startSession("w1")
+        val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, clock = clock, sessionController = sessionController)
+
+        clock.currentMillis = 10_000L + 2_700_000L // 45 minutes of training
+        vm.prepareForFinish()
+        assertEquals(2700, workoutRepo.getById("w1")!!.durationSeconds)
+
+        // Back on the Logger, tap Finish again. endSession() already ran, so there is no live
+        // session and the stored value must survive.
+        vm.prepareForFinish()
+
+        assertEquals(2700, workoutRepo.getById("w1")!!.durationSeconds)
+    }
+
+    @Test
+    fun `prepareForFinish clears the session so the mini-bar and service both stand down`() = runTest {
         val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1", startedAt = 10_000L)))
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(currentMillis = 70_000L), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
         sessionController.startSession("w1")
         val vm = newViewModel(workoutId = "w1", workoutRepo = workoutRepo, clock = FakeClock(currentMillis = 70_000L), sessionController = sessionController)
 
-        vm.finish()
+        vm.prepareForFinish()
 
         assertNull(sessionController.state.value.workoutId)
     }

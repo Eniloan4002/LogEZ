@@ -61,4 +61,30 @@ interface WorkoutRepository {
 
     /** Exercise Library's "recently logged first" sort (§5.2): exerciseId -> most recent completedAt. */
     suspend fun getRecentUsageTimestamps(): Map<String, Long>
+
+    // --- M4c finish flow (§5.1.8) ---
+
+    /** §5.1.8's atomic save transaction: purge uncompleted sets (and exercises they emptied), then mark COMPLETED. */
+    suspend fun finishWorkout(workout: WorkoutEntity)
+
+    /** Every set of one workout paired with its exerciseId — the summary's stats and the PR-rebuild target list. */
+    suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExercise>
+
+    /** Ordinal position of this workout among COMPLETED ones, for the summary's "Workout #N". */
+    suspend fun countCompletedWorkoutsUpTo(startedAt: Long, workoutId: String): Int
+
+    /** §8.7 streak input: `started_at` of every COMPLETED workout, newest first. */
+    suspend fun getCompletedWorkoutTimestamps(): List<Long>
 }
+
+/**
+ * Domain-layer view of [com.enil.logez.core.data.dao.WorkoutSetWithExerciseRow] — a StatSet that
+ * also knows which exercise, and which *block* of it, produced the set. The block identity matters
+ * because one workout can hold two blocks of the same exercise; see the DAO query's KDoc.
+ */
+data class WorkoutSetWithExercise(
+    val exerciseId: String,
+    val workoutExerciseId: String,
+    val exerciseOrderIndex: Int,
+    val set: com.enil.logez.core.domain.calc.StatSet,
+)

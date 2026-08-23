@@ -1,7 +1,9 @@
 package com.enil.logez.core.data.repository
 
+import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseStatRow
 import com.enil.logez.core.data.dao.WorkoutDao
+import com.enil.logez.core.data.dao.WorkoutSetWithExerciseRow
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
@@ -11,11 +13,13 @@ import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
 class WorkoutRepositoryImpl @Inject constructor(
     private val dao: WorkoutDao,
+    private val analyticsDao: AnalyticsDao,
 ) : WorkoutRepository {
     override suspend fun getInProgress(): WorkoutEntity? = dao.getInProgress()
     override fun observeInProgress(): Flow<WorkoutEntity?> = dao.observeInProgress()
@@ -74,7 +78,37 @@ class WorkoutRepositoryImpl @Inject constructor(
         dao.getMostRecentUsagePerExercise()
             .mapNotNull { row -> row.lastCompletedAt?.let { row.exerciseId to it } }
             .toMap()
+
+    // --- M4c finish flow (§5.1.8) ---
+
+    override suspend fun finishWorkout(workout: WorkoutEntity) = dao.finishWorkout(workout)
+
+    override suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExercise> =
+        dao.getSetsWithExerciseForWorkout(workoutId).map {
+            WorkoutSetWithExercise(it.exerciseId, it.workoutExerciseId, it.exerciseOrderIndex, it.toStatSet())
+        }
+
+    override suspend fun countCompletedWorkoutsUpTo(startedAt: Long, workoutId: String): Int =
+        dao.countCompletedWorkoutsUpTo(startedAt, workoutId)
+
+    override suspend fun getCompletedWorkoutTimestamps(): List<Long> = analyticsDao.getCompletedWorkoutTimestamps()
 }
+
+private fun WorkoutSetWithExerciseRow.toStatSet() = StatSet(
+    setId = setId,
+    workoutId = workoutId,
+    workoutStartedAt = workoutStartedAt,
+    orderIndex = orderIndex,
+    setType = setType,
+    weightKg = weightKg,
+    reps = reps,
+    durationSeconds = durationSeconds,
+    distanceMeters = distanceMeters,
+    customMetric = customMetric,
+    isCompleted = isCompleted,
+    rpe = rpe,
+    routineId = routineId,
+)
 
 private fun ExerciseStatRow.toStatSet() = StatSet(
     setId = setId,

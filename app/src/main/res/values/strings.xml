@@ -163,4 +163,53 @@
     <string name="notification_action_rest_skip">Skip</string>
     <string name="notification_workout_fallback_title">Workout in progress</string>
     <string name="notification_workout_fgs_subtype">Ongoing live workout session: rest-timer countdown and set-logging notification actions</string>
+
+    <!-- M4c: finish flow, live PRs, summary -->
+    <string name="finish_title">Save Workout</string>
+    <string name="finish_workout_title_label">Workout title</string>
+    <string name="finish_description_label">Description</string>
+    <string name="finish_date_time_label">Date &amp; time</string>
+    <string name="finish_duration_label">Duration</string>
+    <string name="finish_routine_settings">Routine Settings</string>
+    <string name="finish_update_routine_values">Update Routine Values</string>
+    <string name="finish_update_routine_values_hint">Logged weights and reps overwrite this routine\'s targets. Rep ranges are never changed.</string>
+    <string name="finish_save">Save</string>
+    <plurals name="finish_incomplete_title">
+        <item quantity="one">You have %1$d incomplete set</item>
+        <item quantity="other">You have %1$d incomplete sets</item>
+    </plurals>
+    <string name="finish_save_failed">Couldn\'t save this workout. Nothing was changed — try again.</string>
+    <string name="finish_workout_missing">This workout is no longer available.</string>
+    <string name="finish_incomplete_body">They will be discarded when you save.</string>
+    <string name="finish_incomplete_confirm">Save anyway</string>
+    <string name="finish_no_sets_title">No completed sets</string>
+    <string name="finish_no_sets_body">Nothing was logged in this workout. Discard it instead?</string>
+    <string name="finish_structure_title">Update this routine?</string>
+    <string name="finish_structure_body">This session\'s exercises or sets differ from the routine. Update the routine to match, or keep the original?</string>
+    <string name="finish_structure_update">Update Routine</string>
+    <string name="finish_structure_keep">Keep Original</string>
+
+    <string name="summary_title">Workout complete</string>
+    <string name="summary_workout_ordinal">Workout #%1$d</string>
+    <string name="summary_volume">Volume</string>
+    <string name="summary_sets">Sets</string>
+    <string name="summary_duration">Duration</string>
+    <string name="summary_streak">Week streak</string>
+    <plurals name="summary_streak_value">
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weeks</item>
+    </plurals>
+    <string name="summary_prs_header">Personal records</string>
+    <string name="summary_done">Done</string>
+
+    <string name="pr_banner">New PR: %1$s</string>
+    <string name="pr_type_heaviest_weight">Heaviest weight</string>
+    <string name="pr_type_best_1rm">Best 1RM</string>
+    <string name="pr_type_best_set_volume">Best set volume</string>
+    <string name="pr_type_best_session_volume">Best session volume</string>
+    <string name="pr_type_most_reps_set">Most reps in a set</string>
+    <string name="pr_type_most_session_reps">Most reps in a session</string>
+    <string name="pr_type_longest_distance">Longest distance</string>
+    <string name="pr_type_longest_time">Longest time</string>
+    <string name="pr_type_best_time">Best time</string>
 </resources>

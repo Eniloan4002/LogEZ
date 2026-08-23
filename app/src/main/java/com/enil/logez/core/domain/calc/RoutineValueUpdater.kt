@@ -26,8 +26,15 @@ data class LoggedSetValues(
  * left untouched — structural changes are the separate Update-Routine-vs-Keep-Original prompt.
  */
 object RoutineValueUpdater {
+    /**
+     * [loggedSets] must be the sets of a **single** workout-exercise block. `orderIndex` is only
+     * unique within one block, so passing every set of an exercise across two blocks of the same
+     * session would collide on index and let the later block overwrite the earlier one's targets.
+     * The first entry per index wins here as a backstop, but the caller owns the block split.
+     */
     fun updatedTargets(routineSets: List<RoutineSetTargets>, loggedSets: List<LoggedSetValues>): List<RoutineSetTargets> {
-        val loggedByIndex = loggedSets.associateBy { it.orderIndex }
+        val loggedByIndex = HashMap<Int, LoggedSetValues>()
+        loggedSets.forEach { loggedByIndex.putIfAbsent(it.orderIndex, it) }
         return routineSets.map { target ->
             val logged = loggedByIndex[target.orderIndex] ?: return@map target
             if (!logged.isCompleted) return@map target

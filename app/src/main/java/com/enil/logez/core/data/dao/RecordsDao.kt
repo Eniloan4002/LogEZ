@@ -29,6 +29,10 @@ interface RecordsDao {
     @Query("SELECT * FROM personal_records WHERE workout_id = :workoutId")
     suspend fun getForWorkout(workoutId: String): List<PersonalRecordEntity>
 
+    /** Cached bests for one exercise — seeds the live PR banner's comparison (§8.4 point 1). */
+    @Query("SELECT * FROM personal_records WHERE exercise_id = :exerciseId")
+    suspend fun getForExercise(exerciseId: String): List<PersonalRecordEntity>
+
     @Query("SELECT * FROM personal_records WHERE workout_id = :workoutId")
     fun observeForWorkout(workoutId: String): Flow<List<PersonalRecordEntity>>
 

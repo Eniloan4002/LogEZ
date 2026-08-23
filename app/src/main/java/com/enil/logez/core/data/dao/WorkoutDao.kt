@@ -165,7 +165,104 @@ interface WorkoutDao {
         insertWorkoutExercises(exercises)
         insertWorkoutSets(sets)
     }
+
+    // --- M4c finish flow (§5.1.8) ---
+
+    /** §5.1.8 save transaction step 1: "delete uncompleted `workout_sets`". */
+    @Query(
+        """
+        DELETE FROM workout_sets
+        WHERE is_completed = 0
+          AND workout_exercise_id IN (SELECT id FROM workout_exercises WHERE workout_id = :workoutId)
+        """,
+    )
+    suspend fun deleteUncompletedSetsForWorkout(workoutId: String)
+
+    /** Prunes exercises the uncompleted-set purge left empty — deleting sets does not cascade upward to their parent. */
+    @Query(
+        """
+        DELETE FROM workout_exercises
+        WHERE workout_id = :workoutId
+          AND id NOT IN (SELECT DISTINCT workout_exercise_id FROM workout_sets)
+        """,
+    )
+    suspend fun deleteEmptyExercisesForWorkout(workoutId: String)
+
+    /**
+     * §5.1.8's save transaction, atomic: purge uncompleted sets and any exercise they emptied,
+     * then flip the workout to COMPLETED with its final (possibly user-edited, possibly
+     * backdated) timestamps. Routine updates and the PR rebuild follow *after* this commits —
+     * they read the COMPLETED rows this writes.
+     */
+    @Transaction
+    suspend fun finishWorkout(workout: WorkoutEntity) {
+        deleteUncompletedSetsForWorkout(workout.id)
+        deleteEmptyExercisesForWorkout(workout.id)
+        updateWorkout(workout)
+    }
+
+    /**
+     * Every set of one workout with its exercise id, in one query — the finish summary's volume
+     * and set counts, and the "which exercises need a PR rebuild" list, both need the whole
+     * workout at once rather than the per-exercise N+1 the live logger uses.
+     *
+     * Carries `workoutExerciseId`/`exerciseOrderIndex` as well as `exerciseId`: the same exercise
+     * can legitimately occupy two blocks in one session (a main lift plus a burnout block), so
+     * anything pairing logged sets back to routine slots must key on the *block*, not the
+     * exercise — keying on `exerciseId` alone silently merges the two.
+     */
+    @Query(
+        """
+        SELECT ws.id AS setId, we.exercise_id AS exerciseId, we.id AS workoutExerciseId,
+               we.order_index AS exerciseOrderIndex, w.id AS workoutId, w.started_at AS workoutStartedAt,
+               w.routine_id AS routineId, ws.order_index AS orderIndex, ws.set_type AS setType,
+               ws.weight_kg AS weightKg, ws.reps AS reps, ws.duration_seconds AS durationSeconds,
+               ws.distance_meters AS distanceMeters, ws.custom_metric AS customMetric,
+               ws.is_completed AS isCompleted, ws.rpe AS rpe
+        FROM workout_sets ws
+        JOIN workout_exercises we ON we.id = ws.workout_exercise_id
+        JOIN workouts w ON w.id = we.workout_id
+        WHERE w.id = :workoutId
+        ORDER BY we.order_index ASC, ws.order_index ASC
+        """,
+    )
+    suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExerciseRow>
+
+    /**
+     * Ordinal workout count for the summary's "Workout #47" line — COMPLETED only, counting this
+     * one. Chronological rank by `started_at`, so a backdated session takes the number it would
+     * have had at the time. Exact `started_at` ties break on `id` so the ordinal is a total order:
+     * a plain `<=` counted both sides of a tie and handed the same number to two workouts.
+     */
+    @Query(
+        """
+        SELECT COUNT(*) FROM workouts
+        WHERE status = 'COMPLETED'
+          AND (started_at < :startedAt OR (started_at = :startedAt AND id <= :workoutId))
+        """,
+    )
+    suspend fun countCompletedWorkoutsUpTo(startedAt: Long, workoutId: String): Int
 }
+
+/** Flat projection backing [WorkoutDao.getSetsWithExerciseForWorkout] — carries the exercise and its block identity, both of which `StatSet` deliberately omits. */
+data class WorkoutSetWithExerciseRow(
+    val setId: String,
+    val exerciseId: String,
+    val workoutExerciseId: String,
+    val exerciseOrderIndex: Int,
+    val workoutId: String,
+    val workoutStartedAt: Long,
+    val routineId: String?,
+    val orderIndex: Int,
+    val setType: com.enil.logez.core.domain.model.SetType,
+    val weightKg: Double?,
+    val reps: Int?,
+    val durationSeconds: Int?,
+    val distanceMeters: Double?,
+    val customMetric: Double?,
+    val isCompleted: Boolean,
+    val rpe: Double?,
+)
 
 /** Flat projection backing [WorkoutDao.getStatRowsForExercise] — mapped to `StatSet` or `ExerciseHistoryEntry`. */
 data class ExerciseStatRow(

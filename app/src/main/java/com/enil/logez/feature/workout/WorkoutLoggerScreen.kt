@@ -23,6 +23,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,13 +51,15 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
+import com.enil.logez.feature.workout.finish.labelRes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutLoggerScreen(
-    onFinished: () -> Unit,
+    onExit: () -> Unit,
+    onNavigateToFinish: () -> Unit,
     onDiscarded: () -> Unit,
     onExerciseClick: (exerciseId: String) -> Unit,
     onCreateExercise: (prefillName: String?) -> Unit,
@@ -69,14 +73,14 @@ fun WorkoutLoggerScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var timerMenuExpanded by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
-    var showFinishConfirm by remember { mutableStateOf(false) }
+    var isFinishing by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     fun handleBack() {
         // Live logger data is already write-through persisted — navigating away just leaves it
         // IN_PROGRESS (spine); the service keeps it foregrounded and the Workout tab's mini-bar
         // (§5.1.3) surfaces it globally, so this just exits back to wherever the mini-bar lives.
-        onFinished()
+        onExit()
     }
     BackHandler(onBack = ::handleBack)
 
@@ -96,7 +100,18 @@ fun WorkoutLoggerScreen(
         }
     }
 
+    // §5.1.3 step 6 / §8.4: the live PR banner.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val prBannerPrefix = stringResource(R.string.pr_banner, "")
+    LaunchedEffect(Unit) {
+        viewModel.prBanner.collect { prTypes ->
+            val names = prTypes.joinToString(", ") { context.getString(it.labelRes()) }
+            snackbarHostState.showSnackbar(prBannerPrefix.trimEnd() + " " + names)
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -128,7 +143,26 @@ fun WorkoutLoggerScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showFinishConfirm = true }) { Text(stringResource(R.string.workout_finish)) }
+                    TextButton(
+                        // Guarded: prepareForFinish does a Room write and the service stop is an
+                        // IPC, so the first tap is slow enough to double-tap. Two runs would end
+                        // the session, take the no-session duration fallback on the second, and
+                        // push a second Save screen onto the back stack.
+                        enabled = !isFinishing,
+                        onClick = {
+                            // Freeze the live duration into the row, stop the service, then hand
+                            // off to the Save screen — the workout stays IN_PROGRESS until it
+                            // saves there.
+                            isFinishing = true
+                            scope.launch {
+                                if (viewModel.prepareForFinish()) {
+                                    stopWorkoutSessionService(context)
+                                    onNavigateToFinish()
+                                }
+                                isFinishing = false
+                            }
+                        },
+                    ) { Text(stringResource(R.string.workout_finish)) }
                     IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.workout_discard)) }, onClick = { menuExpanded = false; showDiscardConfirm = true })
@@ -212,22 +246,8 @@ fun WorkoutLoggerScreen(
         )
     }
 
-    if (showFinishConfirm) {
-        AlertDialog(
-            onDismissRequest = { showFinishConfirm = false },
-            title = { Text(stringResource(R.string.workout_finish_confirm_title)) },
-            text = { Text(stringResource(R.string.workout_finish_confirm_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showFinishConfirm = false
-                    scope.launch { if (viewModel.finish()) { stopWorkoutSessionService(context); onFinished() } }
-                }) {
-                    Text(stringResource(R.string.workout_finish))
-                }
-            },
-            dismissButton = { TextButton(onClick = { showFinishConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
-        )
-    }
+    // M4c: no confirm dialog here any more — Finish opens §5.1.8's Save Workout screen, which is
+    // itself the review-and-confirm step (and owns the incomplete-sets / no-sets warnings).
 
     if (showDiscardConfirm) {
         AlertDialog(

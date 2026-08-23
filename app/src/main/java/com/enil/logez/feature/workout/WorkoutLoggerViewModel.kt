@@ -9,14 +9,15 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.PreviousValueFormatter
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
-import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.routines.TargetField
 import com.enil.logez.feature.routines.targetFields
+import com.enil.logez.feature.workout.finish.LivePrDetector
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutNotificationContent
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -54,6 +55,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val sessionController: WorkoutSessionController,
     private val setCompletionUseCase: SetCompletionUseCase,
+    private val livePrDetector: LivePrDetector,
     private val clock: Clock,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
@@ -69,6 +71,10 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val _scrollToExercise = MutableSharedFlow<String>(extraBufferCapacity = 1)
     /** §5.1.3 step 7 "Smart Superset Scrolling" — the Screen collects this to `animateScrollToItem`. */
     val scrollToExercise: Flow<String> = _scrollToExercise.asSharedFlow()
+
+    private val _prBanner = MutableSharedFlow<List<PrType>>(extraBufferCapacity = 4)
+    /** §5.1.3 step 6 — PrTypes just achieved, surfaced as a transient in-workout banner. */
+    val prBanner: Flow<List<PrType>> = _prBanner.asSharedFlow()
 
     /**
      * Spine rule (PHASE2_PLAN.md §5.1: "Fast-tick values... are exposed as separate Flows from
@@ -278,12 +284,26 @@ class WorkoutLoggerViewModel @Inject constructor(
         if (nowCompleting) {
             viewModelScope.launch {
                 setCompletionUseCase.completeSet(workoutId, exerciseId, setId)
+                maybeRaisePrBanner(exerciseId, setId)
                 maybeScrollToNextSupersetMember(exerciseId)
             }
         } else {
             viewModelScope.launch { workoutRepository.updateWorkoutSetCompletion(setId, false, null) }
         }
         return true
+    }
+
+    /** §5.1.3 step 6 / §8.4 point 1 — the live in-workout PR banner, gated by the Live PR setting. */
+    private suspend fun maybeRaisePrBanner(exerciseId: String, setId: String) {
+        val settings = settingsRepository.settings.first()
+        if (!settings.livePrNotificationEnabled) return
+        val prTypes = livePrDetector.detect(
+            workoutId = workoutId,
+            workoutExerciseId = exerciseId,
+            setId = setId,
+            includeWarmupsInStats = settings.includeWarmupsInStats,
+        )
+        if (prTypes.isNotEmpty()) _prBanner.tryEmit(prTypes)
     }
 
     /** §5.1.3 step 7 — Smart Superset Scrolling, gated by the setting. */
@@ -477,16 +497,37 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     // --- Finish / Discard ---
 
-    /** M4a/M4b minimal finish: mark COMPLETED, stop the session/service. The Save Workout screen / PR rebuild / summary are M4c. */
-    suspend fun finish(): Boolean {
-        val w = workout.value ?: return false
+    /**
+     * M4c: Finish no longer completes the workout here — it hands off to §5.1.8's Save Workout
+     * screen, which owns the title/date/duration edits, the routine prompts, and the actual save
+     * transaction. This only freezes the live duration into the row so the Save screen opens
+     * showing what the timer read, and stops the session/service (the workout stays IN_PROGRESS
+     * and fully recoverable until saved — §5.1.8's own edge case).
+     */
+    suspend fun prepareForFinish(): Boolean {
+        // Re-read rather than trusting the in-memory copy, which is loaded once in init and never
+        // refreshed. On a second Finish (Back out of the Save screen, tap Finish again) the stale
+        // copy still holds the durationSeconds = 0 every workout is created with, so the fallback
+        // below would write zero over the duration the first Finish had correctly stored.
+        val stored = workoutRepository.getById(workoutId) ?: return false
         val now = clock.now().toEpochMilliseconds()
-        val duration = ((now - w.startedAt) / 1000).toInt()
-        // endSession() first (synchronous) so a rest timer that's already mid-fire in the Service
-        // can't play sound/haptics/a heads-up notification for a workout that's finishing/gone —
-        // it cancels the Service's pending deadline-wait before the (suspending) Room write starts.
+        // Only trust the session controller's elapsed time while it is actually tracking THIS
+        // workout. Re-entering Finish after a previous attempt (which already called endSession)
+        // would otherwise read an empty session as "0 seconds" and clobber a correct stored
+        // duration with zero — silently losing the session length the user actually worked.
+        val session = sessionController.state.value
+        val duration = if (session.workoutId == workoutId) {
+            sessionController.elapsedSeconds(now).toInt()
+        } else {
+            stored.durationSeconds
+        }
+        // endSession() before the write (synchronous) so a rest timer that's already mid-fire in
+        // the Service can't play sound/haptics/a heads-up notification for a workout that's
+        // finishing — it cancels the Service's pending deadline-wait before the Room write starts.
         sessionController.endSession()
-        workoutRepository.updateWorkout(w.copy(status = WorkoutStatus.COMPLETED, endedAt = now, durationSeconds = duration, updatedAt = now))
+        val updated = stored.copy(durationSeconds = duration, updatedAt = now)
+        workoutRepository.updateWorkout(updated)
+        workout.value = updated
         return true
     }
 

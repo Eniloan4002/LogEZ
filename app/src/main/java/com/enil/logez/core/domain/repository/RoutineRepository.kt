@@ -47,4 +47,13 @@ interface RoutineRepository {
         exercises: List<RoutineExerciseEntity>,
         sets: List<RoutineSetEntity>,
     )
+
+    /** §8.10 "Update Routine Values" (M4c): in-place target refresh, no structural churn, rep-ranges untouched. */
+    suspend fun updateRoutineSetTargets(
+        id: String,
+        targetWeightKg: Double?,
+        targetReps: Int?,
+        targetDurationSeconds: Int?,
+        targetDistanceMeters: Double?,
+    )
 }

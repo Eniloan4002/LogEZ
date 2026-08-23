@@ -104,4 +104,57 @@ class WorkoutDaoTest : RoomDatabaseTestBase() {
         assertEquals("ws1", rows.first().setId)
         assertEquals(8.5, rows.first().rpe)
     }
+
+    @Test
+    fun `getSetsWithExerciseForWorkout distinguishes two blocks of the same exercise`() = runTest {
+        anExercise()
+        dao.insertFullWorkout(
+            workout = aWorkout("w1", WorkoutStatus.COMPLETED),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we-main", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we-burnout", workoutId = "w1", exerciseId = "ex-1", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                aSet("s-main", "we-main", 0, 100.0, 5),
+                aSet("s-burn", "we-burnout", 0, 40.0, 20),
+            ),
+        )
+
+        val rows = dao.getSetsWithExerciseForWorkout("w1")
+
+        // Both sets share exerciseId AND orderIndex — only the block identity tells them apart.
+        assertEquals(listOf("we-main", "we-burnout"), rows.map { it.workoutExerciseId })
+        assertEquals(listOf(0, 1), rows.map { it.exerciseOrderIndex })
+    }
+
+    @Test
+    fun `countCompletedWorkoutsUpTo gives tied timestamps distinct ordinals`() = runTest {
+        // A plain `started_at <= x` counted both sides of a tie, so two workouts saved at the same
+        // instant both reported N and the ordinal N-1 was never assigned to anything.
+        dao.upsertWorkout(aWorkout("w-a", WorkoutStatus.COMPLETED))
+        dao.upsertWorkout(aWorkout("w-b", WorkoutStatus.COMPLETED))
+
+        val a = dao.countCompletedWorkoutsUpTo(1_000L, "w-a")
+        val b = dao.countCompletedWorkoutsUpTo(1_000L, "w-b")
+
+        assertEquals(1, a)
+        assertEquals(2, b)
+    }
+
+    @Test
+    fun `countCompletedWorkoutsUpTo ignores later and non-completed workouts`() = runTest {
+        dao.upsertWorkout(aWorkout("w-old", WorkoutStatus.COMPLETED).copy(startedAt = 500L))
+        dao.upsertWorkout(aWorkout("w-this", WorkoutStatus.COMPLETED))
+        dao.upsertWorkout(aWorkout("w-later", WorkoutStatus.COMPLETED).copy(startedAt = 9_000L))
+        dao.upsertWorkout(aWorkout("w-live", WorkoutStatus.IN_PROGRESS))
+
+        assertEquals(2, dao.countCompletedWorkoutsUpTo(1_000L, "w-this"))
+    }
+
+    private fun aSet(id: String, workoutExerciseId: String, orderIndex: Int, weightKg: Double, reps: Int) =
+        WorkoutSetEntity(
+            id = id, workoutExerciseId = workoutExerciseId, orderIndex = orderIndex, setType = SetType.NORMAL,
+            weightKg = weightKg, reps = reps, durationSeconds = null, distanceMeters = null, rpe = null,
+            customMetric = null, isCompleted = true, completedAt = 2_000L,
+        )
 }

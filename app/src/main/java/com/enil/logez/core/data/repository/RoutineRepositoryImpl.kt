@@ -58,4 +58,12 @@ class RoutineRepositoryImpl @Inject constructor(
         exercises: List<RoutineExerciseEntity>,
         sets: List<RoutineSetEntity>,
     ) = dao.updateRoutineStructure(routine, exercises, sets)
+
+    override suspend fun updateRoutineSetTargets(
+        id: String,
+        targetWeightKg: Double?,
+        targetReps: Int?,
+        targetDurationSeconds: Int?,
+        targetDistanceMeters: Double?,
+    ) = dao.updateRoutineSetTargets(id, targetWeightKg, targetReps, targetDurationSeconds, targetDistanceMeters)
 }

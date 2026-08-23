@@ -17,8 +17,11 @@ import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.enil.logez.feature.workout.WorkoutLoggerScreen
 import com.enil.logez.feature.workout.WorkoutRoutes
+import com.enil.logez.feature.workout.finish.FinishWorkoutScreen
+import com.enil.logez.feature.workout.finish.WorkoutSummaryScreen
 
 @Composable
 fun LogEzNavHost(
@@ -114,16 +117,61 @@ fun LogEzNavHost(
             route = WorkoutRoutes.LOGGER,
             arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
         ) {
+            val workoutId = it.arguments?.getString("workoutId").orEmpty()
             WorkoutLoggerScreen(
                 // M4b: the Logger is now reachable from any tab (mini-bar tap-to-expand) or
                 // directly from a cold start (§9.5 recovery) -- a target-route pop assuming
                 // "Workout" is always an ancestor in the back stack silently no-ops (and strands
                 // the user on the finished/discarded Logger) whenever it isn't. A plain pop
                 // always returns to whatever was actually beneath this destination.
-                onFinished = { navController.popBackStack() },
+                onExit = { navController.popBackStack() },
+                onNavigateToFinish = {
+                    navController.navigate(WorkoutRoutes.finish(workoutId)) { launchSingleTop = true }
+                },
                 onDiscarded = { navController.popBackStack() },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
+            )
+        }
+
+        composable(
+            route = WorkoutRoutes.FINISH,
+            arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
+        ) {
+            FinishWorkoutScreen(
+                // Back returns to the still-IN_PROGRESS Logger — nothing was saved yet (§5.1.8).
+                onBack = { navController.popBackStack() },
+                onSaved = { savedId ->
+                    // Drop the Logger and this screen: the workout is COMPLETED, so neither is a
+                    // sane back destination from the summary.
+                    navController.navigate(WorkoutRoutes.summary(savedId)) {
+                        popUpTo(WorkoutRoutes.LOGGER) { inclusive = true }
+                    }
+                },
+                onDiscardInstead = {
+                    // The workout has been deleted by now, so the Logger behind this screen is
+                    // dead too — pop through it. A target pop at "workout" silently no-opped
+                    // whenever the Logger was reached from the mini-bar or a cold start, which
+                    // left the user sitting on the Save screen with nothing having happened.
+                    if (!navController.popBackStack(WorkoutRoutes.LOGGER, inclusive = true)) {
+                        navController.popBackStack()
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = WorkoutRoutes.SUMMARY,
+            arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
+        ) {
+            WorkoutSummaryScreen(
+                // §5.1.8(c): "Done -> History tab".
+                onDone = {
+                    navController.navigate(LogEzDestination.History.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
     }
