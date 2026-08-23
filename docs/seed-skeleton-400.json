@@ -1,0 +1,4512 @@
+{
+ "seedVersion": 1,
+ "exercises": [
+  {
+   "name": "Ab Wheel Rollout",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "LATS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "ffb38f76-7092-5d4d-b994-07e03772dcc4"
+  },
+  {
+   "name": "Bicycle Crunch",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "46027d2d-4740-5c00-b640-c64fb6467285"
+  },
+  {
+   "name": "Bird Dog",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "21076013-f79c-5c66-a9fa-cdbc7cb28733"
+  },
+  {
+   "name": "Cable Crunch (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e7bbab92-333b-5eab-80ae-9392f1ef0451"
+  },
+  {
+   "name": "Cable Woodchopper (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "3f0bba30-895d-5c9f-9d98-258e01aae2ae"
+  },
+  {
+   "name": "Captain's Chair Leg Raise",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "7240028d-f671-538b-b759-29a76e309633"
+  },
+  {
+   "name": "Cross-Body Crunch",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "4ff426f0-b0b7-517a-872f-f06f385e86b9"
+  },
+  {
+   "name": "Crunch",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c9f08e8d-8efe-5bd2-96a4-ab5493a03c44"
+  },
+  {
+   "name": "Dead Bug",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "cfd7de89-b4a3-5239-a838-77ba0025e290"
+  },
+  {
+   "name": "Decline Plank",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d47bcfe7-dda7-5a23-a970-6895a0e62d73"
+  },
+  {
+   "name": "Decline Sit Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "bc90110d-9563-53eb-bf17-900a38818160"
+  },
+  {
+   "name": "Flutter Kick",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "659b7034-5b33-599c-bebc-27719815aa3a"
+  },
+  {
+   "name": "Hanging Knee Raise",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "FOREARMS",
+    "LATS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ff763985-32aa-53f9-b9cf-869fdb83be2a"
+  },
+  {
+   "name": "Hanging Leg Raise",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "FOREARMS",
+    "LATS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e4d51c83-77de-59cb-ac8f-cc6b38afa625"
+  },
+  {
+   "name": "Hollow Body Hold",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c32cfe4e-5db6-5099-b317-2aa02feb2869"
+  },
+  {
+   "name": "Jackknife Sit Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b2a36e6e-540b-52e9-93f0-14558fd84df2"
+  },
+  {
+   "name": "Knee Tuck",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ea7f57d1-38c7-5b28-b269-1b9ae28f79f7"
+  },
+  {
+   "name": "L-Sit",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d95c16ba-8526-57e8-92ef-7f6e3bb65c2c"
+  },
+  {
+   "name": "Lying Leg Raise",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "7a5d52af-f339-5ba4-a83d-5776c668f37f"
+  },
+  {
+   "name": "Mountain Climber",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "QUADRICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ff71c3d1-4974-5944-a281-2d184f4165ed"
+  },
+  {
+   "name": "Oblique Crunch",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "70c013bb-0468-546e-9015-13826525b3b6"
+  },
+  {
+   "name": "Plank",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "bc972b62-c609-56f5-b45e-2d0913b069b4"
+  },
+  {
+   "name": "Plank (Stability Ball)",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "f77f61a1-06f5-5efb-91a9-73fbcb098b93"
+  },
+  {
+   "name": "Plank Shoulder Tap",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "afd5ff3f-0efa-5c7e-b494-6316c8182645"
+  },
+  {
+   "name": "Plank Up-Down",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a4b5137e-eaa8-5da3-8fee-daac8e02b0c8"
+  },
+  {
+   "name": "Reverse Crunch",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0712e54a-73ee-54e1-9fe4-ba0ee2054d1c"
+  },
+  {
+   "name": "Reverse Plank",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "TRICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e56021ea-c5b2-551c-8c69-3e2bea98e946"
+  },
+  {
+   "name": "Russian Twist",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "1f018912-b4bd-539c-aa7c-beb62fbb0b71"
+  },
+  {
+   "name": "Russian Twist (Weighted)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "3966b597-c1c5-5578-929f-16e3daf576d4"
+  },
+  {
+   "name": "Scissor Kick",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "24c259a7-2ef5-58fb-b29c-1856dc22c825"
+  },
+  {
+   "name": "Side Plank",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f9914f51-3124-5ba7-a889-a41578fd7772"
+  },
+  {
+   "name": "Sit Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "09100311-7b7b-53c7-8d02-8718e243f7e2"
+  },
+  {
+   "name": "Sit Up (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b46b35fd-2dd0-56a7-870e-b7726c0af2f9"
+  },
+  {
+   "name": "Standing Knee Raise",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "16351a60-6b8c-5678-9b8f-28de99d922c5"
+  },
+  {
+   "name": "Standing Side Bend",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e5ca5afe-e77b-583a-a0f8-be52dc75e2fd"
+  },
+  {
+   "name": "Toe Touch",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "cbd4b51b-49fa-5a69-8fd4-197fbf9e875e"
+  },
+  {
+   "name": "V-Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "efc4be8a-cab3-532b-9ec8-dcb2c2c51b28"
+  },
+  {
+   "name": "Windshield Wiper",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDOMINALS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "54472ff0-3588-5f5f-8321-5ad71bf313ef"
+  },
+  {
+   "name": "Banded Lateral Walk (Resistance Band)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "QUADRICEPS"
+   ],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "c73a1f9b-c7a7-58d9-94ce-84d2740246b9"
+  },
+  {
+   "name": "Clamshell",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ABDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "78a01a1a-7a95-5d26-8914-d55dd113e1cd"
+  },
+  {
+   "name": "Hip Abduction (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ABDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f14f7e07-a68f-5e76-81eb-647245fe0c36"
+  },
+  {
+   "name": "Hip Abduction (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ABDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "8d965aab-ac07-58f6-897c-afd23ac3c459"
+  },
+  {
+   "name": "Copenhagen Plank",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "ADDUCTORS",
+   "secondaryMuscleGroups": [
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "1d358e9a-87de-58f1-9828-fec9171bd696"
+  },
+  {
+   "name": "Hip Adduction (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ADDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "2d9c36dd-b90c-529d-8d18-1d6cd24a1635"
+  },
+  {
+   "name": "Hip Adduction (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "ADDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "79a58e45-fdbe-58e0-aaff-c69c3704918a"
+  },
+  {
+   "name": "Side Lying Hip Adduction",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "ADDUCTORS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "846ce121-867b-5155-82d0-4f0beb9aa819"
+  },
+  {
+   "name": "21s Bicep Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "55d1b0e0-d6df-5036-b708-f26867836cfe"
+  },
+  {
+   "name": "Bicep Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f8a73689-3d94-54de-82ef-cd372eb8b531"
+  },
+  {
+   "name": "Bicep Curl (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "6e7519d2-ce9c-5de7-9ad7-0fed570fb653"
+  },
+  {
+   "name": "Bicep Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "33a01afd-fee5-5caa-83d6-febf3eb2e3e3"
+  },
+  {
+   "name": "Bicep Curl (EZ Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "07dbfb15-b17b-5899-81aa-6b6f89d5a31c"
+  },
+  {
+   "name": "Bicep Curl (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "1e6c6eac-f369-5987-a3f8-68f32889602c"
+  },
+  {
+   "name": "Bicep Curl (Resistance Band)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "857a06ca-6122-503b-9d9f-006e103aa272"
+  },
+  {
+   "name": "Chin Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "UPPER_BACK",
+    "FOREARMS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": true,
+   "id": "2ccabdb4-d0f8-5802-865f-e8ffe0a8ad1e"
+  },
+  {
+   "name": "Chin Up (Assisted)",
+   "exerciseType": "BODYWEIGHT_ASSISTED",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "UPPER_BACK",
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": true,
+   "id": "c6e37785-3b5d-5bb6-bd24-1849bff71a89"
+  },
+  {
+   "name": "Chin Up (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "UPPER_BACK",
+    "FOREARMS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": true,
+   "id": "47fd89cd-4b20-55f4-9b07-3ea182b76c8f"
+  },
+  {
+   "name": "Concentration Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "2781879c-3f06-564f-819f-b9f2845e8dce"
+  },
+  {
+   "name": "Cross Body Hammer Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "156c6520-c0b5-5064-8440-1ab856ffef71"
+  },
+  {
+   "name": "Drag Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "73af420c-6278-5dd7-9739-2a320fed441d"
+  },
+  {
+   "name": "Hammer Curl (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f8d4b9c0-2936-580a-a9e0-242ecd14373c"
+  },
+  {
+   "name": "Hammer Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "77ddbd24-2d46-562b-9f66-6f9c7cd71fee"
+  },
+  {
+   "name": "Incline Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f2d81259-cddc-57e5-96d8-e8d28665087a"
+  },
+  {
+   "name": "Preacher Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "bf0e62a3-af7a-5482-baea-92565eb38af4"
+  },
+  {
+   "name": "Preacher Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "dab94d60-ba1c-5d78-ad15-a498cf2d8890"
+  },
+  {
+   "name": "Preacher Curl (EZ Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "a2426ff9-166c-5800-adc5-74b76350bdde"
+  },
+  {
+   "name": "Preacher Curl (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "32c8dc0a-5e04-51c8-9bc9-433a73f16c3d"
+  },
+  {
+   "name": "Reverse Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "5c8b0cbc-5cc2-5d29-b2d1-dc1344f586b4"
+  },
+  {
+   "name": "Reverse Curl (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "113ca837-d545-5d50-b1a4-fde6e46a2c31"
+  },
+  {
+   "name": "Spider Curl (EZ Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "2ff8aaca-564e-515c-8275-bb106b4cc64a"
+  },
+  {
+   "name": "Standing Curl (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "cd476526-1ed5-5abb-a5d8-5965cba64313"
+  },
+  {
+   "name": "Waiter Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "1c9edd17-db4d-5c78-9e99-465c8ade21d0"
+  },
+  {
+   "name": "Zottman Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "BICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "908de3e7-db93-5cdd-8670-9666a711094c"
+  },
+  {
+   "name": "Donkey Calf Raise (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "94a4b900-9191-5166-a9ac-c478121fa41e"
+  },
+  {
+   "name": "Leg Press Calf Raise (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a19da64f-2174-5bc0-bfc4-f7814503cb00"
+  },
+  {
+   "name": "Seated Calf Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "9fd5cb7a-0460-5a09-8f2c-7ea182bb3497"
+  },
+  {
+   "name": "Seated Calf Raise (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5833787e-5805-5f70-b8a5-8da699900adb"
+  },
+  {
+   "name": "Single Leg Calf Raise (Bodyweight)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0d003115-f895-5a80-ac45-95ac10b11225"
+  },
+  {
+   "name": "Single Leg Calf Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "1ef303d0-c0e6-5d4a-8f28-89b645e0ea18"
+  },
+  {
+   "name": "Standing Calf Raise (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "aa13725f-7d73-532c-a693-5cdd993f7bf4"
+  },
+  {
+   "name": "Standing Calf Raise (Bodyweight)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "62ba39d9-2f19-517c-983c-2fbf50ac8e90"
+  },
+  {
+   "name": "Standing Calf Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "1771dfb4-9f15-5447-9acd-9949d92ead5e"
+  },
+  {
+   "name": "Standing Calf Raise (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CALVES",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c3cd7e56-5dfe-505d-8c8b-8b649ee08216"
+  },
+  {
+   "name": "Assault Bike (Machine)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0736f9c2-01d1-5fb8-9975-44cf3f60ddfa"
+  },
+  {
+   "name": "Battle Ropes",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "FOREARMS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "dfce956e-9841-5f0e-8617-bdb10ab735a3"
+  },
+  {
+   "name": "Cycling (Outdoor)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "HAMSTRINGS",
+    "CALVES"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "bf699507-47a8-5672-8eef-32afcc2060a5"
+  },
+  {
+   "name": "Cycling (Recumbent Bike)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c0dca690-785a-54a2-a287-affca8432bdf"
+  },
+  {
+   "name": "Cycling (Stationary Bike)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "HAMSTRINGS",
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "7376f26a-57b4-5493-8b47-b784d469fb5b"
+  },
+  {
+   "name": "Elliptical (Machine)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9393fdab-000f-5cd1-80f3-20f94e89c1d4"
+  },
+  {
+   "name": "High Knees",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "15bdabef-326c-5905-8baf-12c4a47cb9db"
+  },
+  {
+   "name": "Hiking",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES",
+    "CALVES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "4d9f3bca-d3b9-535f-a628-76f10c7fdd69"
+  },
+  {
+   "name": "Incline Walking (Treadmill)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES",
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "368a2eb6-c5f6-5bb1-9d0e-cd316e06ec8d"
+  },
+  {
+   "name": "Jump Rope",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "CALVES",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "eb65b03b-557b-570e-bf06-631b0858aa1b"
+  },
+  {
+   "name": "Jumping Jacks",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "CALVES",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ee985cf5-dc85-5656-b800-4198a49406f9"
+  },
+  {
+   "name": "Rowing (Machine)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "UPPER_BACK",
+    "QUADRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a47b49bf-e290-5057-bac8-69486426a686"
+  },
+  {
+   "name": "Rowing (Outdoor)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "UPPER_BACK",
+    "QUADRICEPS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "fc820859-db46-52eb-a75c-38231e10c9d6"
+  },
+  {
+   "name": "Running (Outdoor)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "CALVES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9d6b8b71-631e-5250-becb-099917d7805d"
+  },
+  {
+   "name": "Running (Treadmill)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "HAMSTRINGS",
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "de8e7876-de19-58dd-bb4a-5a8012ef3ac9"
+  },
+  {
+   "name": "Shadow Boxing",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5f7435a3-0a3f-5466-88c9-7d30630fd14e"
+  },
+  {
+   "name": "Ski Erg (Machine)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5d7cb52d-6fee-5b1f-87b4-0078264b0cda"
+  },
+  {
+   "name": "Sled Pull (Distance)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "GLUTES",
+    "LATS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "05726559-6ed3-5c94-8186-6f6f614c03ba"
+  },
+  {
+   "name": "Sled Push (Distance)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES",
+    "SHOULDERS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "cdbc2c0e-a24a-5855-ae8e-f936386ff48f"
+  },
+  {
+   "name": "Sprint (Outdoor)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "HAMSTRINGS",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c59a4b9b-b1ce-53ed-87bc-d2a0a3fe1c45"
+  },
+  {
+   "name": "Stair Machine (Floors)",
+   "exerciseType": "FLOORS_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "8221fd56-d388-5599-8d45-4aed9a19d22a"
+  },
+  {
+   "name": "Stair Machine (Steps)",
+   "exerciseType": "STEPS_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "369f24e2-5f00-578c-af94-00dc8e5eefde"
+  },
+  {
+   "name": "Swimming (Backstroke)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "fdb3304b-0646-5308-b8e3-46e22b9c0f06"
+  },
+  {
+   "name": "Swimming (Breaststroke)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS",
+    "ADDUCTORS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "19efc1e0-76f4-5e1f-9be5-b609f67971d6"
+  },
+  {
+   "name": "Swimming (Freestyle)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "133d0420-e0ab-5d24-87ec-b6f84651e3c3"
+  },
+  {
+   "name": "Walking (Outdoor)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "CALVES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "32912a68-64de-590c-a562-9361b1856839"
+  },
+  {
+   "name": "Walking (Treadmill)",
+   "exerciseType": "DISTANCE_DURATION",
+   "primaryMuscleGroup": "CARDIO",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "7089faf1-ba92-566f-88a8-d81c976bcbf6"
+  },
+  {
+   "name": "Bench Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "d0c1f73c-99f8-5d8d-8120-1423e2ee6a91"
+  },
+  {
+   "name": "Bench Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f22b65f0-789f-59fc-ae9b-0969a2fd5cc9"
+  },
+  {
+   "name": "Bench Press (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "27493762-7a33-5704-8080-a9dde990a923"
+  },
+  {
+   "name": "Cable Crossover (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f537e344-b287-5042-835b-62b7511e0814"
+  },
+  {
+   "name": "Chest Fly (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "4e034e18-910e-5d84-bc77-203a12412ad9"
+  },
+  {
+   "name": "Chest Fly (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "6011e5d2-b289-5216-bf9b-c69dcc71ae87"
+  },
+  {
+   "name": "Chest Press (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "82f07d18-cf63-514e-9474-2c2a180d47ee"
+  },
+  {
+   "name": "Chest Press (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f0ac215c-6416-5662-9a59-c04a413ebf50"
+  },
+  {
+   "name": "Close Grip Bench Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "04d9c089-c6b2-5395-bc2d-73b450156f22"
+  },
+  {
+   "name": "Decline Bench Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "01538958-95fd-5945-9a37-e8f03c874a04"
+  },
+  {
+   "name": "Decline Bench Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "bbbafa64-701a-509b-b0d8-a76ff62396af"
+  },
+  {
+   "name": "Decline Chest Fly (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "7362eb10-31f3-502b-a267-9e1ce66c428e"
+  },
+  {
+   "name": "Decline Chest Press (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "032d1f95-352b-56ae-9e05-f16db39d1c41"
+  },
+  {
+   "name": "Decline Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "28ab7693-c5a7-59b2-a91c-e112448972ff"
+  },
+  {
+   "name": "Dumbbell Squeeze Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "1886524d-118b-5c59-b3be-054ee82545ac"
+  },
+  {
+   "name": "Floor Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "23a1244f-1a31-5db6-8947-6df1f2e0150d"
+  },
+  {
+   "name": "High to Low Cable Fly (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "7be9582a-62a3-5229-989b-c85595f29c80"
+  },
+  {
+   "name": "Incline Bench Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "24803182-3fdc-538d-a5b2-d3b39df2f308"
+  },
+  {
+   "name": "Incline Bench Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "c671a29e-49bd-56f5-97cb-edf80da6e2a2"
+  },
+  {
+   "name": "Incline Bench Press (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b0dac9da-c939-5186-940f-4d8d473d1c67"
+  },
+  {
+   "name": "Incline Chest Fly (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "af8c2fd7-9f38-5c95-894e-06a34d9e8887"
+  },
+  {
+   "name": "Incline Chest Press (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "6e4e6553-1ea7-5c55-a8fe-fee2a392f6cf"
+  },
+  {
+   "name": "Incline Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "3caeb498-4b8a-5297-b388-9ddda21b3ddc"
+  },
+  {
+   "name": "Low to High Cable Fly (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "2abe56ab-0651-578d-b93f-12b73f0511ea"
+  },
+  {
+   "name": "Pec Deck Fly (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d70f7022-7457-5266-abd8-f63c16ae25f4"
+  },
+  {
+   "name": "Pullover (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "LATS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5f879f0b-d52d-5fe3-b888-fa576b0b7306"
+  },
+  {
+   "name": "Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9a872b89-a03e-5c86-96bf-90a533c085ee"
+  },
+  {
+   "name": "Push Up (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "17942325-0d86-5ed0-a858-22aa4cca2abb"
+  },
+  {
+   "name": "Single Arm Bench Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS",
+    "ABDOMINALS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "e61114e5-3597-58e1-8777-fc9544261a1c"
+  },
+  {
+   "name": "Standing Single Arm Cable Fly (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e7b902ae-2375-560f-9a32-00ad7e532cec"
+  },
+  {
+   "name": "Svend Press (Plate)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "792927eb-2396-55ca-bee9-e068b6bba464"
+  },
+  {
+   "name": "Wide Grip Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "CHEST",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "bcc4580b-aef9-5fe9-9a7b-00094521fd6f"
+  },
+  {
+   "name": "Behind The Back Wrist Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "546b6953-9ee0-5df1-be69-77069b5c72e5"
+  },
+  {
+   "name": "Dead Hang",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [
+    "LATS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "03169b36-12a4-5f6b-94cc-bf0657ce2bd4"
+  },
+  {
+   "name": "Farmer's Carry (Dumbbell)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "ABDOMINALS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "460cd77d-bfd4-54fb-a4fa-aa69601965b0"
+  },
+  {
+   "name": "Farmer's Carry (Trap Bar)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [
+    "TRAPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "803edb1a-f893-5c5f-86ed-14ba7a1d8a31"
+  },
+  {
+   "name": "Reverse Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f8dded2a-3d2f-5ec5-8049-7d1cf20417c1"
+  },
+  {
+   "name": "Reverse Wrist Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "92136407-6a05-5bb0-9cf0-7ec4082ba256"
+  },
+  {
+   "name": "Weighted Dead Hang (Dumbbell)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [
+    "LATS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "42656e7a-47dc-5056-ab47-5cc1a7ceaeac"
+  },
+  {
+   "name": "Wrist Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "a5b89e99-a6eb-5556-a46a-53d0cc180105"
+  },
+  {
+   "name": "Wrist Curl (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "351eed6d-2f62-5982-89f1-34fff9076128"
+  },
+  {
+   "name": "Wrist Curl (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FOREARMS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "b32c2bd3-b92e-5cf0-aa18-30e055ed16fd"
+  },
+  {
+   "name": "Bear Crawl",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5a86aba4-3e51-5630-9725-3c10506500d5"
+  },
+  {
+   "name": "Broad Jump",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5d6f6778-935a-5c7a-ae36-18debbd62936"
+  },
+  {
+   "name": "Burpee",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "QUADRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c8110c1c-8f3f-516d-88a8-6299b77e2b0b"
+  },
+  {
+   "name": "Clean and Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "QUADRICEPS",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "4f2e2f7f-8aab-5806-9329-6d2289b55436"
+  },
+  {
+   "name": "Clean and Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "QUADRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "0b706dff-021b-5a1d-8a7b-5349b7343107"
+  },
+  {
+   "name": "Devil Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "QUADRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "26079aa4-28c8-56dd-92df-12a3876682f9"
+  },
+  {
+   "name": "Farmer's Walk (Dumbbell)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "FOREARMS",
+    "TRAPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "34ba7d64-c5db-5e89-854e-2719e151bcdd"
+  },
+  {
+   "name": "Farmer's Walk (Kettlebell)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "FOREARMS",
+    "TRAPS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "145d5a39-6793-59a6-986f-696a2ed1c557"
+  },
+  {
+   "name": "Hang Clean (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "99854af1-64cf-5e48-a6d0-168eca2301ec"
+  },
+  {
+   "name": "Jumping Jack",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "CALVES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "942e433a-0174-5895-bfe3-379407e13936"
+  },
+  {
+   "name": "Kettlebell Swing (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS",
+    "LOWER_BACK"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "e720b028-0acd-5162-befc-aee44d51ae5e"
+  },
+  {
+   "name": "Power Clean (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "HAMSTRINGS",
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "09da78e4-ad05-592e-8b3e-b5dc5ba6d3be"
+  },
+  {
+   "name": "Sled Pull (Machine)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5e2e5bcf-1df1-5e19-afc6-d570625081d5"
+  },
+  {
+   "name": "Sled Push (Machine)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0f648944-fc3e-507d-b7ba-b347d5e26a9c"
+  },
+  {
+   "name": "Snatch (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "HAMSTRINGS",
+    "TRAPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "af334a49-1d2e-5cd0-9e3c-def110f6d7d3"
+  },
+  {
+   "name": "Snatch (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "b6cdc8ae-b705-5a1d-9772-3cc24c6dc626"
+  },
+  {
+   "name": "Squat Thrust",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "32e088b3-5bfe-5a2f-b1fb-166924decec1"
+  },
+  {
+   "name": "Suitcase Carry (Dumbbell)",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "ABDOMINALS",
+    "FOREARMS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "3585e889-5f36-5d38-af6e-30c3c340f6a2"
+  },
+  {
+   "name": "Thruster (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "d4fa5f49-d185-5367-9c6a-7be1488551b9"
+  },
+  {
+   "name": "Thruster (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "3529b294-7469-50c1-9f7b-e22e18b7cb64"
+  },
+  {
+   "name": "Turkish Get Up (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "ABDOMINALS",
+    "GLUTES"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "20b56f5f-2ffc-5aea-a840-a2313750c210"
+  },
+  {
+   "name": "Wall Ball Shot (Other)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "FULL_BODY",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "d4f0e7a0-9023-54bb-bd6e-a9df9f145541"
+  },
+  {
+   "name": "B Stance Hip Thrust (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "07ab0c3f-db6d-53d2-9702-0ab164cdcaf1"
+  },
+  {
+   "name": "Banded Glute Bridge (Resistance Band)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "9cb9c03a-4ec5-5fe5-910c-da5a8c41a1fc"
+  },
+  {
+   "name": "Cable Pull Through (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "6309321a-8fef-5da8-8a01-898c4049a832"
+  },
+  {
+   "name": "Curtsy Lunge (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "ADDUCTORS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "b17e0672-e465-5e24-b5f7-2859030588ed"
+  },
+  {
+   "name": "Deficit Reverse Lunge (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f4730eb9-adf7-5d49-9eca-9eb89bc9270e"
+  },
+  {
+   "name": "Donkey Kick",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9fdbc1bb-00ff-56d9-99d7-556d40a61fce"
+  },
+  {
+   "name": "Fire Hydrant",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "ABDUCTORS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a8432f58-f55b-5876-a8bb-b33e01efb279"
+  },
+  {
+   "name": "Frog Pump",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "ADDUCTORS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "68f877a3-be3e-5976-98d2-5179bf8cae1f"
+  },
+  {
+   "name": "Frog Pump (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "ADDUCTORS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "8868307d-2be0-592d-abb7-8e06e1533a83"
+  },
+  {
+   "name": "Glute Bridge",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "2c6217d4-a8c3-5d27-b4f2-14f243aff6ab"
+  },
+  {
+   "name": "Glute Bridge (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "bdc98bd6-fdf5-5a61-82ad-10a39fc39257"
+  },
+  {
+   "name": "Glute Kickback (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "97104dfa-26b1-576b-b575-01d3d3a8c7e6"
+  },
+  {
+   "name": "Hip Thrust (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "QUADRICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "eafcb711-1804-5c01-a290-77de8c7b2554"
+  },
+  {
+   "name": "Hip Thrust (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "9c6e70de-ce02-511e-8fdf-d22a69771d7b"
+  },
+  {
+   "name": "Hip Thrust (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9f48fbb5-b9b0-50e0-bdf7-58a6fe13e018"
+  },
+  {
+   "name": "Hip Thrust (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "2480a1d0-fa89-5e09-8916-de87913aa79d"
+  },
+  {
+   "name": "Marching Glute Bridge",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "bc1242db-33bd-5035-a79d-2eff3a804a78"
+  },
+  {
+   "name": "Single Leg Deadlift (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "LOWER_BACK"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "cb01445d-866f-56f5-8a3c-ccdd0d758165"
+  },
+  {
+   "name": "Single Leg Glute Bridge",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "1e2e045e-d025-526a-9ecf-c527ee07058d"
+  },
+  {
+   "name": "Single Leg Hip Thrust",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0d6bdf30-648b-5008-9b58-64b3e64265e6"
+  },
+  {
+   "name": "Step Up (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "2d4082c4-bb8b-540a-b92e-0a4c86903524"
+  },
+  {
+   "name": "Sumo Deadlift (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "LOWER_BACK",
+    "ADDUCTORS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "ccd12a15-6439-530c-b183-c8c927714bcf"
+  },
+  {
+   "name": "Sumo Squat (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "QUADRICEPS",
+    "ADDUCTORS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "9da7518d-c7ab-59cf-b882-93825bc9cc9e"
+  },
+  {
+   "name": "Weighted Single Leg Hip Thrust (Dumbbell)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "GLUTES",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "44fe4a87-c2d4-5618-afd7-27641af3738d"
+  },
+  {
+   "name": "Glute Ham Raise",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "CALVES"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "72ed0fc0-dda3-515d-894e-2bd4d84279a2"
+  },
+  {
+   "name": "Glute Ham Raise (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "368e8331-7cf7-586c-906f-70db31524653"
+  },
+  {
+   "name": "Good Morning (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK",
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "038e3e04-d88e-5fea-993e-29a114400fa2"
+  },
+  {
+   "name": "Good Morning (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK",
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "49ea6f7c-dff7-573a-b955-b06d913c432a"
+  },
+  {
+   "name": "Leg Curl (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "139375ca-b2bf-52d3-b855-73d29674ae77"
+  },
+  {
+   "name": "Leg Curl (Stability Ball)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "ABDOMINALS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "95fcff8a-1469-5b27-b758-376aa34b8501"
+  },
+  {
+   "name": "Lying Leg Curl (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "98c9198e-5284-5341-8f81-2c2154907325"
+  },
+  {
+   "name": "Nordic Hamstring Curl",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "CALVES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e96b13d9-3fe2-541d-8940-c77d9b8d6912"
+  },
+  {
+   "name": "Nordic Hamstring Curl (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "fe908dce-d385-52c5-9242-228df3d61625"
+  },
+  {
+   "name": "Pull Through (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "dd767c13-f01f-5490-ad54-91d31634ab74"
+  },
+  {
+   "name": "Romanian Deadlift (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "08720a4f-397a-5c69-badb-8995aa33be39"
+  },
+  {
+   "name": "Romanian Deadlift (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "14a3c403-36ea-55fe-a0d4-34a2053a2119"
+  },
+  {
+   "name": "Romanian Deadlift (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "7cafa94b-f683-505f-b324-e974822de86c"
+  },
+  {
+   "name": "Seated Good Morning (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "53867d25-7786-5eb8-8cba-87ded45aa59c"
+  },
+  {
+   "name": "Seated Leg Curl (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "075fc3ad-a94e-58d4-ae85-6a347950bae6"
+  },
+  {
+   "name": "Single Leg Curl (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "fb2282e1-0d65-52cb-b1b8-99c79175a9f8"
+  },
+  {
+   "name": "Single Leg Romanian Deadlift (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "7bd8e125-7a5e-55b3-8d0c-cb7c3145a95b"
+  },
+  {
+   "name": "Single Leg Romanian Deadlift (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "cf88fd68-d953-58b9-9dd1-3ed0f8b09a2d"
+  },
+  {
+   "name": "Standing Leg Curl (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "CALVES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "12e0816a-3724-5ab1-b19c-517ed023a357"
+  },
+  {
+   "name": "Stiff Leg Deadlift (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f91d6321-5b96-53fa-8044-20d6f6a7c862"
+  },
+  {
+   "name": "Stiff Leg Deadlift (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "HAMSTRINGS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "LOWER_BACK"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "4a29e804-4563-5d28-877e-c120fd0cb389"
+  },
+  {
+   "name": "Assisted Neutral Grip Pull Up (Machine)",
+   "exerciseType": "BODYWEIGHT_ASSISTED",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9ceda655-0fe0-5b87-8a3e-a678fc4323bc"
+  },
+  {
+   "name": "Chest Supported Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "1296c748-5e91-556d-9bde-91eada267ee3"
+  },
+  {
+   "name": "Close Grip Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d98da6eb-040e-57b0-bfa8-5be777713f8f"
+  },
+  {
+   "name": "Cross Body Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "4daa8256-958c-5cc2-bcf9-e210a92b5704"
+  },
+  {
+   "name": "High Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "71c97ed1-8291-5613-b4fe-e5942a98e82c"
+  },
+  {
+   "name": "Inverted Row",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "2dbe28f0-ecd9-5921-a135-ec754a5361bf"
+  },
+  {
+   "name": "Kneeling Lat Pulldown (Band)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "a7be7f31-b578-51aa-9565-e94b94ba80ae"
+  },
+  {
+   "name": "Landmine Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "e6a70076-743f-5e47-9e08-59d277937852"
+  },
+  {
+   "name": "Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "81d59ffe-d0f1-5680-aa0c-51dadb9f91e6"
+  },
+  {
+   "name": "Machine Lat Pulldown (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "77c5d399-7036-5085-ab61-66f06b1775b7"
+  },
+  {
+   "name": "Neutral Grip Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "bbdc843e-c7ff-55c2-934d-df4e782486e5"
+  },
+  {
+   "name": "Neutral Grip Pull Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "6179ca55-2874-5b82-905c-0e6bbc6897e9"
+  },
+  {
+   "name": "Neutral Grip Pull Up (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c76b29be-a8e4-5c9f-9521-b7f4a1cc9b8c"
+  },
+  {
+   "name": "One Arm Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "b2f62923-58f7-5cce-ab9a-24f4b91ada1b"
+  },
+  {
+   "name": "Pull Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": true,
+   "id": "d61b5f55-dfc0-5765-a907-c120012a35e2"
+  },
+  {
+   "name": "Pull Up (Assisted)",
+   "exerciseType": "BODYWEIGHT_ASSISTED",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": true,
+   "id": "47a74e74-ecf6-5d9c-8c9b-c743fc7c48a6"
+  },
+  {
+   "name": "Pull Up (Band)",
+   "exerciseType": "BODYWEIGHT_ASSISTED",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": true,
+   "id": "5fdb6e94-1ec1-53ad-a287-3bd3ea65d81d"
+  },
+  {
+   "name": "Pull Up (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": true,
+   "id": "f9573730-3aac-5b51-a8a3-b68324f457d0"
+  },
+  {
+   "name": "Pullover (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0c084635-76e8-551d-83ca-b4fadd1627f0"
+  },
+  {
+   "name": "Pullover (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "a7986831-1bd1-5653-b5f3-9cae6e223f2b"
+  },
+  {
+   "name": "Reverse Grip Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "12bb52c7-bebd-51ba-962a-e98ed1346899"
+  },
+  {
+   "name": "Seal Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "a4e48230-6f18-5fb1-8755-9f138cca6ac7"
+  },
+  {
+   "name": "Seated Row (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d3612d5d-150b-5e86-b79d-152e3c007502"
+  },
+  {
+   "name": "Single Arm Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c1e72d46-0fc5-5b45-8940-a1de9f5516d5"
+  },
+  {
+   "name": "Single Arm Straight Arm Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9eb07f65-0fee-5776-9dd3-1c2950d5c4f5"
+  },
+  {
+   "name": "Straight Arm Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "3781d2ff-ad24-5805-bf2d-f82ff420d4e0"
+  },
+  {
+   "name": "Underhand Grip Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "81ffcf1c-5604-52a4-bd76-97f63f1287af"
+  },
+  {
+   "name": "Wide Grip Lat Pulldown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "833aee7f-b400-50d4-b0f1-ff264748c010"
+  },
+  {
+   "name": "Wide Grip Pull Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "542bf7c5-ca7a-516e-9161-6a304df7a81f"
+  },
+  {
+   "name": "Wide Grip Seated Row (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LATS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a6ec72c7-beea-50b8-8788-63fd5dd1f4ba"
+  },
+  {
+   "name": "Back Extension",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "119cfda4-0a91-5522-9b2b-10a3160bbeea"
+  },
+  {
+   "name": "Deadlift (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "47bc2a73-cb21-521f-aec9-a7e475c11d65"
+  },
+  {
+   "name": "Deadlift (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "27c7717c-abc2-5c4e-97ef-c7cf3197a927"
+  },
+  {
+   "name": "Good Morning (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d46f50ad-1c0d-5b34-bcd3-17ffe4791684"
+  },
+  {
+   "name": "Jefferson Curl (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "89da68cd-53ec-59c7-88b9-6fb9b929e569"
+  },
+  {
+   "name": "Rack Pull (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "HAMSTRINGS",
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "581fb38c-964d-5223-9cef-5dcb380fe258"
+  },
+  {
+   "name": "Reverse Hyperextension (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "df8b9219-1a06-5000-9900-1fc50e1aa646"
+  },
+  {
+   "name": "Superman",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "88ec6da0-b58a-532a-bbee-349cf2593d9e"
+  },
+  {
+   "name": "Suspended Back Extension (Suspension)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "SUSPENSION",
+   "isBodyweightVolumeEligible": false,
+   "id": "59461810-20eb-5c09-86f5-2c7e9b77f866"
+  },
+  {
+   "name": "Weighted Back Extension (Plate)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "LOWER_BACK",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "639604a9-af90-515c-b33b-fe97d837be3c"
+  },
+  {
+   "name": "Neck Extension (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "NECK",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "fb7d85fb-e565-51e2-bd46-500f175da698"
+  },
+  {
+   "name": "Neck Flexion (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "NECK",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ad8e9115-d0b5-51db-a723-438a2c3ace51"
+  },
+  {
+   "name": "Neck Lateral Flexion (Manual Resistance)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "NECK",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "dc928e1a-e194-5094-8497-5af668871bf6"
+  },
+  {
+   "name": "Atlas Stone Lift",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "OTHER",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "QUADRICEPS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "2fe833b9-a607-55ff-a490-3c16ae31212b"
+  },
+  {
+   "name": "Log Press (Other)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "OTHER",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "c1c51fbe-e2d6-5f29-bbb9-b63ca9d70f1d"
+  },
+  {
+   "name": "Plate Pinch Hold (Plate)",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "OTHER",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "57c475b3-5e5d-55be-a153-ede79fcdd91d"
+  },
+  {
+   "name": "Sandbag Carry",
+   "exerciseType": "WEIGHT_DISTANCE",
+   "primaryMuscleGroup": "OTHER",
+   "secondaryMuscleGroups": [
+    "FOREARMS",
+    "ABDOMINALS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "4d152cfc-2f9c-5cad-aab8-a1814853e762"
+  },
+  {
+   "name": "Sledgehammer Swing (Tire)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "OTHER",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "ABDOMINALS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "02170548-e384-5ca8-8ffb-ed0d0c94af33"
+  },
+  {
+   "name": "Tire Flip",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "OTHER",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "QUADRICEPS"
+   ],
+   "equipment": "OTHER",
+   "isBodyweightVolumeEligible": false,
+   "id": "38101e4b-7e73-5e07-9eaf-63e99a0e3a13"
+  },
+  {
+   "name": "Assisted Pistol Squat (Suspension)",
+   "exerciseType": "BODYWEIGHT_ASSISTED",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "SUSPENSION",
+   "isBodyweightVolumeEligible": false,
+   "id": "1fe3a942-dcc9-542c-8d9e-8d2dea894438"
+  },
+  {
+   "name": "Back Squat (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "53d3b208-d6c4-5e7a-91ba-175c2e14ef1c"
+  },
+  {
+   "name": "Belt Squat (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d51e7292-dc07-5188-896a-e57a3691a868"
+  },
+  {
+   "name": "Box Squat (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "6b9b7592-b607-5993-925e-07424f19907f"
+  },
+  {
+   "name": "Bulgarian Split Squat (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "02db0091-8a24-5adc-9fc5-b5c079316645"
+  },
+  {
+   "name": "Bulgarian Split Squat (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "fc099d88-9cbf-51cf-88ed-5bb58074b167"
+  },
+  {
+   "name": "Cossack Squat",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "ADDUCTORS",
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d15431df-cc21-5122-8746-1cbe5192c327"
+  },
+  {
+   "name": "Cossack Squat (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "ADDUCTORS",
+    "GLUTES"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "76c8999d-55d2-5a80-b854-20b3a7974bd7"
+  },
+  {
+   "name": "Curtsy Lunge (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "ADDUCTORS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f611e258-16bf-543f-946c-931b82a691ea"
+  },
+  {
+   "name": "Front Squat (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "ABDOMINALS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f089d7fe-b8f4-5a6a-b60f-54c998699484"
+  },
+  {
+   "name": "Front Squat (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "ABDOMINALS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "05598b1b-b0dd-528f-a5e4-1e3831ef93b9"
+  },
+  {
+   "name": "Goblet Squat (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "22ce5c6c-7000-5da6-98c4-101df0b64758"
+  },
+  {
+   "name": "Goblet Squat (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "52de4b71-feeb-50fa-b7c1-6a7ea546e3f8"
+  },
+  {
+   "name": "Hack Squat (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ba075cf2-aa4f-547b-b3b2-6ded34fdc5ea"
+  },
+  {
+   "name": "Jump Squat",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b9cc51e4-1e07-545c-ac55-f88214d9bc42"
+  },
+  {
+   "name": "Leg Extension (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "1c60e925-960a-514f-9502-89facce00640"
+  },
+  {
+   "name": "Leg Press (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c67e1258-16bf-504e-9240-62d31376f0f0"
+  },
+  {
+   "name": "Lunge",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "0966de1f-ad5d-57d9-9886-ade33319a740"
+  },
+  {
+   "name": "Lunge (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "c5324211-d303-5bdc-b9c9-1f5d785ce832"
+  },
+  {
+   "name": "Lunge (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "91524f0d-83c2-587a-a905-de0cc7c87102"
+  },
+  {
+   "name": "Overhead Squat (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "9c2800fa-b5c8-568e-80b9-5fbe32d5bee5"
+  },
+  {
+   "name": "Pendulum Squat (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "23cddbc5-7fb4-5f26-9c0a-1b3e852f7fce"
+  },
+  {
+   "name": "Pistol Squat",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c10be0fa-a6b7-5277-b3db-8d78e8de386e"
+  },
+  {
+   "name": "Reverse Lunge (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "a09cd037-2037-534c-9c1b-8dd0a4138485"
+  },
+  {
+   "name": "Single Leg Extension (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "45769eda-5d2f-52d0-82b7-b232a286677c"
+  },
+  {
+   "name": "Single Leg Press (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5511d537-1cd1-526d-abf8-b170ede87a01"
+  },
+  {
+   "name": "Sissy Squat",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "ea84c17c-08b4-502d-ba98-21cfa6a2d354"
+  },
+  {
+   "name": "Split Squat",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "066cfcc8-f265-5fec-95a9-41ad6249475b"
+  },
+  {
+   "name": "Split Squat (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "c610c881-3728-5024-9a67-483ae594584d"
+  },
+  {
+   "name": "Squat (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "0ee6c86a-f7bd-5cec-a902-fc28e14b0046"
+  },
+  {
+   "name": "Squat (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f3fec6fd-9f7c-5c9e-b580-739281e16784"
+  },
+  {
+   "name": "Step Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "458ccdcd-44ae-5f9c-8861-eeb092cff9c3"
+  },
+  {
+   "name": "Step Up (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "5ed484c5-9904-5413-9e82-beb1f722562f"
+  },
+  {
+   "name": "Step Up (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "be9fb0cb-f581-583e-a20b-79a7aff49b82"
+  },
+  {
+   "name": "Walking Lunge (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "HAMSTRINGS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "939d5f03-28b8-5cbb-9f10-b9fa4c581def"
+  },
+  {
+   "name": "Wall Sit",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "6b69a4c0-6e51-53a1-8430-978a4b87bdbc"
+  },
+  {
+   "name": "Weighted Sissy Squat (Plate)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a4acc175-40f6-5a21-964b-b56048c517a2"
+  },
+  {
+   "name": "Zercher Squat (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "QUADRICEPS",
+   "secondaryMuscleGroups": [
+    "GLUTES",
+    "ABDOMINALS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "3b178711-6abf-58e3-819a-1b8e8721a69d"
+  },
+  {
+   "name": "Arnold Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "10c582c0-dda0-521e-8607-772fdab0d9d5"
+  },
+  {
+   "name": "Behind The Neck Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "46dc5146-2896-5c33-a45a-6098a3c8bb54"
+  },
+  {
+   "name": "Cuban Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "38875710-cbc6-5a25-be78-59cb781cae98"
+  },
+  {
+   "name": "Face Pull (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "TRAPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "cf79eb1e-a4af-5eef-8eef-8024ed81d9a7"
+  },
+  {
+   "name": "Front Raise (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "CHEST"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "f7ac9574-cec5-58e5-976e-322bbd17e102"
+  },
+  {
+   "name": "Front Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "CHEST"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "4bcb885c-0c8f-5c24-b1c6-2a3fc262d90f"
+  },
+  {
+   "name": "Front Raise (Plate)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "CHEST"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "7527c8ae-f6b2-5ff4-b2c4-ebe26fba3be5"
+  },
+  {
+   "name": "Handstand Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": true,
+   "id": "864224a5-bad4-527c-86da-04503dd7c854"
+  },
+  {
+   "name": "Landmine Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "CHEST"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "93626bad-a131-5997-a708-2292ee879db6"
+  },
+  {
+   "name": "Lateral Raise (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b877e2f7-8b69-566c-ad36-645b6677edf9"
+  },
+  {
+   "name": "Lateral Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "c0e7236f-6aea-5856-b5a3-9668a593d3ab"
+  },
+  {
+   "name": "Lateral Raise (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d6fc21b9-451e-587c-92e9-b5159e490b40"
+  },
+  {
+   "name": "Lateral Raise (Resistance Band)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "b18d83e3-a90a-5a88-8355-853fbb8b176a"
+  },
+  {
+   "name": "Lean Away Lateral Raise (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "3504fb65-f7b0-51d3-a62f-ef74042e166a"
+  },
+  {
+   "name": "Overhead Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "UPPER_BACK"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "d74f8b75-0ef7-5fd0-adb6-7000c1634efb"
+  },
+  {
+   "name": "Overhead Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "13194e0b-d303-52e4-b263-d9f682865325"
+  },
+  {
+   "name": "Overhead Press (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "fbfbf5e6-4951-595a-a2c5-106b21786542"
+  },
+  {
+   "name": "Overhead Press (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9220bb56-c10a-5f8a-ba4a-d6ff20059eb2"
+  },
+  {
+   "name": "Overhead Press (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "57cb00db-45dd-5871-90e9-7e74c2adc230"
+  },
+  {
+   "name": "Pike Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "CHEST"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "dfb20534-4f90-596b-9a21-c6911d7f201c"
+  },
+  {
+   "name": "Push Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "QUADRICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "0579f947-60bf-5517-931d-1d909ab10e9b"
+  },
+  {
+   "name": "Reverse Fly (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "TRAPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "761224ea-9d74-5737-b114-aeedafcb12a3"
+  },
+  {
+   "name": "Reverse Fly (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "TRAPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "cc73095a-5c07-5b20-8361-676824220a07"
+  },
+  {
+   "name": "Reverse Fly (Suspension)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "UPPER_BACK",
+    "TRAPS"
+   ],
+   "equipment": "SUSPENSION",
+   "isBodyweightVolumeEligible": false,
+   "id": "54c42344-9954-58d6-86df-c214b28d3785"
+  },
+  {
+   "name": "Seated Lateral Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "64104029-bb62-5dad-b149-1032ca79bd67"
+  },
+  {
+   "name": "Seated Overhead Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "f7cd631f-9abe-58b8-907c-bc1b2417242e"
+  },
+  {
+   "name": "Seated Overhead Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "6ba550b5-c455-5e6b-8b93-7f32d951a8e9"
+  },
+  {
+   "name": "Single Arm Lateral Raise (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e9dc8f3e-a92c-50d2-8bdd-7f58e792f424"
+  },
+  {
+   "name": "Single Arm Overhead Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "ABDOMINALS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "2e816ae3-a54e-54fe-8b0e-e186344f7b6a"
+  },
+  {
+   "name": "Upright Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "4116d203-4e87-5339-a270-51a4c737f8e6"
+  },
+  {
+   "name": "Upright Row (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "05b31ebf-4586-5d09-8050-546870ad7d98"
+  },
+  {
+   "name": "Upright Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "69101b9e-a608-5a9b-8dd2-2a7892c982ff"
+  },
+  {
+   "name": "Upright Row (EZ Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRAPS",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "57d2a5f9-0238-5de5-b839-a1d56417dbc3"
+  },
+  {
+   "name": "Wall Handstand Hold",
+   "exerciseType": "DURATION",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "ABDOMINALS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "dae62c37-49e2-517e-9ba4-924745097a53"
+  },
+  {
+   "name": "Z Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "SHOULDERS",
+   "secondaryMuscleGroups": [
+    "TRICEPS",
+    "ABDOMINALS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "34410f3b-4dcd-5af9-915f-21e5bf0349c8"
+  },
+  {
+   "name": "Behind The Back Shrug (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "0d3d1c99-25e8-5902-ab56-8bdd4f83c600"
+  },
+  {
+   "name": "Overhead Shrug (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "934f2ac3-2b57-587d-8a50-5280275401f5"
+  },
+  {
+   "name": "Rack Pull (Trap Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [
+    "LOWER_BACK",
+    "HAMSTRINGS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "4d3c5586-b4c2-5cb7-a550-0162eb9ee8cd"
+  },
+  {
+   "name": "Shrug (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "eab9647e-9fa7-57fc-9a67-619fd2b17084"
+  },
+  {
+   "name": "Shrug (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "778d4419-6d3c-55e6-a1f9-b7e28162b73e"
+  },
+  {
+   "name": "Shrug (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "caa2a15a-7ecc-550b-a00f-d3e88349d695"
+  },
+  {
+   "name": "Shrug (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "8691616c-e414-5740-84d2-ebbd4528e59b"
+  },
+  {
+   "name": "Snatch Grip Shrug (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRAPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "0136468f-06ea-5f5f-aa3e-08fa5ba21f10"
+  },
+  {
+   "name": "Bench Dips",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "CHEST"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "5727ede3-7c70-5381-b3f2-125d8a3d1602"
+  },
+  {
+   "name": "Close Grip Bench Press (Smith Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "7e0b9662-5427-5ae5-a49f-7cbd0b24f078"
+  },
+  {
+   "name": "Cross-Body Triceps Extension (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "b3420618-174a-52b5-af3e-14e3007f1e47"
+  },
+  {
+   "name": "Diamond Push Up",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a7bc601c-2301-5898-9a06-4a4b5634b081"
+  },
+  {
+   "name": "Dips",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": true,
+   "id": "b0235ce8-f8bd-5ae6-b642-74e2378d4b69"
+  },
+  {
+   "name": "Dips (Assisted)",
+   "exerciseType": "BODYWEIGHT_ASSISTED",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": true,
+   "id": "d7d12bbc-2895-50b5-9d88-5560736f238a"
+  },
+  {
+   "name": "Dips (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": true,
+   "id": "5f3d408b-89db-5b98-84e3-a500cdf3229f"
+  },
+  {
+   "name": "JM Press (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "160bc00f-0129-5eb5-a619-331b189622bd"
+  },
+  {
+   "name": "Lying Triceps Extension (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "bb290883-f2f7-5533-8edf-434f929a8edc"
+  },
+  {
+   "name": "Lying Triceps Extension (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "bc2f4f38-ca53-5507-84a8-a4b9cac0588c"
+  },
+  {
+   "name": "Lying Triceps Extension (EZ Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "9c354615-7b35-5f45-a93b-5bffd16044e9"
+  },
+  {
+   "name": "Overhead Triceps Extension (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "b531847f-814f-58ba-b5ab-efc198861a42"
+  },
+  {
+   "name": "Overhead Triceps Extension (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "a9e28972-a936-5a53-8fb4-03e6aeae0121"
+  },
+  {
+   "name": "Overhead Triceps Extension (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "dd331599-6f16-5e72-9e2e-b61d7d16f6d3"
+  },
+  {
+   "name": "Reverse Grip Triceps Pushdown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "FOREARMS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e12b39cc-0dcd-5fa9-9168-43808a4ea43d"
+  },
+  {
+   "name": "Rolling Triceps Extension (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "116c61d7-2b18-5be8-ac92-431334c691bc"
+  },
+  {
+   "name": "Seated Dip (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "CHEST",
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b7337282-a1f2-55b7-80fd-f78f716a1527"
+  },
+  {
+   "name": "Single Arm Overhead Triceps Extension (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "17530fda-aef9-5ec2-972e-ec2197358100"
+  },
+  {
+   "name": "Single Arm Triceps Pushdown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c89f6cb6-24fa-5368-805d-922120fe95e8"
+  },
+  {
+   "name": "Tate Press (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "3d03a440-28c5-5d31-b3c3-dc0a0542b702"
+  },
+  {
+   "name": "Triceps Extension (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "c8df5947-f73c-5a1e-afa6-9516e42f3e19"
+  },
+  {
+   "name": "Triceps Kickback (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "013bb60a-1794-5a0c-a0c9-e97404da773b"
+  },
+  {
+   "name": "Triceps Kickback (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "59e9be76-5626-57b9-80a6-786dce3d3383"
+  },
+  {
+   "name": "Triceps Pushdown (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "b2f8fb36-8fd9-516b-9865-22aa080a9769"
+  },
+  {
+   "name": "Triceps Pushdown (Rope)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "46c8b738-1151-5f71-98e1-f6075dbab478"
+  },
+  {
+   "name": "Triceps Pushdown (V-Bar)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "TRICEPS",
+   "secondaryMuscleGroups": [],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d1dd4e1e-454d-5d64-a82f-9b70c3f1c6f8"
+  },
+  {
+   "name": "Band Pull Apart (Resistance Band)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "6cccfe0d-685d-5483-b5e0-e624fe60d933"
+  },
+  {
+   "name": "Bent Over Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "3c580705-e97e-5018-9b6a-2770c1212085"
+  },
+  {
+   "name": "Chest Supported Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS",
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "013374b8-c163-550e-8453-3f9f156d43c7"
+  },
+  {
+   "name": "Chest Supported T-Bar Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "821ed32f-f3a2-5a3c-878c-5e515d39ff34"
+  },
+  {
+   "name": "Face Pull (Resistance Band)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRAPS"
+   ],
+   "equipment": "RESISTANCE_BAND",
+   "isBodyweightVolumeEligible": false,
+   "id": "164659ba-8aa1-5c5d-9b09-103bc07e8cc9"
+  },
+  {
+   "name": "Incline Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "431adb7b-d192-5230-b3c1-b18c1ab108f4"
+  },
+  {
+   "name": "Inverted Row (Bodyweight)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "NONE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d3963bc5-0b52-570c-8035-020a8fdbbde6"
+  },
+  {
+   "name": "Inverted Row (Suspension)",
+   "exerciseType": "REPS_ONLY",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "SUSPENSION",
+   "isBodyweightVolumeEligible": false,
+   "id": "ad348b2d-9792-5c0a-92ac-d2e5c4a4c2b3"
+  },
+  {
+   "name": "Inverted Row (Weighted)",
+   "exerciseType": "BODYWEIGHT_WEIGHTED",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "PLATE",
+   "isBodyweightVolumeEligible": false,
+   "id": "db72924d-889d-5c95-a186-7154a87ccdd1"
+  },
+  {
+   "name": "Kroc Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "FOREARMS",
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "eabe486a-530a-5de3-b417-5e0174e679fc"
+  },
+  {
+   "name": "Meadows Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "8ac1f0d6-728a-5b77-a513-a483b5cbbb7f"
+  },
+  {
+   "name": "Pendlay Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "e4b4d423-4c47-5e8b-a5c8-44ab13782196"
+  },
+  {
+   "name": "Prone Y-Raise (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "TRAPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "510fd74a-7a40-59af-b01c-1b49d48bd2c2"
+  },
+  {
+   "name": "Rear Delt Fly (Cable)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "98099c82-bb3f-5a42-ba62-b79e7abff066"
+  },
+  {
+   "name": "Rear Delt Fly (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "SHOULDERS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "beccc2e1-543e-5b79-8845-68446dc45a48"
+  },
+  {
+   "name": "Renegade Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "ABDOMINALS",
+    "SHOULDERS",
+    "TRICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "2e5ec2cd-7200-5c14-86b5-a50ef32ecba6"
+  },
+  {
+   "name": "Reverse Grip Cable Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "LATS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "6f02a924-9be2-5788-88fe-f6c1af6d02cc"
+  },
+  {
+   "name": "Seal Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "266f7e23-c877-53f2-9a9f-6720383ad978"
+  },
+  {
+   "name": "Seated Cable Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "93293c8d-24a3-5887-a6f2-17a2c363efe6"
+  },
+  {
+   "name": "Single Arm Cable Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "9e23c588-140f-56d0-9126-92789e6192cb"
+  },
+  {
+   "name": "Single Arm Row (Dumbbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "DUMBBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "d5f9921e-5bc4-5326-9c19-00c39eaa3639"
+  },
+  {
+   "name": "Single Arm Row (Kettlebell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "KETTLEBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "0a73f9f7-07f0-5374-a16b-b190dfb3ca17"
+  },
+  {
+   "name": "T Bar Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "e297362f-1142-54f5-91bd-247bd476d361"
+  },
+  {
+   "name": "Underhand Bent Over Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "BICEPS",
+    "LATS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "26c398ef-6dad-5628-a81d-1a6c483e90f3"
+  },
+  {
+   "name": "Wide Grip Seated Cable Row (Machine)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "SHOULDERS",
+    "BICEPS"
+   ],
+   "equipment": "MACHINE",
+   "isBodyweightVolumeEligible": false,
+   "id": "d31a6322-dbdc-56e8-a645-bfb43ad4384c"
+  },
+  {
+   "name": "Yates Row (Barbell)",
+   "exerciseType": "WEIGHT_REPS",
+   "primaryMuscleGroup": "UPPER_BACK",
+   "secondaryMuscleGroups": [
+    "LATS",
+    "BICEPS"
+   ],
+   "equipment": "BARBELL",
+   "isBodyweightVolumeEligible": false,
+   "id": "1ac94b4b-ce81-5ec5-9f65-1396bd2f2628"
+  }
+ ]
+}
