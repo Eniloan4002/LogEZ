@@ -1,0 +1,114 @@
+package com.enil.logez.feature.routines
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.common.Clock
+import com.enil.logez.core.data.entity.RoutineEntity
+import com.enil.logez.core.data.entity.RoutineFolderEntity
+import com.enil.logez.core.domain.repository.RoutineRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
+import javax.inject.Inject
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+/** PHASE2_PLAN.md §5.1.1 Workout tab: folders + routines, unified from three Room `Flow`s. */
+@HiltViewModel
+class WorkoutTabViewModel @Inject constructor(
+    private val routineRepository: RoutineRepository,
+    private val clock: Clock,
+) : ViewModel() {
+    val uiState: StateFlow<WorkoutTabUiState> = combine(
+        routineRepository.observeFolders(),
+        routineRepository.observeAllRoutines(),
+        routineRepository.observeRoutineExercisePreviews(),
+    ) { folders, routines, previewRows ->
+        val previewByRoutine = previewRows.groupBy { it.routineId }
+        fun cardFor(routine: RoutineEntity): RoutineCardModel {
+            val names = previewByRoutine[routine.id].orEmpty().sortedBy { it.orderIndex }.map { it.exerciseName }
+            return RoutineCardModel(routine = routine, exercisePreview = buildExercisePreview(names))
+        }
+        val routinesByFolder = routines.filter { it.folderId != null }.groupBy { it.folderId }
+        WorkoutTabUiState(
+            isLoading = false,
+            folders = folders.map { f ->
+                FolderSection(folder = f, routines = routinesByFolder[f.id].orEmpty().sortedBy { it.orderIndex }.map(::cardFor))
+            },
+            rootRoutines = routines.filter { it.folderId == null }.sortedBy { it.orderIndex }.map(::cardFor),
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutTabUiState())
+
+    fun createFolder(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val now = clock.now().toEpochMilliseconds()
+            routineRepository.createFolderAtTop(
+                RoutineFolderEntity(id = UUID.randomUUID().toString(), name = name.trim(), orderIndex = 0, createdAt = now, updatedAt = now),
+            )
+        }
+    }
+
+    fun renameFolder(id: String, name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch { routineRepository.renameFolder(id, name.trim(), clock.now().toEpochMilliseconds()) }
+    }
+
+    fun deleteFolder(folder: RoutineFolderEntity) {
+        viewModelScope.launch { routineRepository.deleteFolder(folder) }
+    }
+
+    fun reorderFolders(orderedIds: List<String>) {
+        viewModelScope.launch { routineRepository.reorderFolders(orderedIds) }
+    }
+
+    fun reorderRoutines(orderedIds: List<String>) {
+        viewModelScope.launch { routineRepository.reorderRoutines(orderedIds) }
+    }
+
+    fun moveRoutineToFolder(routineId: String, folderId: String?) {
+        viewModelScope.launch { routineRepository.moveRoutineToFolder(routineId, folderId, clock.now().toEpochMilliseconds()) }
+    }
+
+    fun deleteRoutine(id: String) {
+        viewModelScope.launch { routineRepository.deleteRoutineById(id) }
+    }
+
+    /** §5.1.1 routine three-dots "Duplicate": full structural copy, fresh ids, no history attached. */
+    suspend fun duplicateRoutine(routineId: String): String? {
+        val original = routineRepository.getRoutineById(routineId) ?: return null
+        val originalExercises = routineRepository.getExercisesForRoutine(routineId)
+        val now = clock.now().toEpochMilliseconds()
+        val newRoutineId = UUID.randomUUID().toString()
+        val exerciseIdMap = originalExercises.associate { it.id to UUID.randomUUID().toString() }
+
+        val newExercises = originalExercises.map { re -> re.copy(id = exerciseIdMap.getValue(re.id), routineId = newRoutineId) }
+        val newSets = originalExercises.flatMap { re ->
+            routineRepository.getSetsForRoutineExercise(re.id).map { s ->
+                s.copy(id = UUID.randomUUID().toString(), routineExerciseId = exerciseIdMap.getValue(re.id))
+            }
+        }
+        val newRoutine = original.copy(id = newRoutineId, name = "${original.name} (copy)", createdAt = now, updatedAt = now)
+
+        routineRepository.createRoutineAtTop(newRoutine, newExercises, newSets)
+        return newRoutineId
+    }
+}
+
+data class WorkoutTabUiState(
+    val isLoading: Boolean = true,
+    val folders: List<FolderSection> = emptyList(),
+    val rootRoutines: List<RoutineCardModel> = emptyList(),
+)
+
+data class FolderSection(val folder: RoutineFolderEntity, val routines: List<RoutineCardModel>)
+data class RoutineCardModel(val routine: RoutineEntity, val exercisePreview: String)
+
+/** §5.1.1 routine card subtitle: "Bench Press, Incline DB Press, +3 more". Pure — unit-tested directly. */
+internal fun buildExercisePreview(names: List<String>): String = when {
+    names.isEmpty() -> ""
+    names.size <= 2 -> names.joinToString(", ")
+    else -> "${names.take(2).joinToString(", ")}, +${names.size - 2} more"
+}

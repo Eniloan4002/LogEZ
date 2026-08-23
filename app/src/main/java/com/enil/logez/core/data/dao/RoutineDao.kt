@@ -1,5 +1,6 @@
 package com.enil.logez.core.data.dao
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -28,6 +29,27 @@ interface RoutineDao {
     @Query("SELECT * FROM routine_folders WHERE id = :id LIMIT 1")
     suspend fun getFolderById(id: String): RoutineFolderEntity?
 
+    @Query("SELECT * FROM routine_folders ORDER BY order_index ASC")
+    suspend fun getAllFoldersOnce(): List<RoutineFolderEntity>
+
+    @Query("UPDATE routine_folders SET order_index = :orderIndex WHERE id = :id")
+    suspend fun updateFolderOrderIndex(id: String, orderIndex: Int)
+
+    @Query("UPDATE routine_folders SET name = :name, updated_at = :updatedAt WHERE id = :id")
+    suspend fun renameFolder(id: String, name: String, updatedAt: Long)
+
+    /** New folders insert at index 0 (Hevy parity, entity doc comment) — shifts existing folders down. */
+    @Transaction
+    suspend fun createFolderAtTop(folder: RoutineFolderEntity) {
+        getAllFoldersOnce().forEach { updateFolderOrderIndex(it.id, it.orderIndex + 1) }
+        upsertFolder(folder)
+    }
+
+    @Transaction
+    suspend fun reorderFolders(orderedIds: List<String>) {
+        orderedIds.forEachIndexed { index, id -> updateFolderOrderIndex(id, index) }
+    }
+
     // --- Routines ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertRoutine(routine: RoutineEntity)
@@ -47,8 +69,60 @@ interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY order_index ASC")
     fun observeAllRoutines(): Flow<List<RoutineEntity>>
 
-    @Query("SELECT * FROM routines WHERE folder_id = :folderId ORDER BY order_index ASC")
+    /** `IS`, not `=` — SQLite's `=` never matches NULL, which would silently hide every root (folderless) routine. */
+    @Query("SELECT * FROM routines WHERE folder_id IS :folderId ORDER BY order_index ASC")
     fun observeRoutinesInFolder(folderId: String?): Flow<List<RoutineEntity>>
+
+    @Query("SELECT * FROM routines WHERE folder_id IS :folderId ORDER BY order_index ASC")
+    suspend fun getRoutinesInFolderOnce(folderId: String?): List<RoutineEntity>
+
+    @Query("UPDATE routines SET order_index = :orderIndex WHERE id = :id")
+    suspend fun updateRoutineOrderIndex(id: String, orderIndex: Int)
+
+    @Query("UPDATE routines SET folder_id = :folderId, updated_at = :updatedAt WHERE id = :id")
+    suspend fun setRoutineFolder(id: String, folderId: String?, updatedAt: Long)
+
+    @Transaction
+    suspend fun reorderRoutines(orderedIds: List<String>) {
+        orderedIds.forEachIndexed { index, id -> updateRoutineOrderIndex(id, index) }
+    }
+
+    /** Moving into a bucket also re-homes the routine at the top of its new bucket (matches folder/routine creation convention). */
+    @Transaction
+    suspend fun moveRoutineToFolder(id: String, folderId: String?, updatedAt: Long) {
+        getRoutinesInFolderOnce(folderId).forEach { updateRoutineOrderIndex(it.id, it.orderIndex + 1) }
+        setRoutineFolder(id, folderId, updatedAt)
+        updateRoutineOrderIndex(id, 0)
+    }
+
+    /** New/duplicated routines insert at the top of their bucket (folder or root) — same convention as folders. */
+    @Transaction
+    suspend fun createRoutineAtTop(routine: RoutineEntity, exercises: List<RoutineExerciseEntity>, sets: List<RoutineSetEntity>) {
+        getRoutinesInFolderOnce(routine.folderId).forEach { updateRoutineOrderIndex(it.id, it.orderIndex + 1) }
+        upsertRoutine(routine)
+        insertRoutineExercises(exercises)
+        insertRoutineSets(sets)
+    }
+
+    /** Routine Builder's edit-mode save: full structural replace, keeping the routine's existing position. */
+    @Transaction
+    suspend fun updateRoutineStructure(routine: RoutineEntity, exercises: List<RoutineExerciseEntity>, sets: List<RoutineSetEntity>) {
+        deleteExercisesForRoutine(routine.id) // cascades routine_sets via FK
+        upsertRoutine(routine)
+        insertRoutineExercises(exercises)
+        insertRoutineSets(sets)
+    }
+
+    /** One row per (routine, exercise) — grouped in Kotlin into "Bench Press, Incline DB Press, +3 more" card previews. */
+    @Query(
+        """
+        SELECT re.routine_id AS routineId, e.name AS exerciseName, re.order_index AS orderIndex
+        FROM routine_exercises re
+        JOIN exercises e ON e.id = re.exercise_id
+        ORDER BY re.routine_id ASC, re.order_index ASC
+        """,
+    )
+    fun observeRoutineExercisePreviews(): Flow<List<RoutineExercisePreviewRow>>
 
     // --- Routine exercises / sets ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -85,3 +159,9 @@ interface RoutineDao {
         insertRoutineSets(sets)
     }
 }
+
+data class RoutineExercisePreviewRow(
+    @ColumnInfo(name = "routineId") val routineId: String,
+    @ColumnInfo(name = "exerciseName") val exerciseName: String,
+    @ColumnInfo(name = "orderIndex") val orderIndex: Int,
+)

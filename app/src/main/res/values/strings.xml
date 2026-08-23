@@ -23,6 +23,7 @@
     <string name="action_delete">Delete</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_rename">Rename</string>
 
     <string name="exercise_library_title">Exercises</string>
     <string name="exercise_library_create">Create exercise</string>
@@ -57,4 +58,60 @@
     <string name="exercise_detail_how_to_empty_subtitle">Custom exercises can have instructions added when edited.</string>
     <string name="exercise_delete_confirm_title">Delete this exercise?</string>
     <string name="exercise_delete_confirm_body">Past workouts that used it are kept, but you won\'t be able to log it again.</string>
+
+    <string name="exercise_picker_create_row">Create new exercise</string>
+    <string name="exercise_picker_add_n">Add %1$d exercises</string>
+
+    <string name="rest_timer_default_option">Default (%1$s)</string>
+    <string name="rest_timer_off_option">Off</string>
+
+    <string name="set_type_normal">Normal Set</string>
+    <string name="set_type_warmup">W — Warmup Set</string>
+    <string name="set_type_failure">F — Failure Set</string>
+    <string name="set_type_dropset">D — Dropset</string>
+
+    <string name="workout_tab_title">Workout</string>
+    <string name="workout_new_folder">New folder</string>
+    <string name="workout_new_routine">New routine</string>
+    <string name="workout_start_empty">Start Empty Workout</string>
+    <string name="workout_start_routine">Start Routine</string>
+    <string name="workout_create_first_routine">Create your first routine</string>
+    <string name="workout_live_logging_coming_soon">Live workout logging lands in M4</string>
+    <string name="workout_my_routines_header">My Routines</string>
+    <string name="workout_move_up">Move up</string>
+    <string name="workout_move_down">Move down</string>
+    <string name="workout_add_routine_to_folder">Add new routine</string>
+    <string name="workout_reorder">Reorder</string>
+    <string name="workout_rename_folder">Rename folder</string>
+    <string name="workout_delete_folder_title">Delete this folder?</string>
+    <string name="workout_delete_folder_body">Its routines move to My Routines — nothing is deleted.</string>
+    <string name="workout_delete_routine_title">Delete this routine?</string>
+    <string name="workout_delete_routine_body">This can\'t be undone.</string>
+    <string name="workout_move_to_folder">Move to folder</string>
+
+    <string name="routine_builder_title_hint">Routine title</string>
+    <string name="routine_builder_add_exercise">+ Add Exercise</string>
+    <string name="routine_builder_add_set">+ Add Set</string>
+    <string name="routine_builder_notes_hint">Notes</string>
+    <string name="routine_builder_rest_timer_label">Rest Timer: %1$s</string>
+    <string name="routine_builder_superset_chip">Superset</string>
+    <string name="routine_builder_superset_banner">Tap an exercise to group it into a superset</string>
+    <string name="routine_builder_reorder">Reorder</string>
+    <string name="routine_builder_reorder_banner">Drag exercises to reorder</string>
+    <string name="routine_builder_reorder_done">Done</string>
+    <string name="routine_builder_menu_reorder">Reorder</string>
+    <string name="routine_builder_menu_replace">Replace Exercise</string>
+    <string name="routine_builder_menu_add_to_superset">Add to Superset</string>
+    <string name="routine_builder_menu_remove_from_superset">Remove From Superset</string>
+    <string name="routine_builder_menu_remove_exercise">Remove Exercise</string>
+    <string name="routine_builder_discard_title">Discard changes?</string>
+    <string name="routine_builder_discard_body">You have unsaved changes to this routine.</string>
+    <string name="routine_builder_discard_confirm">Discard</string>
+    <string name="routine_builder_col_set">SET</string>
+    <string name="routine_builder_col_weight">KG</string>
+    <string name="routine_builder_col_weight_added">+KG</string>
+    <string name="routine_builder_col_weight_assisted">−KG</string>
+    <string name="routine_builder_col_reps">REPS</string>
+    <string name="routine_builder_col_time">TIME</string>
+    <string name="routine_builder_col_distance">DISTANCE</string>
 </resources>

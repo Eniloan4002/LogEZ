@@ -14,6 +14,9 @@ import com.enil.logez.feature.exercises.ExerciseDetailScreen
 import com.enil.logez.feature.exercises.ExerciseLibraryScreen
 import com.enil.logez.feature.exercises.ExerciseRoutes
 import com.enil.logez.feature.history.HistoryScreen
+import com.enil.logez.feature.routines.RoutineBuilderScreen
+import com.enil.logez.feature.routines.RoutineDetailScreen
+import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
 
 @Composable
@@ -29,7 +32,13 @@ fun LogEzNavHost(
         modifier = modifier,
     ) {
         composable(LogEzDestination.History.route) { HistoryScreen() }
-        composable(LogEzDestination.Workout.route) { WorkoutTabScreen() }
+        composable(LogEzDestination.Workout.route) {
+            WorkoutTabScreen(
+                onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
+                onCreateRoutine = { folderId -> navController.navigate(RoutineRoutes.builder(folderId = folderId)) },
+                onEditRoutine = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
+            )
+        }
         composable(LogEzDestination.Profile.route) {
             ProfileScreen(
                 themeMode = themeMode,
@@ -70,6 +79,35 @@ fun LogEzNavHost(
             CustomExerciseEditorScreen(
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = RoutineRoutes.DETAIL,
+            arguments = listOf(navArgument("routineId") { type = NavType.StringType }),
+        ) {
+            RoutineDetailScreen(
+                onBack = { navController.popBackStack() },
+                onEdit = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
+            )
+        }
+        composable(
+            route = RoutineRoutes.BUILDER,
+            arguments = listOf(
+                navArgument("routineId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("folderId") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) {
+            RoutineBuilderScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { routineId ->
+                    navController.popBackStack()
+                    if (navController.currentDestination?.route != RoutineRoutes.DETAIL) {
+                        navController.navigate(RoutineRoutes.detail(routineId))
+                    }
+                },
+                onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
+                onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
             )
         }
     }
