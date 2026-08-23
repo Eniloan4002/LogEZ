@@ -39,31 +39,40 @@ fun LogEzApp() {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = backStackEntry?.destination
 
-                NavigationBar {
-                    LogEzDestination.entries.forEach { destination ->
-                        val selected = currentDestination?.hierarchy?.any {
-                            it.route == destination.route
-                        } == true
+                // Spine navigation rule: only the three tab roots ever show the bottom bar —
+                // every sub-screen (exercise library/detail/editor, and more as later
+                // milestones land) hides it.
+                val onTabRoot = LogEzDestination.entries.any { destination ->
+                    currentDestination?.hierarchy?.any { it.route == destination.route } == true
+                }
 
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(destination.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                if (onTabRoot) {
+                    NavigationBar {
+                        LogEzDestination.entries.forEach { destination ->
+                            val selected = currentDestination?.hierarchy?.any {
+                                it.route == destination.route
+                            } == true
+
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    navController.navigate(destination.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = destination.icon,
-                                    contentDescription = stringResource(destination.labelRes),
-                                )
-                            },
-                            label = { Text(stringResource(destination.labelRes)) },
-                        )
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = destination.icon,
+                                        contentDescription = stringResource(destination.labelRes),
+                                    )
+                                },
+                                label = { Text(stringResource(destination.labelRes)) },
+                            )
+                        }
                     }
                 }
             },

@@ -61,15 +61,18 @@ interface WorkoutDao {
 
     /**
      * Raw joined rows for one exercise across COMPLETED workouts — the source data for §8's
-     * `StatSet` DTO (volume/1RM/PR/chart engines) and §8.10's PREVIOUS-values resolution.
-     * Repository maps rows to `StatSet`; kept as a flat projection so no new Room POJO is needed.
+     * `StatSet` DTO (volume/1RM/PR/chart engines), §8.10's PREVIOUS-values resolution, AND the
+     * Exercise Detail History tab (§5.2, which additionally needs the workout title — carried
+     * here rather than duplicating an almost-identical query). Repository maps rows to `StatSet`
+     * or `ExerciseHistoryEntry` depending on the caller; kept as one flat projection.
      */
     @Query(
         """
-        SELECT ws.id AS setId, w.id AS workoutId, w.started_at AS workoutStartedAt, w.routine_id AS routineId,
-               ws.order_index AS orderIndex, ws.set_type AS setType, ws.weight_kg AS weightKg, ws.reps AS reps,
-               ws.duration_seconds AS durationSeconds, ws.distance_meters AS distanceMeters,
-               ws.custom_metric AS customMetric, ws.is_completed AS isCompleted, ws.rpe AS rpe
+        SELECT ws.id AS setId, w.id AS workoutId, w.title AS workoutTitle, w.started_at AS workoutStartedAt,
+               w.routine_id AS routineId, ws.order_index AS orderIndex, ws.set_type AS setType,
+               ws.weight_kg AS weightKg, ws.reps AS reps, ws.duration_seconds AS durationSeconds,
+               ws.distance_meters AS distanceMeters, ws.custom_metric AS customMetric,
+               ws.is_completed AS isCompleted, ws.rpe AS rpe
         FROM workout_sets ws
         JOIN workout_exercises we ON we.id = ws.workout_exercise_id
         JOIN workouts w ON w.id = we.workout_id
@@ -78,6 +81,22 @@ interface WorkoutDao {
         """,
     )
     suspend fun getStatRowsForExercise(exerciseId: String): List<ExerciseStatRow>
+
+    /**
+     * Most recent `completed_at` per exercise, across all COMPLETED-workout sets — backs the
+     * Exercise Library's "recently logged first" sort (§5.2).
+     */
+    @Query(
+        """
+        SELECT we.exercise_id AS exerciseId, MAX(ws.completed_at) AS lastCompletedAt
+        FROM workout_sets ws
+        JOIN workout_exercises we ON we.id = ws.workout_exercise_id
+        JOIN workouts w ON w.id = we.workout_id
+        WHERE ws.is_completed = 1 AND w.status = 'COMPLETED'
+        GROUP BY we.exercise_id
+        """,
+    )
+    suspend fun getMostRecentUsagePerExercise(): List<ExerciseRecencyRow>
 
     /** Whole-structure insert (workout + exercises + sets) — used by tests and the M4c save transaction. */
     @Transaction
@@ -92,10 +111,11 @@ interface WorkoutDao {
     }
 }
 
-/** Flat projection backing [WorkoutDao.getStatRowsForExercise] — mapped to `StatSet` in the repository. */
+/** Flat projection backing [WorkoutDao.getStatRowsForExercise] — mapped to `StatSet` or `ExerciseHistoryEntry`. */
 data class ExerciseStatRow(
     val setId: String,
     val workoutId: String,
+    val workoutTitle: String,
     val workoutStartedAt: Long,
     val routineId: String?,
     val orderIndex: Int,
@@ -107,4 +127,10 @@ data class ExerciseStatRow(
     val customMetric: Double?,
     val isCompleted: Boolean,
     val rpe: Double?,
+)
+
+/** Flat projection backing [WorkoutDao.getMostRecentUsagePerExercise]. */
+data class ExerciseRecencyRow(
+    val exerciseId: String,
+    val lastCompletedAt: Long?,
 )

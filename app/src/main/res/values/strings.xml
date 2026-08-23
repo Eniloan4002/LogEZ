@@ -14,4 +14,47 @@
 
     <string name="profile_empty_title">Your stats will appear here</string>
     <string name="profile_empty_subtitle">Log a workout to see your streak, charts, and records.</string>
+    <string name="profile_nav_exercises">Exercises</string>
+
+    <string name="back">Back</string>
+    <string name="more_options">More options</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_duplicate">Duplicate</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="exercise_library_title">Exercises</string>
+    <string name="exercise_library_create">Create exercise</string>
+    <string name="exercise_library_search_hint">Search exercises</string>
+    <string name="exercise_library_no_results_title">No exercises match</string>
+    <string name="exercise_library_no_results_subtitle">Try a different search or filter.</string>
+    <string name="exercise_library_create_from_query">Create \"%1$s\" as a custom exercise</string>
+    <string name="exercise_library_custom_badge"> · Custom</string>
+    <string name="exercise_library_filter_equipment">Equipment</string>
+    <string name="exercise_library_filter_muscle">Muscle</string>
+    <string name="exercise_library_filter_all">All</string>
+
+    <string name="exercise_editor_title_create">New Exercise</string>
+    <string name="exercise_editor_title_edit">Edit Exercise</string>
+    <string name="exercise_editor_add_photo">Add photo</string>
+    <string name="exercise_editor_name">Name</string>
+    <string name="exercise_editor_name_required">Name is required</string>
+    <string name="exercise_editor_equipment">Equipment</string>
+    <string name="exercise_editor_primary_muscle">Primary muscle</string>
+    <string name="exercise_editor_secondary_muscles">Secondary muscles</string>
+    <string name="exercise_editor_type">Exercise type</string>
+    <string name="exercise_editor_type_immutable_hint">Type can\'t be changed after creation.</string>
+
+    <string name="exercise_detail_tab_summary">Summary</string>
+    <string name="exercise_detail_tab_history">History</string>
+    <string name="exercise_detail_tab_how_to">How to</string>
+    <string name="exercise_detail_summary_stub_title">Charts and records are coming soon</string>
+    <string name="exercise_detail_summary_stub_subtitle">This tab lands once analytics are built.</string>
+    <string name="exercise_detail_history_empty_title">No sessions logged yet</string>
+    <string name="exercise_detail_history_empty_subtitle">Log this exercise in a workout to see it here.</string>
+    <string name="exercise_detail_how_to_empty_title">No instructions for this exercise</string>
+    <string name="exercise_detail_how_to_empty_subtitle">Custom exercises can have instructions added when edited.</string>
+    <string name="exercise_delete_confirm_title">Delete this exercise?</string>
+    <string name="exercise_delete_confirm_body">Past workouts that used it are kept, but you won\'t be able to log it again.</string>
 </resources>

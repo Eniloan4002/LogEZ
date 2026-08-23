@@ -1,5 +1,7 @@
 package com.enil.logez.core.data.di
 
+import com.enil.logez.core.data.media.ExerciseMediaStore
+import com.enil.logez.core.data.media.ExerciseMediaStoreImpl
 import com.enil.logez.core.data.repository.ExerciseRepositoryImpl
 import com.enil.logez.core.data.repository.MeasurementRepositoryImpl
 import com.enil.logez.core.data.repository.PersonalRecordsRepositoryImpl
@@ -44,4 +46,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindExerciseMediaStore(impl: ExerciseMediaStoreImpl): ExerciseMediaStore
 }
