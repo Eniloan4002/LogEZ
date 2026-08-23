@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Legacy (API 26-30) Auto-Backup rules. Owner decision 2026-08-23: no logEZ data is eligible
+    for Google's cloud Auto-Backup transport — the manual zip backup (PHASE2_PLAN.md §9.9) is
+    the sole off-device copy. This file currently excludes nothing because it has nothing to
+    exclude: on API 26-30 the <full-backup-content> allowlist model means simply not listing
+    any path here already yields zero data backed up. Revisit if a future path needs including.
+-->
+<full-backup-content>
+</full-backup-content>

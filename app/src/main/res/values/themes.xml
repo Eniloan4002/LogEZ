@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose owns all real theming (core/designsystem/Theme.kt). This system theme only
+        controls the pre-Compose window background / status-bar chrome shown for an instant
+        during cold start, so it must not visibly clash with the light Compose theme.
+    -->
+    <style name="Theme.LogEZ" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>

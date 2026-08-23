@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">logEZ</string>
+
+    <string name="nav_history">History</string>
+    <string name="nav_workout">Workout</string>
+    <string name="nav_profile">Profile</string>
+
+    <string name="history_empty_title">No workouts yet</string>
+    <string name="history_empty_subtitle">Your completed workouts will appear here.</string>
+
+    <string name="workout_empty_title">No routines yet</string>
+    <string name="workout_empty_subtitle">Build a routine or start an empty workout to begin.</string>
+
+    <string name="profile_empty_title">Your stats will appear here</string>
+    <string name="profile_empty_subtitle">Log a workout to see your streak, charts, and records.</string>
+</resources>

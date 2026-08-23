@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    API 31+ backup/transfer rules. Owner decision 2026-08-23 (PHASE2_PLAN.md §9.10, "Exclude
+    from cloud, device-transfer only"): app data moves between the user's own devices (Android's
+    device-to-device transfer) but is never eligible for cloud backup. Room databases/, DataStore
+    preferences, and media directories are added under <device-transfer> as each is created
+    (M1 for databases/datastore, M6 for progress-photo/exercise-media directories) — none under
+    <cloud-backup>. An empty <cloud-backup/> block means the default (everything) is backed up
+    to the cloud, so once real data exists it must be explicitly excluded there, not just left
+    unlisted under device-transfer.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="." />
+        <include domain="sharedpref" path="." />
+        <include domain="file" path="." />
+    </device-transfer>
+</data-extraction-rules>
