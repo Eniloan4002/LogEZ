@@ -6,6 +6,8 @@ import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.domain.repository.RoutineRepository
+import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.workout.WorkoutStarter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -19,13 +21,16 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class WorkoutTabViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
+    private val workoutRepository: WorkoutRepository,
+    private val workoutStarter: WorkoutStarter,
     private val clock: Clock,
 ) : ViewModel() {
     val uiState: StateFlow<WorkoutTabUiState> = combine(
         routineRepository.observeFolders(),
         routineRepository.observeAllRoutines(),
         routineRepository.observeRoutineExercisePreviews(),
-    ) { folders, routines, previewRows ->
+        workoutRepository.observeInProgress(),
+    ) { folders, routines, previewRows, inProgress ->
         val previewByRoutine = previewRows.groupBy { it.routineId }
         fun cardFor(routine: RoutineEntity): RoutineCardModel {
             val names = previewByRoutine[routine.id].orEmpty().sortedBy { it.orderIndex }.map { it.exerciseName }
@@ -38,6 +43,8 @@ class WorkoutTabViewModel @Inject constructor(
                 FolderSection(folder = f, routines = routinesByFolder[f.id].orEmpty().sortedBy { it.orderIndex }.map(::cardFor))
             },
             rootRoutines = routines.filter { it.folderId == null }.sortedBy { it.orderIndex }.map(::cardFor),
+            inProgressWorkoutId = inProgress?.id,
+            inProgressWorkoutTitle = inProgress?.title,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutTabUiState())
 
@@ -95,12 +102,26 @@ class WorkoutTabViewModel @Inject constructor(
         routineRepository.createRoutineAtTop(newRoutine, newExercises, newSets)
         return newRoutineId
     }
+
+    suspend fun startEmptyWorkout() = workoutStarter.startEmptyOrConflict()
+    suspend fun startRoutine(routineId: String) = workoutStarter.startFromRoutineOrConflict(routineId)
+    suspend fun discardInProgressAndStartEmpty(): String {
+        workoutStarter.discardInProgress()
+        return workoutStarter.startEmpty()
+    }
+    suspend fun discardInProgressAndStartRoutine(routineId: String): String {
+        workoutStarter.discardInProgress()
+        return workoutStarter.startFromRoutine(routineId)
+    }
 }
 
 data class WorkoutTabUiState(
     val isLoading: Boolean = true,
     val folders: List<FolderSection> = emptyList(),
     val rootRoutines: List<RoutineCardModel> = emptyList(),
+    /** §9.5 process-death recovery surfaced directly on the tab — no need to fail a Start tap first to discover it. */
+    val inProgressWorkoutId: String? = null,
+    val inProgressWorkoutTitle: String? = null,
 )
 
 data class FolderSection(val folder: RoutineFolderEntity, val routines: List<RoutineCardModel>)

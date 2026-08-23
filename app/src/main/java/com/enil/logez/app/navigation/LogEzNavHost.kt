@@ -17,6 +17,8 @@ import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
+import com.enil.logez.feature.workout.WorkoutLoggerScreen
+import com.enil.logez.feature.workout.WorkoutRoutes
 
 @Composable
 fun LogEzNavHost(
@@ -34,6 +36,7 @@ fun LogEzNavHost(
                 onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
                 onCreateRoutine = { folderId -> navController.navigate(RoutineRoutes.builder(folderId = folderId)) },
                 onEditRoutine = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
+                onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
             )
         }
         composable(LogEzDestination.Profile.route) {
@@ -84,6 +87,7 @@ fun LogEzNavHost(
             RoutineDetailScreen(
                 onBack = { navController.popBackStack() },
                 onEdit = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
+                onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
             )
         }
         composable(
@@ -101,6 +105,18 @@ fun LogEzNavHost(
                         navController.navigate(RoutineRoutes.detail(routineId))
                     }
                 },
+                onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
+                onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
+            )
+        }
+
+        composable(
+            route = WorkoutRoutes.LOGGER,
+            arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
+        ) {
+            WorkoutLoggerScreen(
+                onFinished = { navController.popBackStack(LogEzDestination.Workout.route, inclusive = false) },
+                onDiscarded = { navController.popBackStack(LogEzDestination.Workout.route, inclusive = false) },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
             )

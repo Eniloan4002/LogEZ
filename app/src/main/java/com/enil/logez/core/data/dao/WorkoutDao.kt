@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.SetType
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -44,8 +45,63 @@ interface WorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkoutSets(sets: List<WorkoutSetEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWorkoutSet(set: WorkoutSetEntity)
+
     @Update
     suspend fun updateWorkoutSet(set: WorkoutSetEntity)
+
+    // Targeted single-field updates for the live logger's write-through edits (§5.1.3) — a
+    // whole-row @Update reconstructed from the UI model would need every field (orderIndex,
+    // completedAt, ...) the UI doesn't track, silently clobbering them on every keystroke.
+    @Query("UPDATE workout_sets SET weight_kg = :kg WHERE id = :id")
+    suspend fun updateWorkoutSetWeight(id: String, kg: Double?)
+
+    @Query("UPDATE workout_sets SET reps = :reps WHERE id = :id")
+    suspend fun updateWorkoutSetReps(id: String, reps: Int?)
+
+    @Query("UPDATE workout_sets SET duration_seconds = :seconds WHERE id = :id")
+    suspend fun updateWorkoutSetDuration(id: String, seconds: Int?)
+
+    @Query("UPDATE workout_sets SET distance_meters = :meters WHERE id = :id")
+    suspend fun updateWorkoutSetDistance(id: String, meters: Double?)
+
+    @Query("UPDATE workout_sets SET custom_metric = :value WHERE id = :id")
+    suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?)
+
+    @Query("UPDATE workout_sets SET set_type = :type WHERE id = :id")
+    suspend fun updateWorkoutSetType(id: String, type: SetType)
+
+    @Query("UPDATE workout_sets SET is_completed = :completed, completed_at = :completedAt WHERE id = :id")
+    suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?)
+
+    @Query("DELETE FROM workout_sets WHERE id = :id")
+    suspend fun deleteWorkoutSetById(id: String)
+
+    @Query("DELETE FROM workout_exercises WHERE id = :id")
+    suspend fun deleteWorkoutExerciseById(id: String)
+
+    @Query("UPDATE workout_exercises SET order_index = :orderIndex WHERE id = :id")
+    suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int)
+
+    @Query("UPDATE workout_exercises SET superset_group = :supersetGroup WHERE id = :id")
+    suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?)
+
+    @Query("UPDATE workout_exercises SET notes = :notes WHERE id = :id")
+    suspend fun updateWorkoutExerciseNotes(id: String, notes: String?)
+
+    @Query("UPDATE workout_exercises SET rest_timer_seconds = :seconds WHERE id = :id")
+    suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?)
+
+    @Query("UPDATE workout_exercises SET exercise_id = :newExerciseId WHERE id = :id")
+    suspend fun updateWorkoutExerciseExerciseId(id: String, newExerciseId: String)
+
+    /** §5.1.3 Replace Exercise: swaps the exercise id, rewrites the *same* set rows with carried-over values. */
+    @Transaction
+    suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>) {
+        updateWorkoutExerciseExerciseId(workoutExerciseId, newExerciseId)
+        carriedOverSets.forEach { updateWorkoutSet(it) }
+    }
 
     @Query("SELECT * FROM workout_exercises WHERE workout_id = :workoutId ORDER BY order_index ASC")
     suspend fun getExercisesForWorkout(workoutId: String): List<WorkoutExerciseEntity>

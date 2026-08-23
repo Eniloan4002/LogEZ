@@ -114,4 +114,21 @@
     <string name="routine_builder_col_reps">REPS</string>
     <string name="routine_builder_col_time">TIME</string>
     <string name="routine_builder_col_distance">DISTANCE</string>
+
+    <string name="workout_logger_stats">%1$s · %2$d sets · %3$s</string>
+    <string name="workout_finish">Finish</string>
+    <string name="workout_discard">Discard Workout</string>
+    <string name="workout_finish_confirm_title">Finish this workout?</string>
+    <string name="workout_finish_confirm_body">This ends the session. You can review it from History afterward.</string>
+    <string name="workout_discard_confirm_title">Discard this workout?</string>
+    <string name="workout_discard_confirm_body">This can\'t be undone — nothing you\'ve logged will be saved.</string>
+    <string name="workout_col_previous">PREVIOUS</string>
+    <string name="workout_col_custom_metric">COUNT</string>
+    <string name="workout_check_set">Complete set</string>
+    <string name="workout_failure_error">Log the last completed rep before checking off a failure set.</string>
+    <string name="workout_resume_title">Resume workout in progress?</string>
+    <string name="workout_resume_body">You already have a workout running. Resume it, or discard it and start a new one.</string>
+    <string name="workout_resume_action">Resume</string>
+    <string name="workout_resume_banner_title">Workout in progress</string>
+    <string name="workout_resume_discard_action">Discard &amp; start new</string>
 </resources>

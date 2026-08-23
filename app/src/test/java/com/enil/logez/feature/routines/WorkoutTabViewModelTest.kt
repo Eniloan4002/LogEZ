@@ -8,6 +8,8 @@ import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeRoutineRepository
+import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.workout.WorkoutStarter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -32,6 +34,11 @@ class WorkoutTabViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
+    private fun newViewModel(routineRepo: FakeRoutineRepository, clock: FakeClock = FakeClock()): WorkoutTabViewModel {
+        val workoutRepo = FakeWorkoutRepository()
+        return WorkoutTabViewModel(routineRepo, workoutRepo, WorkoutStarter(workoutRepo, routineRepo, clock), clock)
+    }
+
     @Test
     fun `buildExercisePreview joins up to two names then counts the rest`() {
         assertEquals("", buildExercisePreview(emptyList()))
@@ -53,7 +60,7 @@ class WorkoutTabViewModelTest {
                 RoutineExercisePreviewRow(routineId = "r1", exerciseName = "Incline Press", orderIndex = 1),
             ),
         )
-        val vm = WorkoutTabViewModel(repo, FakeClock())
+        val vm = newViewModel(repo)
 
         val state = vm.uiState.value
         assertEquals(1, state.folders.size)
@@ -66,7 +73,7 @@ class WorkoutTabViewModelTest {
     @Test
     fun `creating a folder inserts it at the top and shifts existing folders down`() = runTest {
         val repo = FakeRoutineRepository(folders = listOf(RoutineFolderEntity(id = "f1", name = "Existing", orderIndex = 0, createdAt = 0, updatedAt = 0)))
-        val vm = WorkoutTabViewModel(repo, FakeClock())
+        val vm = newViewModel(repo)
 
         vm.createFolder("New Folder")
 
@@ -84,7 +91,7 @@ class WorkoutTabViewModelTest {
             exercises = listOf(RoutineExerciseEntity(id = "re1", routineId = "r1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
             sets = listOf(RoutineSetEntity(id = "s1", routineExerciseId = "re1", orderIndex = 0, setType = SetType.NORMAL, targetWeightKg = 100.0, targetReps = 5, targetRepRangeMin = null, targetRepRangeMax = null, targetDurationSeconds = null, targetDistanceMeters = null)),
         )
-        val vm = WorkoutTabViewModel(repo, FakeClock(currentMillis = 5_000L))
+        val vm = newViewModel(repo, FakeClock(currentMillis = 5_000L))
 
         val newId = vm.duplicateRoutine("r1")
 
@@ -113,7 +120,7 @@ class WorkoutTabViewModelTest {
             folders = listOf(RoutineFolderEntity(id = "f1", name = "Push Pull", orderIndex = 0, createdAt = 0, updatedAt = 0)),
             routines = listOf(RoutineEntity(id = "r1", folderId = "f1", name = "Push Day", notes = null, orderIndex = 0, createdAt = 0, updatedAt = 0)),
         )
-        val vm = WorkoutTabViewModel(repo, FakeClock())
+        val vm = newViewModel(repo)
 
         vm.deleteFolder(repo.getFolderById("f1")!!)
 

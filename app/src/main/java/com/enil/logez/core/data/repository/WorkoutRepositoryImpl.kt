@@ -6,7 +6,10 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.StatSet
+import com.enil.logez.core.domain.calc.resolvePreviousWorkoutSets
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
+import com.enil.logez.core.domain.model.PreviousValuesMode
+import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -19,10 +22,14 @@ class WorkoutRepositoryImpl @Inject constructor(
     override fun observeCompleted(): Flow<List<WorkoutEntity>> = dao.observeCompleted()
     override suspend fun getById(id: String): WorkoutEntity? = dao.getById(id)
     override fun observeById(id: String): Flow<WorkoutEntity?> = dao.observeById(id)
+    override suspend fun updateWorkout(workout: WorkoutEntity) = dao.updateWorkout(workout)
     override suspend fun deleteById(id: String) = dao.deleteWorkoutById(id)
 
     override suspend fun getExercisesForWorkout(workoutId: String): List<WorkoutExerciseEntity> =
         dao.getExercisesForWorkout(workoutId)
+
+    override fun observeExercisesForWorkout(workoutId: String): Flow<List<WorkoutExerciseEntity>> =
+        dao.observeExercisesForWorkout(workoutId)
 
     override suspend fun getSetsForWorkoutExercise(workoutExerciseId: String): List<WorkoutSetEntity> =
         dao.getSetsForWorkoutExercise(workoutExerciseId)
@@ -33,8 +40,32 @@ class WorkoutRepositoryImpl @Inject constructor(
         sets: List<WorkoutSetEntity>,
     ) = dao.insertFullWorkout(workout, exercises, sets)
 
+    override suspend fun insertWorkoutExercises(exercises: List<WorkoutExerciseEntity>) = dao.insertWorkoutExercises(exercises)
+    override suspend fun insertWorkoutSets(sets: List<WorkoutSetEntity>) = dao.insertWorkoutSets(sets)
+    override suspend fun insertWorkoutSet(set: WorkoutSetEntity) = dao.insertWorkoutSet(set)
+    override suspend fun updateWorkoutSet(set: WorkoutSetEntity) = dao.updateWorkoutSet(set)
+    override suspend fun updateWorkoutSetWeight(id: String, kg: Double?) = dao.updateWorkoutSetWeight(id, kg)
+    override suspend fun updateWorkoutSetReps(id: String, reps: Int?) = dao.updateWorkoutSetReps(id, reps)
+    override suspend fun updateWorkoutSetDuration(id: String, seconds: Int?) = dao.updateWorkoutSetDuration(id, seconds)
+    override suspend fun updateWorkoutSetDistance(id: String, meters: Double?) = dao.updateWorkoutSetDistance(id, meters)
+    override suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?) = dao.updateWorkoutSetCustomMetric(id, value)
+    override suspend fun updateWorkoutSetType(id: String, type: SetType) = dao.updateWorkoutSetType(id, type)
+    override suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?) = dao.updateWorkoutSetCompletion(id, completed, completedAt)
+    override suspend fun deleteWorkoutSet(id: String) = dao.deleteWorkoutSetById(id)
+    override suspend fun deleteWorkoutExercise(id: String) = dao.deleteWorkoutExerciseById(id)
+    override suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int) = dao.updateWorkoutExerciseOrderIndex(id, orderIndex)
+    override suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?) = dao.updateWorkoutExerciseSuperset(id, supersetGroup)
+    override suspend fun updateWorkoutExerciseNotes(id: String, notes: String?) = dao.updateWorkoutExerciseNotes(id, notes)
+    override suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?) = dao.updateWorkoutExerciseRestTimer(id, seconds)
+
+    override suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>) =
+        dao.replaceWorkoutExerciseExercise(workoutExerciseId, newExerciseId, carriedOverSets)
+
     override suspend fun getStatSetsForExercise(exerciseId: String): List<StatSet> =
         dao.getStatRowsForExercise(exerciseId).map { it.toStatSet() }
+
+    override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?): List<StatSet> =
+        resolvePreviousWorkoutSets(dao.getStatRowsForExercise(exerciseId).map { it.toStatSet() }, mode, currentRoutineId)
 
     override suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry> =
         dao.getStatRowsForExercise(exerciseId).map { it.toHistoryEntry() }
@@ -58,6 +89,7 @@ private fun ExerciseStatRow.toStatSet() = StatSet(
     customMetric = customMetric,
     isCompleted = isCompleted,
     rpe = rpe,
+    routineId = routineId,
 )
 
 private fun ExerciseStatRow.toHistoryEntry() = ExerciseHistoryEntry(

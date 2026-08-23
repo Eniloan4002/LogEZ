@@ -25,6 +25,8 @@ data class StatSet(
      * sections of the same document.
      */
     val rpe: Double? = null,
+    /** Same rationale as [rpe]: §8.10's `SAME_ROUTINE` PREVIOUS mode needs it to filter by source workout. */
+    val routineId: String? = null,
 )
 
 /**

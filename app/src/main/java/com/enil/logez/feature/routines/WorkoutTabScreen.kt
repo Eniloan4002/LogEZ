@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,11 +53,18 @@ import com.enil.logez.R
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.feature.workout.StartResult
 import kotlinx.coroutines.launch
 
 private sealed class ReorderTarget {
     object Folders : ReorderTarget()
     data class Routines(val folderId: String?) : ReorderTarget()
+}
+
+/** What "Discard & start new" should start, once the in-progress conflict is resolved (§5.1.1 edge case). */
+private sealed class PendingStart {
+    object Empty : PendingStart()
+    data class Routine(val routineId: String) : PendingStart()
 }
 
 /** PHASE2_PLAN.md §5.1.1 — folders + routines home. */
@@ -66,12 +74,12 @@ fun WorkoutTabScreen(
     onRoutineClick: (routineId: String) -> Unit,
     onCreateRoutine: (folderId: String?) -> Unit,
     onEditRoutine: (routineId: String) -> Unit,
+    onNavigateToLogger: (workoutId: String) -> Unit,
     viewModel: WorkoutTabViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val comingSoonMessage = stringResource(R.string.workout_live_logging_coming_soon)
 
     var collapsedFolders by rememberSaveable { mutableStateOf(setOf<String>()) }
     var reorderTarget by remember { mutableStateOf<ReorderTarget?>(null) }
@@ -80,8 +88,22 @@ fun WorkoutTabScreen(
     var deletingFolder by remember { mutableStateOf<RoutineFolderEntity?>(null) }
     var deletingRoutineId by remember { mutableStateOf<String?>(null) }
     var movingRoutineId by remember { mutableStateOf<String?>(null) }
+    var pendingStart by remember { mutableStateOf<PendingStart?>(null) }
+    var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
 
-    fun showComingSoon() = scope.launch { snackbarHostState.showSnackbar(comingSoonMessage) }
+    fun startEmpty() = scope.launch {
+        when (val result = viewModel.startEmptyWorkout()) {
+            is StartResult.Started -> onNavigateToLogger(result.workoutId)
+            is StartResult.AlreadyInProgress -> { pendingStart = PendingStart.Empty; inProgressWorkoutId = result.workoutId }
+        }
+    }
+
+    fun startRoutine(routineId: String) = scope.launch {
+        when (val result = viewModel.startRoutine(routineId)) {
+            is StartResult.Started -> onNavigateToLogger(result.workoutId)
+            is StartResult.AlreadyInProgress -> { pendingStart = PendingStart.Routine(routineId); inProgressWorkoutId = result.workoutId }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -100,8 +122,23 @@ fun WorkoutTabScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            uiState.inProgressWorkoutId?.let { inProgressId ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)
+                        .clickable { onNavigateToLogger(inProgressId) },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.workout_resume_banner_title), style = MaterialTheme.typography.titleSmall)
+                            Text(uiState.inProgressWorkoutTitle.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = { onNavigateToLogger(inProgressId) }) { Text(stringResource(R.string.workout_resume_action)) }
+                    }
+                }
+            }
             FilledTonalButton(
-                onClick = { showComingSoon() },
+                onClick = { startEmpty() },
                 modifier = Modifier.fillMaxWidth().padding(Spacing.md),
             ) {
                 Text(stringResource(R.string.workout_start_empty))
@@ -150,7 +187,7 @@ fun WorkoutTabScreen(
                                 card = card,
                                 isReordering = reorderTarget == ReorderTarget.Routines(section.folder.id),
                                 onClick = { onRoutineClick(card.routine.id) },
-                                onStart = { showComingSoon() },
+                                onStart = { startRoutine(card.routine.id) },
                                 onEdit = { onEditRoutine(card.routine.id) },
                                 onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
                                 onMove = { movingRoutineId = card.routine.id },
@@ -185,7 +222,7 @@ fun WorkoutTabScreen(
                             card = card,
                             isReordering = reorderTarget == ReorderTarget.Routines(null),
                             onClick = { onRoutineClick(card.routine.id) },
-                            onStart = { showComingSoon() },
+                            onStart = { startRoutine(card.routine.id) },
                             onEdit = { onEditRoutine(card.routine.id) },
                             onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
                             onMove = { movingRoutineId = card.routine.id },
@@ -260,6 +297,34 @@ fun WorkoutTabScreen(
             folders = uiState.folders.map { it.folder },
             onSelect = { folderId -> viewModel.moveRoutineToFolder(routineId, folderId); movingRoutineId = null },
             onDismiss = { movingRoutineId = null },
+        )
+    }
+
+    pendingStart?.let { pending ->
+        val existingId = inProgressWorkoutId
+        AlertDialog(
+            onDismissRequest = { pendingStart = null },
+            title = { Text(stringResource(R.string.workout_resume_title)) },
+            text = { Text(stringResource(R.string.workout_resume_body)) },
+            confirmButton = {
+                TextButton(onClick = { pendingStart = null; existingId?.let(onNavigateToLogger) }) {
+                    Text(stringResource(R.string.workout_resume_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    pendingStart = null
+                    scope.launch {
+                        val newId = when (pending) {
+                            is PendingStart.Empty -> viewModel.discardInProgressAndStartEmpty()
+                            is PendingStart.Routine -> viewModel.discardInProgressAndStartRoutine(pending.routineId)
+                        }
+                        onNavigateToLogger(newId)
+                    }
+                }) {
+                    Text(stringResource(R.string.workout_resume_discard_action))
+                }
+            },
         )
     }
 }

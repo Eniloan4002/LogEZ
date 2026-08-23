@@ -5,6 +5,8 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
+import com.enil.logez.core.domain.model.PreviousValuesMode
+import com.enil.logez.core.domain.model.SetType
 import kotlinx.coroutines.flow.Flow
 
 interface WorkoutRepository {
@@ -13,9 +15,11 @@ interface WorkoutRepository {
     fun observeCompleted(): Flow<List<WorkoutEntity>>
     suspend fun getById(id: String): WorkoutEntity?
     fun observeById(id: String): Flow<WorkoutEntity?>
+    suspend fun updateWorkout(workout: WorkoutEntity)
     suspend fun deleteById(id: String)
 
     suspend fun getExercisesForWorkout(workoutId: String): List<WorkoutExerciseEntity>
+    fun observeExercisesForWorkout(workoutId: String): Flow<List<WorkoutExerciseEntity>>
     suspend fun getSetsForWorkoutExercise(workoutExerciseId: String): List<WorkoutSetEntity>
 
     suspend fun insertFullWorkout(
@@ -24,8 +28,33 @@ interface WorkoutRepository {
         sets: List<WorkoutSetEntity>,
     )
 
+    /** Live logger write-through (§5.1.3 spine): every edit persists immediately. */
+    suspend fun insertWorkoutExercises(exercises: List<WorkoutExerciseEntity>)
+    suspend fun insertWorkoutSets(sets: List<WorkoutSetEntity>)
+    suspend fun insertWorkoutSet(set: WorkoutSetEntity)
+    suspend fun updateWorkoutSet(set: WorkoutSetEntity)
+    suspend fun updateWorkoutSetWeight(id: String, kg: Double?)
+    suspend fun updateWorkoutSetReps(id: String, reps: Int?)
+    suspend fun updateWorkoutSetDuration(id: String, seconds: Int?)
+    suspend fun updateWorkoutSetDistance(id: String, meters: Double?)
+    suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?)
+    suspend fun updateWorkoutSetType(id: String, type: SetType)
+    suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?)
+    suspend fun deleteWorkoutSet(id: String)
+    suspend fun deleteWorkoutExercise(id: String)
+    suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int)
+    suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?)
+    suspend fun updateWorkoutExerciseNotes(id: String, notes: String?)
+    suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?)
+
+    /** §5.1.3 Replace Exercise: swaps the exercise id and rewrites the *same* set rows with field-carried-over values (never deletes/reinserts — a live logger keeps row identity mid-session). */
+    suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>)
+
     /** §8.1's join, already mapped to the calc-engine input type. */
     suspend fun getStatSetsForExercise(exerciseId: String): List<StatSet>
+
+    /** §8.10 PREVIOUS column: the matching set from the most recent qualifying COMPLETED workout, by orderIndex. */
+    suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?): List<StatSet>
 
     /** Exercise Detail's History tab (§5.2): every COMPLETED session containing the exercise, newest first. */
     suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry>
