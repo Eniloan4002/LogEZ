@@ -72,6 +72,7 @@ class FakeWorkoutRepository(
     override suspend fun updateWorkoutSetDuration(id: String, seconds: Int?) = mutateSet(id) { it.copy(durationSeconds = seconds) }
     override suspend fun updateWorkoutSetDistance(id: String, meters: Double?) = mutateSet(id) { it.copy(distanceMeters = meters) }
     override suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?) = mutateSet(id) { it.copy(customMetric = value) }
+    override suspend fun updateWorkoutSetRpe(id: String, rpe: Double?) = mutateSet(id) { it.copy(rpe = rpe) }
     override suspend fun updateWorkoutSetType(id: String, type: SetType) = mutateSet(id) { it.copy(setType = type) }
     override suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?) =
         mutateSet(id) { it.copy(isCompleted = completed, completedAt = completedAt) }

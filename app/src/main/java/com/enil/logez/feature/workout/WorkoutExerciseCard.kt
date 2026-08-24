@@ -1,5 +1,6 @@
 package com.enil.logez.feature.workout
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,13 +25,17 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -52,6 +59,7 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.feature.routines.TargetField
 import com.enil.logez.feature.routines.targetFields
@@ -72,6 +80,8 @@ internal fun WorkoutExerciseCard(
     viewModel: WorkoutLoggerViewModel,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
+    rpeTrackingEnabled: Boolean = false,
+    onRpeChange: (setId: String, rpe: Double?) -> Unit = { _, _ -> },
     showRestTimer: Boolean = false,
     restRemainingMillisFlow: Flow<Long?> = emptyFlow(),
     onRestAdjust: (Int) -> Unit = {},
@@ -160,6 +170,8 @@ internal fun WorkoutExerciseCard(
                 onStartInlineTimer = onStartInlineTimer,
                 onStopInlineTimer = onStopInlineTimer,
                 isEditMode = isEditMode,
+                rpeTrackingEnabled = rpeTrackingEnabled,
+                onRpeChange = onRpeChange,
             )
 
             TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
@@ -204,10 +216,16 @@ private fun SetTable(
     onStartInlineTimer: (setId: String) -> Unit,
     onStopInlineTimer: (setId: String) -> Unit,
     isEditMode: Boolean,
+    rpeTrackingEnabled: Boolean,
+    onRpeChange: (setId: String, rpe: Double?) -> Unit,
 ) {
     val fields = exercise.exerciseType.targetFields()
     val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
     val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
+    // §5.1.7: "the RPE column appears only when the setting is on and only for rep-based types" —
+    // never for the routine builder (which shares none of this UI) and never for duration/distance
+    // types, where RPE doesn't apply.
+    val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(stringResource(R.string.routine_builder_col_set), width = 36.dp)
@@ -217,6 +235,7 @@ private fun SetTable(
             if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
+            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = 44.dp)
             Spacer(modifier = Modifier.width(40.dp))
         }
         exercise.sets.forEachIndexed { index, set ->
@@ -240,6 +259,8 @@ private fun SetTable(
                     onStartInlineTimer = { onStartInlineTimer(set.id) },
                     onStopInlineTimer = { onStopInlineTimer(set.id) },
                     isEditMode = isEditMode,
+                    showRpe = showRpe,
+                    onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
                 )
                 if (set.failureError) {
                     Text(
@@ -284,8 +305,11 @@ private fun SetRow(
     onStartInlineTimer: () -> Unit = {},
     onStopInlineTimer: () -> Unit = {},
     isEditMode: Boolean = false,
+    showRpe: Boolean = false,
+    onRpeChange: (Double?) -> Unit = {},
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
+    var showRpeSheet by remember { mutableStateOf(false) }
     // Live logging locks a set's values once it is checked off — the check is the commit. Editing a
     // PAST workout inverts that: every set in a COMPLETED workout is checked, so the same rule
     // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
@@ -343,6 +367,9 @@ private fun SetRow(
         if (TargetField.DISTANCE in fields) {
             NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
+        if (showRpe) {
+            RpeCell(value = set.rpe, enabled = fieldsEnabled, onClick = { showRpeSheet = true }, modifier = Modifier.width(44.dp))
+        }
         IconButton(onClick = onToggleCheck, modifier = Modifier.width(40.dp)) {
             Icon(
                 Icons.Filled.Check,
@@ -350,6 +377,14 @@ private fun SetRow(
                 tint = if (set.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+
+    if (showRpeSheet) {
+        RpePickerSheet(
+            initialRpe = set.rpe,
+            onDismiss = { showRpeSheet = false },
+            onConfirm = { rpe -> onRpeChange(rpe); showRpeSheet = false },
+        )
     }
 }
 
@@ -399,3 +434,64 @@ private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean
 }
 
 private fun formatTargetNumber(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+
+/** §5.1.7 entry point: "tap the RPE cell". A small tappable pill, not a text field — RPE is never free text. */
+@Composable
+private fun RpeCell(value: Double?, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = if (value != null) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        border = if (value == null) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+        modifier = modifier.clickable(enabled = enabled, onClick = onClick),
+    ) {
+        Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            Text(
+                value?.let { RpeScale.format(it) } ?: "—",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (value != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * §5.1.7 "Log Set RPE": single-select row of the eight allowed values, a label + reserve-reps
+ * description that updates with the selection, Clear (writes null — blank is a valid RPE, e.g.
+ * warm-ups), and Done. Tapping a value only updates the pending selection so the description is
+ * visible before committing; Clear and Done are the only actions that actually write.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RpePickerSheet(initialRpe: Double?, onDismiss: () -> Unit, onConfirm: (Double?) -> Unit) {
+    var selected by remember { mutableStateOf(initialRpe) }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
+            Text(
+                stringResource(R.string.workout_rpe_sheet_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            LazyRow(modifier = Modifier.padding(top = Spacing.md)) {
+                items(items = RpeScale.VALUES, key = { it }) { rpe ->
+                    FilterChip(
+                        selected = selected == rpe,
+                        onClick = { selected = rpe },
+                        label = { Text(RpeScale.format(rpe)) },
+                        modifier = Modifier.padding(end = Spacing.xs),
+                    )
+                }
+            }
+            Text(
+                selected?.let { "${stringResource(R.string.workout_rpe_label_prefix)} ${RpeScale.format(it)} — ${RpeScale.reserveDescription(it)}" }
+                    ?: stringResource(R.string.workout_rpe_none),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacing.md),
+            )
+            Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = { onConfirm(null) }) { Text(stringResource(R.string.workout_rpe_clear)) }
+                Button(onClick = { onConfirm(selected) }) { Text(stringResource(R.string.action_done)) }
+            }
+        }
+    }
+}

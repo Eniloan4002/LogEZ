@@ -9,6 +9,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.PreviousValueFormatter
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.repository.Exercise
@@ -42,11 +43,9 @@ import kotlinx.coroutines.launch
 
 /**
  * PHASE2_PLAN.md §5.1.3/§5.1.4/§9.2-§9.7 Live Workout Logger — M4a (core logging) + M4b (timers &
- * foreground service) scope. Deliberately not built here (M4c): the Save Workout screen /
- * Update-Routine prompt / summary; live PR detection + banner (the `pr_alerts` channel and PR
- * sound hook are scaffolded — §9.3/§9.7 — but nothing decides when to fire them yet); RPE column
- * + picker, Plate Calculator, Warm-up Calculator, Update Bodyweight (all deferred — none change
- * stored data shape).
+ * foreground service) scope, plus M4c's finish hand-off, M5b's edit mode, and §5.1.7's RPE
+ * picker. Still deliberately not built here: Plate Calculator, Warm-up Calculator, Update
+ * Bodyweight (all M7 — none change stored data shape).
  */
 @HiltViewModel
 class WorkoutLoggerViewModel @Inject constructor(
@@ -81,6 +80,10 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val reorderModeActive = MutableStateFlow(false)
     private val keepAwakeEnabled = MutableStateFlow(true)
     private val inlineTimerEnabled = MutableStateFlow(true)
+    /** §5.1.7: the RPE column and picker exist only when this setting is on. No live Settings screen
+     * exists yet to flip it mid-session (M7), so — like keepAwake/inlineTimer above — it's a one-time
+     * snapshot taken at load, not a continuously observed Flow. */
+    private val rpeTrackingEnabled = MutableStateFlow(false)
 
     private val _scrollToExercise = MutableSharedFlow<String>(extraBufferCapacity = 1)
     /** §5.1.3 step 7 "Smart Superset Scrolling" — the Screen collects this to `animateScrollToItem`. */
@@ -111,7 +114,7 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
         exercises, isLoading, workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled,
-        sessionController.state, editedStartedAt, editedDurationSeconds,
+        sessionController.state, editedStartedAt, editedDurationSeconds, rpeTrackingEnabled,
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
         val ex = flows[0] as List<WorkoutExerciseUiModel>
@@ -124,6 +127,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         val session = flows[7] as WorkoutSessionState
         val startedAt = flows[8] as Long
         val duration = flows[9] as Int
+        val rpeEnabled = flows[10] as Boolean
         val allSets = ex.flatMap { it.sets }
         WorkoutLoggerUiState(
             isLoading = loading,
@@ -146,6 +150,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             isEditMode = isEditMode,
             editedStartedAtMillis = startedAt,
             editedDurationSeconds = duration,
+            rpeTrackingEnabled = rpeEnabled,
             // §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." The
             // purge makes the real requirement stronger than a non-empty list: uncompleted sets are
             // dropped on save, so a workout whose every set is unchecked would save as zero
@@ -166,6 +171,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             val currentSettings = settingsRepository.settings.first()
             keepAwakeEnabled.value = currentSettings.keepAwake
             inlineTimerEnabled.value = currentSettings.inlineTimerEnabled
+            rpeTrackingEnabled.value = currentSettings.rpeTrackingEnabled
             val workoutExercises = workoutRepository.getExercisesForWorkout(workoutId)
             exercises.value = workoutExercises.map { we ->
                 val exercise = exerciseRepository.getById(we.exerciseId)
@@ -299,6 +305,9 @@ class WorkoutLoggerViewModel @Inject constructor(
         updateSetField(exerciseId, setId, { it.copy(distanceMeters = meters) }) { workoutRepository.updateWorkoutSetDistance(setId, meters) }
     fun updateCustomMetric(exerciseId: String, setId: String, value: Double?) =
         updateSetField(exerciseId, setId, { it.copy(customMetric = value) }) { workoutRepository.updateWorkoutSetCustomMetric(setId, value) }
+    /** §5.1.7 RPE picker's Done/Clear — [rpe] is one of [RpeScale.VALUES] or null, never free text. */
+    fun updateRpe(exerciseId: String, setId: String, rpe: Double?) =
+        updateSetField(exerciseId, setId, { it.copy(rpe = rpe) }) { workoutRepository.updateWorkoutSetRpe(setId, rpe) }
 
     /** [persist] is a targeted single-column DAO write — never a whole-row reconstruction, which would need
      * fields (orderIndex, completedAt, ...) this UI model doesn't track and would silently clobber them. */
@@ -704,6 +713,8 @@ data class WorkoutLoggerUiState(
     val editedDurationSeconds: Int = 0,
     /** §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." */
     val canSaveEdit: Boolean = false,
+    /** §5.1.7: column + picker exist only when this is true — off by default (Hevy default). */
+    val rpeTrackingEnabled: Boolean = false,
 )
 
 private fun WorkoutSetEntity.toUiModel(previousLabel: String) = WorkoutSetUiModel(

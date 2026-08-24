@@ -38,6 +38,7 @@ interface WorkoutRepository {
     suspend fun updateWorkoutSetDuration(id: String, seconds: Int?)
     suspend fun updateWorkoutSetDistance(id: String, meters: Double?)
     suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?)
+    suspend fun updateWorkoutSetRpe(id: String, rpe: Double?)
     suspend fun updateWorkoutSetType(id: String, type: SetType)
     suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?)
     suspend fun deleteWorkoutSet(id: String)

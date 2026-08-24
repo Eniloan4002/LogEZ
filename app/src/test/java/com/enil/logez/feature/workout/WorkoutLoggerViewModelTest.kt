@@ -9,6 +9,7 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
@@ -102,7 +103,74 @@ class WorkoutLoggerViewModelTest {
         sets = sets,
     )
 
-    // --- M5b edit mode (§5.1.10) ---
+    // --- §5.1.7 RPE picker ---
+
+    @Test
+    fun `the RPE column is hidden by default and appears once the setting is on`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val vmOff = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = false)))
+        val vmOn = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = true)))
+        assertFalse(vmOff.uiState.value.rpeTrackingEnabled)
+        assertTrue(vmOn.uiState.value.rpeTrackingEnabled)
+    }
+
+    @Test
+    fun `updateRpe writes through immediately in live logging`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo)
+
+        vm.updateRpe("we1", "s1", 8.5)
+
+        assertEquals(8.5, vm.uiState.value.exercises[0].sets[0].rpe)
+        assertEquals(8.5, workoutRepo.getSetsForWorkoutExercise("we1").single().rpe)
+    }
+
+    @Test
+    fun `updateRpe can clear a value back to null, live`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = 7.0, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo)
+
+        vm.updateRpe("we1", "s1", null)
+
+        assertNull(vm.uiState.value.exercises[0].sets[0].rpe)
+        assertNull(workoutRepo.getSetsForWorkoutExercise("we1").single().rpe)
+    }
+
+    @Test
+    fun `updateRpe in edit mode is held in memory and does not touch Room until save`() = runTest {
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.updateRpe("we1", "s1", 9.0)
+
+        assertEquals(9.0, vm.uiState.value.exercises[0].sets[0].rpe)
+        assertNull("nothing may reach Room before Save", workoutRepo.getSetsForWorkoutExercise("we1").single().rpe)
+
+        vm.saveEdit()
+
+        assertEquals(9.0, workoutRepo.getSetsForWorkoutExercise("we1").single().rpe)
+    }
+
+        // --- M5b edit mode (§5.1.10) ---
 
     @Test
     fun `edit mode holds every change in memory and writes nothing until save`() = runTest {

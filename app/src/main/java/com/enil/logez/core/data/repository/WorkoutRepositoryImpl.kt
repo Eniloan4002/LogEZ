@@ -53,6 +53,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun updateWorkoutSetDuration(id: String, seconds: Int?) = dao.updateWorkoutSetDuration(id, seconds)
     override suspend fun updateWorkoutSetDistance(id: String, meters: Double?) = dao.updateWorkoutSetDistance(id, meters)
     override suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?) = dao.updateWorkoutSetCustomMetric(id, value)
+    override suspend fun updateWorkoutSetRpe(id: String, rpe: Double?) = dao.updateWorkoutSetRpe(id, rpe)
     override suspend fun updateWorkoutSetType(id: String, type: SetType) = dao.updateWorkoutSetType(id, type)
     override suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?) = dao.updateWorkoutSetCompletion(id, completed, completedAt)
     override suspend fun deleteWorkoutSet(id: String) = dao.deleteWorkoutSetById(id)

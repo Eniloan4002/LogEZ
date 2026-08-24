@@ -284,6 +284,8 @@ fun WorkoutLoggerScreen(
                             viewModel = viewModel,
                             onExerciseClick = { onExerciseClick(exercise.exerciseId) },
                             onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
+                            rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+                            onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
                             showRestTimer = uiState.restExerciseId == exercise.id,
                             restRemainingMillisFlow = viewModel.restRemainingMillisFlow,
                             onRestAdjust = viewModel::adjustRestTimer,

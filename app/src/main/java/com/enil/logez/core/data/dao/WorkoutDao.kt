@@ -78,6 +78,9 @@ interface WorkoutDao {
     @Query("UPDATE workout_sets SET custom_metric = :value WHERE id = :id")
     suspend fun updateWorkoutSetCustomMetric(id: String, value: Double?)
 
+    @Query("UPDATE workout_sets SET rpe = :rpe WHERE id = :id")
+    suspend fun updateWorkoutSetRpe(id: String, rpe: Double?)
+
     @Query("UPDATE workout_sets SET set_type = :type WHERE id = :id")
     suspend fun updateWorkoutSetType(id: String, type: SetType)
 
