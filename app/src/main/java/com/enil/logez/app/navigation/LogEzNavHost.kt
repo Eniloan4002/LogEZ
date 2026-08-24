@@ -7,6 +7,10 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.enil.logez.feature.analytics.AnalyticsRoutes
+import com.enil.logez.feature.analytics.AnalyticsScreen
+import com.enil.logez.feature.analytics.AnalyticsViewModel
+import com.enil.logez.feature.analytics.MonthlyReportScreen
 import com.enil.logez.feature.analytics.ProfileScreen
 import com.enil.logez.feature.exercises.CustomExerciseEditorScreen
 import com.enil.logez.feature.exercises.ExerciseDetailScreen
@@ -78,12 +82,30 @@ fun LogEzNavHost(
         }
         composable(LogEzDestination.Profile.route) {
             ProfileScreen(
-                onExercisesClick = { navController.navigate(ExerciseRoutes.LIBRARY) },
+                onExercisesClick = { navController.navigate(ExerciseRoutes.library()) },
                 onCalendarClick = { navController.navigate(HistoryRoutes.CALENDAR) },
+                onStatisticsClick = { metric -> navController.navigate(AnalyticsRoutes.dashboard(focus = metric?.name)) },
             )
         }
+        composable(
+            route = AnalyticsRoutes.DASHBOARD,
+            arguments = listOf(navArgument(AnalyticsViewModel.FOCUS_ARG) { type = NavType.StringType; nullable = true; defaultValue = null }),
+        ) {
+            AnalyticsScreen(
+                onBack = { navController.popBackStack() },
+                onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
+                onMuscleClick = { muscle -> navController.navigate(ExerciseRoutes.library(muscle = muscle.name)) },
+                onMonthlyReportClick = { navController.navigate(AnalyticsRoutes.MONTHLY_REPORT) },
+            )
+        }
+        composable(AnalyticsRoutes.MONTHLY_REPORT) {
+            MonthlyReportScreen(onBack = { navController.popBackStack() })
+        }
 
-        composable(ExerciseRoutes.LIBRARY) {
+        composable(
+            route = ExerciseRoutes.LIBRARY,
+            arguments = listOf(navArgument("muscle") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        ) {
             ExerciseLibraryScreen(
                 onBack = { navController.popBackStack() },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },

@@ -34,6 +34,9 @@ class FakeWorkoutRepository(
     // would let a History feed that forgot to sort pass every test against it.
     override fun observeCompleted(): Flow<List<WorkoutEntity>> =
         workoutsState.map { m -> m.values.filter { it.status.name == "COMPLETED" }.sortedByDescending { it.startedAt } }
+    // Mirrors the DAO's `ORDER BY started_at ASC` on the one-shot read.
+    override suspend fun getCompletedWorkouts(): List<WorkoutEntity> =
+        workoutsState.value.values.filter { it.status.name == "COMPLETED" }.sortedBy { it.startedAt }
     override suspend fun getById(id: String): WorkoutEntity? = workoutsState.value[id]
     override fun observeById(id: String): Flow<WorkoutEntity?> = workoutsState.map { it[id] }
     override suspend fun updateWorkout(workout: WorkoutEntity) { workoutsState.update { it + (workout.id to workout) } }

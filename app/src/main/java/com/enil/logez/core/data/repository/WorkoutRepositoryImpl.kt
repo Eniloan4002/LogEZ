@@ -24,6 +24,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun getInProgress(): WorkoutEntity? = dao.getInProgress()
     override fun observeInProgress(): Flow<WorkoutEntity?> = dao.observeInProgress()
     override fun observeCompleted(): Flow<List<WorkoutEntity>> = dao.observeCompleted()
+    override suspend fun getCompletedWorkouts(): List<WorkoutEntity> = dao.getCompletedWorkouts()
     override suspend fun getById(id: String): WorkoutEntity? = dao.getById(id)
     override fun observeById(id: String): Flow<WorkoutEntity?> = dao.observeById(id)
     override suspend fun updateWorkout(workout: WorkoutEntity) = dao.updateWorkout(workout)

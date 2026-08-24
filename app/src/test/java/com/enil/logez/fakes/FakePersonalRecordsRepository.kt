@@ -21,6 +21,9 @@ class FakePersonalRecordsRepository(initial: List<PersonalRecordEntity> = emptyL
 
     override suspend fun getWorkoutIdsWithRecords(): Set<String> = state.value.map { it.workoutId }.toSet()
 
+    override suspend fun getAchievedBetween(fromMillis: Long, untilMillis: Long): List<PersonalRecordEntity> =
+        state.value.filter { it.achievedAt >= fromMillis && it.achievedAt < untilMillis }
+
     override suspend fun getForExercise(exerciseId: String): List<PersonalRecordEntity> =
         state.value.filter { it.exerciseId == exerciseId }
 

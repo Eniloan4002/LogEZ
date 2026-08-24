@@ -7,9 +7,11 @@ import android.net.Uri
  * Exercises; sub-screens hide the bottom bar, unlike the three tab roots).
  */
 object ExerciseRoutes {
-    const val LIBRARY = "exercise_library"
+    const val LIBRARY = "exercise_library?muscle={muscle}"
     const val DETAIL = "exercise_detail/{exerciseId}"
     const val EDITOR = "custom_exercise_editor?exerciseId={exerciseId}&prefillName={prefillName}"
+
+    fun library(muscle: String? = null) = "exercise_library" + (muscle?.let { "?muscle=$it" } ?: "")
 
     fun detail(exerciseId: String) = "exercise_detail/$exerciseId"
 

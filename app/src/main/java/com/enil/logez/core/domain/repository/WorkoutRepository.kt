@@ -13,6 +13,7 @@ interface WorkoutRepository {
     suspend fun getInProgress(): WorkoutEntity?
     fun observeInProgress(): Flow<WorkoutEntity?>
     fun observeCompleted(): Flow<List<WorkoutEntity>>
+    suspend fun getCompletedWorkouts(): List<WorkoutEntity>
     suspend fun getById(id: String): WorkoutEntity?
     fun observeById(id: String): Flow<WorkoutEntity?>
     suspend fun updateWorkout(workout: WorkoutEntity)

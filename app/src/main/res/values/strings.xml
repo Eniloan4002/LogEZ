@@ -44,6 +44,59 @@
     <string name="profile_nav_exercises">Exercises</string>
     <string name="profile_rpe_toggle_title">RPE tracking (testing toggle)</string>
     <string name="profile_rpe_toggle_subtitle">Temporary switch until the real Settings screen ships. Turns the RPE picker on in the workout logger.</string>
+    <string name="profile_nav_statistics">Statistics</string>
+    <string name="profile_stat_workouts">Workouts</string>
+    <string name="profile_stat_streak">Streak</string>
+    <plurals name="profile_streak_weeks">
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weeks</item>
+    </plurals>
+    <string name="profile_no_streak">No active streak</string>
+    <string name="profile_last7_title">Last 7 days</string>
+    <plurals name="profile_last7_count">
+        <item quantity="one">%1$d workout</item>
+        <item quantity="other">%1$d workouts</item>
+    </plurals>
+    <string name="profile_last7_empty">Train this week to see your 7-day summary</string>
+    <string name="profile_quick_charts_title">Quick charts</string>
+
+    <string name="analytics_title">Statistics</string>
+    <string name="analytics_training_title">Training</string>
+    <string name="analytics_metric_volume">Volume</string>
+    <string name="analytics_metric_reps">Reps</string>
+    <string name="analytics_metric_duration">Duration</string>
+    <string name="analytics_metric_frequency">Frequency</string>
+    <string name="analytics_empty_period">No workouts in this period</string>
+    <string name="analytics_distribution_title">Muscle distribution</string>
+    <string name="analytics_distribution_previous">Previous period</string>
+    <string name="analytics_tile_workouts">Workouts</string>
+    <string name="analytics_tile_duration">Duration</string>
+    <string name="analytics_tile_volume">Volume</string>
+    <string name="analytics_tile_sets">Sets</string>
+    <string name="analytics_body_title">Muscles trained</string>
+    <string name="analytics_body_week_prefix">Week of %1$s</string>
+    <string name="analytics_set_count_title">Set count per muscle group</string>
+    <string name="analytics_bucket_week">Week</string>
+    <string name="analytics_bucket_month">Month</string>
+    <string name="analytics_main_exercises_title">Main exercises</string>
+    <plurals name="analytics_exercise_times">
+        <item quantity="one">%1$d workout</item>
+        <item quantity="other">%1$d workouts</item>
+    </plurals>
+    <string name="analytics_monthly_report_title">Monthly report</string>
+    <string name="analytics_monthly_report_open">View report</string>
+    <string name="analytics_month_empty">No workouts in %1$s</string>
+    <string name="analytics_month_previous">Previous month</string>
+    <string name="analytics_month_next">Next month</string>
+    <string name="analytics_month_prs_title">Personal records</string>
+    <string name="analytics_month_previous_distribution">Previous month</string>
+    <string name="analytics_month_top_exercises">Top exercises</string>
+    <string name="analytics_month_comparison_title">Last 6 months</string>
+    <string name="analytics_month_calendar_title">Calendar</string>
+    <plurals name="analytics_set_count">
+        <item quantity="one">%1$d set</item>
+        <item quantity="other">%1$d sets</item>
+    </plurals>
 
     <string name="back">Back</string>
     <string name="more_options">More options</string>

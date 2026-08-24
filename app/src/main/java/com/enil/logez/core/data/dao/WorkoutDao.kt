@@ -39,6 +39,10 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE status = 'COMPLETED' ORDER BY started_at DESC")
     fun observeCompleted(): Flow<List<WorkoutEntity>>
 
+    /** One-shot completed list for the dashboard/Profile aggregates (§5.2), refreshed on RESUME. */
+    @Query("SELECT * FROM workouts WHERE status = 'COMPLETED' ORDER BY started_at ASC")
+    suspend fun getCompletedWorkouts(): List<WorkoutEntity>
+
     /**
      * §5.2 Calendar: the workouts on one local day, as a half-open [fromMillis, untilMillis) range.
      * The caller computes both bounds from `LocalDate.atStartOfDay(zone)`, so a day that is 23 or

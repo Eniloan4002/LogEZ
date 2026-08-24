@@ -1,80 +1,226 @@
 package com.enil.logez.feature.analytics
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
-import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.BarChart
+import com.enil.logez.core.designsystem.BarChartEntry
+import com.enil.logez.core.designsystem.BodyDiagram
+import com.enil.logez.core.designsystem.RefreshOnResume
+import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 
 /**
- * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats, calendar preview, quick
- * charts, Statistics/Measurements/Exercises navigation. Real content lands progressively — M2
- * added the Exercises row, M5c the Calendar row; headline stats, the last-7-days strip, quick
- * charts, Statistics and Measurements are M6/M7.
+ * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats (lifetime Workouts + Streak,
+ * real zeros for a fresh install — honest, never faked), the last-7-days strip with a mini muscle
+ * heat-map, the swipeable quick chart card (tap → Statistics with that chart focused), and
+ * navigation rows. The Calendar entry stays a nav row rather than an inline grid — Owner-confirmed
+ * permanent M5c trim.
  *
- * The plan describes the calendar entry point as an inline current-month grid that opens the full
- * screen on tap. It ships here as a navigation row instead: an inline grid on a tab that is
- * otherwise an honest empty state would be the one piece of real content on the screen, and the
- * same grid is one tap away. It becomes a preview when M6 gives it neighbours to sit among.
- *
- * Also carries a temporary RPE-tracking toggle (2026-08-24): §5.1.7's RPE picker is gated behind
- * `rpeTrackingEnabled`, but no Settings screen exists yet anywhere in the app to switch it on —
- * that's M7 territory. This row is a real, persisted toggle (not a debug hack) standing in until
- * then; remove it once the actual Settings tree lands with its own row for the same setting.
+ * Also carries the temporary RPE-tracking toggle (2026-08-24): §5.1.7's RPE picker is gated
+ * behind `rpeTrackingEnabled`, but no Settings screen exists until M7. Remove this row once the
+ * real Settings tree lands with its own row for the same setting.
  */
 @Composable
 fun ProfileScreen(
     onExercisesClick: () -> Unit = {},
     onCalendarClick: () -> Unit = {},
+    onStatisticsClick: (TrainingMetric?) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val rpeTrackingEnabled by viewModel.rpeTrackingEnabled.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ListItem(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
-            leadingContent = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
-            headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
-            trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-        )
-        HorizontalDivider()
-        ListItem(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
-            leadingContent = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },
-            headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
-            trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-        )
-        HorizontalDivider()
-        ListItem(
-            modifier = Modifier.fillMaxWidth().clickable { viewModel.setRpeTrackingEnabled(!rpeTrackingEnabled) },
-            headlineContent = { Text(stringResource(R.string.profile_rpe_toggle_title)) },
-            supportingContent = { Text(stringResource(R.string.profile_rpe_toggle_subtitle)) },
-            trailingContent = { Switch(checked = rpeTrackingEnabled, onCheckedChange = viewModel::setRpeTrackingEnabled) },
-        )
-        HorizontalDivider()
+    RefreshOnResume(viewModel::refresh)
 
-        EmptyState(
-            icon = Icons.Filled.Person,
-            title = stringResource(R.string.profile_empty_title),
-            subtitle = stringResource(R.string.profile_empty_subtitle),
-            modifier = Modifier.weight(1f),
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        profileStatsItems(uiState, onStatisticsClick)
+        navItems(
+            onExercisesClick = onExercisesClick,
+            onCalendarClick = onCalendarClick,
+            onStatisticsClick = onStatisticsClick,
+            rpeTrackingEnabled = rpeTrackingEnabled,
+            onRpeToggle = viewModel::setRpeTrackingEnabled,
         )
+    }
+}
+
+/**
+ * The three data-backed items (headline stats, 7-day strip, quick charts). Their *content* is
+ * rendered only once the first load lands, so entering the tab never flashes "0 Workouts / No
+ * active streak" at a user with real history (the M6a empty-state-flash lesson) — but the items
+ * themselves always exist: conditionally *inserting* them above already-composed nav rows makes
+ * the LazyColumn anchor to the nav rows and open the tab scrolled past the stats.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
+    uiState: ProfileUiState,
+    onStatisticsClick: (TrainingMetric?) -> Unit,
+) {
+        item(key = "headline") {
+            if (uiState.isLoading) return@item
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                HeadlineStat(
+                    label = stringResource(R.string.profile_stat_workouts),
+                    value = uiState.workoutCount.toString(),
+                    modifier = Modifier.weight(1f),
+                )
+                HeadlineStat(
+                    label = stringResource(R.string.profile_stat_streak),
+                    value = if (uiState.streakWeeks > 0) {
+                        pluralStringResource(R.plurals.profile_streak_weeks, uiState.streakWeeks, uiState.streakWeeks)
+                    } else {
+                        stringResource(R.string.profile_no_streak)
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        item(key = "last7") {
+            if (uiState.isLoading) return@item
+            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
+                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(
+                        stringResource(R.string.profile_last7_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (uiState.last7Count == 0) {
+                        // §5.2 region 2: the strip hides behind an honest hint when the window is empty.
+                        Text(stringResource(R.string.profile_last7_empty), style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        Text(
+                            pluralStringResource(R.plurals.profile_last7_count, uiState.last7Count, uiState.last7Count),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        BodyDiagram(intensity = uiState.last7Heat)
+                    }
+                }
+            }
+        }
+
+        item(key = "quick_charts") {
+            if (uiState.isLoading) return@item
+            Card(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
+                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(
+                        stringResource(R.string.profile_quick_charts_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    // §5.2 region 4's stated order, not the enum's declaration order.
+                    val metrics = listOf(TrainingMetric.FREQUENCY, TrainingMetric.VOLUME, TrainingMetric.REPS, TrainingMetric.DURATION)
+                    val pagerState = rememberPagerState(pageCount = { metrics.size })
+                    HorizontalPager(state = pagerState) { page ->
+                        val metric = metrics[page]
+                        val bars = uiState.quickCharts[metric].orEmpty()
+                        Column(
+                            modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(metric) },
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            Text(trainingMetricLabel(metric), style = MaterialTheme.typography.labelLarge)
+                            if (bars.isEmpty()) {
+                                Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
+                            } else {
+                                BarChart(
+                                    entries = bars.map { BarChartEntry(weekLabel(it.weekStart), it.value) },
+                                    yLabel = { AnalyticsFormatters.axisLabel(metric, it, uiState.weightUnit) },
+                                    selectedIndex = null,
+                                    onBarTap = { onStatisticsClick(metric) },
+                                    chartHeight = 120.dp,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
+    onExercisesClick: () -> Unit,
+    onCalendarClick: () -> Unit,
+    onStatisticsClick: (TrainingMetric?) -> Unit,
+    rpeTrackingEnabled: Boolean,
+    onRpeToggle: (Boolean) -> Unit,
+) {
+        item(key = "nav_statistics") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(null) },
+                leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
+                headlineContent = { Text(stringResource(R.string.profile_nav_statistics)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+            )
+            HorizontalDivider()
+        }
+        item(key = "nav_calendar") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
+                leadingContent = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+                headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+            )
+            HorizontalDivider()
+        }
+        item(key = "nav_exercises") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
+                leadingContent = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },
+                headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+            )
+            HorizontalDivider()
+        }
+        item(key = "rpe_toggle") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable { onRpeToggle(!rpeTrackingEnabled) },
+                headlineContent = { Text(stringResource(R.string.profile_rpe_toggle_title)) },
+                supportingContent = { Text(stringResource(R.string.profile_rpe_toggle_subtitle)) },
+                trailingContent = { Switch(checked = rpeTrackingEnabled, onCheckedChange = onRpeToggle) },
+            )
+            HorizontalDivider()
+        }
+}
+
+@Composable
+private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

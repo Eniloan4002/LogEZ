@@ -1,5 +1,6 @@
 package com.enil.logez.feature.exercises
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
@@ -28,11 +29,16 @@ import kotlinx.coroutines.launch
  */
 @HiltViewModel
 class ExerciseLibraryViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val exerciseRepository: ExerciseRepository,
     private val workoutRepository: WorkoutRepository,
     private val clock: Clock,
 ) : ViewModel() {
-    private val filters = MutableStateFlow(LibraryFilters())
+    // §5.2 Analytics dashboard: a muscle row taps through to the library pre-filtered to that
+    // muscle. The arg only seeds the filter — the user can clear or change it like any other.
+    private val filters = MutableStateFlow(
+        LibraryFilters(muscleFilter = savedStateHandle.get<String>("muscle")?.let { runCatching { MuscleGroup.valueOf(it) }.getOrNull() }),
+    )
     private val recentUsage = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     val uiState: StateFlow<ExerciseLibraryUiState> = combine(

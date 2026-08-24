@@ -36,15 +36,29 @@ object MuscleStatsCalculator {
         today: LocalDate,
         includeWarmups: Boolean,
     ): DistributionResult {
-        val included = sets.filter { included(it, includeWarmups) }
         val window = ChartAggregator.window(range, today)
-        val current = included.filter { window == null || it.workoutDate in window }
-        val previous = if (window == null) null else {
-            val lengthDays = java.time.temporal.ChronoUnit.DAYS.between(window.start, window.endInclusive) + 1
-            val prevEnd = window.start.minusDays(1)
-            val prevStart = prevEnd.minusDays(lengthDays - 1)
-            included.filter { it.workoutDate in prevStart..prevEnd }
+        val previousWindow = window?.let {
+            val lengthDays = java.time.temporal.ChronoUnit.DAYS.between(it.start, it.endInclusive) + 1
+            val prevEnd = it.start.minusDays(1)
+            prevEnd.minusDays(lengthDays - 1)..prevEnd
         }
+        return distributionInWindows(sets, window, previousWindow, includeWarmups)
+    }
+
+    /**
+     * Arbitrary-window variant — the Monthly Report compares a calendar month against the
+     * previous calendar month, which is not expressible as a [ChartRange]. A null [window]
+     * means all time (and forces no comparison, matching ALL_TIME above).
+     */
+    fun distributionInWindows(
+        sets: List<MuscleSetInput>,
+        window: ClosedRange<LocalDate>?,
+        previousWindow: ClosedRange<LocalDate>?,
+        includeWarmups: Boolean,
+    ): DistributionResult {
+        val included = sets.filter { included(it, includeWarmups) }
+        val current = included.filter { window == null || it.workoutDate in window }
+        val previous = if (window == null) null else previousWindow?.let { pw -> included.filter { it.workoutDate in pw } }
         return DistributionResult(
             current = shares(current),
             previous = previous?.takeIf { it.isNotEmpty() }?.let { shares(it) },
@@ -74,6 +88,8 @@ object MuscleStatsCalculator {
             .groupingBy { it }
             .eachCount()
             .map { (key, count) -> MuscleBucketCount(key.first, key.second, count) }
-            .sortedWith(compareBy({ it.bucketStart }, { it.group }))
+            // §8.8's vector orders CHEST before LATS within a bucket — name order, not the
+            // MuscleGroup enum's declaration order (which puts LATS four entries earlier).
+            .sortedWith(compareBy({ it.bucketStart }, { it.group.name }))
     }
 }
