@@ -70,6 +70,9 @@ interface WorkoutRepository {
     /** Every set of one workout paired with its exerciseId — the summary's stats and the PR-rebuild target list. */
     suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExercise>
 
+    /** The same, across every COMPLETED workout at once — the History feed's per-card stats in one query (§5.2). */
+    suspend fun getSetsWithExerciseForCompletedWorkouts(): List<WorkoutSetWithExercise>
+
     /** Ordinal position of this workout among COMPLETED ones, for the summary's "Workout #N". */
     suspend fun countCompletedWorkoutsUpTo(startedAt: Long, workoutId: String): Int
 

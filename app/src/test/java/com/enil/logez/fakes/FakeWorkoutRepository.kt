@@ -30,7 +30,10 @@ class FakeWorkoutRepository(
 
     override suspend fun getInProgress(): WorkoutEntity? = workoutsState.value.values.find { it.status.name == "IN_PROGRESS" }
     override fun observeInProgress(): Flow<WorkoutEntity?> = workoutsState.map { m -> m.values.find { it.status.name == "IN_PROGRESS" } }
-    override fun observeCompleted(): Flow<List<WorkoutEntity>> = workoutsState.map { m -> m.values.filter { it.status.name == "COMPLETED" } }
+    // Mirrors the DAO's `ORDER BY started_at DESC` — a fake that preserved insertion order instead
+    // would let a History feed that forgot to sort pass every test against it.
+    override fun observeCompleted(): Flow<List<WorkoutEntity>> =
+        workoutsState.map { m -> m.values.filter { it.status.name == "COMPLETED" }.sortedByDescending { it.startedAt } }
     override suspend fun getById(id: String): WorkoutEntity? = workoutsState.value[id]
     override fun observeById(id: String): Flow<WorkoutEntity?> = workoutsState.map { it[id] }
     override suspend fun updateWorkout(workout: WorkoutEntity) { workoutsState.update { it + (workout.id to workout) } }
@@ -141,6 +144,14 @@ class FakeWorkoutRepository(
 
     override suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExercise> =
         getSetsWithExerciseForWorkoutSync(workoutId)
+
+    // Mirrors the DAO's `WHERE status = 'COMPLETED' ORDER BY started_at DESC` — an unfiltered fake
+    // would hide a feed that accidentally surfaced IN_PROGRESS workouts as cards.
+    override suspend fun getSetsWithExerciseForCompletedWorkouts(): List<WorkoutSetWithExercise> =
+        workoutsState.value.values
+            .filter { it.status.name == "COMPLETED" }
+            .sortedByDescending { it.startedAt }
+            .flatMap { getSetsWithExerciseForWorkoutSync(it.id) }
 
     private fun getSetsWithExerciseForWorkoutSync(workoutId: String): List<WorkoutSetWithExercise> {
         val exercises = exercisesState.value.filter { it.workoutId == workoutId }.sortedBy { it.orderIndex }

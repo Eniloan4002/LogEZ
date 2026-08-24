@@ -13,6 +13,7 @@ class PersonalRecordsRepositoryImpl @Inject constructor(
         dao.rebuildFor(exerciseId, records)
 
     override suspend fun getForWorkout(workoutId: String): List<PersonalRecordEntity> = dao.getForWorkout(workoutId)
+    override suspend fun getWorkoutIdsWithRecords(): Set<String> = dao.getWorkoutIdsWithRecords().toSet()
     override suspend fun getForExercise(exerciseId: String): List<PersonalRecordEntity> = dao.getForExercise(exerciseId)
     override fun observeForWorkout(workoutId: String): Flow<List<PersonalRecordEntity>> = dao.observeForWorkout(workoutId)
     override fun observeForExercise(exerciseId: String): Flow<List<PersonalRecordEntity>> = dao.observeForExercise(exerciseId)

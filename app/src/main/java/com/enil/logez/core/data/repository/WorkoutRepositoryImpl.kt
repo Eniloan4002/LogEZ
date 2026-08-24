@@ -84,15 +84,19 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun finishWorkout(workout: WorkoutEntity) = dao.finishWorkout(workout)
 
     override suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExercise> =
-        dao.getSetsWithExerciseForWorkout(workoutId).map {
-            WorkoutSetWithExercise(it.exerciseId, it.workoutExerciseId, it.exerciseOrderIndex, it.toStatSet())
-        }
+        dao.getSetsWithExerciseForWorkout(workoutId).map(WorkoutSetWithExerciseRow::toDomain)
+
+    override suspend fun getSetsWithExerciseForCompletedWorkouts(): List<WorkoutSetWithExercise> =
+        dao.getSetsWithExerciseForCompletedWorkouts().map(WorkoutSetWithExerciseRow::toDomain)
 
     override suspend fun countCompletedWorkoutsUpTo(startedAt: Long, workoutId: String): Int =
         dao.countCompletedWorkoutsUpTo(startedAt, workoutId)
 
     override suspend fun getCompletedWorkoutTimestamps(): List<Long> = analyticsDao.getCompletedWorkoutTimestamps()
 }
+
+private fun WorkoutSetWithExerciseRow.toDomain() =
+    WorkoutSetWithExercise(exerciseId, workoutExerciseId, exerciseOrderIndex, toStatSet())
 
 private fun WorkoutSetWithExerciseRow.toStatSet() = StatSet(
     setId = setId,

@@ -229,6 +229,34 @@ interface WorkoutDao {
     suspend fun getSetsWithExerciseForWorkout(workoutId: String): List<WorkoutSetWithExerciseRow>
 
     /**
+     * The same projection across *every* COMPLETED workout at once — the History feed's card
+     * stats (§5.2: "card stats come from a single DAO aggregate query"). The feed can't run the
+     * per-workout query above once per card: a year of training is hundreds of cards, and each
+     * would cost its own round trip on every emission of the feed Flow.
+     *
+     * Volume is deliberately still summed in Kotlin rather than SQL — §8.3's per-`ExerciseType`
+     * branching (bodyweight-eligible, assisted, weighted) is a matrix `SUM()` cannot express, and
+     * duplicating it in SQL would be a second source of truth for the app's most load-bearing
+     * number. This query's job is to make that one pass over the data cheap, not to do the math.
+     */
+    @Query(
+        """
+        SELECT ws.id AS setId, we.exercise_id AS exerciseId, we.id AS workoutExerciseId,
+               we.order_index AS exerciseOrderIndex, w.id AS workoutId, w.started_at AS workoutStartedAt,
+               w.routine_id AS routineId, ws.order_index AS orderIndex, ws.set_type AS setType,
+               ws.weight_kg AS weightKg, ws.reps AS reps, ws.duration_seconds AS durationSeconds,
+               ws.distance_meters AS distanceMeters, ws.custom_metric AS customMetric,
+               ws.is_completed AS isCompleted, ws.rpe AS rpe
+        FROM workout_sets ws
+        JOIN workout_exercises we ON we.id = ws.workout_exercise_id
+        JOIN workouts w ON w.id = we.workout_id
+        WHERE w.status = 'COMPLETED'
+        ORDER BY w.started_at DESC, we.order_index ASC, ws.order_index ASC
+        """,
+    )
+    suspend fun getSetsWithExerciseForCompletedWorkouts(): List<WorkoutSetWithExerciseRow>
+
+    /**
      * Ordinal workout count for the summary's "Workout #47" line — COMPLETED only, counting this
      * one. Chronological rank by `started_at`, so a backdated session takes the number it would
      * have had at the time. Exact `started_at` ties break on `id` so the ordinal is a total order:

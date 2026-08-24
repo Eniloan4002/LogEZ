@@ -29,6 +29,15 @@ interface RecordsDao {
     @Query("SELECT * FROM personal_records WHERE workout_id = :workoutId")
     suspend fun getForWorkout(workoutId: String): List<PersonalRecordEntity>
 
+    /**
+     * Every workout id that any record points at — the History feed's "Records" chip gate for the
+     * whole feed in one query, rather than one [getForWorkout] per card. The chip only needs
+     * existence, never the record itself (§5.2: "when there are none, the chip is absent — never
+     * '0 PRs'").
+     */
+    @Query("SELECT DISTINCT workout_id FROM personal_records")
+    suspend fun getWorkoutIdsWithRecords(): List<String>
+
     /** Cached bests for one exercise — seeds the live PR banner's comparison (§8.4 point 1). */
     @Query("SELECT * FROM personal_records WHERE exercise_id = :exerciseId")
     suspend fun getForExercise(exerciseId: String): List<PersonalRecordEntity>

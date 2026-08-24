@@ -8,6 +8,15 @@
 
     <string name="history_empty_title">No workouts yet</string>
     <string name="history_empty_subtitle">Your completed workouts will appear here.</string>
+    <string name="history_empty_cta">Start a workout</string>
+    <string name="history_card_records_chip">Records</string>
+    <plurals name="history_card_more_exercises">
+        <item quantity="one">See %1$d more exercise</item>
+        <item quantity="other">See %1$d more exercises</item>
+    </plurals>
+    <string name="history_detail_copy">Copy Workout</string>
+    <string name="history_detail_delete_title">Delete this workout?</string>
+    <string name="history_detail_delete_body">This can\'t be undone.</string>
 
     <string name="workout_empty_title">No routines yet</string>
     <string name="workout_empty_subtitle">Build a routine or start an empty workout to begin.</string>

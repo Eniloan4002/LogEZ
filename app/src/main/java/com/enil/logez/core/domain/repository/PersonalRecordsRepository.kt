@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.Flow
 interface PersonalRecordsRepository {
     suspend fun rebuildFor(exerciseId: String, records: List<PersonalRecordEntity>)
     suspend fun getForWorkout(workoutId: String): List<PersonalRecordEntity>
+
+    /** Workout ids holding at least one record — the History feed's Records-chip gate, whole feed in one query. */
+    suspend fun getWorkoutIdsWithRecords(): Set<String>
     suspend fun getForExercise(exerciseId: String): List<PersonalRecordEntity>
     fun observeForWorkout(workoutId: String): Flow<List<PersonalRecordEntity>>
     fun observeForExercise(exerciseId: String): Flow<List<PersonalRecordEntity>>

@@ -12,7 +12,9 @@ import com.enil.logez.feature.exercises.CustomExerciseEditorScreen
 import com.enil.logez.feature.exercises.ExerciseDetailScreen
 import com.enil.logez.feature.exercises.ExerciseLibraryScreen
 import com.enil.logez.feature.exercises.ExerciseRoutes
+import com.enil.logez.feature.history.HistoryRoutes
 import com.enil.logez.feature.history.HistoryScreen
+import com.enil.logez.feature.history.WorkoutDetailScreen
 import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
@@ -33,7 +35,29 @@ fun LogEzNavHost(
         startDestination = LogEzDestination.History.route,
         modifier = modifier,
     ) {
-        composable(LogEzDestination.History.route) { HistoryScreen() }
+        composable(LogEzDestination.History.route) {
+            HistoryScreen(
+                onWorkoutClick = { id -> navController.navigate(HistoryRoutes.detail(id)) },
+                onStartWorkout = {
+                    navController.navigate(LogEzDestination.Workout.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+            )
+        }
+        composable(
+            route = HistoryRoutes.DETAIL,
+            arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
+        ) {
+            WorkoutDetailScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
+                onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
+                onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
+            )
+        }
         composable(LogEzDestination.Workout.route) {
             WorkoutTabScreen(
                 onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
