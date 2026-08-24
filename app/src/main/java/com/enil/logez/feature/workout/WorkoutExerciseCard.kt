@@ -81,6 +81,7 @@ internal fun WorkoutExerciseCard(
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     onStartInlineTimer: (setId: String) -> Unit = {},
     onStopInlineTimer: (setId: String) -> Unit = {},
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -158,6 +159,7 @@ internal fun WorkoutExerciseCard(
                 inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                 onStartInlineTimer = onStartInlineTimer,
                 onStopInlineTimer = onStopInlineTimer,
+                isEditMode = isEditMode,
             )
 
             TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
@@ -201,6 +203,7 @@ private fun SetTable(
     inlineTimerSecondsFlow: Flow<Int?>,
     onStartInlineTimer: (setId: String) -> Unit,
     onStopInlineTimer: (setId: String) -> Unit,
+    isEditMode: Boolean,
 ) {
     val fields = exercise.exerciseType.targetFields()
     val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
@@ -236,6 +239,7 @@ private fun SetTable(
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                     onStartInlineTimer = { onStartInlineTimer(set.id) },
                     onStopInlineTimer = { onStopInlineTimer(set.id) },
+                    isEditMode = isEditMode,
                 )
                 if (set.failureError) {
                     Text(
@@ -279,8 +283,14 @@ private fun SetRow(
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     onStartInlineTimer: () -> Unit = {},
     onStopInlineTimer: () -> Unit = {},
+    isEditMode: Boolean = false,
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
+    // Live logging locks a set's values once it is checked off — the check is the commit. Editing a
+    // PAST workout inverts that: every set in a COMPLETED workout is checked, so the same rule
+    // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
+    // exactly as in live logging") impossible — every field would be read-only.
+    val fieldsEnabled = isEditMode || !set.isCompleted
     val rowBackground = if (set.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
 
     Row(
@@ -304,13 +314,13 @@ private fun SetRow(
             modifier = Modifier.width(76.dp),
         )
         if (showCustomMetric) {
-            NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))
+            NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (TargetField.WEIGHT in fields) {
-            NumberCell(value = set.weightKg, onValueChange = onWeightChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))
+            NumberCell(value = set.weightKg, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (TargetField.REPS in fields) {
-            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))
+            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (TargetField.DURATION in fields) {
             // Leaf-scoped (spine rule): only collected/ticking while this exact row is the running inline timer.
@@ -318,7 +328,7 @@ private fun SetRow(
             IntCell(
                 value = if (inlineTimerRunning) liveInlineSeconds else set.durationSeconds,
                 onValueChange = onDurationChange,
-                enabled = !set.isCompleted && !inlineTimerRunning,
+                enabled = fieldsEnabled && !inlineTimerRunning,
                 modifier = Modifier.weight(1f),
             )
             if (showInlineTimer && !set.isCompleted) {
@@ -331,7 +341,7 @@ private fun SetRow(
             }
         }
         if (TargetField.DISTANCE in fields) {
-            NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = !set.isCompleted, modifier = Modifier.weight(1f))
+            NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         IconButton(onClick = onToggleCheck, modifier = Modifier.width(40.dp)) {
             Icon(

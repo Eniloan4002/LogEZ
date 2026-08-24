@@ -15,6 +15,7 @@ import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.history.WorkoutEditor
 import com.enil.logez.feature.routines.TargetField
 import com.enil.logez.feature.routines.targetFields
 import com.enil.logez.feature.workout.finish.LivePrDetector
@@ -56,13 +57,26 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val sessionController: WorkoutSessionController,
     private val setCompletionUseCase: SetCompletionUseCase,
     private val livePrDetector: LivePrDetector,
+    private val workoutEditor: WorkoutEditor,
     private val clock: Clock,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
+    /**
+     * §5.1.10 "Edit past workout": the same screen over an already-COMPLETED workout. No service,
+     * no rest timers, no sounds, no live PR banners, no elapsed ticking — and, critically, no
+     * write-through: see [persist].
+     */
+    private val isEditMode: Boolean = savedStateHandle[EDIT_MODE_ARG] ?: false
+
     private val exercises = MutableStateFlow<List<WorkoutExerciseUiModel>>(emptyList())
     private val isLoading = MutableStateFlow(true)
     private val workout = MutableStateFlow<WorkoutEntity?>(null)
+    /** Edit mode's replacements for the live stopwatch — held in memory until Save (§5.1.10). */
+    private val editedStartedAt = MutableStateFlow(0L)
+    private val editedDurationSeconds = MutableStateFlow(0)
+    private val _editSaveState = MutableStateFlow<EditSaveState>(EditSaveState.Idle)
+    val editSaveState: StateFlow<EditSaveState> = _editSaveState
     private val supersetSource = MutableStateFlow<String?>(null)
     private val reorderModeActive = MutableStateFlow(false)
     private val keepAwakeEnabled = MutableStateFlow(true)
@@ -96,7 +110,8 @@ class WorkoutLoggerViewModel @Inject constructor(
     val inlineTimerSecondsFlow: Flow<Int?> = sessionController.inlineTimerSecondsFlow
 
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
-        exercises, isLoading, workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled, sessionController.state,
+        exercises, isLoading, workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled,
+        sessionController.state, editedStartedAt, editedDurationSeconds,
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
         val ex = flows[0] as List<WorkoutExerciseUiModel>
@@ -107,6 +122,8 @@ class WorkoutLoggerViewModel @Inject constructor(
         val keepAwake = flows[5] as Boolean
         val inlineTimer = flows[6] as Boolean
         val session = flows[7] as WorkoutSessionState
+        val startedAt = flows[8] as Long
+        val duration = flows[9] as Int
         val allSets = ex.flatMap { it.sets }
         WorkoutLoggerUiState(
             isLoading = loading,
@@ -120,26 +137,46 @@ class WorkoutLoggerViewModel @Inject constructor(
             reorderModeActive = reordering,
             isPaused = session.isPaused,
             restExerciseId = session.restExerciseId,
-            keepAwakeEnabled = keepAwake,
-            inlineTimerEnabled = inlineTimer,
+            // Keep-awake and the inline timer are live-session affordances; edit mode has neither
+            // a running session to keep awake for nor a stopwatch to run (§5.1.10).
+            keepAwakeEnabled = keepAwake && !isEditMode,
+            inlineTimerEnabled = inlineTimer && !isEditMode,
             inlineTimerExerciseId = session.inlineTimer?.exerciseId,
             inlineTimerSetId = session.inlineTimer?.setId,
+            isEditMode = isEditMode,
+            editedStartedAtMillis = startedAt,
+            editedDurationSeconds = duration,
+            // §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." The
+            // purge makes the real requirement stronger than a non-empty list: uncompleted sets are
+            // dropped on save, so a workout whose every set is unchecked would save as zero
+            // exercises — the same empty-COMPLETED state the finish flow refuses to create.
+            canSaveEdit = ex.any { block -> block.sets.any { it.isCompleted } },
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutLoggerUiState())
 
     init {
         viewModelScope.launch {
-            sessionController.rehydrate()
+            // No session to rehydrate in edit mode — the workout being edited is COMPLETED, and
+            // rehydrating would resurrect whatever live session state the controller last held.
+            if (!isEditMode) sessionController.rehydrate()
             val w = workoutRepository.getById(workoutId)
             workout.value = w
+            editedStartedAt.value = w?.startedAt ?: 0L
+            editedDurationSeconds.value = w?.durationSeconds ?: 0
             val currentSettings = settingsRepository.settings.first()
             keepAwakeEnabled.value = currentSettings.keepAwake
             inlineTimerEnabled.value = currentSettings.inlineTimerEnabled
             val workoutExercises = workoutRepository.getExercisesForWorkout(workoutId)
             exercises.value = workoutExercises.map { we ->
                 val exercise = exerciseRepository.getById(we.exerciseId)
-                val previousRows = workoutRepository.getPreviousWorkoutSets(we.exerciseId, currentSettings.previousValuesMode, w?.routineId)
-                    .sortedBy { it.orderIndex }
+                // Edit mode bounds the search to workouts before this one — it is itself COMPLETED,
+                // so without the bound it would show its own values as its own PREVIOUS (§5.1.10).
+                val previousRows = workoutRepository.getPreviousWorkoutSets(
+                    we.exerciseId,
+                    currentSettings.previousValuesMode,
+                    w?.routineId,
+                    beforeStartedAt = if (isEditMode) w?.startedAt else null,
+                ).sortedBy { it.orderIndex }
                 val sets = workoutRepository.getSetsForWorkoutExercise(we.id).sortedBy { it.orderIndex }
                 WorkoutExerciseUiModel(
                     id = we.id,
@@ -162,21 +199,26 @@ class WorkoutLoggerViewModel @Inject constructor(
             isLoading.value = false
         }
 
-        // Keeps the ongoing notification's content current while this screen is open (§9.3) —
-        // see the class doc: while mini-barred with no ViewModel alive, the last-pushed content
-        // simply holds until the Logger (and this collector) is alive again.
-        viewModelScope.launch {
-            combine(exercises, sessionController.state.map { it.restExerciseId }.distinctUntilChanged()) { ex, restId -> ex to restId }
-                .collect { (ex, restId) -> pushNotificationContent(ex, restId) }
-        }
+        // Both collectors below belong to a *live* session. Edit mode has no service, no
+        // notification, and no external set-completion source (§5.1.10) — starting them would let
+        // an edit session push content into a notification for a workout that finished days ago.
+        if (!isEditMode) {
+            // Keeps the ongoing notification's content current while this screen is open (§9.3) —
+            // see the class doc: while mini-barred with no ViewModel alive, the last-pushed content
+            // simply holds until the Logger (and this collector) is alive again.
+            viewModelScope.launch {
+                combine(exercises, sessionController.state.map { it.restExerciseId }.distinctUntilChanged()) { ex, restId -> ex to restId }
+                    .collect { (ex, restId) -> pushNotificationContent(ex, restId) }
+            }
 
-        // Mirrors a notification-driven "Complete set" action (§9.3 — the Service persists to
-        // Room directly since it must work with no ViewModel alive) into this screen's own
-        // write-through in-memory state, so an already-open Logger doesn't go stale.
-        viewModelScope.launch {
-            sessionController.setCompletedExternally.collect { (weId, setId) ->
-                updateExercises { list ->
-                    list.map { ex -> if (ex.id != weId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) it.copy(isCompleted = true, failureError = false) else it }) }
+            // Mirrors a notification-driven "Complete set" action (§9.3 — the Service persists to
+            // Room directly since it must work with no ViewModel alive) into this screen's own
+            // write-through in-memory state, so an already-open Logger doesn't go stale.
+            viewModelScope.launch {
+                sessionController.setCompletedExternally.collect { (weId, setId) ->
+                    updateExercises { list ->
+                        list.map { ex -> if (ex.id != weId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) it.copy(isCompleted = true, failureError = false) else it }) }
+                    }
                 }
             }
         }
@@ -221,6 +263,27 @@ class WorkoutLoggerViewModel @Inject constructor(
         exercises.update { transform(it) }
     }
 
+    /**
+     * The single seam between this screen's two persistence contracts.
+     *
+     * Live logging is write-through (§5.1.3 spine): every edit hits Room immediately, so a process
+     * death mid-workout loses nothing. Edit mode is the opposite (§5.1.10): nothing touches the
+     * database until Save, which lands "one transaction" — so Back genuinely discards, and killing
+     * the app mid-edit leaves the saved workout exactly as it was.
+     *
+     * EVERY Room write on this screen must route through here — in-memory state is always updated by
+     * the caller regardless, so the screen behaves identically in both modes. Four call sites
+     * originally missed it because their repository call sat inside their own `viewModelScope.launch`
+     * rather than on one line (`addSet`, `addExercises`, `replaceExercise`, `confirmSupersetTarget`),
+     * and `replaceExercise` in particular rewrote a COMPLETED workout's exercise id and un-completed
+     * all its sets the moment it was tapped — surviving "Discard changes" intact. If you add a write
+     * here, wrap it in `persist { }`; a bare `viewModelScope.launch { workoutRepository.… }` is a bug.
+     */
+    private fun persist(block: suspend () -> Unit) {
+        if (isEditMode) return
+        viewModelScope.launch { block() }
+    }
+
     private fun findSet(exerciseId: String, setId: String): WorkoutSetUiModel? =
         exercises.value.find { it.id == exerciseId }?.sets?.find { it.id == setId }
 
@@ -239,20 +302,20 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     /** [persist] is a targeted single-column DAO write — never a whole-row reconstruction, which would need
      * fields (orderIndex, completedAt, ...) this UI model doesn't track and would silently clobber them. */
-    private fun updateSetField(exerciseId: String, setId: String, uiTransform: (WorkoutSetUiModel) -> WorkoutSetUiModel, persist: suspend () -> Unit) {
+    private fun updateSetField(exerciseId: String, setId: String, uiTransform: (WorkoutSetUiModel) -> WorkoutSetUiModel, persistField: suspend () -> Unit) {
         updateExercises { list ->
             list.map { ex ->
                 if (ex.id != exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) uiTransform(it) else it })
             }
         }
-        viewModelScope.launch { persist() }
+        persist { persistField() }
     }
 
     fun updateSetType(exerciseId: String, setId: String, type: SetType) {
         updateExercises { list ->
             list.map { ex -> if (ex.id != exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) it.copy(setType = type, failureError = false) else it }) }
         }
-        viewModelScope.launch { workoutRepository.updateWorkoutSetType(setId, type) }
+        persist { workoutRepository.updateWorkoutSetType(setId, type) }
     }
 
     /**
@@ -282,13 +345,18 @@ class WorkoutLoggerViewModel @Inject constructor(
             list.map { ex -> if (ex.id != exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) it.copy(isCompleted = nowCompleting, failureError = false) else it }) }
         }
         if (nowCompleting) {
-            viewModelScope.launch {
-                setCompletionUseCase.completeSet(workoutId, exerciseId, setId)
-                maybeRaisePrBanner(exerciseId, setId)
-                maybeScrollToNextSupersetMember(exerciseId)
+            // Edit mode flips the checkmark in memory only: completeSet() would persist, start a
+            // rest timer and play a sound, and a "PR!" banner for a workout logged weeks ago is
+            // meaningless — the real records are recomputed wholesale on Save (§5.1.10).
+            if (!isEditMode) {
+                viewModelScope.launch {
+                    setCompletionUseCase.completeSet(workoutId, exerciseId, setId)
+                    maybeRaisePrBanner(exerciseId, setId)
+                    maybeScrollToNextSupersetMember(exerciseId)
+                }
             }
         } else {
-            viewModelScope.launch { workoutRepository.updateWorkoutSetCompletion(setId, false, null) }
+            persist { workoutRepository.updateWorkoutSetCompletion(setId, false, null) }
         }
         return true
     }
@@ -333,7 +401,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             customMetric = last?.customMetric,
         )
         updateExercises { list -> list.map { if (it.id != exerciseId) it else it.copy(sets = it.sets + newSet) } }
-        viewModelScope.launch {
+        persist {
             workoutRepository.insertWorkoutSet(newSet.toEntity(exerciseId).copy(orderIndex = exercise.sets.size))
         }
     }
@@ -343,7 +411,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         // it's about to be deleted, so nothing needs committing, just stopped (no-op otherwise).
         sessionController.stopInlineTimer(exerciseId, setId)
         updateExercises { list -> list.map { if (it.id != exerciseId) it else it.copy(sets = it.sets.filterNot { s -> s.id == setId }) } }
-        viewModelScope.launch { workoutRepository.deleteWorkoutSet(setId) }
+        persist { workoutRepository.deleteWorkoutSet(setId) }
     }
 
     // --- Notes ---
@@ -351,12 +419,12 @@ class WorkoutLoggerViewModel @Inject constructor(
     fun updateWorkoutNotes(text: String) {
         val w = workout.value ?: return
         workout.value = w.copy(notes = text)
-        viewModelScope.launch { workoutRepository.updateWorkout(w.copy(notes = text, updatedAt = clock.now().toEpochMilliseconds())) }
+        persist { workoutRepository.updateWorkout(w.copy(notes = text, updatedAt = clock.now().toEpochMilliseconds())) }
     }
 
     fun updateExerciseNotes(exerciseId: String, text: String) {
         updateExercises { list -> list.map { if (it.id == exerciseId) it.copy(notes = text) else it } }
-        viewModelScope.launch { workoutRepository.updateWorkoutExerciseNotes(exerciseId, text.ifBlank { null }) }
+        persist { workoutRepository.updateWorkoutExerciseNotes(exerciseId, text.ifBlank { null }) }
     }
 
     // --- Exercise ops ---
@@ -372,8 +440,14 @@ class WorkoutLoggerViewModel @Inject constructor(
 
             picked.forEachIndexed { offset, exercise ->
                 val weId = UUID.randomUUID().toString()
-                val previous = workoutRepository.getPreviousWorkoutSets(exercise.id, settings.previousValuesMode, workout.value?.routineId)
-                    .sortedBy { it.orderIndex }
+                // Same edit-mode bound init uses: an exercise added while editing an old workout
+                // must prefill from what came BEFORE it, never from a later session.
+                val previous = workoutRepository.getPreviousWorkoutSets(
+                    exercise.id,
+                    settings.previousValuesMode,
+                    workout.value?.routineId,
+                    beforeStartedAt = if (isEditMode) workout.value?.startedAt else null,
+                ).sortedBy { it.orderIndex }
                 val sets = if (previous.isNotEmpty()) {
                     previous.mapIndexed { i, p ->
                         WorkoutSetUiModel(
@@ -397,14 +471,17 @@ class WorkoutLoggerViewModel @Inject constructor(
             }
 
             updateExercises { it + newModels }
-            workoutRepository.insertWorkoutExercises(newExerciseEntities)
-            workoutRepository.insertWorkoutSets(newSetEntities)
+            // Reads above are fine in both modes; only the writes are mode-dependent.
+            persist {
+                workoutRepository.insertWorkoutExercises(newExerciseEntities)
+                workoutRepository.insertWorkoutSets(newSetEntities)
+            }
         }
     }
 
     fun removeExercise(exerciseId: String) {
         updateExercises { list -> cleanupOrphanSupersets(list.filterNot { it.id == exerciseId }) }
-        viewModelScope.launch { workoutRepository.deleteWorkoutExercise(exerciseId) }
+        persist { workoutRepository.deleteWorkoutExercise(exerciseId) }
     }
 
     /**
@@ -423,7 +500,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                 if (ex.id != exerciseId) ex else ex.copy(exerciseId = newExercise.id, exerciseName = newExercise.name, exerciseType = newExercise.exerciseType, sets = carriedSets)
             }
         }
-        viewModelScope.launch {
+        persist {
             val entities = carriedSets.mapIndexed { index, s -> s.toEntity(exerciseId).copy(orderIndex = index, isCompleted = false, completedAt = null) }
             workoutRepository.replaceWorkoutExerciseExercise(exerciseId, newExercise.id, entities)
         }
@@ -434,7 +511,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             val byId = list.associateBy { it.id }
             orderedIds.mapNotNull { byId[it] }
         }
-        viewModelScope.launch { orderedIds.forEachIndexed { index, id -> workoutRepository.updateWorkoutExerciseOrderIndex(id, index) } }
+        persist { orderedIds.forEachIndexed { index, id -> workoutRepository.updateWorkoutExerciseOrderIndex(id, index) } }
     }
 
     fun toggleReorderMode() = reorderModeActive.update { !it }
@@ -448,7 +525,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         val existingGroup = current.find { it.id == targetExerciseId }?.supersetGroup
         val group = existingGroup ?: ((current.mapNotNull { it.supersetGroup }.maxOrNull() ?: -1) + 1)
         updateExercises { list -> list.map { if (it.id == sourceId || it.id == targetExerciseId) it.copy(supersetGroup = group) else it } }
-        viewModelScope.launch {
+        persist {
             workoutRepository.updateWorkoutExerciseSuperset(sourceId, group)
             workoutRepository.updateWorkoutExerciseSuperset(targetExerciseId, group)
         }
@@ -457,7 +534,7 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     fun removeFromSuperset(exerciseId: String) {
         updateExercises { list -> cleanupOrphanSupersets(list.map { if (it.id == exerciseId) it.copy(supersetGroup = null) else it }) }
-        viewModelScope.launch { workoutRepository.updateWorkoutExerciseSuperset(exerciseId, null) }
+        persist { workoutRepository.updateWorkoutExerciseSuperset(exerciseId, null) }
     }
 
     private fun cleanupOrphanSupersets(list: List<WorkoutExerciseUiModel>): List<WorkoutExerciseUiModel> {
@@ -465,14 +542,14 @@ class WorkoutLoggerViewModel @Inject constructor(
         val cleaned = list.map { if (it.supersetGroup != null && counts[it.supersetGroup] == 1) it.copy(supersetGroup = null) else it }
         val orphaned = list.filter { it.supersetGroup != null && counts[it.supersetGroup] == 1 }
         if (orphaned.isNotEmpty()) {
-            viewModelScope.launch { orphaned.forEach { workoutRepository.updateWorkoutExerciseSuperset(it.id, null) } }
+            persist { orphaned.forEach { workoutRepository.updateWorkoutExerciseSuperset(it.id, null) } }
         }
         return cleaned
     }
 
     fun updateRestTimer(exerciseId: String, seconds: Int?) {
         updateExercises { list -> list.map { if (it.id == exerciseId) it.copy(restTimerSeconds = seconds) else it } }
-        viewModelScope.launch { workoutRepository.updateWorkoutExerciseRestTimer(exerciseId, seconds) }
+        persist { workoutRepository.updateWorkoutExerciseRestTimer(exerciseId, seconds) }
     }
 
     // --- Timers (M4b: §5.1.3/§5.1.4/§9.4) ---
@@ -536,8 +613,71 @@ class WorkoutLoggerViewModel @Inject constructor(
         workoutRepository.deleteById(workoutId)
     }
 
+    // --- Edit mode (M5b: §5.1.10) ---
+
+    fun updateEditedStartedAt(millis: Long) { editedStartedAt.value = millis }
+    fun updateEditedDuration(seconds: Int) { editedDurationSeconds.value = seconds.coerceAtLeast(0) }
+
+    /** How many sets Save is about to discard — §5.1.10's "uncompleted rows dropped after a warning". */
+    fun uncompletedSetCount(): Int = exercises.value.sumOf { ex -> ex.sets.count { !it.isCompleted } }
+
+    /**
+     * §5.1.10's save: hands the edited in-memory structure to [WorkoutEditor], which lands it in
+     * one transaction and rebuilds records. Runs on [viewModelScope], not the caller's composition
+     * scope, so an Activity recreation mid-save cannot cancel it part-way (the mistake M4c's finish
+     * flow shipped and had to fix).
+     */
+    fun saveEdit() {
+        val w = workout.value ?: return
+        // Idle OR Failed — a failed save rolled back entirely, so a retry is both safe and exactly
+        // what the user is trying to do. Blocking on "not Idle" made the failure snackbar's own
+        // lifetime a dead window where every Save tap was silently swallowed (M4c hit this too).
+        if (_editSaveState.value == EditSaveState.Saving || _editSaveState.value == EditSaveState.Saved) return
+        if (exercises.value.none { ex -> ex.sets.any { it.isCompleted } }) return // §5.1.10 blocks Save outright
+        _editSaveState.value = EditSaveState.Saving
+        val snapshot = exercises.value
+        val startedAt = editedStartedAt.value
+        val duration = editedDurationSeconds.value
+        viewModelScope.launch {
+            _editSaveState.value = runCatching {
+                workoutEditor.save(
+                    workout = w,
+                    startedAt = startedAt,
+                    durationSeconds = duration,
+                    exercises = snapshot.mapIndexed { index, ex ->
+                        WorkoutExerciseEntity(
+                            id = ex.id, workoutId = workoutId, exerciseId = ex.exerciseId, orderIndex = index,
+                            supersetGroup = ex.supersetGroup, restTimerSeconds = ex.restTimerSeconds,
+                            notes = ex.notes.ifBlank { null },
+                        )
+                    },
+                    sets = snapshot.flatMap { ex ->
+                        ex.sets.mapIndexed { index, s ->
+                            s.toEntity(ex.id).copy(
+                                orderIndex = index,
+                                // A set checked off during the edit has no timestamp yet. It was
+                                // performed during THIS workout, not now, so it is stamped with the
+                                // workout's own start rather than the current clock.
+                                completedAt = if (s.isCompleted) (s.completedAt ?: startedAt) else null,
+                            )
+                        }
+                    },
+                )
+            }.fold(
+                onSuccess = { EditSaveState.Saved },
+                // The whole transaction rolled back, so the workout is untouched and a retry is safe.
+                onFailure = { EditSaveState.Failed },
+            )
+        }
+    }
+
+    fun clearEditSaveError() {
+        if (_editSaveState.value == EditSaveState.Failed) _editSaveState.value = EditSaveState.Idle
+    }
+
     companion object {
         const val WORKOUT_ID_ARG = "workoutId"
+        const val EDIT_MODE_ARG = "editMode"
     }
 }
 
@@ -558,18 +698,24 @@ data class WorkoutLoggerUiState(
     val inlineTimerEnabled: Boolean = true,
     val inlineTimerExerciseId: String? = null,
     val inlineTimerSetId: String? = null,
+    /** §5.1.10 edit mode: same screen, no timers/service/banners, nothing persisted until Save. */
+    val isEditMode: Boolean = false,
+    val editedStartedAtMillis: Long = 0L,
+    val editedDurationSeconds: Int = 0,
+    /** §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." */
+    val canSaveEdit: Boolean = false,
 )
 
 private fun WorkoutSetEntity.toUiModel(previousLabel: String) = WorkoutSetUiModel(
     id = id, setType = setType, weightKg = weightKg, reps = reps, durationSeconds = durationSeconds,
     distanceMeters = distanceMeters, customMetric = customMetric, rpe = rpe, isCompleted = isCompleted,
-    previousLabel = previousLabel,
+    completedAt = completedAt, previousLabel = previousLabel,
 )
 
 private fun WorkoutSetUiModel.toEntity(workoutExerciseId: String) = WorkoutSetEntity(
     id = id, workoutExerciseId = workoutExerciseId, orderIndex = 0, setType = setType, weightKg = weightKg,
     reps = reps, durationSeconds = durationSeconds, distanceMeters = distanceMeters, rpe = rpe,
-    customMetric = customMetric, isCompleted = isCompleted, completedAt = null,
+    customMetric = customMetric, isCompleted = isCompleted, completedAt = completedAt,
 )
 
 /** Reuses the M3 Routine Builder's field-preservation rule (§5.1.2/§5.1.3 share the same Replace Exercise semantics). */
@@ -586,3 +732,11 @@ private fun WorkoutSetUiModel.carryOverTo(oldType: ExerciseType, newType: Exerci
 private fun formatTargetNumber(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
 
 private fun formatMmSs(totalSeconds: Int): String = "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+
+/** Where an edit-mode save stands — held in the ViewModel so it survives Activity recreation. */
+sealed interface EditSaveState {
+    data object Idle : EditSaveState
+    data object Saving : EditSaveState
+    data object Saved : EditSaveState
+    data object Failed : EditSaveState
+}

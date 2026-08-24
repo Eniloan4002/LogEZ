@@ -201,6 +201,30 @@ interface WorkoutDao {
         updateWorkout(workout)
     }
 
+    @Query("DELETE FROM workout_exercises WHERE workout_id = :workoutId")
+    suspend fun deleteExercisesForWorkout(workoutId: String)
+
+    /**
+     * §5.1.10's edit save: swap a workout's whole child structure for the edited one and update the
+     * row itself. Deleting the exercises cascades their sets, so the re-insert starts from a clean
+     * slate rather than diffing adds/removes/reorders/replacements against the live rows.
+     *
+     * Unlike the live logger — which never delete-and-reinserts, because row identity has to
+     * survive mid-session — an edit already ends with a full `personal_records` rebuild, so the
+     * fresh set ids get re-pointed at as part of the same transaction.
+     */
+    @Transaction
+    suspend fun replaceWorkoutStructure(
+        workout: WorkoutEntity,
+        exercises: List<WorkoutExerciseEntity>,
+        sets: List<WorkoutSetEntity>,
+    ) {
+        deleteExercisesForWorkout(workout.id)
+        insertWorkoutExercises(exercises)
+        insertWorkoutSets(sets)
+        updateWorkout(workout)
+    }
+
     /**
      * Every set of one workout with its exercise id, in one query — the finish summary's volume
      * and set counts, and the "which exercises need a PR rebuild" list, both need the whole

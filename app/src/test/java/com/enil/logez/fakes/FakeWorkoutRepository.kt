@@ -124,8 +124,8 @@ class FakeWorkoutRepository(
         return seeded + live
     }
 
-    override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?): List<StatSet> =
-        resolvePreviousWorkoutSets(statSetsByExercise[exerciseId].orEmpty(), mode, currentRoutineId)
+    override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long?): List<StatSet> =
+        resolvePreviousWorkoutSets(statSetsByExercise[exerciseId].orEmpty(), mode, currentRoutineId, beforeStartedAt)
 
     override suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry> = historyByExercise[exerciseId].orEmpty()
 
@@ -192,6 +192,20 @@ class FakeWorkoutRepository(
             it.status.name == "COMPLETED" &&
                 (it.startedAt < startedAt || (it.startedAt == startedAt && it.id <= workoutId))
         }
+
+    // Mirrors the DAO transaction: dropping the exercises cascades their sets, then re-insert.
+    override suspend fun replaceWorkoutStructure(
+        workout: WorkoutEntity,
+        exercises: List<WorkoutExerciseEntity>,
+        sets: List<WorkoutSetEntity>,
+    ) {
+        val orphaned = exercisesState.value.filter { it.workoutId == workout.id }.map { it.id }.toSet()
+        exercisesState.update { list -> list.filterNot { it.workoutId == workout.id } }
+        setsState.update { list -> list.filterNot { it.workoutExerciseId in orphaned } }
+        exercisesState.update { it + exercises }
+        setsState.update { it + sets }
+        workoutsState.update { it + (workout.id to workout) }
+    }
 
     override suspend fun getCompletedWorkoutTimestamps(): List<Long> =
         workoutsState.value.values.filter { it.status.name == "COMPLETED" }.map { it.startedAt }.sortedDescending()

@@ -19,7 +19,10 @@ import com.enil.logez.fakes.FakeMeasurementRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.fakes.FakeTransactionRunner
+import com.enil.logez.feature.history.WorkoutEditor
 import com.enil.logez.feature.workout.finish.LivePrDetector
+import com.enil.logez.feature.workout.finish.PersonalRecordsUpdater
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import kotlinx.coroutines.CoroutineScope
@@ -62,15 +65,283 @@ class WorkoutLoggerViewModelTest {
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
         clock: FakeClock = FakeClock(currentMillis = 10_000L),
         sessionController: WorkoutSessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher())),
+        isEditMode: Boolean = false,
+        recordsRepo: FakePersonalRecordsRepository = FakePersonalRecordsRepository(),
     ): WorkoutLoggerViewModel {
         val setCompletionUseCase = SetCompletionUseCase(workoutRepo, settingsRepo, sessionController, clock)
         val livePrDetector = LivePrDetector(
-            workoutRepo, exerciseRepo, FakePersonalRecordsRepository(), FakeMeasurementRepository(), clock,
+            workoutRepo, exerciseRepo, recordsRepo, FakeMeasurementRepository(), clock,
         )
+        val updater = PersonalRecordsUpdater(workoutRepo, exerciseRepo, recordsRepo, FakeMeasurementRepository(), settingsRepo)
+        val editor = WorkoutEditor(workoutRepo, updater, FakeTransactionRunner(), clock)
         return WorkoutLoggerViewModel(
-            SavedStateHandle(mapOf("workoutId" to workoutId)), workoutRepo, exerciseRepo, settingsRepo,
-            sessionController, setCompletionUseCase, livePrDetector, clock,
+            SavedStateHandle(
+                buildMap<String, Any> {
+                    put("workoutId", workoutId)
+                    if (isEditMode) put(WorkoutLoggerViewModel.EDIT_MODE_ARG, true)
+                },
+            ),
+            workoutRepo, exerciseRepo, settingsRepo,
+            sessionController, setCompletionUseCase, livePrDetector, editor, clock,
         )
+    }
+
+    private fun aCompletedWorkout(id: String, startedAt: Long = 5_000L, durationSeconds: Int = 1800) = WorkoutEntity(
+        id = id, routineId = null, title = "Push Day", notes = null, status = WorkoutStatus.COMPLETED,
+        startedAt = startedAt, endedAt = startedAt + durationSeconds * 1000L, durationSeconds = durationSeconds,
+        createdAt = startedAt, updatedAt = startedAt,
+    )
+
+    private fun editFixture(
+        sets: List<WorkoutSetEntity> = listOf(
+            WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+        ),
+    ): FakeWorkoutRepository = FakeWorkoutRepository(
+        workouts = listOf(aCompletedWorkout("w1")),
+        exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+        sets = sets,
+    )
+
+    // --- M5b edit mode (§5.1.10) ---
+
+    @Test
+    fun `edit mode holds every change in memory and writes nothing until save`() = runTest {
+        // The defining difference from live logging, which is write-through on every keystroke.
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.updateWeight("we1", "s1", 120.0)
+        vm.updateReps("we1", "s1", 3)
+
+        assertEquals(120.0, vm.uiState.value.exercises[0].sets[0].weightKg) // shown
+        val stored = workoutRepo.getSetsForWorkoutExercise("we1").single()
+        assertEquals("nothing may reach Room before Save", 100.0, stored.weightKg!!, 1e-9)
+        assertEquals(5, stored.reps)
+    }
+
+    @Test
+    fun `saving an edit persists the in-memory values in one go`() = runTest {
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.updateWeight("we1", "s1", 120.0)
+        vm.updateEditedDuration(2700)
+        vm.saveEdit()
+
+        val stored = workoutRepo.getSetsForWorkoutExercise("we1").single()
+        assertEquals(120.0, stored.weightKg!!, 1e-9)
+        assertEquals(2700, workoutRepo.getById("w1")!!.durationSeconds)
+        assertEquals(WorkoutStatus.COMPLETED, workoutRepo.getById("w1")!!.status)
+        assertTrue(vm.editSaveState.value is EditSaveState.Saved)
+    }
+
+    @Test
+    fun `edit mode seeds the date and duration from the workout being edited`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = editFixture(),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        assertTrue(vm.uiState.value.isEditMode)
+        assertEquals(5_000L, vm.uiState.value.editedStartedAtMillis)
+        assertEquals(1800, vm.uiState.value.editedDurationSeconds)
+    }
+
+    @Test
+    fun `removing the last exercise blocks save`() = runTest {
+        // §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')."
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+        assertTrue(vm.uiState.value.canSaveEdit)
+
+        vm.removeExercise("we1")
+
+        assertFalse(vm.uiState.value.canSaveEdit)
+        vm.saveEdit()
+        assertTrue("a blocked save must not run", vm.editSaveState.value is EditSaveState.Idle)
+    }
+
+    @Test
+    fun `edit mode counts the sets a save would discard`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = editFixture(
+                sets = listOf(
+                    WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+                    WorkoutSetEntity(id = "s2", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                ),
+            ),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        assertEquals(1, vm.uncompletedSetCount())
+    }
+
+    @Test
+    fun `un-checking a set in edit mode does not persist either`() = runTest {
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.toggleCheck("we1", "s1")
+
+        assertFalse(vm.uiState.value.exercises[0].sets[0].isCompleted)
+        assertTrue("Room still holds the completed set until Save", workoutRepo.getSetsForWorkoutExercise("we1").single().isCompleted)
+    }
+
+    // --- M5b review regressions: the persist seam must be exhaustive ---
+
+    @Test
+    fun `replacing an exercise in edit mode does not touch Room before save`() = runTest {
+        // The worst of the seam's holes: replaceWorkoutExerciseExercise rewrites the exercise id AND
+        // flips every set to uncompleted, so a bypass corrupted a COMPLETED workout on pure Discard.
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Incline Press"))),
+            isEditMode = true,
+        )
+
+        vm.replaceExercise("we1", exercise("ex-2", "Incline Press"))
+
+        assertEquals("ex-2", vm.uiState.value.exercises[0].exerciseId) // shown
+        assertEquals("ex-1", workoutRepo.getExercisesForWorkout("w1").single().exerciseId) // not persisted
+        assertTrue("the completed set must not be flipped", workoutRepo.getSetsForWorkoutExercise("we1").single().isCompleted)
+    }
+
+    @Test
+    fun `adding an exercise in edit mode does not touch Room before save`() = runTest {
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Squat"))),
+            isEditMode = true,
+        )
+
+        vm.addExercises(listOf(exercise("ex-2", "Squat")))
+
+        assertEquals(2, vm.uiState.value.exercises.size)
+        assertEquals(1, workoutRepo.getExercisesForWorkout("w1").size)
+    }
+
+    @Test
+    fun `adding a set in edit mode does not touch Room before save`() = runTest {
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.addSet("we1")
+
+        assertEquals(2, vm.uiState.value.exercises[0].sets.size)
+        assertEquals(1, workoutRepo.getSetsForWorkoutExercise("we1").size)
+    }
+
+    @Test
+    fun `building a superset in edit mode does not touch Room before save`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(aCompletedWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+                WorkoutSetEntity(id = "s2", workoutExerciseId = "we2", orderIndex = 0, setType = SetType.NORMAL, weightKg = 50.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench"), exercise("ex-2", "Row"))),
+            isEditMode = true,
+        )
+
+        vm.startSupersetSelection("we1")
+        vm.confirmSupersetTarget("we2")
+
+        assertNotNull(vm.uiState.value.exercises[0].supersetGroup)
+        assertTrue("no superset_group may reach Room before Save", workoutRepo.getExercisesForWorkout("w1").all { it.supersetGroup == null })
+    }
+
+    @Test
+    fun `saving an edit preserves each set's original completedAt`() = runTest {
+        // The UI model used to drop completed_at, so every save wrote is_completed = 1 with a null
+        // timestamp and quietly removed the workout from the Library's recently-logged tier.
+        val workoutRepo = editFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 7_777L),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.updateWeight("we1", "s1", 110.0)
+        vm.saveEdit()
+
+        assertEquals(7_777L, workoutRepo.getSetsForWorkoutExercise("we1").single().completedAt)
+    }
+
+    @Test
+    fun `a set first checked during an edit is stamped inside the workout, not at the current clock`() = runTest {
+        val workoutRepo = editFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+                WorkoutSetEntity(id = "s2", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            clock = FakeClock(currentMillis = 9_000_000L),
+            isEditMode = true,
+        )
+
+        vm.toggleCheck("we1", "s2") // check the previously-unchecked set
+        vm.saveEdit()
+
+        val saved = workoutRepo.getSetsForWorkoutExercise("we1").first { it.id == "s2" }
+        assertEquals("stamped with the workout's own start, not today", 5_000L, saved.completedAt)
+    }
+
+    @Test
+    fun `unchecking every set blocks save rather than emptying the workout`() = runTest {
+        // Purging on save would otherwise leave a COMPLETED workout with zero exercises — the state
+        // the finish flow explicitly refuses to create.
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+        assertTrue(vm.uiState.value.canSaveEdit)
+
+        vm.toggleCheck("we1", "s1") // now nothing is completed
+
+        assertFalse(vm.uiState.value.canSaveEdit)
+        vm.saveEdit()
+        assertTrue(vm.editSaveState.value is EditSaveState.Idle)
+        assertEquals(1, workoutRepo.getExercisesForWorkout("w1").size)
     }
 
     private fun anInProgressWorkout(id: String, routineId: String? = null, startedAt: Long = 5_000L) = WorkoutEntity(

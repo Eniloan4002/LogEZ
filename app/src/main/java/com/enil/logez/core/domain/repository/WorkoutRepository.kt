@@ -54,7 +54,7 @@ interface WorkoutRepository {
     suspend fun getStatSetsForExercise(exerciseId: String): List<StatSet>
 
     /** §8.10 PREVIOUS column: the matching set from the most recent qualifying COMPLETED workout, by orderIndex. */
-    suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?): List<StatSet>
+    suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long? = null): List<StatSet>
 
     /** Exercise Detail's History tab (§5.2): every COMPLETED session containing the exercise, newest first. */
     suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry>
@@ -78,6 +78,15 @@ interface WorkoutRepository {
 
     /** §8.7 streak input: `started_at` of every COMPLETED workout, newest first. */
     suspend fun getCompletedWorkoutTimestamps(): List<Long>
+
+    // --- M5b edit flow (§5.1.10) ---
+
+    /** Swaps a workout's whole child structure for an edited one, and updates the row — one transaction. */
+    suspend fun replaceWorkoutStructure(
+        workout: WorkoutEntity,
+        exercises: List<WorkoutExerciseEntity>,
+        sets: List<WorkoutSetEntity>,
+    )
 }
 
 /**

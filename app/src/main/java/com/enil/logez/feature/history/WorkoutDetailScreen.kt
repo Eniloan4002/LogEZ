@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +50,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
@@ -70,6 +74,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun WorkoutDetailScreen(
     onBack: () -> Unit,
+    onEdit: (workoutId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
     onExerciseClick: (exerciseId: String) -> Unit,
     onRoutineClick: (routineId: String) -> Unit,
@@ -85,6 +90,18 @@ fun WorkoutDetailScreen(
     var conflictingWorkoutId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState.isMissing) { if (uiState.isMissing) onBack() }
+
+    // Edit mode saves in place and pops straight back here, so the data this screen loaded in
+    // init is stale the moment it returns. Re-read on every RESUME rather than on first
+    // composition only.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     fun copyWorkout() = scope.launch {
         menuExpanded = false
@@ -104,11 +121,16 @@ fun WorkoutDetailScreen(
                     }
                 },
                 actions = {
-                    if (uiState.workout != null) {
+                    val loadedWorkoutId = uiState.workout?.id
+                    if (loadedWorkoutId != null) {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.history_detail_edit)) },
+                                onClick = { menuExpanded = false; onEdit(loadedWorkoutId) },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.history_detail_copy)) },
                                 onClick = { copyWorkout() },

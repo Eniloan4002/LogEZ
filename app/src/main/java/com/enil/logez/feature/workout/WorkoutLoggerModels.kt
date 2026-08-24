@@ -32,6 +32,13 @@ data class WorkoutSetUiModel(
     val customMetric: Double? = null,
     val rpe: Double? = null,
     val isCompleted: Boolean = false,
+    /**
+     * When this set was checked off. Tracked here — not just in the entity — because §5.1.10's edit
+     * save rewrites every set row from this model, and a model that didn't carry it would write
+     * `is_completed = 1, completed_at = NULL`, silently dropping the workout out of the Exercise
+     * Library's "recently logged first" tier (which reads MAX(completed_at)).
+     */
+    val completedAt: Long? = null,
     /** Formatted via `PreviousValueFormatter`, resolved once per exercise at load (§8.10). "—" when none. */
     val previousLabel: String = "—",
     /** §5.1.3 check-off validation: a FAILURE set checked with 0/blank reps is rejected, not silently accepted. */

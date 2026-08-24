@@ -21,6 +21,7 @@ import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.enil.logez.feature.workout.WorkoutLoggerScreen
+import com.enil.logez.feature.workout.WorkoutLoggerViewModel
 import com.enil.logez.feature.workout.WorkoutRoutes
 import com.enil.logez.feature.workout.finish.FinishWorkoutScreen
 import com.enil.logez.feature.workout.finish.WorkoutSummaryScreen
@@ -53,6 +54,7 @@ fun LogEzNavHost(
         ) {
             WorkoutDetailScreen(
                 onBack = { navController.popBackStack() },
+                onEdit = { id -> navController.navigate(WorkoutRoutes.edit(id)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
@@ -152,6 +154,27 @@ fun LogEzNavHost(
                 onNavigateToFinish = {
                     navController.navigate(WorkoutRoutes.finish(workoutId)) { launchSingleTop = true }
                 },
+                onDiscarded = { navController.popBackStack() },
+                onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
+                onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
+            )
+        }
+
+        composable(
+            route = WorkoutRoutes.EDIT,
+            arguments = listOf(
+                navArgument("workoutId") { type = NavType.StringType },
+                // The one thing that distinguishes this destination from LOGGER. Declared as a
+                // defaulted nav argument rather than a route segment so the flag reaches
+                // SavedStateHandle without putting "true" in the URL; LOGGER omits it entirely and
+                // the ViewModel reads absent-as-false.
+                navArgument(WorkoutLoggerViewModel.EDIT_MODE_ARG) { type = NavType.BoolType; defaultValue = true },
+            ),
+        ) {
+            WorkoutLoggerScreen(
+                // §5.1.10: Save and Cancel both return to Workout Detail, which re-reads on resume.
+                onExit = { navController.popBackStack() },
+                onNavigateToFinish = {}, // edit mode saves in place — there is no finish hand-off
                 onDiscarded = { navController.popBackStack() },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },

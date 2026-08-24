@@ -13,11 +13,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,19 +45,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
+import com.enil.logez.feature.workout.finish.fromDatePickerMillis
 import com.enil.logez.feature.workout.finish.labelRes
+import com.enil.logez.feature.workout.finish.toDatePickerMillis
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
@@ -74,13 +88,33 @@ fun WorkoutLoggerScreen(
     var timerMenuExpanded by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var isFinishing by remember { mutableStateOf(false) }
+    var showDiscardEditConfirm by remember { mutableStateOf(false) }
+    var showEditIncompleteConfirm by remember { mutableStateOf(false) }
+    var showEditDatePicker by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val editSaveState by viewModel.editSaveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
+    // §5.1.10: "Returns to Workout Detail." Driven off ViewModel state, not the tap, so a save
+    // that outlives an Activity recreation still navigates when it lands.
+    val editSaveFailedMessage = stringResource(R.string.workout_edit_save_failed)
+    LaunchedEffect(editSaveState) {
+        when (editSaveState) {
+            is EditSaveState.Saved -> onExit()
+            is EditSaveState.Failed -> {
+                snackbarHostState.showSnackbar(editSaveFailedMessage)
+                viewModel.clearEditSaveError()
+            }
+            else -> Unit
+        }
+    }
+
     fun handleBack() {
-        // Live logger data is already write-through persisted — navigating away just leaves it
-        // IN_PROGRESS (spine); the service keeps it foregrounded and the Workout tab's mini-bar
-        // (§5.1.3) surfaces it globally, so this just exits back to wherever the mini-bar lives.
-        onExit()
+        // §5.1.10: in edit mode nothing has been persisted, so leaving genuinely discards — which
+        // is worth confirming. Live logging is the opposite: it is already write-through, so
+        // navigating away just leaves the workout IN_PROGRESS (spine); the service keeps it
+        // foregrounded and the mini-bar surfaces it globally, so this exits without ceremony.
+        if (uiState.isEditMode) showDiscardEditConfirm = true else onExit()
     }
     BackHandler(onBack = ::handleBack)
 
@@ -101,7 +135,6 @@ fun WorkoutLoggerScreen(
     }
 
     // §5.1.3 step 6 / §8.4: the live PR banner.
-    val snackbarHostState = remember { SnackbarHostState() }
     val prBannerPrefix = stringResource(R.string.pr_banner, "")
     LaunchedEffect(Unit) {
         viewModel.prBanner.collect { prTypes ->
@@ -116,23 +149,41 @@ fun WorkoutLoggerScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(uiState.title, style = MaterialTheme.typography.titleMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.clickable { timerMenuExpanded = true }) {
-                                WorkoutStatsText(
-                                    elapsedSecondsFlow = viewModel.elapsedSecondsFlow,
-                                    completedSetCount = uiState.completedSetCount,
-                                    totalVolumeKg = uiState.totalVolumeKg,
-                                )
-                            }
-                            DropdownMenu(expanded = timerMenuExpanded, onDismissRequest = { timerMenuExpanded = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(if (uiState.isPaused) R.string.workout_resume_timer else R.string.workout_pause_timer)) },
-                                    onClick = { timerMenuExpanded = false; viewModel.togglePause() },
-                                )
-                            }
-                            if (uiState.restExerciseId != null) {
-                                RestTimerChip(viewModel.restRemainingMillisFlow, modifier = Modifier.padding(start = Spacing.xs))
+                        Text(
+                            if (uiState.isEditMode) {
+                                stringResource(R.string.workout_edit_title, formatEditDate(uiState.editedStartedAtMillis))
+                            } else {
+                                uiState.title
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        // §5.1.10: no elapsed ticking in edit mode — the stopwatch's slot carries
+                        // the same set/volume figures without the live timer that has nothing to
+                        // count, and date/duration become editable rows in the body instead.
+                        if (uiState.isEditMode) {
+                            Text(
+                                stringResource(R.string.workout_edit_stats, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.clickable { timerMenuExpanded = true }) {
+                                    WorkoutStatsText(
+                                        elapsedSecondsFlow = viewModel.elapsedSecondsFlow,
+                                        completedSetCount = uiState.completedSetCount,
+                                        totalVolumeKg = uiState.totalVolumeKg,
+                                    )
+                                }
+                                DropdownMenu(expanded = timerMenuExpanded, onDismissRequest = { timerMenuExpanded = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(if (uiState.isPaused) R.string.workout_resume_timer else R.string.workout_pause_timer)) },
+                                        onClick = { timerMenuExpanded = false; viewModel.togglePause() },
+                                    )
+                                }
+                                if (uiState.restExerciseId != null) {
+                                    RestTimerChip(viewModel.restRemainingMillisFlow, modifier = Modifier.padding(start = Spacing.xs))
+                                }
                             }
                         }
                     }
@@ -143,29 +194,38 @@ fun WorkoutLoggerScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        // Guarded: prepareForFinish does a Room write and the service stop is an
-                        // IPC, so the first tap is slow enough to double-tap. Two runs would end
-                        // the session, take the no-session duration fallback on the second, and
-                        // push a second Save screen onto the back stack.
-                        enabled = !isFinishing,
-                        onClick = {
-                            // Freeze the live duration into the row, stop the service, then hand
-                            // off to the Save screen — the workout stays IN_PROGRESS until it
-                            // saves there.
-                            isFinishing = true
-                            scope.launch {
-                                if (viewModel.prepareForFinish()) {
-                                    stopWorkoutSessionService(context)
-                                    onNavigateToFinish()
+                    if (uiState.isEditMode) {
+                        TextButton(
+                            enabled = uiState.canSaveEdit && editSaveState !is EditSaveState.Saving,
+                            onClick = {
+                                if (viewModel.uncompletedSetCount() > 0) showEditIncompleteConfirm = true else viewModel.saveEdit()
+                            },
+                        ) { Text(stringResource(R.string.action_save)) }
+                    } else {
+                        TextButton(
+                            // Guarded: prepareForFinish does a Room write and the service stop is
+                            // an IPC, so the first tap is slow enough to double-tap. Two runs would
+                            // end the session, take the no-session duration fallback on the second,
+                            // and push a second Save screen onto the back stack.
+                            enabled = !isFinishing,
+                            onClick = {
+                                // Freeze the live duration into the row, stop the service, then
+                                // hand off to the Save screen — the workout stays IN_PROGRESS
+                                // until it saves there.
+                                isFinishing = true
+                                scope.launch {
+                                    if (viewModel.prepareForFinish()) {
+                                        stopWorkoutSessionService(context)
+                                        onNavigateToFinish()
+                                    }
+                                    isFinishing = false
                                 }
-                                isFinishing = false
-                            }
-                        },
-                    ) { Text(stringResource(R.string.workout_finish)) }
-                    IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.workout_discard)) }, onClick = { menuExpanded = false; showDiscardConfirm = true })
+                            },
+                        ) { Text(stringResource(R.string.workout_finish)) }
+                        IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.workout_discard)) }, onClick = { menuExpanded = false; showDiscardConfirm = true })
+                        }
                     }
                 },
             )
@@ -190,6 +250,17 @@ fun WorkoutLoggerScreen(
             }
 
             if (!uiState.isLoading) {
+                // §5.1.10: "In place of the stopwatch, editable Date & time and Duration rows
+                // (same pickers as 5.1.8a)."
+                if (uiState.isEditMode) {
+                    EditDateDurationRows(
+                        startedAtMillis = uiState.editedStartedAtMillis,
+                        durationSeconds = uiState.editedDurationSeconds,
+                        onOpenDatePicker = { showEditDatePicker = true },
+                        onDurationChange = viewModel::updateEditedDuration,
+                    )
+                }
+
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
                     items(items = uiState.exercises, key = { it.id }) { exercise ->
                         val index = uiState.exercises.indexOf(exercise)
@@ -222,6 +293,7 @@ fun WorkoutLoggerScreen(
                             inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
                             onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
                             onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
+                            isEditMode = uiState.isEditMode,
                         )
                     }
                 }
@@ -243,6 +315,64 @@ fun WorkoutLoggerScreen(
             onAddCommitted = { exercises -> viewModel.addExercises(exercises) },
             onExercisePicked = { exercise -> replaceTargetId?.let { viewModel.replaceExercise(it, exercise) } },
             onCreateExercise = onCreateExercise,
+        )
+    }
+
+    if (showEditDatePicker) {
+        // Same UTC-vs-local conversion the finish flow needed (§5.1.8a): the picker speaks
+        // UTC-midnight millis while the row renders in the device zone, and mixing the two put
+        // backdating on the wrong day for anyone east or west of UTC.
+        val zone = remember { ZoneId.systemDefault() }
+        val startedAt = uiState.editedStartedAtMillis
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = toDatePickerMillis(startedAt, zone))
+        DatePickerDialog(
+            onDismissRequest = { showEditDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { picked ->
+                        viewModel.updateEditedStartedAt(fromDatePickerMillis(picked, startedAt, zone))
+                    }
+                    showEditDatePicker = false
+                }) { Text(stringResource(R.string.action_save)) }
+            },
+            dismissButton = { TextButton(onClick = { showEditDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } },
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
+
+    if (showEditIncompleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showEditIncompleteConfirm = false },
+            title = {
+                val count = viewModel.uncompletedSetCount()
+                Text(pluralStringResource(R.plurals.finish_incomplete_title, count, count))
+            },
+            text = { Text(stringResource(R.string.finish_incomplete_body)) },
+            confirmButton = {
+                TextButton(onClick = { showEditIncompleteConfirm = false; viewModel.saveEdit() }) {
+                    Text(stringResource(R.string.finish_incomplete_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditIncompleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    if (showDiscardEditConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDiscardEditConfirm = false },
+            title = { Text(stringResource(R.string.workout_edit_discard_title)) },
+            text = { Text(stringResource(R.string.workout_edit_discard_body)) },
+            confirmButton = {
+                TextButton(onClick = { showDiscardEditConfirm = false; onExit() }) {
+                    Text(stringResource(R.string.workout_edit_discard_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardEditConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
         )
     }
 
@@ -297,3 +427,59 @@ private fun formatElapsed(totalSeconds: Long): String {
 }
 
 private fun formatVolume(kg: Double): String = if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+
+/**
+ * §5.1.10's replacement for the live stopwatch: the workout's date and duration, both editable.
+ * Reuses the finish screen's pickers and its digits-only/length-capped duration handling rather
+ * than re-deriving them — the same Int-overflow and display-vs-saved-value divergence would apply.
+ */
+@Composable
+private fun EditDateDurationRows(
+    startedAtMillis: Long,
+    durationSeconds: Int,
+    onOpenDatePicker: () -> Unit,
+    onDurationChange: (Int) -> Unit,
+) {
+    var durationText by rememberSaveable { mutableStateOf((durationSeconds / 60).toString()) }
+    Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenDatePicker).padding(vertical = Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.finish_date_time_label), modifier = Modifier.weight(1f))
+            Text(formatEditDateTime(startedAtMillis), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        HorizontalDivider()
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.finish_duration_label), modifier = Modifier.weight(1f))
+            OutlinedTextField(
+                value = durationText,
+                onValueChange = { new ->
+                    val digits = new.filter { it.isDigit() }.take(5)
+                    durationText = digits
+                    val minutes = digits.toLongOrNull() ?: 0L
+                    if (minutes != durationSeconds / 60L) {
+                        onDurationChange((minutes * 60).coerceIn(0L, 99_999L * 60L).toInt())
+                    }
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                suffix = { Text("min") },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        HorizontalDivider()
+    }
+}
+
+private fun formatEditDate(millis: Long): String =
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy"))
+
+private fun formatEditDateTime(millis: Long): String =
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
+
+private fun formatVolumeShort(kg: Double): String =
+    if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)

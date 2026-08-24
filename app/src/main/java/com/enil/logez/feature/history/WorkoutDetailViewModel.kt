@@ -49,6 +49,11 @@ class WorkoutDetailViewModel @Inject constructor(
         viewModelScope.launch { reload() }
     }
 
+    /** Re-reads from Room — the screen calls this on RESUME, since an edit rewrites what it shows. */
+    fun refresh() {
+        viewModelScope.launch { reload() }
+    }
+
     private suspend fun reload() {
         val workout = workoutRepository.getById(workoutId)
         if (workout == null) {

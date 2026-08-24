@@ -15,6 +15,13 @@
         <item quantity="other">See %1$d more exercises</item>
     </plurals>
     <string name="history_detail_copy">Copy Workout</string>
+    <string name="history_detail_edit">Edit Workout</string>
+    <string name="workout_edit_title">Editing — %1$s</string>
+    <string name="workout_edit_stats">%1$d sets · %2$s</string>
+    <string name="workout_edit_discard_title">Discard your changes?</string>
+    <string name="workout_edit_discard_body">Nothing you\'ve changed here has been saved yet.</string>
+    <string name="workout_edit_discard_confirm">Discard changes</string>
+    <string name="workout_edit_save_failed">Couldn\'t save your changes. Nothing was changed — try again.</string>
     <string name="history_detail_delete_title">Delete this workout?</string>
     <string name="history_detail_delete_body">This can\'t be undone.</string>
 

@@ -68,8 +68,8 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun getStatSetsForExercise(exerciseId: String): List<StatSet> =
         dao.getStatRowsForExercise(exerciseId).map { it.toStatSet() }
 
-    override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?): List<StatSet> =
-        resolvePreviousWorkoutSets(dao.getStatRowsForExercise(exerciseId).map { it.toStatSet() }, mode, currentRoutineId)
+    override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long?): List<StatSet> =
+        resolvePreviousWorkoutSets(dao.getStatRowsForExercise(exerciseId).map { it.toStatSet() }, mode, currentRoutineId, beforeStartedAt)
 
     override suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry> =
         dao.getStatRowsForExercise(exerciseId).map { it.toHistoryEntry() }
@@ -93,6 +93,14 @@ class WorkoutRepositoryImpl @Inject constructor(
         dao.countCompletedWorkoutsUpTo(startedAt, workoutId)
 
     override suspend fun getCompletedWorkoutTimestamps(): List<Long> = analyticsDao.getCompletedWorkoutTimestamps()
+
+    // --- M5b edit flow (§5.1.10) ---
+
+    override suspend fun replaceWorkoutStructure(
+        workout: WorkoutEntity,
+        exercises: List<WorkoutExerciseEntity>,
+        sets: List<WorkoutSetEntity>,
+    ) = dao.replaceWorkoutStructure(workout, exercises, sets)
 }
 
 private fun WorkoutSetWithExerciseRow.toDomain() =
