@@ -12,10 +12,14 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.EmptyState
 
@@ -29,12 +33,20 @@ import com.enil.logez.core.designsystem.EmptyState
  * screen on tap. It ships here as a navigation row instead: an inline grid on a tab that is
  * otherwise an honest empty state would be the one piece of real content on the screen, and the
  * same grid is one tap away. It becomes a preview when M6 gives it neighbours to sit among.
+ *
+ * Also carries a temporary RPE-tracking toggle (2026-08-24): §5.1.7's RPE picker is gated behind
+ * `rpeTrackingEnabled`, but no Settings screen exists yet anywhere in the app to switch it on —
+ * that's M7 territory. This row is a real, persisted toggle (not a debug hack) standing in until
+ * then; remove it once the actual Settings tree lands with its own row for the same setting.
  */
 @Composable
 fun ProfileScreen(
     onExercisesClick: () -> Unit = {},
     onCalendarClick: () -> Unit = {},
+    viewModel: ProfileViewModel = hiltViewModel(),
 ) {
+    val rpeTrackingEnabled by viewModel.rpeTrackingEnabled.collectAsStateWithLifecycle()
+
     Column(modifier = Modifier.fillMaxSize()) {
         ListItem(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
@@ -48,6 +60,13 @@ fun ProfileScreen(
             leadingContent = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },
             headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
             trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        )
+        HorizontalDivider()
+        ListItem(
+            modifier = Modifier.fillMaxWidth().clickable { viewModel.setRpeTrackingEnabled(!rpeTrackingEnabled) },
+            headlineContent = { Text(stringResource(R.string.profile_rpe_toggle_title)) },
+            supportingContent = { Text(stringResource(R.string.profile_rpe_toggle_subtitle)) },
+            trailingContent = { Switch(checked = rpeTrackingEnabled, onCheckedChange = viewModel::setRpeTrackingEnabled) },
         )
         HorizontalDivider()
 

@@ -42,6 +42,8 @@
     <string name="profile_empty_title">Your stats will appear here</string>
     <string name="profile_empty_subtitle">Log a workout to see your streak, charts, and records.</string>
     <string name="profile_nav_exercises">Exercises</string>
+    <string name="profile_rpe_toggle_title">RPE tracking (testing toggle)</string>
+    <string name="profile_rpe_toggle_subtitle">Temporary switch until the real Settings screen ships. Turns the RPE picker on in the workout logger.</string>
 
     <string name="back">Back</string>
     <string name="more_options">More options</string>
