@@ -22,6 +22,17 @@
     <string name="workout_edit_discard_body">Nothing you\'ve changed here has been saved yet.</string>
     <string name="workout_edit_discard_confirm">Discard changes</string>
     <string name="workout_edit_save_failed">Couldn\'t save your changes. Nothing was changed — try again.</string>
+    <string name="history_detail_save_as_routine">Save as Routine</string>
+    <string name="calendar_title">Calendar</string>
+    <string name="calendar_first_day_of_week">First day of the week</string>
+    <string name="calendar_previous_month">Previous month</string>
+    <string name="calendar_next_month">Next month</string>
+    <string name="calendar_no_streak">No active streak</string>
+    <plurals name="calendar_streak_banner">
+        <item quantity="one">%1$d-week streak</item>
+        <item quantity="other">%1$d-week streak</item>
+    </plurals>
+    <string name="profile_calendar_row">Calendar</string>
     <string name="history_detail_delete_title">Delete this workout?</string>
     <string name="history_detail_delete_body">This can\'t be undone.</string>
 

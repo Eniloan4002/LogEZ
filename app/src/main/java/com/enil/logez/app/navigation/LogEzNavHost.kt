@@ -12,6 +12,7 @@ import com.enil.logez.feature.exercises.CustomExerciseEditorScreen
 import com.enil.logez.feature.exercises.ExerciseDetailScreen
 import com.enil.logez.feature.exercises.ExerciseLibraryScreen
 import com.enil.logez.feature.exercises.ExerciseRoutes
+import com.enil.logez.feature.history.CalendarScreen
 import com.enil.logez.feature.history.HistoryRoutes
 import com.enil.logez.feature.history.HistoryScreen
 import com.enil.logez.feature.history.WorkoutDetailScreen
@@ -55,9 +56,16 @@ fun LogEzNavHost(
             WorkoutDetailScreen(
                 onBack = { navController.popBackStack() },
                 onEdit = { id -> navController.navigate(WorkoutRoutes.edit(id)) },
+                onSavedAsRoutine = { routineId -> navController.navigate(RoutineRoutes.builder(routineId = routineId)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
+            )
+        }
+        composable(HistoryRoutes.CALENDAR) {
+            CalendarScreen(
+                onBack = { navController.popBackStack() },
+                onWorkoutClick = { id -> navController.navigate(HistoryRoutes.detail(id)) },
             )
         }
         composable(LogEzDestination.Workout.route) {
@@ -71,6 +79,7 @@ fun LogEzNavHost(
         composable(LogEzDestination.Profile.route) {
             ProfileScreen(
                 onExercisesClick = { navController.navigate(ExerciseRoutes.LIBRARY) },
+                onCalendarClick = { navController.navigate(HistoryRoutes.CALENDAR) },
             )
         }
 

@@ -94,6 +94,9 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override suspend fun getCompletedWorkoutTimestamps(): List<Long> = analyticsDao.getCompletedWorkoutTimestamps()
 
+    override suspend fun getCompletedWorkoutsOn(fromMillis: Long, untilMillis: Long): List<WorkoutEntity> =
+        dao.getCompletedWorkoutsBetween(fromMillis, untilMillis)
+
     // --- M5b edit flow (§5.1.10) ---
 
     override suspend fun replaceWorkoutStructure(

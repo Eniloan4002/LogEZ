@@ -207,6 +207,11 @@ class FakeWorkoutRepository(
         workoutsState.update { it + (workout.id to workout) }
     }
 
+    override suspend fun getCompletedWorkoutsOn(fromMillis: Long, untilMillis: Long): List<WorkoutEntity> =
+        workoutsState.value.values
+            .filter { it.status.name == "COMPLETED" && it.startedAt >= fromMillis && it.startedAt < untilMillis }
+            .sortedBy { it.startedAt }
+
     override suspend fun getCompletedWorkoutTimestamps(): List<Long> =
         workoutsState.value.values.filter { it.status.name == "COMPLETED" }.map { it.startedAt }.sortedDescending()
 }

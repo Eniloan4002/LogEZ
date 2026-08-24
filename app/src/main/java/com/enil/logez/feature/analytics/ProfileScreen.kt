@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
@@ -21,11 +22,27 @@ import com.enil.logez.core.designsystem.EmptyState
 /**
  * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats, calendar preview, quick
  * charts, Statistics/Measurements/Exercises navigation. Real content lands progressively — M2
- * adds the Exercises row (below); the rest (stats, calendar, Measurements, Statistics) is M6/M7.
+ * added the Exercises row, M5c the Calendar row; headline stats, the last-7-days strip, quick
+ * charts, Statistics and Measurements are M6/M7.
+ *
+ * The plan describes the calendar entry point as an inline current-month grid that opens the full
+ * screen on tap. It ships here as a navigation row instead: an inline grid on a tab that is
+ * otherwise an honest empty state would be the one piece of real content on the screen, and the
+ * same grid is one tap away. It becomes a preview when M6 gives it neighbours to sit among.
  */
 @Composable
-fun ProfileScreen(onExercisesClick: () -> Unit = {}) {
+fun ProfileScreen(
+    onExercisesClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = {},
+) {
     Column(modifier = Modifier.fillMaxSize()) {
+        ListItem(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
+            leadingContent = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+            headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
+            trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        )
+        HorizontalDivider()
         ListItem(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
             leadingContent = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },

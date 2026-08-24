@@ -39,6 +39,15 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE status = 'COMPLETED' ORDER BY started_at DESC")
     fun observeCompleted(): Flow<List<WorkoutEntity>>
 
+    /**
+     * §5.2 Calendar: the workouts on one local day, as a half-open [fromMillis, untilMillis) range.
+     * The caller computes both bounds from `LocalDate.atStartOfDay(zone)`, so a day that is 23 or
+     * 25 hours long across a DST change is still exactly one day — which a fixed +86_400_000 would
+     * get wrong twice a year.
+     */
+    @Query("SELECT * FROM workouts WHERE status = 'COMPLETED' AND started_at >= :fromMillis AND started_at < :untilMillis ORDER BY started_at ASC")
+    suspend fun getCompletedWorkoutsBetween(fromMillis: Long, untilMillis: Long): List<WorkoutEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkoutExercises(exercises: List<WorkoutExerciseEntity>)
 

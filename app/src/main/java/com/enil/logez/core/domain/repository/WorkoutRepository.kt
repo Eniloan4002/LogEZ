@@ -79,6 +79,9 @@ interface WorkoutRepository {
     /** §8.7 streak input: `started_at` of every COMPLETED workout, newest first. */
     suspend fun getCompletedWorkoutTimestamps(): List<Long>
 
+    /** §5.2 Calendar day sheet: COMPLETED workouts started within [fromMillis, untilMillis). */
+    suspend fun getCompletedWorkoutsOn(fromMillis: Long, untilMillis: Long): List<WorkoutEntity>
+
     // --- M5b edit flow (§5.1.10) ---
 
     /** Swaps a workout's whole child structure for an edited one, and updates the row — one transaction. */

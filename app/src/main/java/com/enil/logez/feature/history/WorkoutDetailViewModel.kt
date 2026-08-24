@@ -37,6 +37,7 @@ class WorkoutDetailViewModel @Inject constructor(
     private val personalRecordsRepository: PersonalRecordsRepository,
     private val settingsRepository: SettingsRepository,
     private val workoutDeleter: WorkoutDeleter,
+    private val workoutToRoutineConverter: WorkoutToRoutineConverter,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
 ) : ViewModel() {
@@ -139,6 +140,9 @@ class WorkoutDetailViewModel @Inject constructor(
         sessionController.startSession(id)
         return id
     }
+
+    /** §5.2 "Save as Routine" — returns the new routine's id so the caller can open its editor. */
+    suspend fun saveAsRoutine(): String? = workoutToRoutineConverter.convert(workoutId)
 
     /** §5.2 "Delete Workout" — hard delete + PR rebuild for every exercise the workout touched. */
     fun delete(onDeleted: () -> Unit) {

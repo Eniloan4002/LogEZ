@@ -75,6 +75,7 @@ import kotlinx.coroutines.launch
 fun WorkoutDetailScreen(
     onBack: () -> Unit,
     onEdit: (workoutId: String) -> Unit,
+    onSavedAsRoutine: (routineId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
     onExerciseClick: (exerciseId: String) -> Unit,
     onRoutineClick: (routineId: String) -> Unit,
@@ -134,6 +135,13 @@ fun WorkoutDetailScreen(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.history_detail_copy)) },
                                 onClick = { copyWorkout() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.history_detail_save_as_routine)) },
+                                onClick = {
+                                    menuExpanded = false
+                                    scope.launch { viewModel.saveAsRoutine()?.let(onSavedAsRoutine) }
+                                },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_delete)) },
