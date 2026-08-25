@@ -5,10 +5,18 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val DarkColors = darkColorScheme(
-    primary = Accent400,
+    primary = Mantis,
     onPrimary = Neutral950,
-    primaryContainer = Accent600,
-    onPrimaryContainer = Neutral0,
+    primaryContainer = Neutral900,
+    onPrimaryContainer = Mantis,
+    secondary = NuitBlanche,
+    onSecondary = Neutral0,
+    secondaryContainer = NuitBlanche,
+    onSecondaryContainer = Neutral0,
+    tertiary = FirstColorsOfSpring,
+    onTertiary = Neutral950,
+    tertiaryContainer = Neutral900,
+    onTertiaryContainer = FirstColorsOfSpring,
     background = Neutral950,
     onBackground = Neutral0,
     surface = Neutral900,
@@ -16,6 +24,7 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = Neutral800,
     onSurfaceVariant = Neutral400,
     outline = Neutral600,
+    outlineVariant = Neutral700,
     error = Danger500,
 )
 
