@@ -1,72 +1,112 @@
 package com.enil.logez.core.designsystem
 
+import android.graphics.Region
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.enil.logez.core.domain.model.MuscleGroup
 
 /**
- * Original, stylized front + back body silhouette with per-[MuscleGroup] regions — logEZ-drawn
- * geometry (simple capsules/ovals in normalized coordinates), deliberately NOT a copy of any
- * Hevy asset (standing project rule). Regions fill from the muted silhouette color up to the
- * theme primary by [intensity] (0..1 per group); [selected] regions get an outline; [onRegionTap]
- * (when non-null) makes regions tappable for §5.2 card 4's select/deselect-on-the-diagram.
- *
- * CARDIO, FULL_BODY, and OTHER have no body region — surfaces list them beside the diagram.
+ * Real anatomical front + back body diagram, drawn from [MUSCLE_BODY_REGIONS] (traced SVG data
+ * adapted from vulovix/body-muscles, Apache-2.0 — see that file's KDoc). Each [MuscleGroup]'s
+ * regions (there can be several per side, e.g. `chest-upper-left`/`chest-lower-left`/…) are
+ * merged into one [Path] per (side, group) so intensity fill, selection outline, and tap
+ * hit-testing all treat a muscle group as a single shape, matching how [intensity] and
+ * [selected] are keyed. Regions with no [MuscleGroup] (hands, feet, head, spine, hip flexors,
+ * shin — outside the app's 20-value enum) render as unlabeled base-silhouette context only.
  */
 object BodyDiagramRegions {
-    /** Groups the diagram can render; the three non-anatomical groups are deliberately absent. */
+    /** Groups the diagram can render — every [MuscleGroup] except the three non-anatomical ones. */
     val MAPPABLE: Set<MuscleGroup> = MuscleGroup.entries.toSet() - setOf(MuscleGroup.CARDIO, MuscleGroup.FULL_BODY, MuscleGroup.OTHER)
 }
 
-private enum class Side { FRONT, BACK }
+/** The source data's own viewBox convention (see MuscleBodyData.kt) — one figure is 35×93 units. */
+private const val NATIVE_WIDTH = 35f
+private const val NATIVE_HEIGHT = 93f
 
-/** A shape in figure-local coordinates (x 0..1 across one figure, y 0..1 top-to-bottom). */
-private sealed interface FigureShape {
-    data class Oval(val cx: Float, val cy: Float, val rx: Float, val ry: Float) : FigureShape
-    data class Rect(val left: Float, val top: Float, val right: Float, val bottom: Float, val corner: Float = 0.02f) : FigureShape
+/** BACK paths are traced at x∈[37,72] in the source's combined-canvas viewBox; shift to x∈[0,35]. */
+private const val BACK_X_SHIFT = -37f
+
+/**
+ * Region.setPath rasterizes at integer-coordinate resolution — native units are only 35×93, so
+ * hit-testing directly in native space would be blocky at region boundaries. Scaling the parsed
+ * paths up before building the Region (and scaling tap coordinates by the same factor) trades
+ * that for sub-unit precision; independent of the render transform, which uses its own scale.
+ */
+private const val HIT_TEST_SCALE = 24f
+
+/**
+ * Grid search radius, in hit-test-scaled units (≈0.4 native units), for bridging inter-sub-region
+ * seams — e.g. a tap landing exactly on the drawn edge between chest-upper-left and
+ * chest-lower-left. Deliberately modest: some points inside a MuscleGroup's bounding box are
+ * correctly unfilled (the sternum notch between the two pecs is real anatomy, not a seam), and a
+ * wider search would start bridging genuine gaps between DIFFERENT groups at their true boundary.
+ */
+private const val SEAM_TOLERANCE = 10
+
+private data class ParsedSide(
+    val silhouette: Path,
+    val muscles: Map<MuscleGroup, Path>,
+    val hitRegions: Map<MuscleGroup, Region>,
+)
+
+private fun parseSide(side: BodySide): ParsedSide {
+    val regions = MUSCLE_BODY_REGIONS.filter { it.side == side }
+    val shiftX = if (side == BodySide.BACK) BACK_X_SHIFT else 0f
+    val shift = Matrix().apply { translate(shiftX, 0f) }
+
+    val silhouette = Path()
+    val muscles = mutableMapOf<MuscleGroup, Path>()
+    for (region in regions) {
+        val path = PathParser().parsePathString(region.pathData).toPath().apply { transform(shift) }
+        silhouette.addPath(path)
+        if (region.group != null) {
+            muscles.getOrPut(region.group) { Path() }.addPath(path)
+        }
+    }
+
+    val hitScale = Matrix().apply { scale(HIT_TEST_SCALE, HIT_TEST_SCALE) }
+    val hitRegions = muscles.mapValues { (_, path) ->
+        val scaledAndroidPath = Path().apply { addPath(path); transform(hitScale) }.asAndroidPath()
+        val rectF = android.graphics.RectF()
+        scaledAndroidPath.computeBounds(rectF, true)
+        val bounds = android.graphics.Rect()
+        rectF.roundOut(bounds)
+        Region().apply { setPath(scaledAndroidPath, Region(bounds)) }
+    }
+    return ParsedSide(silhouette, muscles, hitRegions)
 }
 
-private data class Region(val group: MuscleGroup, val side: Side, val shapes: List<FigureShape>)
+private data class FigureTransform(val originX: Float, val originY: Float, val scale: Float)
 
-private fun mirrored(cx: Float, cy: Float, rx: Float, ry: Float) =
-    listOf(FigureShape.Oval(cx, cy, rx, ry), FigureShape.Oval(1f - cx, cy, rx, ry))
-
-private val REGIONS: List<Region> = listOf(
-    // --- front ---
-    Region(MuscleGroup.SHOULDERS, Side.FRONT, mirrored(0.30f, 0.165f, 0.052f, 0.038f)),
-    Region(MuscleGroup.CHEST, Side.FRONT, mirrored(0.435f, 0.215f, 0.062f, 0.045f)),
-    Region(MuscleGroup.BICEPS, Side.FRONT, mirrored(0.275f, 0.25f, 0.037f, 0.055f)),
-    Region(MuscleGroup.FOREARMS, Side.FRONT, mirrored(0.255f, 0.35f, 0.033f, 0.06f)),
-    Region(MuscleGroup.ABDOMINALS, Side.FRONT, listOf(FigureShape.Rect(0.43f, 0.27f, 0.57f, 0.42f, 0.03f))),
-    Region(MuscleGroup.ABDUCTORS, Side.FRONT, mirrored(0.395f, 0.475f, 0.038f, 0.045f)),
-    Region(MuscleGroup.ADDUCTORS, Side.FRONT, mirrored(0.475f, 0.51f, 0.026f, 0.055f)),
-    Region(MuscleGroup.QUADRICEPS, Side.FRONT, mirrored(0.435f, 0.575f, 0.045f, 0.095f)),
-    // --- back ---
-    Region(MuscleGroup.NECK, Side.BACK, listOf(FigureShape.Oval(0.5f, 0.125f, 0.035f, 0.025f))),
-    Region(MuscleGroup.TRAPS, Side.BACK, mirrored(0.43f, 0.17f, 0.05f, 0.032f)),
-    Region(MuscleGroup.UPPER_BACK, Side.BACK, listOf(FigureShape.Rect(0.40f, 0.20f, 0.60f, 0.27f, 0.03f))),
-    Region(MuscleGroup.LATS, Side.BACK, mirrored(0.415f, 0.30f, 0.05f, 0.055f)),
-    Region(MuscleGroup.LOWER_BACK, Side.BACK, listOf(FigureShape.Rect(0.44f, 0.355f, 0.56f, 0.42f, 0.03f))),
-    Region(MuscleGroup.TRICEPS, Side.BACK, mirrored(0.275f, 0.25f, 0.037f, 0.055f)),
-    Region(MuscleGroup.FOREARMS, Side.BACK, mirrored(0.255f, 0.35f, 0.033f, 0.06f)),
-    Region(MuscleGroup.GLUTES, Side.BACK, mirrored(0.455f, 0.465f, 0.05f, 0.045f)),
-    Region(MuscleGroup.HAMSTRINGS, Side.BACK, mirrored(0.435f, 0.60f, 0.045f, 0.08f)),
-    Region(MuscleGroup.CALVES, Side.BACK, mirrored(0.44f, 0.78f, 0.035f, 0.07f)),
-)
+/** Uniform "contain" fit of the NATIVE_WIDTH×NATIVE_HEIGHT figure into one side's canvas slot, centered. */
+private fun fitTransform(slotOriginX: Float, slotWidth: Float, canvasHeight: Float): FigureTransform {
+    val scale = minOf(slotWidth / NATIVE_WIDTH, canvasHeight / NATIVE_HEIGHT)
+    val drawnWidth = NATIVE_WIDTH * scale
+    val drawnHeight = NATIVE_HEIGHT * scale
+    return FigureTransform(
+        originX = slotOriginX + (slotWidth - drawnWidth) / 2f,
+        originY = (canvasHeight - drawnHeight) / 2f,
+        scale = scale,
+    )
+}
 
 @Composable
 fun BodyDiagram(
@@ -79,107 +119,66 @@ fun BodyDiagram(
     val fillColor = MaterialTheme.colorScheme.primary
     val outlineColor = MaterialTheme.colorScheme.tertiary
 
-    // Each figure renders in its own half of the canvas; hit-testing runs the same mapping back.
-    fun figureLocal(tap: Offset, size: Size): Pair<Side, Offset>? {
-        val half = size.width / 2f
-        val side = if (tap.x < half) Side.FRONT else Side.BACK
-        val localX = (if (side == Side.FRONT) tap.x else tap.x - half) / half
-        return Pair(side, Offset(localX, tap.y / size.height))
-    }
-
-    fun FigureShape.contains(p: Offset): Boolean = when (this) {
-        is FigureShape.Oval -> {
-            val dx = (p.x - cx) / rx
-            val dy = (p.y - cy) / ry
-            dx * dx + dy * dy <= 1f
-        }
-        is FigureShape.Rect -> p.x in left..right && p.y in top..bottom
-    }
+    val front = remember { parseSide(BodySide.FRONT) }
+    val back = remember { parseSide(BodySide.BACK) }
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1.15f)
+            .aspectRatio(0.75f) // ~ (35*2) : 93, the source figures' true combined proportions
             .let { m ->
                 if (onRegionTap == null) m
                 else m.pointerInput(Unit) {
                     detectTapGestures { tap ->
-                        val (side, local) = figureLocal(tap, Size(size.width.toFloat(), size.height.toFloat())) ?: return@detectTapGestures
-                        // Smallest matching region wins so inner shapes (adductors) beat the
-                        // larger overlapping ones (quadriceps).
-                        REGIONS.filter { it.side == side && it.shapes.any { s -> s.contains(local) } }
-                            .minByOrNull { r -> r.shapes.sumOf { s -> s.area().toDouble() } }
-                            ?.let { onRegionTap(it.group) }
+                        val half = size.width / 2f
+                        val (side, parsed, slotOriginX) = if (tap.x < half) {
+                            Triple(BodySide.FRONT, front, 0f)
+                        } else {
+                            Triple(BodySide.BACK, back, half)
+                        }
+                        val transform = fitTransform(slotOriginX, half, size.height.toFloat())
+                        val nativeX = (tap.x - transform.originX) / transform.scale
+                        val nativeY = (tap.y - transform.originY) / transform.scale
+                        val hitX = (nativeX * HIT_TEST_SCALE).toInt()
+                        val hitY = (nativeY * HIT_TEST_SCALE).toInt()
+                        fun bestMatchAt(dx: Int, dy: Int) = parsed.hitRegions
+                            .filter { (_, region) -> region.contains(hitX + dx, hitY + dy) }
+                            .minByOrNull { (_, region) -> region.bounds.let { it.width().toLong() * it.height() } }
+
+                        // The exact tap point is authoritative whenever it matches anything — a
+                        // genuinely unambiguous tap must never be overridden by a neighboring
+                        // group's region just because a probe offset happens to land there first.
+                        // Sub-regions of the same MuscleGroup (e.g. chest-upper/chest-lower) are
+                        // independently traced, not mathematically tessellated, so a tap landing
+                        // exactly ON the seam between two of them can miss both by a pixel or two
+                        // in hit-test space — the grid search (diagonals included, since seams can
+                        // run diagonally) exists only to bridge that exact-miss case, not to
+                        // second-guess an exact hit.
+                        val exact = bestMatchAt(0, 0)
+                        val hit = exact ?: (-1..1).asSequence()
+                            .flatMap { gx -> (-1..1).asSequence().map { gy -> gx to gy } }
+                            .filterNot { (gx, gy) -> gx == 0 && gy == 0 }
+                            .firstNotNullOfOrNull { (gx, gy) -> bestMatchAt(gx * SEAM_TOLERANCE, gy * SEAM_TOLERANCE) }
+                        hit?.let { (group, _) -> onRegionTap(group) }
                     }
                 }
             },
     ) {
-        Side.entries.forEach { side ->
-            val originX = if (side == Side.FRONT) 0f else size.width / 2f
-            val figureWidth = size.width / 2f
-            drawSilhouette(baseColor, originX, figureWidth)
-            REGIONS.filter { it.side == side }.forEach { region ->
-                val t = (intensity[region.group] ?: 0f).coerceIn(0f, 1f)
-                val color = lerp(baseColor, fillColor, t)
-                val isSelected = selected != null && region.group in selected
-                region.shapes.forEach { shape ->
-                    drawFigureShape(shape, color, originX, figureWidth)
-                    if (isSelected) drawFigureShape(shape, outlineColor, originX, figureWidth, stroke = Stroke(1.5.dp.toPx()))
+        val half = size.width / 2f
+        listOf(BodySide.FRONT to front, BodySide.BACK to back).forEach { (side, parsed) ->
+            val transform = fitTransform(if (side == BodySide.FRONT) 0f else half, half, size.height)
+            translate(left = transform.originX, top = transform.originY) {
+                scale(scaleX = transform.scale, scaleY = transform.scale, pivot = Offset.Zero) {
+                    drawPath(parsed.silhouette, baseColor.copy(alpha = 0.45f))
+                    parsed.muscles.forEach { (group, path) ->
+                        val t = (intensity[group] ?: 0f).coerceIn(0f, 1f)
+                        drawPath(path, lerp(baseColor, fillColor, t))
+                        if (selected != null && group in selected) {
+                            drawPath(path, outlineColor, style = Stroke(width = 1.5.dp.toPx() / transform.scale))
+                        }
+                    }
                 }
             }
         }
     }
-}
-
-private fun FigureShape.area(): Float = when (this) {
-    is FigureShape.Oval -> (Math.PI * rx * ry).toFloat()
-    is FigureShape.Rect -> (right - left) * (bottom - top)
-}
-
-private fun DrawScope.drawFigureShape(
-    shape: FigureShape,
-    color: Color,
-    originX: Float,
-    figureWidth: Float,
-    stroke: Stroke? = null,
-) {
-    val h = size.height
-    when (shape) {
-        is FigureShape.Oval -> drawOval(
-            color = color,
-            topLeft = Offset(originX + (shape.cx - shape.rx) * figureWidth, (shape.cy - shape.ry) * h),
-            size = Size(shape.rx * 2 * figureWidth, shape.ry * 2 * h),
-            style = stroke ?: androidx.compose.ui.graphics.drawscope.Fill,
-        )
-        is FigureShape.Rect -> drawRoundRect(
-            color = color,
-            topLeft = Offset(originX + shape.left * figureWidth, shape.top * h),
-            size = Size((shape.right - shape.left) * figureWidth, (shape.bottom - shape.top) * h),
-            cornerRadius = CornerRadius(shape.corner * figureWidth),
-            style = stroke ?: androidx.compose.ui.graphics.drawscope.Fill,
-        )
-    }
-}
-
-/** The muted base figure both views share: head, trunk, arms, legs — original simple geometry. */
-private fun DrawScope.drawSilhouette(color: Color, originX: Float, figureWidth: Float) {
-    val h = size.height
-    fun oval(cx: Float, cy: Float, rx: Float, ry: Float) = drawOval(
-        color = color.copy(alpha = 0.45f),
-        topLeft = Offset(originX + (cx - rx) * figureWidth, (cy - ry) * h),
-        size = Size(rx * 2 * figureWidth, ry * 2 * h),
-    )
-    fun capsule(l: Float, t: Float, r: Float, b: Float) = drawRoundRect(
-        color = color.copy(alpha = 0.45f),
-        topLeft = Offset(originX + l * figureWidth, t * h),
-        size = Size((r - l) * figureWidth, (b - t) * h),
-        cornerRadius = CornerRadius(((r - l) / 2f) * figureWidth),
-    )
-    oval(0.5f, 0.065f, 0.055f, 0.05f)              // head
-    capsule(0.46f, 0.10f, 0.54f, 0.15f)            // neck
-    capsule(0.35f, 0.14f, 0.65f, 0.44f)            // trunk
-    capsule(0.235f, 0.16f, 0.315f, 0.42f)          // left arm
-    capsule(0.685f, 0.16f, 0.765f, 0.42f)          // right arm
-    capsule(0.40f, 0.43f, 0.49f, 0.90f)            // left leg
-    capsule(0.51f, 0.43f, 0.60f, 0.90f)            // right leg
 }
