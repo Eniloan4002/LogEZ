@@ -1,6 +1,6 @@
 # ADR-0002: Color rebrand — the MP076 palette
 
-**Status:** Accepted (2026-08-25, M8b)
+**Status:** Accepted (2026-08-25, M8b); **revised** (2026-08-25, same day — see Revision v2.1 below)
 
 ## Context
 
@@ -100,3 +100,42 @@ color shifts, confirmed by reading all 3 consuming files line-by-line before thi
 - No on-device visual verification was performed for this change — this session's environment has
   no `adb`/emulator access. The Owner should confirm the shipped APK actually reads correctly on
   a real screen; the contrast math is necessary but not sufficient for "looks right."
+
+## Revision v2.1 (2026-08-25) — desaturated the neutral ramp after Owner feedback
+
+**Context:** Owner feedback on the v2.0 build: "too dark / low contrast" and general "overall
+feel" dislike. Diagnosed by comparing the shipped ramp's actual HSL values against the *original*
+(pre-rebrand) palette's: the original's darkest neutral steps sat at only 10-20% saturation
+(`#12151B` → H=220° L=0.088 **S=0.200**); v2.0's ramp, derived directly from Midnight Mirage's own
+near-fully-saturated hex, ran the same steps at 70-100% saturation (`#001F3F` → H=210° L=0.124
+**S=1.000**). A deeply saturated navy across the entire background/surface/surfaceVariant area
+reads as "a navy blue app" rather than "a dark app with color accents" — heavier and murkier than
+the original ever was, even though the *lightness* progression and layer-separation contrast
+ratios (surface-vs-background, surfaceVariant-vs-background) were nearly identical between v2.0
+and the original (1.11:1 / 1.36:1 in both). Saturation, not lightness, was the actual problem.
+
+**Decision:** Re-derived the neutral ramp (`background`/`surface`/`surfaceVariant`/`outlineVariant`
+/`outline`/`onSurfaceVariant`) at the same fixed ~210° hue but capped saturation at 10-22% —
+matching the original palette's own subtlety — instead of tapering down from Midnight Mirage's
+100%. `Neutral950` (background) is now `#11161A` (a desaturated derivative of Midnight Mirage, no
+longer the literal brand hex) rather than `#001F3F`. The 6 brand accent colors themselves
+(`Mantis`, `First Colors of Spring`, `Nuit Blanche`, `Picture Book Green`) are **unchanged** — the
+complaint was about the base, not the accents, and this now matches the original design's own
+working formula: a quiet, barely-tinted dark base with all the saturation concentrated in a small
+number of accent colors, rather than saturation spread evenly across everything.
+
+| Role | v2.0 hex | v2.1 hex |
+|---|---|---|
+| `background` (Neutral950) | `#001F3F` | `#11161A` |
+| `surface` (Neutral900) | `#06284B` | `#1A2026` |
+| `surfaceVariant` (Neutral800) | `#103358` | `#283039` |
+| `outlineVariant` (Neutral700) | `#324C67` | `#424C57` |
+| `outline` (Neutral600) | `#4D6B89` | `#5E6B78` |
+| `onSurfaceVariant` (Neutral400) | `#A0ADBA` | `#A0A8B1` |
+| `onPrimary`/`onTertiary` | `#001F3F` | `#11161A` (tracks Neutral950) |
+| `primaryContainer`/`tertiaryContainer` | `#06284B` | `#1A2026` (tracks Neutral900) |
+
+Every contrast pairing was re-verified after the rework — all improved slightly (e.g. `onPrimary`
+Mantis pairing 7.68:1 → 8.44:1) since a less-saturated dark background has marginally higher
+relative luminance separation from a bright accent than a fully-saturated one at the same
+lightness. No role assignment changed, only the neutral ramp's saturation curve.

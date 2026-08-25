@@ -3,23 +3,28 @@ package com.enil.logez.core.designsystem
 import androidx.compose.ui.graphics.Color
 
 /**
- * logEZ palette v2 — dark-only (Owner directive, unchanged since launch), rebranded onto a
+ * logEZ palette v2.1 — dark-only (Owner directive, unchanged since launch), rebranded onto a
  * 6-color palette the Owner supplied (brand board "MP076", credited Alex Cristache
  * @AlexCristache — see docs/adr/0002-color-rebrand.md and the vault branding reference). The
- * neutral ramp is derived from Midnight Mirage (dark end) and Praxeti White (light end) at a
- * fixed ~210° hue with tapering saturation — same "cool-tinted greys" character as the original
- * near-black palette, now genuinely brand-hued rather than neutral. Every step and every accent
- * pairing was chosen against a computed WCAG contrast check (see the ADR), not by eye.
+ * neutral ramp is a heavily-desaturated derivative of Midnight Mirage (dark end) → Praxeti White
+ * (light end) at a fixed ~210° hue: v2.0 ran the ramp at the brand hex's own near-100% saturation,
+ * which read as a dense "navy blue app" rather than a dark app with color accents (Owner
+ * feedback — "too dark", "overall feel") — v2.1 caps saturation around 10-22%, matching the
+ * *original* near-black palette's own subtlety, and lets the accent colors below carry all the
+ * saturation instead. Every step and every accent pairing was re-verified against computed WCAG
+ * contrast after the rework (see the ADR), not chosen by eye.
  */
 
-// Neutrals — fixed-hue ramp between Midnight Mirage (950) and Praxeti White (0).
-val Neutral0 = Color(0xFFF6F7ED) // Praxeti White
-val Neutral400 = Color(0xFFA0ADBA)
-val Neutral600 = Color(0xFF4D6B89)
-val Neutral700 = Color(0xFF324C67) // outlineVariant only — quieter than Neutral600's outline
-val Neutral800 = Color(0xFF103358)
-val Neutral900 = Color(0xFF06284B)
-val Neutral950 = Color(0xFF001F3F) // Midnight Mirage
+// Neutrals — fixed-hue, low-saturation ramp between a desaturated Midnight Mirage (950) and
+// Praxeti White (0). Named for their brand-hue source, but 950-700 are deliberately NOT the
+// literal brand hex — see the KDoc above.
+val Neutral0 = Color(0xFFF6F7ED) // Praxeti White (literal)
+val Neutral400 = Color(0xFFA0A8B1)
+val Neutral600 = Color(0xFF5E6B78)
+val Neutral700 = Color(0xFF424C57) // outlineVariant only — quieter than Neutral600's outline
+val Neutral800 = Color(0xFF283039)
+val Neutral900 = Color(0xFF1A2026)
+val Neutral950 = Color(0xFF11161A) // desaturated Midnight Mirage
 
 // Brand accents.
 val Mantis = Color(0xFF74C365) // primary — the palette's most brand-forward color
