@@ -63,7 +63,6 @@ fun ProfileScreen(
     RefreshOnResume(viewModel::refresh)
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        profileStatsItems(uiState, onStatisticsClick)
         navItems(
             onExercisesClick = onExercisesClick,
             onCalendarClick = onCalendarClick,
@@ -71,6 +70,7 @@ fun ProfileScreen(
             rpeTrackingEnabled = rpeTrackingEnabled,
             onRpeToggle = viewModel::setRpeTrackingEnabled,
         )
+        profileStatsItems(uiState, onStatisticsClick)
     }
 }
 
@@ -78,8 +78,8 @@ fun ProfileScreen(
  * The three data-backed items (headline stats, 7-day strip, quick charts). Their *content* is
  * rendered only once the first load lands, so entering the tab never flashes "0 Workouts / No
  * active streak" at a user with real history (the M6a empty-state-flash lesson) — but the items
- * themselves always exist: conditionally *inserting* them above already-composed nav rows makes
- * the LazyColumn anchor to the nav rows and open the tab scrolled past the stats.
+ * themselves always exist rather than being conditionally inserted, so a loading→loaded transition
+ * never shifts scroll position underneath the user.
  */
 private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
     uiState: ProfileUiState,

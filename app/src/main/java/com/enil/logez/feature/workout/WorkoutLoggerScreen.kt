@@ -130,7 +130,7 @@ fun WorkoutLoggerScreen(
     LaunchedEffect(Unit) {
         viewModel.scrollToExercise.collect { exerciseId ->
             val index = uiState.exercises.indexOfFirst { it.id == exerciseId }
-            if (index >= 0) listState.animateScrollToItem(index)
+            if (index >= 0) listState.scrollToItem(index)
         }
     }
 

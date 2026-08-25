@@ -1,5 +1,7 @@
 package com.enil.logez.app.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -40,6 +42,12 @@ fun LogEzNavHost(
         navController = navController,
         startDestination = LogEzDestination.History.route,
         modifier = modifier,
+        // Owner directive (2026-08-25): zero perceptible latency on tab/screen switches — no
+        // slide/fade default transition, regardless of what Navigation-Compose ships by default.
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
     ) {
         composable(LogEzDestination.History.route) {
             HistoryScreen(
