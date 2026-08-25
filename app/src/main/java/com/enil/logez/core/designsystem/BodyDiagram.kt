@@ -115,7 +115,13 @@ fun BodyDiagram(
     selected: Set<MuscleGroup>? = null,
     onRegionTap: ((MuscleGroup) -> Unit)? = null,
 ) {
-    val baseColor = MaterialTheme.colorScheme.surfaceVariant
+    // `surfaceVariant` (the old base tone) sits almost on top of a Card's own background in this
+    // dark theme — an unworked region at 45% alpha over a near-identical bg was barely legible.
+    // `outline` is a genuinely lighter neutral, and every region also gets a thin `onSurfaceVariant`
+    // stroke so the anatomy reads as line art (like a real muscle chart) rather than relying on
+    // fill-vs-background contrast alone.
+    val restColor = MaterialTheme.colorScheme.outline
+    val lineColor = MaterialTheme.colorScheme.onSurfaceVariant
     val fillColor = MaterialTheme.colorScheme.primary
     val outlineColor = MaterialTheme.colorScheme.tertiary
 
@@ -169,10 +175,13 @@ fun BodyDiagram(
             val transform = fitTransform(if (side == BodySide.FRONT) 0f else half, half, size.height)
             translate(left = transform.originX, top = transform.originY) {
                 scale(scaleX = transform.scale, scaleY = transform.scale, pivot = Offset.Zero) {
-                    drawPath(parsed.silhouette, baseColor.copy(alpha = 0.45f))
+                    val lineWidth = 0.75.dp.toPx() / transform.scale
+                    drawPath(parsed.silhouette, restColor.copy(alpha = 0.55f))
+                    drawPath(parsed.silhouette, lineColor.copy(alpha = 0.5f), style = Stroke(width = lineWidth))
                     parsed.muscles.forEach { (group, path) ->
                         val t = (intensity[group] ?: 0f).coerceIn(0f, 1f)
-                        drawPath(path, lerp(baseColor, fillColor, t))
+                        drawPath(path, lerp(restColor, fillColor, t))
+                        drawPath(path, lineColor.copy(alpha = 0.6f), style = Stroke(width = lineWidth))
                         if (selected != null && group in selected) {
                             drawPath(path, outlineColor, style = Stroke(width = 1.5.dp.toPx() / transform.scale))
                         }
