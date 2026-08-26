@@ -52,6 +52,7 @@ import com.enil.logez.R
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.HeatmapGrid
+import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -77,8 +78,11 @@ fun WorkoutTabScreen(
     onEditRoutine: (routineId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
     viewModel: WorkoutTabViewModel = hiltViewModel(),
+    goalsViewModel: GoalsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val goalsUiState by goalsViewModel.uiState.collectAsStateWithLifecycle()
+    RefreshOnResume(goalsViewModel::refresh)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -142,6 +146,14 @@ fun WorkoutTabScreen(
                     )
                 }
             }
+
+            // M8d: Goals card, right below the heatmap — both are "progress" widgets, kept
+            // together above the actionable Start/routines content.
+            GoalsSection(
+                uiState = goalsUiState,
+                onCreateGoal = goalsViewModel::createGoal,
+                onDeleteGoal = goalsViewModel::deleteGoal,
+            )
 
             // M4b: the global WorkoutMiniBar (docked above the bottom tab bar on every tab, §5.1.3)
             // now covers "in-progress workout, tap to resume" — this tab's own banner would just

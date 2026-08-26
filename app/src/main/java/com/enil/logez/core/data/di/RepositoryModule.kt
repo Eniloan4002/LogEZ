@@ -4,6 +4,7 @@ import com.enil.logez.core.data.media.ExerciseMediaStore
 import com.enil.logez.core.data.media.ExerciseMediaStoreImpl
 import com.enil.logez.core.data.repository.ActiveSessionRepositoryImpl
 import com.enil.logez.core.data.repository.ExerciseRepositoryImpl
+import com.enil.logez.core.data.repository.GoalRepositoryImpl
 import com.enil.logez.core.data.repository.MeasurementRepositoryImpl
 import com.enil.logez.core.data.repository.PersonalRecordsRepositoryImpl
 import com.enil.logez.core.data.repository.RoomTransactionRunner
@@ -12,6 +13,7 @@ import com.enil.logez.core.data.repository.SettingsRepositoryImpl
 import com.enil.logez.core.data.repository.WorkoutRepositoryImpl
 import com.enil.logez.core.domain.repository.ActiveSessionRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
+import com.enil.logez.core.domain.repository.GoalRepository
 import com.enil.logez.core.domain.repository.MeasurementRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
@@ -62,4 +64,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTransactionRunner(impl: RoomTransactionRunner): TransactionRunner
+
+    @Binds
+    @Singleton
+    abstract fun bindGoalRepository(impl: GoalRepositoryImpl): GoalRepository
 }

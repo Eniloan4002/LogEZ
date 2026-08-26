@@ -9,6 +9,7 @@ import androidx.room.Room
 import com.enil.logez.core.data.LogEzDatabase
 import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseDao
+import com.enil.logez.core.data.dao.GoalDao
 import com.enil.logez.core.data.dao.MeasurementDao
 import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
@@ -27,10 +28,15 @@ object DataModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LogEzDatabase =
-        Room.databaseBuilder(context, LogEzDatabase::class.java, LogEzDatabase.DATABASE_NAME).build()
+        Room.databaseBuilder(context, LogEzDatabase::class.java, LogEzDatabase.DATABASE_NAME)
+            .addMigrations(LogEzDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideExerciseDao(db: LogEzDatabase): ExerciseDao = db.exerciseDao()
+
+    @Provides
+    fun provideGoalDao(db: LogEzDatabase): GoalDao = db.goalDao()
 
     @Provides
     fun provideRoutineDao(db: LogEzDatabase): RoutineDao = db.routineDao()

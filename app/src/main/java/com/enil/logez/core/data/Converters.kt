@@ -3,6 +3,8 @@ package com.enil.logez.core.data
 import androidx.room.TypeConverter
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.GoalMetric
+import com.enil.logez.core.domain.model.GoalPeriod
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
@@ -54,6 +56,18 @@ class Converters {
 
     @TypeConverter
     fun toWorkoutStatus(value: String): WorkoutStatus = WorkoutStatus.valueOf(value)
+
+    @TypeConverter
+    fun fromGoalMetric(value: GoalMetric): String = value.name
+
+    @TypeConverter
+    fun toGoalMetric(value: String): GoalMetric = GoalMetric.valueOf(value)
+
+    @TypeConverter
+    fun fromGoalPeriod(value: GoalPeriod): String = value.name
+
+    @TypeConverter
+    fun toGoalPeriod(value: String): GoalPeriod = GoalPeriod.valueOf(value)
 
     @TypeConverter
     fun fromMuscleGroupList(value: List<MuscleGroup>): String =
