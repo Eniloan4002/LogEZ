@@ -56,7 +56,8 @@ class AnalyticsViewModel @Inject constructor(
 
     private data class Selections(
         val trainingMetric: TrainingMetric,
-        val trainingRanges: Map<TrainingMetric, ChartRange>,
+        /** Shared across every [TrainingMetric] (Owner directive) — one range toggle for the whole card, not a per-metric pick. */
+        val trainingRange: ChartRange,
         val trainingSelectedBar: Int?,
         val distributionRange: ChartRange,
         val bodyWeek: LocalDate?,
@@ -71,7 +72,7 @@ class AnalyticsViewModel @Inject constructor(
         trainingMetric = savedStateHandle.get<String>(FOCUS_ARG)
             ?.let { runCatching { TrainingMetric.valueOf(it) }.getOrNull() }
             ?: TrainingMetric.VOLUME,
-        trainingRanges = TrainingMetric.entries.associateWith { ChartRange.LAST_3_MONTHS },
+        trainingRange = ChartRange.LAST_3_MONTHS,
         trainingSelectedBar = null,
         distributionRange = ChartRange.LAST_3_MONTHS,
         bodyWeek = null,
@@ -137,10 +138,7 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     fun selectTrainingRange(range: ChartRange) {
-        selections = selections.copy(
-            trainingRanges = selections.trainingRanges + (selections.trainingMetric to range),
-            trainingSelectedBar = null,
-        ); rebuild()
+        selections = selections.copy(trainingRange = range, trainingSelectedBar = null); rebuild()
     }
 
     fun selectTrainingBar(index: Int?) { selections = selections.copy(trainingSelectedBar = index); rebuild() }
@@ -166,7 +164,7 @@ class AnalyticsViewModel @Inject constructor(
 
     private fun buildUiState(d: DashboardData, s: Selections, isLoading: Boolean): AnalyticsUiState {
         // Card 1 — training charts.
-        val trainingRange = s.trainingRanges.getValue(s.trainingMetric)
+        val trainingRange = s.trainingRange
         val bars = DashboardAggregator.weeklyTrainingSeries(
             s.trainingMetric, d.workouts, d.sets, trainingRange, d.today, d.zone, d.firstDayOfWeek, d.includeWarmups,
         )

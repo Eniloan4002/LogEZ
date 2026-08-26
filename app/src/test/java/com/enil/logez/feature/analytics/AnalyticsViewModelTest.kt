@@ -115,13 +115,23 @@ class AnalyticsViewModelTest {
     }
 
     @Test
-    fun `per-metric ranges are independent - changing volume's range leaves frequency's alone`() = runTest {
+    fun `the training range is shared across every metric, not picked per metric`() = runTest {
         val vm = newViewModel()
         vm.selectTrainingRange(ChartRange.LAST_30_DAYS)
         vm.selectTrainingMetric(TrainingMetric.FREQUENCY)
-        assertEquals(ChartRange.LAST_3_MONTHS, vm.uiState.value.training.range)
+        assertEquals(ChartRange.LAST_30_DAYS, vm.uiState.value.training.range)
         vm.selectTrainingMetric(TrainingMetric.VOLUME)
         assertEquals(ChartRange.LAST_30_DAYS, vm.uiState.value.training.range)
+    }
+
+    @Test
+    fun `selecting a range while on one metric is still in effect after switching metrics twice`() = runTest {
+        val vm = newViewModel()
+        vm.selectTrainingMetric(TrainingMetric.DURATION)
+        vm.selectTrainingRange(ChartRange.ALL_TIME)
+        vm.selectTrainingMetric(TrainingMetric.REPS)
+        vm.selectTrainingMetric(TrainingMetric.VOLUME)
+        assertEquals(ChartRange.ALL_TIME, vm.uiState.value.training.range)
     }
 
     @Test
