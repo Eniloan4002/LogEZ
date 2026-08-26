@@ -5,18 +5,18 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val DarkColors = darkColorScheme(
-    primary = Mantis,
+    primary = NeonGreen,
     onPrimary = Neutral950,
     primaryContainer = Neutral900,
-    onPrimaryContainer = Mantis,
-    secondary = NuitBlanche,
-    onSecondary = Neutral0,
-    secondaryContainer = NuitBlanche,
-    onSecondaryContainer = Neutral0,
-    tertiary = FirstColorsOfSpring,
+    onPrimaryContainer = NeonGreen,
+    secondary = HazardAmber,
+    onSecondary = Neutral950,
+    secondaryContainer = HazardAmber,
+    onSecondaryContainer = Neutral950,
+    tertiary = SpecimenBlue,
     onTertiary = Neutral950,
     tertiaryContainer = Neutral900,
-    onTertiaryContainer = FirstColorsOfSpring,
+    onTertiaryContainer = SpecimenBlue,
     background = Neutral950,
     onBackground = Neutral0,
     surface = Neutral900,
@@ -26,6 +26,7 @@ private val DarkColors = darkColorScheme(
     outline = Neutral600,
     outlineVariant = Neutral700,
     error = Danger500,
+    onError = Neutral950,
 )
 
 /** Dark-only (Owner directive) — applies the design-system color scheme + typography. All screens must be composed under this. */
