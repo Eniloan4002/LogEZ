@@ -44,11 +44,11 @@ saturated, glow-forward character instead of one muted primary:
 | `onPrimary` | Neutral950 | `#0A0D0F` |
 | `primaryContainer` / `tertiaryContainer` | Neutral900 | `#12161A` |
 | `onPrimaryContainer` | NeonGreen | `#39FF6E` |
-| `secondary` / `secondaryContainer` | HazardAmber | `#F5C518` |
+| `secondary` / `secondaryContainer` | SpecimenBlue | `#2E9FFF` |
 | `onSecondary` / `onSecondaryContainer` | Neutral950 | `#0A0D0F` |
-| `tertiary` | SpecimenBlue | `#2E9FFF` |
+| `tertiary` | HazardAmber | `#F5C518` |
 | `onTertiary` | Neutral950 | `#0A0D0F` |
-| `onTertiaryContainer` | SpecimenBlue | `#2E9FFF` |
+| `onTertiaryContainer` | HazardAmber | `#F5C518` |
 | `error` | Danger500 (semantic, brightened to match the bolder direction) | `#FF5A50` |
 | `onError` | Neutral950 | `#0A0D0F` |
 
@@ -149,7 +149,29 @@ one-milestone-at-a-time discipline (the M8a/b/c/d split).
   numeric call sites), M9c (a dry "lab report" copy-voice pass on empty states, toasts, and
   achievement moments), M9d (evaluating a narrow, deliberate exception to M8a's near-zero-animation
   rule for PR/finish moments specifically — not reopening animation generally).
-- No on-device visual verification was performed — this session's environment has no `adb`/emulator
-  access, same caveat as ADR-0002. The Owner should confirm the shipped APK's fonts/colors actually
-  render and read correctly on a real screen (the IBM Plex Sans variable-font wiring in particular
-  has not been visually confirmed on-device, only compiled).
+- No on-device visual verification was performed **by this session** — no `adb`/emulator access,
+  same caveat as ADR-0002 — but the Owner's own on-device check of `debug13.12` is what prompted the
+  Revision below, so the fonts and near-black/neon base are now confirmed reading correctly on a
+  real screen; only the secondary/tertiary role assignment needed a change.
+
+## Revision (2026-08-26, same day) — secondary/tertiary swapped
+
+**Context:** Owner checked `debug13.12` on-device and asked to swap the blue and yellow role
+assignments, otherwise approving the foundation as shipped ("i like it so far").
+
+**Decision:** `secondary`/`secondaryContainer` (the filled-banner role) move from HazardAmber to
+SpecimenBlue; `tertiary`/`tertiaryContainer` (the selection/highlight-accent role) move from
+SpecimenBlue to HazardAmber — a straight swap of which named color sits in which of the two roles,
+not a change to either color's own hex value or to `primary`. Updated the Decision table above in
+place rather than duplicating it here, consistent with ADR-0002's own revision style.
+
+**Rationale:** Purely an on-device visual call by the Owner ("I think it looks better that way") —
+no functional or accessibility driver, and none needed: both colors already had verified WCAG
+contrast in both roles' shape (a bright fill with `Neutral950` text, or bare text on `background`),
+so swapping which role each occupies doesn't change any contrast number, only which UI moments each
+color shows up in (filled banners now read blue, selection highlights now read amber).
+
+**Impact:** `Theme.kt` is the only file touched — `Color.kt`'s named constants (`HazardAmber`,
+`SpecimenBlue`) are unchanged, only their `darkColorScheme(...)` role assignment moved, so every
+consuming screen (which reads roles via `MaterialTheme.colorScheme.*`, never the named constants
+directly) picks up the swap automatically with no other code changes.
