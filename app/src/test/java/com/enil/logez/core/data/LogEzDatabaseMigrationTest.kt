@@ -114,6 +114,30 @@ class LogEzDatabaseMigrationTest {
         assertTrue(count == 1)
     }
 
+    /** A "v3" stand-in: `exercises` including the `primary_muscle_head` column MIGRATION_3_4 reads from. */
+    private fun openV3(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(3) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE `exercises` (
+                        `id` TEXT NOT NULL, `name` TEXT NOT NULL, `exercise_type` TEXT NOT NULL,
+                        `primary_muscle_group` TEXT NOT NULL, `is_custom` INTEGER NOT NULL,
+                        `primary_muscle_head` TEXT,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
     @Test
     fun `MIGRATION_2_3 adds a nullable primary_muscle_head column to exercises`() {
         val helper = openV2()
@@ -162,5 +186,74 @@ class LogEzDatabaseMigrationTest {
 
         assertEquals("Bench Press", name)
         assertTrue("a pre-existing row's head must default to null (unspecified), not be dropped", headIsNull)
+    }
+
+    @Test
+    fun `MIGRATION_3_4 adds a non-null muscle_heads column defaulting to an empty JSON list`() {
+        val helper = openV3()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_3_4.migrate(db)
+
+        val cursor = db.query("PRAGMA table_info(`exercises`)")
+        var found = false
+        var type = ""
+        var notNull = false
+        cursor.use {
+            val nameIdx = it.getColumnIndexOrThrow("name")
+            val typeIdx = it.getColumnIndexOrThrow("type")
+            val notNullIdx = it.getColumnIndexOrThrow("notnull")
+            while (it.moveToNext()) {
+                if (it.getString(nameIdx) == "muscle_heads") {
+                    found = true
+                    type = it.getString(typeIdx)
+                    notNull = it.getInt(notNullIdx) == 1
+                }
+            }
+        }
+        db.close()
+
+        assertTrue("expected a muscle_heads column", found)
+        assertEquals("TEXT", type)
+        assertTrue("column must be NOT NULL -- an empty list, not a null, represents 'no heads picked'", notNull)
+    }
+
+    @Test
+    fun `MIGRATION_3_4 carries an existing single primary_muscle_head forward as a one-element list`() {
+        val helper = openV3()
+        val db = helper.writableDatabase
+        db.execSQL(
+            "INSERT INTO exercises (id, name, exercise_type, primary_muscle_group, is_custom, primary_muscle_head) " +
+                "VALUES ('ex-1', 'Lateral Raise', 'WEIGHT_REPS', 'SHOULDERS', 0, 'LATERAL_DELTOID')",
+        )
+
+        LogEzDatabase.MIGRATION_3_4.migrate(db)
+
+        val cursor = db.query("SELECT muscle_heads FROM exercises WHERE id = 'ex-1'")
+        cursor.moveToFirst()
+        val muscleHeads = cursor.getString(0)
+        cursor.close()
+        db.close()
+
+        assertEquals("""["LATERAL_DELTOID"]""", muscleHeads)
+    }
+
+    @Test
+    fun `MIGRATION_3_4 defaults a row with no primary_muscle_head to an empty list`() {
+        val helper = openV3()
+        val db = helper.writableDatabase
+        db.execSQL(
+            "INSERT INTO exercises (id, name, exercise_type, primary_muscle_group, is_custom, primary_muscle_head) " +
+                "VALUES ('ex-2', 'Plank', 'DURATION', 'ABDOMINALS', 0, NULL)",
+        )
+
+        LogEzDatabase.MIGRATION_3_4.migrate(db)
+
+        val cursor = db.query("SELECT muscle_heads FROM exercises WHERE id = 'ex-2'")
+        cursor.moveToFirst()
+        val muscleHeads = cursor.getString(0)
+        cursor.close()
+        db.close()
+
+        assertEquals("[]", muscleHeads)
     }
 }

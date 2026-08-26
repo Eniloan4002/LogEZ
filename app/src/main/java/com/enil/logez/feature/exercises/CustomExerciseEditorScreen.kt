@@ -60,7 +60,6 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
-import com.enil.logez.core.domain.model.MuscleHead
 import com.enil.logez.core.domain.model.availableHeads
 import com.enil.logez.core.domain.model.userSelectable
 import java.io.File
@@ -181,18 +180,29 @@ fun CustomExerciseEditorScreen(
             )
 
             // M8e: only groups with a real, commonly-trained head split show this — e.g. Shoulders
-            // (anterior/lateral/posterior delt), not e.g. Abdominals.
+            // (anterior/lateral/posterior delt), not e.g. Abdominals. A checklist, not a single
+            // pick (Owner feedback) — an exercise can genuinely work more than one head of the
+            // same group, e.g. a compound press hitting both the anterior and lateral delt.
             val headOptions = uiState.primaryMuscleGroup.availableHeads
             if (headOptions.isNotEmpty()) {
-                val unspecifiedLabel = stringResource(R.string.exercise_editor_muscle_head_unspecified)
-                EnumDropdown(
-                    label = stringResource(R.string.exercise_editor_muscle_head),
-                    selectedLabel = uiState.primaryMuscleHead?.let(::muscleHeadLabel) ?: unspecifiedLabel,
-                    options = listOf<MuscleHead?>(null) + headOptions,
-                    optionLabel = { head -> head?.let(::muscleHeadLabel) ?: unspecifiedLabel },
-                    onSelect = viewModel::onMuscleHeadChange,
-                    modifier = Modifier.padding(top = Spacing.md),
+                Text(
+                    stringResource(R.string.exercise_editor_muscle_head),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = Spacing.lg),
                 )
+                Column {
+                    headOptions.forEach { head ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.onMuscleHeadToggle(head) },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = head in uiState.muscleHeads, onCheckedChange = { viewModel.onMuscleHeadToggle(head) })
+                            Text(muscleHeadLabel(head))
+                        }
+                    }
+                }
             }
 
             Text(

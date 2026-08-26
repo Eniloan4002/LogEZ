@@ -40,5 +40,6 @@ data class Exercise(
     val isDeleted: Boolean,
     val createdAt: Long,
     val updatedAt: Long,
-    val primaryMuscleHead: MuscleHead? = null,
+    /** M8e — a checklist, not a single pick: an exercise can work more than one head of the same group. */
+    val muscleHeads: List<MuscleHead> = emptyList(),
 )

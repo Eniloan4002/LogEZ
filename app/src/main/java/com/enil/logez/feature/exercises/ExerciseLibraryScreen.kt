@@ -184,7 +184,9 @@ private fun ExerciseRow(
         supportingContent = {
             Text(
                 muscleGroupLabel(exercise.primaryMuscleGroup) +
-                    (exercise.primaryMuscleHead?.let { " • ${muscleHeadLabel(it)}" } ?: "") +
+                    exercise.muscleHeads.takeIf { it.isNotEmpty() }?.let { heads ->
+                        " • " + heads.joinToString(", ") { muscleHeadLabel(it) }
+                    }.orEmpty() +
                     if (exercise.isCustom) stringResource(R.string.exercise_library_custom_badge) else "",
             )
         },

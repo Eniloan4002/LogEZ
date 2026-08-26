@@ -187,55 +187,85 @@ class CustomExerciseEditorViewModelTest {
 
         vm.onNameChange("Lateral Raise")
         vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
-        vm.onMuscleHeadChange(MuscleHead.LATERAL_DELTOID)
+        vm.onMuscleHeadToggle(MuscleHead.LATERAL_DELTOID)
         vm.save {}
 
-        assertEquals(MuscleHead.LATERAL_DELTOID, repo.allIncludingDeleted().single().primaryMuscleHead)
+        assertEquals(listOf(MuscleHead.LATERAL_DELTOID), repo.allIncludingDeleted().single().muscleHeads)
     }
 
     @Test
-    fun `changing the primary muscle group clears a previously picked head`() = runTest {
+    fun `a checklist -- more than one head of the same group can be picked at once`() = runTest {
+        val repo = FakeExerciseRepository()
+        val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
+
+        vm.onNameChange("Arnold Press") // a real example of an exercise hitting more than one delt head
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
+        vm.onMuscleHeadToggle(MuscleHead.ANTERIOR_DELTOID)
+        vm.onMuscleHeadToggle(MuscleHead.LATERAL_DELTOID)
+        vm.save {}
+
+        assertEquals(
+            setOf(MuscleHead.ANTERIOR_DELTOID, MuscleHead.LATERAL_DELTOID),
+            repo.allIncludingDeleted().single().muscleHeads.toSet(),
+        )
+    }
+
+    @Test
+    fun `toggling an already-picked head off removes it, leaving the others`() = runTest {
+        val repo = FakeExerciseRepository()
+        val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
+
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
+        vm.onMuscleHeadToggle(MuscleHead.ANTERIOR_DELTOID)
+        vm.onMuscleHeadToggle(MuscleHead.LATERAL_DELTOID)
+        vm.onMuscleHeadToggle(MuscleHead.ANTERIOR_DELTOID) // toggle back off
+
+        assertEquals(setOf(MuscleHead.LATERAL_DELTOID), vm.uiState.value.muscleHeads)
+    }
+
+    @Test
+    fun `changing the primary muscle group clears previously picked heads`() = runTest {
         val repo = FakeExerciseRepository()
         val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
 
         vm.onNameChange("Something")
         vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
-        vm.onMuscleHeadChange(MuscleHead.POSTERIOR_DELTOID)
-        vm.onPrimaryMuscleChange(MuscleGroup.CHEST) // different group -- the old head no longer applies
+        vm.onMuscleHeadToggle(MuscleHead.POSTERIOR_DELTOID)
+        vm.onPrimaryMuscleChange(MuscleGroup.CHEST) // different group -- the old heads no longer apply
 
-        assertEquals(null, vm.uiState.value.primaryMuscleHead)
+        assertTrue(vm.uiState.value.muscleHeads.isEmpty())
     }
 
     @Test
-    fun `a group with no tracked heads never saves a muscle head, even if one was set before switching`() = runTest {
+    fun `a group with no tracked heads never saves any muscle head, even if some were set before switching`() = runTest {
         val repo = FakeExerciseRepository()
         val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
 
         vm.onNameChange("Crunch")
         vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
-        vm.onMuscleHeadChange(MuscleHead.ANTERIOR_DELTOID)
+        vm.onMuscleHeadToggle(MuscleHead.ANTERIOR_DELTOID)
         vm.onPrimaryMuscleChange(MuscleGroup.ABDOMINALS) // ABDOMINALS has no tracked heads
         vm.save {}
 
-        assertEquals(null, repo.allIncludingDeleted().single().primaryMuscleHead)
+        assertTrue(repo.allIncludingDeleted().single().muscleHeads.isEmpty())
     }
 
     @Test
-    fun `re-selecting the already-selected primary group does not clear a picked head`() = runTest {
+    fun `re-selecting the already-selected primary group does not clear picked heads`() = runTest {
         val repo = FakeExerciseRepository()
         val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
 
         vm.onNameChange("Face Pull")
         vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
-        vm.onMuscleHeadChange(MuscleHead.POSTERIOR_DELTOID)
+        vm.onMuscleHeadToggle(MuscleHead.POSTERIOR_DELTOID)
         vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS) // re-tapping the same, already-selected group
 
-        assertEquals(MuscleHead.POSTERIOR_DELTOID, vm.uiState.value.primaryMuscleHead)
+        assertEquals(setOf(MuscleHead.POSTERIOR_DELTOID), vm.uiState.value.muscleHeads)
     }
 
     @Test
-    fun `edit mode loads an existing exercise's muscle head`() = runTest {
-        val seed = seedExercise().copy(primaryMuscleGroup = MuscleGroup.CALVES, primaryMuscleHead = MuscleHead.SOLEUS)
+    fun `edit mode loads an existing exercise's muscle heads`() = runTest {
+        val seed = seedExercise().copy(primaryMuscleGroup = MuscleGroup.CALVES, muscleHeads = listOf(MuscleHead.GASTROCNEMIUS, MuscleHead.SOLEUS))
         val repo = FakeExerciseRepository(listOf(seed))
         val vm = CustomExerciseEditorViewModel(
             SavedStateHandle(mapOf("exerciseId" to "existing-1")),
@@ -244,7 +274,7 @@ class CustomExerciseEditorViewModelTest {
             FakeClock(),
         )
 
-        assertEquals(MuscleHead.SOLEUS, vm.uiState.value.primaryMuscleHead)
+        assertEquals(setOf(MuscleHead.GASTROCNEMIUS, MuscleHead.SOLEUS), vm.uiState.value.muscleHeads)
     }
 
     @Test

@@ -70,13 +70,6 @@ class Converters {
     @TypeConverter
     fun toGoalPeriod(value: String): GoalPeriod = GoalPeriod.valueOf(value)
 
-    /** Nullable -- unset for every exercise that doesn't specify a sub-head. */
-    @TypeConverter
-    fun fromMuscleHead(value: MuscleHead?): String? = value?.name
-
-    @TypeConverter
-    fun toMuscleHead(value: String?): MuscleHead? = value?.let { MuscleHead.valueOf(it) }
-
     @TypeConverter
     fun fromMuscleGroupList(value: List<MuscleGroup>): String =
         json.encodeToString(value.map { it.name })
@@ -85,4 +78,14 @@ class Converters {
     fun toMuscleGroupList(value: String): List<MuscleGroup> =
         if (value.isBlank()) emptyList()
         else json.decodeFromString<List<String>>(value).map { MuscleGroup.valueOf(it) }
+
+    /** A checklist, not a single pick (M8e revision — Owner feedback) -- empty for every exercise that doesn't specify any. */
+    @TypeConverter
+    fun fromMuscleHeadList(value: List<MuscleHead>): String =
+        json.encodeToString(value.map { it.name })
+
+    @TypeConverter
+    fun toMuscleHeadList(value: String): List<MuscleHead> =
+        if (value.isBlank()) emptyList()
+        else json.decodeFromString<List<String>>(value).map { MuscleHead.valueOf(it) }
 }

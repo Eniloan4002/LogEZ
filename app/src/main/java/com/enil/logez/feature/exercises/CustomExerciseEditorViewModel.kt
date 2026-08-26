@@ -77,7 +77,7 @@ class CustomExerciseEditorViewModel @Inject constructor(
                             secondaryMuscleGroups = existing.secondaryMuscleGroups.toSet(),
                             exerciseType = existing.exerciseType,
                             mediaPath = existing.mediaPath,
-                            primaryMuscleHead = existing.primaryMuscleHead,
+                            muscleHeads = existing.muscleHeads.toSet(),
                         )
                     }
                 } else {
@@ -92,18 +92,21 @@ class CustomExerciseEditorViewModel @Inject constructor(
     fun onEquipmentChange(equipment: Equipment) = _uiState.update { it.copy(equipment = equipment) }
 
     /**
-     * Changing the primary group clears any picked head — a head belongs to exactly one group,
+     * Changing the primary group clears any picked heads — a head belongs to exactly one group,
      * and the new group may not even have any (or the same ones). Re-selecting the *same* group
      * the dropdown already shows (the menu's `onSelect` fires unconditionally on every tap, with
      * no equality check) must NOT clear it — nothing actually changed, so a stray re-tap on an
-     * already-selected item shouldn't silently wipe a head the user already picked.
+     * already-selected item shouldn't silently wipe heads the user already picked.
      */
     fun onPrimaryMuscleChange(muscle: MuscleGroup) = _uiState.update {
         if (muscle == it.primaryMuscleGroup) return@update it
-        it.copy(primaryMuscleGroup = muscle, secondaryMuscleGroups = it.secondaryMuscleGroups - muscle, primaryMuscleHead = null)
+        it.copy(primaryMuscleGroup = muscle, secondaryMuscleGroups = it.secondaryMuscleGroups - muscle, muscleHeads = emptySet())
     }
 
-    fun onMuscleHeadChange(head: MuscleHead?) = _uiState.update { it.copy(primaryMuscleHead = head) }
+    /** A checklist, not a single pick (Owner feedback) — an exercise can work more than one head of the same group. */
+    fun onMuscleHeadToggle(head: MuscleHead) = _uiState.update {
+        it.copy(muscleHeads = if (head in it.muscleHeads) it.muscleHeads - head else it.muscleHeads + head)
+    }
 
     fun onSecondaryMuscleToggle(muscle: MuscleGroup) = _uiState.update {
         if (muscle == it.primaryMuscleGroup) return@update it
@@ -145,7 +148,9 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 isDeleted = false,
                 createdAt = loadedCreatedAt,
                 updatedAt = clock.now().toEpochMilliseconds(),
-                primaryMuscleHead = state.primaryMuscleHead.takeIf { state.primaryMuscleGroup.availableHeads.isNotEmpty() },
+                // Guards against a stale head surviving a group change some other path missed --
+                // every element must actually belong to the current group's own list.
+                muscleHeads = state.muscleHeads.filter { it in state.primaryMuscleGroup.availableHeads },
             )
             exerciseRepository.upsertCustom(exercise)
             onSaved()
@@ -169,5 +174,5 @@ data class CustomExerciseEditorUiState(
     val secondaryMuscleGroups: Set<MuscleGroup> = emptySet(),
     val exerciseType: ExerciseType = ExerciseType.WEIGHT_REPS,
     val mediaPath: String? = null,
-    val primaryMuscleHead: MuscleHead? = null,
+    val muscleHeads: Set<MuscleHead> = emptySet(),
 )

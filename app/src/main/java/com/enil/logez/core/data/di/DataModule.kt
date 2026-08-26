@@ -29,7 +29,7 @@ object DataModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LogEzDatabase =
         Room.databaseBuilder(context, LogEzDatabase::class.java, LogEzDatabase.DATABASE_NAME)
-            .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3)
+            .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4)
             .build()
 
     @Provides

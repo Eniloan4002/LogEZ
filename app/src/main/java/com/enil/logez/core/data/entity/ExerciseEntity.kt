@@ -36,8 +36,10 @@ data class ExerciseEntity(
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
-    /** M8e: optional sub-head refinement (e.g. "Lateral Delt" within SHOULDERS) — null for every
-     * exercise that doesn't specify one, including every exercise that existed before this column.
-     * Defaulted so this addition doesn't break any existing named-arg entity construction. */
-    @ColumnInfo(name = "primary_muscle_head") val primaryMuscleHead: MuscleHead? = null,
+    /** M8e: sub-head refinement (e.g. "Lateral Delt" within SHOULDERS) — an exercise can work more
+     * than one head of the same group (e.g. a compound press hitting both anterior and lateral
+     * delt), so this is a checklist, not a single pick; empty for every exercise that doesn't
+     * specify any, including every exercise that existed before this column. Defaulted so this
+     * addition doesn't break any existing named-arg entity construction. */
+    @ColumnInfo(name = "muscle_heads") val muscleHeads: List<MuscleHead> = emptyList(),
 )

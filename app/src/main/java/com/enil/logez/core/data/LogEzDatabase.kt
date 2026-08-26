@@ -27,7 +27,8 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
 
 /**
  * Schema v1 (PHASE2_PLAN.md §3.2, §10.4), v2 adds `goal_definitions` (M8d), v3 adds
- * `exercises.primary_muscle_head` (M8e). `exportSchema = true` from day one — `schemas/` is
+ * `exercises.primary_muscle_head` (M8e), v4 replaces that with `exercises.muscle_heads` (M8e
+ * revision — a checklist, not a single pick). `exportSchema = true` from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
  * app (project-rules.md testing expectations): this app's entire value is the historical log, so
  * every schema change ships as a real, tested [androidx.room.migration.Migration].
@@ -47,7 +48,7 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         ProgressPhotoEntity::class,
         GoalDefinitionEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -86,6 +87,29 @@ abstract class LogEzDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `exercises` ADD COLUMN `primary_muscle_head` TEXT")
+            }
+        }
+
+        /**
+         * v3 -> v4 (M8e revision — Owner feedback: heads should be a checklist, not a single
+         * pick). Adds `muscle_heads` (a JSON list, matching `secondary_muscle_groups`'s existing
+         * convention) and carries forward any already-set `primary_muscle_head` as that head's
+         * single-element list. `primary_muscle_head` itself is left in place, unused, rather than
+         * dropped — `DROP COLUMN` support varies across the SQLite versions bundled with API
+         * 26-36 (this app's minSdk-to-target range), while an inert extra column is harmless:
+         * Room's schema validation only checks that an entity's declared columns are present with
+         * matching types, not that the table has no others.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `exercises` ADD COLUMN `muscle_heads` TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL(
+                    """
+                    UPDATE `exercises`
+                    SET `muscle_heads` = '["' || `primary_muscle_head` || '"]'
+                    WHERE `primary_muscle_head` IS NOT NULL
+                    """.trimIndent(),
+                )
             }
         }
     }
