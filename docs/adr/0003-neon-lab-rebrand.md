@@ -1,6 +1,6 @@
 # ADR-0003: "Neon Lab" rebrand — color, typography, and the M9 revamp scope
 
-**Status:** Accepted, foundation shipped (2026-08-26, M9a); component/icon/copy passes still pending (M9b+)
+**Status:** Accepted. M9a (color+type foundation) and M9b (elevation + custom icon set) shipped 2026-08-26; M9c (copy voice) and M9d (motion exception) still pending.
 
 ## Context
 
@@ -175,3 +175,61 @@ color shows up in (filled banners now read blue, selection highlights now read a
 `SpecimenBlue`) are unchanged, only their `darkColorScheme(...)` role assignment moved, so every
 consuming screen (which reads roles via `MaterialTheme.colorScheme.*`, never the named constants
 directly) picks up the swap automatically with no other code changes.
+
+## M9b (2026-08-26, same day) — real elevation + a custom lab-signage icon set
+
+**Context:** Owner approved the M9a foundation on-device ("i like it so far") and authorized
+proceeding to the next implementations. Two of M9b's three originally-scoped pieces (real
+elevation on the app's flat cards; a custom icon set for domain-meaningful moments) were sized to
+ship together; the third (`LogEzMono` adopted at numeric call sites) was deliberately left for a
+later pass — see Follow-up.
+
+**Decision — elevation:** Added `LogEzCard` (`core/designsystem/LogEzCard.kt`), a thin wrapper
+around Material3's `Card` with a visible shadow (`Elevation.card = 4.dp`, new in `Tokens.kt`) and an
+`outlineVariant` hairline border baked in as defaults. Rolled out across every *default-styled*
+`Card(...)` call site app-wide — 49 sites across 12 files — via a parallel per-file pass (one agent
+per file, same replacement rule everywhere), each agent deciding per call site whether it was safe
+to replace: a plain `Card(modifier = ...) { ... }` became `LogEzCard(...)`, while any call that
+already customizes `colors=`/`elevation=`/`border=`/`shape=` (e.g. `WorkoutSummaryScreen.kt`'s
+PR-medal card, deliberately tinted with `primaryContainer`) was left as plain `Card()` untouched.
+
+**Decision — icons:** Added `LogEzIcons` (`core/designsystem/LogEzIcons.kt`), four custom line
+icons replacing default Material icons at the app's domain-meaningful moments, scoped deliberately
+narrow: `Workout` (a barbell, replacing every `Icons.Filled.FitnessCenter` site — the Workout nav
+tab, `WorkoutTabScreen`'s empty state, `ProfileScreen`'s Exercises row, and `MuscleGroupIcon`'s
+generic fallback), `History` (a lab-log clipboard, replacing `Icons.Filled.History`), `Profile` (a
+specimen-ID badge, replacing `Icons.Filled.Person`), and `PersonalRecord` (a hazard-triangle
+"anomaly" glyph, replacing every `Icons.Filled.EmojiEvents` site across History, Workout Detail, and
+Workout Summary). Universal UI chrome — back arrows, close, check, chevrons, search, more-options,
+add, expand/collapse — stays default Material.
+
+**Rationale:** Elevation directly targets the "flat/unfinished" symptom named at the very start of
+this revamp's discussion (see Context above) — the mechanical, low-risk half of M9b, safely
+delegable to a parallel per-file pass since each file's transformation follows one shared rule with
+no cross-file judgment required. Icon scope was deliberately bounded to domain-meaningful icons,
+not "replace every Material icon in the app": universal navigation/action chrome (`ArrowBack`,
+`Close`, `Check`, `MoreVert`, chevrons, `Search`, `Add`, `ExpandMore`/`Less`, ...) are conventions
+users already read instantly, and redesigning them buys no brand payoff while risking recognizability
+for no reason — confirmed by enumerating every distinct icon actually used in the app (`grep` across
+`app/src/main/java`) before deciding what to touch, rather than guessing at scope. `PersonalRecord`
+ports the hazard-triangle glyph from the Owner-approved design-canvas mockup verbatim (same path
+geometry), not a new design. Per-`MuscleGroup` illustrations (§7.5, `muscleGroupIcon()`) remain the
+separate, already-deferred placeholder from M2 — only its shared `else` fallback branch (which
+happened to literally be `FitnessCenter`, same as the nav tab) was touched, not the
+CARDIO/FULL_BODY/OTHER/ABDOMINALS-specific branches.
+
+**Impact:** 17 files touched (15 modified via the elevation rollout + icon wiring, 2 new:
+`LogEzCard.kt`, `LogEzIcons.kt`). Both new components live in `core/designsystem/`, matching the
+project's existing convention (`BarChart`, `LineChart`, `HeatmapGrid`, `BodyDiagram` all live there
+too). No test files needed changes (no test asserts on `Card` vs `LogEzCard` or on which `ImageVector`
+a screen renders). Build and the full unit suite verified green after the rollout; the parallel
+per-file agents' import cleanup (removing now-unused `Card`/icon imports, adding `LogEzCard`/
+`LogEzIcons` imports) was spot-checked across several files before committing, not just trusted.
+
+**Follow-up:** `LogEzMono` (the numeric-data monospace treatment, already built in `Type.kt` during
+M9a) is still not adopted at any real call site — rolling it out to actual weight/rep/timer/chart-
+axis displays across the Logger, Exercise Detail Summary, and Analytics screens remains its own
+pass. M9c (copy voice) and M9d (motion exception) also remain entirely unstarted. No on-device
+verification of the elevation/icon changes was performed by this session (same standing caveat as
+M9a/ADR-0002) — the Owner should confirm cards actually read as "lifted" and the four new icons
+render correctly on a real screen.
