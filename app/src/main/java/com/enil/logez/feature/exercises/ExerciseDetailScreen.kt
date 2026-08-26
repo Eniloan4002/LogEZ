@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +51,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
+import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
@@ -381,7 +381,7 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
         items(items = sessions, key = { it.workoutId }) { session ->
-            Card(modifier = Modifier.padding(bottom = Spacing.sm)) {
+            LogEzCard(modifier = Modifier.padding(bottom = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
                     Text(session.workoutTitle, style = MaterialTheme.typography.titleSmall)
                     session.sets.forEach { set ->

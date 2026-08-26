@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -44,6 +43,7 @@ import com.enil.logez.core.common.muscleGroupLabel
 import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.BarChartEntry
+import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.analytics.MonthlyReportViewModel.ComparisonMetric
 import com.enil.logez.feature.exercises.SummaryFormatters
@@ -141,7 +141,7 @@ fun MonthlyReportScreen(
 
 @Composable
 private fun MonthTotalsCard(uiState: MonthlyReportUiState) {
-    Card {
+    LogEzCard {
         Row(modifier = Modifier.fillMaxWidth().padding(Spacing.md), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Tile(stringResource(R.string.analytics_tile_workouts), uiState.totals.workouts.toString(), Modifier.weight(1f))
             Tile(stringResource(R.string.analytics_tile_duration), AnalyticsFormatters.durationHoursMinutes(uiState.totals.durationSeconds), Modifier.weight(1f))
@@ -153,7 +153,7 @@ private fun MonthTotalsCard(uiState: MonthlyReportUiState) {
 
 @Composable
 private fun ComparisonCard(uiState: MonthlyReportUiState, viewModel: MonthlyReportViewModel) {
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Text(
                 stringResource(R.string.analytics_month_comparison_title),
@@ -227,7 +227,7 @@ private fun comparisonMetricLabel(metric: ComparisonMetric): String = when (metr
 /** Mini month grid — dots only, no interaction; the full Calendar screen owns the tap-a-day flow. */
 @Composable
 private fun MiniCalendarCard(uiState: MonthlyReportUiState) {
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Text(
                 stringResource(R.string.analytics_month_calendar_title),
@@ -283,7 +283,7 @@ private fun MiniMonthGrid(month: YearMonth, workoutDates: Set<LocalDate>) {
 
 @Composable
 private fun MonthPrCard(uiState: MonthlyReportUiState) {
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 stringResource(R.string.analytics_month_prs_title),
@@ -326,7 +326,7 @@ private fun prTypeLabel(prType: com.enil.logez.core.domain.model.PrType): String
 
 @Composable
 private fun MonthDistributionCard(uiState: MonthlyReportUiState) {
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 stringResource(R.string.analytics_distribution_title),
@@ -364,7 +364,7 @@ private fun MonthDistributionCard(uiState: MonthlyReportUiState) {
 
 @Composable
 private fun TopExercisesCard(uiState: MonthlyReportUiState) {
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 stringResource(R.string.analytics_month_top_exercises),

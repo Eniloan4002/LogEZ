@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -43,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
+import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
@@ -70,7 +70,7 @@ internal fun RoutineExerciseCard(
     var menuExpanded by remember { mutableStateOf(false) }
     val supersetColor = exercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
 
-    Card(
+    LogEzCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = Spacing.sm)

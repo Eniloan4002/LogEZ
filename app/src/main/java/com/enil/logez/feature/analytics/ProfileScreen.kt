@@ -15,8 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,6 +35,8 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.BodyDiagram
+import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
@@ -116,7 +116,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
 
         item(key = "last7") {
             if (uiState.isLoading) return@item
-            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
                         stringResource(R.string.profile_last7_title),
@@ -139,7 +139,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
 
         item(key = "quick_charts") {
             if (uiState.isLoading) return@item
-            Card(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
                         stringResource(R.string.profile_quick_charts_title),
@@ -207,7 +207,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_exercises") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
-                leadingContent = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },
+                leadingContent = { Icon(LogEzIcons.Workout, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
             )
@@ -243,7 +243,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
 
 @Composable
 private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
+    LogEzCard(modifier = modifier) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

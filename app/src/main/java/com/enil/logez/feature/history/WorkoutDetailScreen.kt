@@ -18,10 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +54,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
+import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
@@ -186,7 +186,7 @@ fun WorkoutDetailScreen(
                         DetailStatCell(stringResource(R.string.summary_duration), formatDetailDuration(uiState.durationSeconds))
                         DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg))
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
-                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Filled.EmojiEvents)
+                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = LogEzIcons.PersonalRecord)
                     }
                 }
             }
@@ -248,7 +248,7 @@ private fun DetailStatCell(label: String, value: String, icon: ImageVector? = nu
 @Composable
 private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (String) -> Unit) {
     val supersetColor = block.workoutExercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
-    Card(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             if (supersetColor != null) {
                 Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(supersetColor))
@@ -303,7 +303,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
         )
         if (set.pr != null) {
             Icon(
-                Icons.Filled.EmojiEvents,
+                LogEzIcons.PersonalRecord,
                 contentDescription = stringResource(set.pr.prType.labelRes()),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),

@@ -17,11 +17,9 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +50,8 @@ import com.enil.logez.R
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.HeatmapGrid
+import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.StartResult
@@ -136,7 +136,7 @@ fun WorkoutTabScreen(
                 // M8c: progress heatmap at the very top, before any workout feature — a passive
                 // overview, not something the user acts on, so it never competes with
                 // Start/routines for the first tap.
-                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+                LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                     Column(modifier = Modifier.padding(Spacing.md)) {
                         Text(
                             stringResource(R.string.workout_heatmap_title),
@@ -179,7 +179,7 @@ fun WorkoutTabScreen(
             if (uiState.folders.isEmpty() && uiState.rootRoutines.isEmpty()) {
                 item {
                     EmptyState(
-                        icon = Icons.Filled.FitnessCenter,
+                        icon = LogEzIcons.Workout,
                         title = stringResource(R.string.workout_empty_title),
                         subtitle = stringResource(R.string.workout_empty_subtitle),
                         ctaLabel = stringResource(R.string.workout_create_first_routine),
@@ -412,7 +412,7 @@ private fun RoutineCard(
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Card(modifier = modifier.fillMaxWidth().clickable(enabled = !isReordering, onClick = onClick)) {
+    LogEzCard(modifier = modifier.fillMaxWidth().clickable(enabled = !isReordering, onClick = onClick)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Text(card.routine.name, style = MaterialTheme.typography.titleMedium)
             if (card.exercisePreview.isNotBlank()) {

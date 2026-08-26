@@ -4,7 +4,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Accessibility
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -22,7 +21,7 @@ fun muscleGroupIcon(group: MuscleGroup): ImageVector = when (group) {
     MuscleGroup.FULL_BODY -> Icons.AutoMirrored.Filled.DirectionsWalk
     MuscleGroup.OTHER -> Icons.Filled.QuestionMark
     MuscleGroup.ABDOMINALS -> Icons.Filled.SelfImprovement
-    else -> Icons.Filled.FitnessCenter
+    else -> LogEzIcons.Workout
 }
 
 /** A generic fallback used only where no muscle group is known yet (should not normally occur). */

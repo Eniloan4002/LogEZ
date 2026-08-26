@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -85,7 +85,7 @@ fun RoutineDetailScreen(
 
             LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md)) {
                 items(items = uiState.exercises, key = { it.routineExercise.id }) { row ->
-                    Card(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
+                    LogEzCard(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
                             Text(row.exercise?.name.orEmpty(), style = MaterialTheme.typography.titleMedium)
                             row.sets.forEachIndexed { index, set ->

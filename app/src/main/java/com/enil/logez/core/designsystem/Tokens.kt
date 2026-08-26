@@ -25,3 +25,8 @@ object Radius {
     val lg: Dp = 16.dp
     val pill: Dp = 999.dp
 }
+
+/** M9b (Neon Lab) — real elevation for [LogEzCard], replacing the fully-flat pre-rebrand cards. */
+object Elevation {
+    val card: Dp = 4.dp
+}

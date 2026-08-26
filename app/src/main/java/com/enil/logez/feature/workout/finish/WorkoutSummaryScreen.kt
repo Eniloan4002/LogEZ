@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.Spacing
 
 /**
@@ -99,7 +98,7 @@ fun WorkoutSummaryScreen(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.EmojiEvents, contentDescription = null)
+                            Icon(LogEzIcons.PersonalRecord, contentDescription = null)
                             Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
                                 Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                                 Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)

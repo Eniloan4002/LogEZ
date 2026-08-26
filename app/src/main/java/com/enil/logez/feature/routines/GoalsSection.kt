@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.GoalMetric
 import com.enil.logez.core.domain.model.GoalPeriod
@@ -50,7 +50,7 @@ fun GoalsSection(
     var showAddDialog by remember { mutableStateOf(false) }
     var deletingGoalId by remember { mutableStateOf<String?>(null) }
 
-    Card(modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+    LogEzCard(modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.goal_section_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))

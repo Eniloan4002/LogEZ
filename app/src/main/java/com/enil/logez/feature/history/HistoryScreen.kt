@@ -9,10 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +27,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.Spacing
 import java.time.Instant
 import java.time.LocalDate
@@ -63,7 +61,7 @@ fun HistoryScreen(
 
         if (uiState.cards.isEmpty()) {
             EmptyState(
-                icon = Icons.Filled.History,
+                icon = LogEzIcons.History,
                 title = stringResource(R.string.history_empty_title),
                 subtitle = stringResource(R.string.history_empty_subtitle),
                 ctaLabel = stringResource(R.string.history_empty_cta),
@@ -83,7 +81,7 @@ fun HistoryScreen(
 
 @Composable
 private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md).clickable(onClick = onClick)) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md).clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 // Weighted and clipped to one line: a Row measures unweighted children in order and
@@ -140,7 +138,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
 private fun RecordsChip() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            Icons.Filled.EmojiEvents,
+            LogEzIcons.PersonalRecord,
             contentDescription = stringResource(R.string.history_card_records_chip),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(end = Spacing.xxs),

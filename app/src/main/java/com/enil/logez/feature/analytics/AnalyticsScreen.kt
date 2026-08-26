@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -47,6 +46,7 @@ import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.ChartRange
@@ -203,7 +203,7 @@ internal fun ShareRow(share: MuscleStatsCalculator.GroupShare, maxCount: Int, on
 @Composable
 private fun TrainingCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
     val card = uiState.training
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             CardTitle(stringResource(R.string.analytics_training_title))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -256,7 +256,7 @@ private fun DistributionCard(
     onMuscleClick: (MuscleGroup) -> Unit,
 ) {
     val card = uiState.distribution
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             CardTitle(stringResource(R.string.analytics_distribution_title))
             RangeChips(card.range, viewModel::selectDistributionRange)
@@ -319,7 +319,7 @@ internal fun Tile(label: String, value: String, modifier: Modifier = Modifier) {
 @Composable
 private fun BodyCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
     val card = uiState.body
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             CardTitle(stringResource(R.string.analytics_body_title))
             if (card.weeks.isEmpty()) {
@@ -358,7 +358,7 @@ private fun SetCountCard(
     onMuscleClick: (MuscleGroup) -> Unit,
 ) {
     val card = uiState.setCounts
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             CardTitle(stringResource(R.string.analytics_set_count_title))
             RangeChips(card.range, viewModel::selectSetCountRange)
@@ -446,7 +446,7 @@ private fun MainExercisesCard(
     onExerciseClick: (String) -> Unit,
 ) {
     val card = uiState.mainExercises
-    Card {
+    LogEzCard {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             CardTitle(stringResource(R.string.analytics_main_exercises_title))
             RangeChips(card.range, viewModel::selectMainRange)
@@ -477,7 +477,7 @@ private fun MainExercisesCard(
 
 @Composable
 private fun MonthlyReportEntryCard(onClick: () -> Unit) {
-    Card(modifier = Modifier.clickable(onClick = onClick)) {
+    LogEzCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
