@@ -1,6 +1,6 @@
 # ADR-0003: "Neon Lab" rebrand — color, typography, and the M9 revamp scope
 
-**Status:** Accepted. M9a (color+type foundation) and M9b (elevation + custom icon set) shipped 2026-08-26; M9c (copy voice) and M9d (motion exception) still pending.
+**Status:** Accepted and fully shipped. M9a (color+type foundation) and M9b (elevation + custom icon set) shipped 2026-08-26; the LogEzMono rollout, M9c (copy voice), and M9d (motion exception) shipped 2026-08-27, completing the milestone.
 
 ## Context
 
@@ -233,3 +233,64 @@ pass. M9c (copy voice) and M9d (motion exception) also remain entirely unstarted
 verification of the elevation/icon changes was performed by this session (same standing caveat as
 M9a/ADR-0002) — the Owner should confirm cards actually read as "lifted" and the four new icons
 render correctly on a real screen.
+
+## Completing the milestone (2026-08-27) — LogEzMono rollout, M9c copy voice, M9d motion exception
+
+**Context:** Owner, after seeing M9a/M9b on-device: "i really like the updates so far, can you
+simply implement all of the new features now?" — authorization to finish everything still scoped
+but unstarted: the `LogEzMono` rollout this ADR's own M9b section had deferred, plus M9c and M9d.
+
+**Decision — LogEzMono rollout:** Applied to every *read-only* numeric data display app-wide —
+chart axis labels (`BarChart`/`LineChart`, a 1-line change each), the Logger's live elapsed-time +
+set-count readout and rest-timer countdowns, the PREVIOUS column, RPE cells, Exercise Detail
+Summary's metric readout and stat tiles, Analytics' training/distribution/set-count values, History
+and Workout Detail's duration/volume/set figures, Calendar's per-day duration, Goals' progress text,
+and the Workout Summary screen's stat cells and PR values. Explicitly did NOT touch editable input
+fields (the set-logging weight/rep/duration/distance entry cells, the finish-screen duration editor)
+— changing an input field's text style risks affecting cursor/IME rendering in ways this session has
+no way to visually verify, and the ADR's own framing ("weights, reps, timers, chart axis labels")
+reads naturally as data *readouts*, not the editing widgets themselves. Also left alone: dates
+written as text, and numbers embedded in prose/plural-label sentences ("3 exercises", a fixed
+"+15"/"-15" button label) rather than presented as a standalone data value.
+
+**Decision — M9c copy voice:** Rewrote 8 strings across 6 signature moments in the dry "lab report"
+tone the approved mockup established: History's empty state ("No specimens on file" / "Log your
+first session to begin the record.", the exact mockup copy), Profile's empty state, Exercise Detail
+Summary's two empty/no-data states, the post-workout summary title ("Experiment complete"), and the
+live PR banner ("Anomaly detected: %1$s"). Explicitly did NOT rename core functional nouns
+("routine", "workout", "goal", "exercise") anywhere those exact words are also the label on an
+adjacent, currently-visible button or field — e.g. the Workout tab's empty state sits directly above
+a "Start Empty Workout" button and a "New folder" action, so its title got a light touch ("Nothing
+logged yet") but its subtitle keeps "routine"/"workout" verbatim; the Goals empty state sits next to
+an "Add Goal" button and was left untouched entirely; the Exercise Library's "no results" state sits
+below a "Search exercises" hint and was left untouched. The mockup's own restraint principle (flavor
+through color/type/icons/copy, not illustration) extends here to *which* strings get the voice, not
+a blanket rename — a screen where the flavored word contradicts a real button label right next to it
+reads as broken, not on-brand.
+
+**Decision — M9d motion exception:** M8a's rule was about interaction *latency* — a delay standing
+between a tap and its result — not decoration categorically. Added exactly one animation: a slow
+pulsing glow (`rememberInfiniteTransition`, alpha 0.35→1.0, 1.1s reverse loop) on the border of each
+PR medal card on the post-workout summary screen, extracted into its own `PrMedalCard` composable.
+It plays continuously on an already-fully-rendered card and never gates reaching the screen or
+anything on it, so it doesn't reintroduce what M8a removed. Scoped to exactly this one moment — the
+live in-session PR banner (a Snackbar) and every other place a PR value appears are untouched.
+
+**Rationale:** Read "implement all of the new features now" as authorization to finish everything
+already scoped in this ADR, not a license to invent new scope — every change in this section maps
+to something this document had already named as a follow-up. The LogEzMono rollout's editable-vs-
+read-only boundary and the copy voice's adjacent-label-collision check are both the same underlying
+discipline: apply the aesthetic consistently, but verify each specific application against its real
+surrounding context rather than pattern-matching a rule mechanically everywhere it could technically
+apply.
+
+**Impact:** 16 files touched across three commits (13 for the mono rollout, 1 for the copy pass,
+1 — `WorkoutSummaryScreen.kt` — for the motion exception, which also carries that file's mono
+changes). No test files needed changes. Build and the full unit suite (395 tests) verified green
+after each commit; several of the parallel rollout's edited files were read and spot-checked before
+committing, not just trusted from the agents' self-reported summaries.
+
+**Follow-up:** None outstanding — M9a through M9d are all shipped. No on-device verification was
+performed by this session (same standing caveat as every prior visual change here) — the Owner
+should confirm the monospace numbers, the copy changes, and the PR-card glow all read correctly on
+a real screen.
