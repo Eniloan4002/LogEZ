@@ -5,11 +5,14 @@ import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
+import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeElapsedRealtimeClock
 import com.enil.logez.fakes.FakeRoutineRepository
+import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -38,10 +41,37 @@ class WorkoutTabViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun newViewModel(routineRepo: FakeRoutineRepository, clock: FakeClock = FakeClock()): WorkoutTabViewModel {
-        val workoutRepo = FakeWorkoutRepository()
+    private fun newViewModel(
+        routineRepo: FakeRoutineRepository,
+        clock: FakeClock = FakeClock(),
+        workoutRepo: FakeWorkoutRepository = FakeWorkoutRepository(),
+    ): WorkoutTabViewModel {
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
-        return WorkoutTabViewModel(routineRepo, workoutRepo, WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, clock)
+        return WorkoutTabViewModel(routineRepo, workoutRepo, FakeSettingsRepository(), WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, clock)
+    }
+
+    @Test
+    fun `M8c heatmap counts a completed workout on its own local date`() = runTest {
+        val startedAt = 1_700_000_000_000L // arbitrary fixed instant
+        val expectedDate = java.time.Instant.ofEpochMilli(startedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w1", routineId = null, title = "Workout", notes = null,
+                    status = WorkoutStatus.COMPLETED, startedAt = startedAt, endedAt = startedAt + 1000,
+                    durationSeconds = 1000, createdAt = startedAt, updatedAt = startedAt,
+                ),
+            ),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), workoutRepo = workoutRepo)
+
+        assertEquals(1, vm.uiState.value.heatmapCounts[expectedDate])
+    }
+
+    @Test
+    fun `M8c heatmap has no counts when there are no completed workouts`() = runTest {
+        val vm = newViewModel(FakeRoutineRepository())
+        assertEquals(emptyMap<java.time.LocalDate, Int>(), vm.uiState.value.heatmapCounts)
     }
 
     @Test

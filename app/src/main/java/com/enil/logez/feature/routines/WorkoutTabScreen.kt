@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.HeatmapGrid
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -123,6 +124,25 @@ fun WorkoutTabScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // M8c: progress heatmap at the very top, before any workout feature — a passive
+            // overview, not something the user acts on, so it never competes with Start/routines
+            // for the first tap.
+            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+                Column(modifier = Modifier.padding(Spacing.md)) {
+                    Text(
+                        stringResource(R.string.workout_heatmap_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    HeatmapGrid(
+                        countsByDate = uiState.heatmapCounts,
+                        weeks = 12,
+                        today = uiState.heatmapToday,
+                        firstDayOfWeek = uiState.heatmapFirstDayOfWeek,
+                        modifier = Modifier.padding(top = Spacing.sm),
+                    )
+                }
+            }
+
             // M4b: the global WorkoutMiniBar (docked above the bottom tab bar on every tab, §5.1.3)
             // now covers "in-progress workout, tap to resume" — this tab's own banner would just
             // duplicate it whenever the user is actually on this tab.

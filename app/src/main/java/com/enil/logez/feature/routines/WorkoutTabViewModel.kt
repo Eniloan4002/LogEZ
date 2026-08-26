@@ -5,12 +5,19 @@ import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
+import com.enil.logez.core.domain.calc.DashboardAggregator
+import com.enil.logez.core.domain.calc.StreakCalculator
 import com.enil.logez.core.domain.repository.RoutineRepository
+import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,6 +31,7 @@ import kotlinx.coroutines.launch
 class WorkoutTabViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
     private val workoutRepository: WorkoutRepository,
+    private val settingsRepository: SettingsRepository,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
     private val clock: Clock,
@@ -33,13 +41,30 @@ class WorkoutTabViewModel @Inject constructor(
         routineRepository.observeAllRoutines(),
         routineRepository.observeRoutineExercisePreviews(),
         workoutRepository.observeInProgress(),
-    ) { folders, routines, previewRows, inProgress ->
+        // M8c heatmap: nested so the outer combine stays within kotlinx.coroutines' 5-flow typed
+        // overload. Reuses `observeCompleted()` (already Flow-based) rather than the suspend-only
+        // `getCompletedWorkoutTimestamps()`, so the heatmap stays reactive with no separate
+        // refresh-on-resume load of its own.
+        combine(workoutRepository.observeCompleted(), settingsRepository.settings) { completed, settings ->
+            settings.firstDayOfWeek to completed
+        },
+    ) { folders, routines, previewRows, inProgress, heatmapInput ->
         val previewByRoutine = previewRows.groupBy { it.routineId }
         fun cardFor(routine: RoutineEntity): RoutineCardModel {
             val names = previewByRoutine[routine.id].orEmpty().sortedBy { it.orderIndex }.map { it.exerciseName }
             return RoutineCardModel(routine = routine, exercisePreview = buildExercisePreview(names))
         }
         val routinesByFolder = routines.filter { it.folderId != null }.groupBy { it.folderId }
+
+        // M8c heatmap: "today" re-derives on every recombination (any Room change touching this
+        // tab), not on a lifecycle timer — a passive progress widget, not date-critical business
+        // logic like StreakCalculator's other consumers (Calendar/Profile), which resolve it on
+        // RESUME specifically to survive a real midnight/timezone change mid-visit.
+        val (firstDayOfWeek, completed) = heatmapInput
+        val zone = ZoneId.systemDefault()
+        val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
+        val heatmapCounts = StreakCalculator.countsByDate(completed.map { DashboardAggregator.localDate(it.startedAt, zone) })
+
         WorkoutTabUiState(
             isLoading = false,
             folders = folders.map { f ->
@@ -48,6 +73,9 @@ class WorkoutTabViewModel @Inject constructor(
             rootRoutines = routines.filter { it.folderId == null }.sortedBy { it.orderIndex }.map(::cardFor),
             inProgressWorkoutId = inProgress?.id,
             inProgressWorkoutTitle = inProgress?.title,
+            heatmapCounts = heatmapCounts,
+            heatmapToday = today,
+            heatmapFirstDayOfWeek = firstDayOfWeek,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutTabUiState())
 
@@ -142,6 +170,10 @@ data class WorkoutTabUiState(
     /** §9.5 process-death recovery surfaced directly on the tab — no need to fail a Start tap first to discover it. */
     val inProgressWorkoutId: String? = null,
     val inProgressWorkoutTitle: String? = null,
+    /** M8c progress heatmap. */
+    val heatmapCounts: Map<LocalDate, Int> = emptyMap(),
+    val heatmapToday: LocalDate = LocalDate.EPOCH,
+    val heatmapFirstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
 )
 
 data class FolderSection(val folder: RoutineFolderEntity, val routines: List<RoutineCardModel>)
