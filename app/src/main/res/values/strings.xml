@@ -6,8 +6,8 @@
     <string name="nav_workout">Workout</string>
     <string name="nav_profile">Profile</string>
 
-    <string name="history_empty_title">No workouts yet</string>
-    <string name="history_empty_subtitle">Your completed workouts will appear here.</string>
+    <string name="history_empty_title">No specimens on file</string>
+    <string name="history_empty_subtitle">Log your first session to begin the record.</string>
     <string name="history_empty_cta">Start a workout</string>
     <string name="history_card_records_chip">Records</string>
     <plurals name="history_card_more_exercises">
@@ -36,11 +36,11 @@
     <string name="history_detail_delete_title">Delete this workout?</string>
     <string name="history_detail_delete_body">This can\'t be undone.</string>
 
-    <string name="workout_empty_title">No routines yet</string>
+    <string name="workout_empty_title">Nothing logged yet</string>
     <string name="workout_empty_subtitle">Build a routine or start an empty workout to begin.</string>
 
-    <string name="profile_empty_title">Your stats will appear here</string>
-    <string name="profile_empty_subtitle">Log a workout to see your streak, charts, and records.</string>
+    <string name="profile_empty_title">Awaiting your first data point</string>
+    <string name="profile_empty_subtitle">Log a session to begin tracking streaks, charts, and records.</string>
     <string name="profile_nav_exercises">Exercises</string>
     <string name="profile_rpe_toggle_title">RPE tracking (testing toggle)</string>
     <string name="profile_rpe_toggle_subtitle">Temporary switch until the real Settings screen ships. Turns the RPE picker on in the workout logger.</string>
@@ -138,9 +138,9 @@
     <string name="exercise_detail_tab_summary">Summary</string>
     <string name="exercise_detail_tab_history">History</string>
     <string name="exercise_detail_tab_how_to">How to</string>
-    <string name="exercise_detail_summary_empty_title">No sets logged yet</string>
+    <string name="exercise_detail_summary_empty_title">No data logged yet</string>
     <string name="exercise_detail_summary_empty_subtitle">Log this exercise to see your progress.</string>
-    <string name="exercise_detail_summary_no_data_in_range">No workouts in this period</string>
+    <string name="exercise_detail_summary_no_data_in_range">No data in this window</string>
     <string name="exercise_detail_summary_prs_header">Personal records</string>
     <string name="exercise_detail_summary_set_records_header">Set records</string>
     <plurals name="exercise_detail_summary_set_records_reps">
@@ -322,7 +322,7 @@
     <string name="finish_structure_update">Update Routine</string>
     <string name="finish_structure_keep">Keep Original</string>
 
-    <string name="summary_title">Workout complete</string>
+    <string name="summary_title">Experiment complete</string>
     <string name="summary_workout_ordinal">Workout #%1$d</string>
     <string name="summary_volume">Volume</string>
     <string name="summary_sets">Sets</string>
@@ -335,7 +335,7 @@
     <string name="summary_prs_header">Personal records</string>
     <string name="summary_done">Done</string>
 
-    <string name="pr_banner">New PR: %1$s</string>
+    <string name="pr_banner">Anomaly detected: %1$s</string>
     <string name="pr_type_heaviest_weight">Heaviest weight</string>
     <string name="pr_type_best_1rm">Best 1RM</string>
     <string name="pr_type_best_set_volume">Best set volume</string>
