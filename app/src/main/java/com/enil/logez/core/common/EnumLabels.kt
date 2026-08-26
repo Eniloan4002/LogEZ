@@ -3,6 +3,7 @@ package com.enil.logez.core.common
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.MuscleHead
 
 /** Shared Title Case formatters for enum values shown in the UI (library filters, editor form, detail screens). */
 
@@ -27,6 +28,23 @@ fun muscleGroupLabel(group: MuscleGroup): String = when (group) {
     MuscleGroup.NECK -> "Neck"
     MuscleGroup.FULL_BODY -> "Full Body"
     MuscleGroup.OTHER -> "Other"
+}
+
+fun muscleHeadLabel(head: MuscleHead): String = when (head) {
+    MuscleHead.ANTERIOR_DELTOID -> "Anterior (Front) Delt"
+    MuscleHead.LATERAL_DELTOID -> "Lateral (Side) Delt"
+    MuscleHead.POSTERIOR_DELTOID -> "Posterior (Rear) Delt"
+    MuscleHead.UPPER_CHEST -> "Upper Chest"
+    MuscleHead.LOWER_CHEST -> "Lower Chest"
+    MuscleHead.TRICEPS_LATERAL_HEAD -> "Lateral Head"
+    MuscleHead.TRICEPS_LONG_HEAD -> "Long Head"
+    MuscleHead.GASTROCNEMIUS -> "Gastrocnemius"
+    MuscleHead.SOLEUS -> "Soleus"
+    MuscleHead.UPPER_LATS -> "Upper Lats"
+    MuscleHead.MID_LATS -> "Mid Lats"
+    MuscleHead.LOWER_LATS -> "Lower Lats"
+    MuscleHead.LATERAL_HAMSTRING -> "Lateral (Biceps Femoris)"
+    MuscleHead.MEDIAL_HAMSTRING -> "Medial (Semitendinosus/-membranosus)"
 }
 
 fun equipmentLabel(equipment: Equipment): String = when (equipment) {

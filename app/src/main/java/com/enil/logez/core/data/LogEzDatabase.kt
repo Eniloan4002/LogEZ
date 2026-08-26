@@ -26,11 +26,11 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 
 /**
- * Schema v1 (PHASE2_PLAN.md §3.2, §10.4), v2 adds `goal_definitions` (M8d). `exportSchema = true`
- * from day one — `schemas/` is committed alongside this file. `fallbackToDestructiveMigration` is
- * never used anywhere in this app (project-rules.md testing expectations): this app's entire
- * value is the historical log, so every schema change ships as a real, tested
- * [androidx.room.migration.Migration].
+ * Schema v1 (PHASE2_PLAN.md §3.2, §10.4), v2 adds `goal_definitions` (M8d), v3 adds
+ * `exercises.primary_muscle_head` (M8e). `exportSchema = true` from day one — `schemas/` is
+ * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
+ * app (project-rules.md testing expectations): this app's entire value is the historical log, so
+ * every schema change ships as a real, tested [androidx.room.migration.Migration].
  */
 @Database(
     entities = [
@@ -47,7 +47,7 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         ProgressPhotoEntity::class,
         GoalDefinitionEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -79,6 +79,13 @@ abstract class LogEzDatabase : RoomDatabase() {
                     )
                     """.trimIndent(),
                 )
+            }
+        }
+
+        /** v2 -> v3 (M8e): one new nullable column, no existing data touched. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `exercises` ADD COLUMN `primary_muscle_head` TEXT")
             }
         }
     }

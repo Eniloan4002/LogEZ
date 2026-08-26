@@ -53,12 +53,15 @@ import com.enil.logez.R
 import com.enil.logez.core.common.equipmentLabel
 import com.enil.logez.core.common.exerciseTypeLabel
 import com.enil.logez.core.common.muscleGroupLabel
+import com.enil.logez.core.common.muscleHeadLabel
 import com.enil.logez.core.designsystem.LocalImage
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.MuscleHead
+import com.enil.logez.core.domain.model.availableHeads
 import com.enil.logez.core.domain.model.userSelectable
 import java.io.File
 
@@ -176,6 +179,21 @@ fun CustomExerciseEditorScreen(
                 onSelect = viewModel::onPrimaryMuscleChange,
                 modifier = Modifier.padding(top = Spacing.md),
             )
+
+            // M8e: only groups with a real, commonly-trained head split show this — e.g. Shoulders
+            // (anterior/lateral/posterior delt), not e.g. Abdominals.
+            val headOptions = uiState.primaryMuscleGroup.availableHeads
+            if (headOptions.isNotEmpty()) {
+                val unspecifiedLabel = stringResource(R.string.exercise_editor_muscle_head_unspecified)
+                EnumDropdown(
+                    label = stringResource(R.string.exercise_editor_muscle_head),
+                    selectedLabel = uiState.primaryMuscleHead?.let(::muscleHeadLabel) ?: unspecifiedLabel,
+                    options = listOf<MuscleHead?>(null) + headOptions,
+                    optionLabel = { head -> head?.let(::muscleHeadLabel) ?: unspecifiedLabel },
+                    onSelect = viewModel::onMuscleHeadChange,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
+            }
 
             Text(
                 stringResource(R.string.exercise_editor_secondary_muscles),

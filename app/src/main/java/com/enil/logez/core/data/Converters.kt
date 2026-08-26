@@ -6,6 +6,7 @@ import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.GoalMetric
 import com.enil.logez.core.domain.model.GoalPeriod
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.MuscleHead
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
@@ -68,6 +69,13 @@ class Converters {
 
     @TypeConverter
     fun toGoalPeriod(value: String): GoalPeriod = GoalPeriod.valueOf(value)
+
+    /** Nullable -- unset for every exercise that doesn't specify a sub-head. */
+    @TypeConverter
+    fun fromMuscleHead(value: MuscleHead?): String? = value?.name
+
+    @TypeConverter
+    fun toMuscleHead(value: String?): MuscleHead? = value?.let { MuscleHead.valueOf(it) }
 
     @TypeConverter
     fun fromMuscleGroupList(value: List<MuscleGroup>): String =

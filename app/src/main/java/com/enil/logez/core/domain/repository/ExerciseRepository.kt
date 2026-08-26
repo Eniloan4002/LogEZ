@@ -3,6 +3,7 @@ package com.enil.logez.core.domain.repository
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.MuscleHead
 import kotlinx.coroutines.flow.Flow
 
 interface ExerciseRepository {
@@ -39,4 +40,5 @@ data class Exercise(
     val isDeleted: Boolean,
     val createdAt: Long,
     val updatedAt: Long,
+    val primaryMuscleHead: MuscleHead? = null,
 )

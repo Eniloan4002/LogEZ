@@ -36,6 +36,7 @@ private fun ExerciseEntity.toDomain() = Exercise(
     isDeleted = isDeleted,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    primaryMuscleHead = primaryMuscleHead,
 )
 
 private fun Exercise.toEntity() = ExerciseEntity(
@@ -52,4 +53,5 @@ private fun Exercise.toEntity() = ExerciseEntity(
     isDeleted = isDeleted,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    primaryMuscleHead = primaryMuscleHead,
 )

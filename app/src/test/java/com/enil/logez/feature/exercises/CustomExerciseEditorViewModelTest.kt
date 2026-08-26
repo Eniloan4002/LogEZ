@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.MuscleHead
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseMediaStore
@@ -177,6 +178,73 @@ class CustomExerciseEditorViewModelTest {
         val stored = repo.getById("seed-1")!!
         assertEquals("Grip the bar slightly wider than shoulder width.", stored.instructions)
         assertTrue(stored.isBodyweightVolumeEligible)
+    }
+
+    @Test
+    fun `a muscle head can be picked for a group that has heads and is saved`() = runTest {
+        val repo = FakeExerciseRepository()
+        val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
+
+        vm.onNameChange("Lateral Raise")
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
+        vm.onMuscleHeadChange(MuscleHead.LATERAL_DELTOID)
+        vm.save {}
+
+        assertEquals(MuscleHead.LATERAL_DELTOID, repo.allIncludingDeleted().single().primaryMuscleHead)
+    }
+
+    @Test
+    fun `changing the primary muscle group clears a previously picked head`() = runTest {
+        val repo = FakeExerciseRepository()
+        val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
+
+        vm.onNameChange("Something")
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
+        vm.onMuscleHeadChange(MuscleHead.POSTERIOR_DELTOID)
+        vm.onPrimaryMuscleChange(MuscleGroup.CHEST) // different group -- the old head no longer applies
+
+        assertEquals(null, vm.uiState.value.primaryMuscleHead)
+    }
+
+    @Test
+    fun `a group with no tracked heads never saves a muscle head, even if one was set before switching`() = runTest {
+        val repo = FakeExerciseRepository()
+        val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
+
+        vm.onNameChange("Crunch")
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
+        vm.onMuscleHeadChange(MuscleHead.ANTERIOR_DELTOID)
+        vm.onPrimaryMuscleChange(MuscleGroup.ABDOMINALS) // ABDOMINALS has no tracked heads
+        vm.save {}
+
+        assertEquals(null, repo.allIncludingDeleted().single().primaryMuscleHead)
+    }
+
+    @Test
+    fun `re-selecting the already-selected primary group does not clear a picked head`() = runTest {
+        val repo = FakeExerciseRepository()
+        val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())
+
+        vm.onNameChange("Face Pull")
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS)
+        vm.onMuscleHeadChange(MuscleHead.POSTERIOR_DELTOID)
+        vm.onPrimaryMuscleChange(MuscleGroup.SHOULDERS) // re-tapping the same, already-selected group
+
+        assertEquals(MuscleHead.POSTERIOR_DELTOID, vm.uiState.value.primaryMuscleHead)
+    }
+
+    @Test
+    fun `edit mode loads an existing exercise's muscle head`() = runTest {
+        val seed = seedExercise().copy(primaryMuscleGroup = MuscleGroup.CALVES, primaryMuscleHead = MuscleHead.SOLEUS)
+        val repo = FakeExerciseRepository(listOf(seed))
+        val vm = CustomExerciseEditorViewModel(
+            SavedStateHandle(mapOf("exerciseId" to "existing-1")),
+            repo,
+            FakeExerciseMediaStore(),
+            FakeClock(),
+        )
+
+        assertEquals(MuscleHead.SOLEUS, vm.uiState.value.primaryMuscleHead)
     }
 
     @Test

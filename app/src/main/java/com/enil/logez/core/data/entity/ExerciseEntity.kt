@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.MuscleHead
 
 /**
  * The exercise library — 400 seeded + unlimited custom (PHASE2_PLAN.md §3.2, §7).
@@ -35,4 +36,8 @@ data class ExerciseEntity(
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    /** M8e: optional sub-head refinement (e.g. "Lateral Delt" within SHOULDERS) — null for every
+     * exercise that doesn't specify one, including every exercise that existed before this column.
+     * Defaulted so this addition doesn't break any existing named-arg entity construction. */
+    @ColumnInfo(name = "primary_muscle_head") val primaryMuscleHead: MuscleHead? = null,
 )

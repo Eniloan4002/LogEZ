@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.common.equipmentLabel
 import com.enil.logez.core.common.muscleGroupLabel
+import com.enil.logez.core.common.muscleHeadLabel
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LocalImage
 import com.enil.logez.core.designsystem.Spacing
@@ -182,7 +183,9 @@ private fun ExerciseRow(
         headlineContent = { Text(exercise.name) },
         supportingContent = {
             Text(
-                muscleGroupLabel(exercise.primaryMuscleGroup) + if (exercise.isCustom) stringResource(R.string.exercise_library_custom_badge) else "",
+                muscleGroupLabel(exercise.primaryMuscleGroup) +
+                    (exercise.primaryMuscleHead?.let { " • ${muscleHeadLabel(it)}" } ?: "") +
+                    if (exercise.isCustom) stringResource(R.string.exercise_library_custom_badge) else "",
             )
         },
         trailingContent = {

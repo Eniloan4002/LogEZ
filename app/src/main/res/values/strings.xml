@@ -130,6 +130,8 @@
     <string name="exercise_editor_name_required">Name is required</string>
     <string name="exercise_editor_equipment">Equipment</string>
     <string name="exercise_editor_primary_muscle">Primary muscle</string>
+    <string name="exercise_editor_muscle_head">Muscle head</string>
+    <string name="exercise_editor_muscle_head_unspecified">Unspecified</string>
     <string name="exercise_editor_secondary_muscles">Secondary muscles</string>
     <string name="exercise_editor_type">Exercise type</string>
     <string name="exercise_editor_type_immutable_hint">Type can\'t be changed after creation.</string>

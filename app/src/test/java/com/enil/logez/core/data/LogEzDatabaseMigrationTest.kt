@@ -40,6 +40,33 @@ class LogEzDatabaseMigrationTest {
         return FrameworkSQLiteOpenHelperFactory().create(config)
     }
 
+    /**
+     * A "v2" stand-in with just the one table MIGRATION_2_3 actually touches (`exercises`) --
+     * enough columns to insert a realistic row and prove the migration is additive, not the full
+     * 11-table schema, matching [openV1]'s same "sufficient for what this migration does" scope.
+     */
+    private fun openV2(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(2) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE `exercises` (
+                        `id` TEXT NOT NULL, `name` TEXT NOT NULL, `exercise_type` TEXT NOT NULL,
+                        `primary_muscle_group` TEXT NOT NULL, `is_custom` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
     @Test
     fun `MIGRATION_1_2 creates goal_definitions with the entity's exact columns`() {
         val helper = openV1()
@@ -85,5 +112,55 @@ class LogEzDatabaseMigrationTest {
         db.close()
 
         assertTrue(count == 1)
+    }
+
+    @Test
+    fun `MIGRATION_2_3 adds a nullable primary_muscle_head column to exercises`() {
+        val helper = openV2()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_2_3.migrate(db)
+
+        val cursor = db.query("PRAGMA table_info(`exercises`)")
+        var found = false
+        var type = ""
+        var notNull = true
+        cursor.use {
+            val nameIdx = it.getColumnIndexOrThrow("name")
+            val typeIdx = it.getColumnIndexOrThrow("type")
+            val notNullIdx = it.getColumnIndexOrThrow("notnull")
+            while (it.moveToNext()) {
+                if (it.getString(nameIdx) == "primary_muscle_head") {
+                    found = true
+                    type = it.getString(typeIdx)
+                    notNull = it.getInt(notNullIdx) == 1
+                }
+            }
+        }
+        db.close()
+
+        assertTrue("expected a primary_muscle_head column", found)
+        assertEquals("TEXT", type)
+        assertTrue("column must be nullable so every pre-existing row defaults to unspecified", !notNull)
+    }
+
+    @Test
+    fun `MIGRATION_2_3 leaves pre-existing exercise rows intact, with a null head`() {
+        val helper = openV2()
+        val db = helper.writableDatabase
+        db.execSQL(
+            "INSERT INTO exercises (id, name, exercise_type, primary_muscle_group, is_custom) VALUES ('ex-1', 'Bench Press', 'WEIGHT_REPS', 'CHEST', 0)",
+        )
+
+        LogEzDatabase.MIGRATION_2_3.migrate(db)
+
+        val cursor = db.query("SELECT name, primary_muscle_head FROM exercises WHERE id = 'ex-1'")
+        cursor.moveToFirst()
+        val name = cursor.getString(0)
+        val headIsNull = cursor.isNull(1)
+        cursor.close()
+        db.close()
+
+        assertEquals("Bench Press", name)
+        assertTrue("a pre-existing row's head must default to null (unspecified), not be dropped", headIsNull)
     }
 }
