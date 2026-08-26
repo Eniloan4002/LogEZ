@@ -127,148 +127,157 @@ fun WorkoutTabScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // M8c: progress heatmap at the very top, before any workout feature — a passive
-            // overview, not something the user acts on, so it never competes with Start/routines
-            // for the first tap.
-            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                Column(modifier = Modifier.padding(Spacing.md)) {
-                    Text(
-                        stringResource(R.string.workout_heatmap_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    HeatmapGrid(
-                        countsByDate = uiState.heatmapCounts,
-                        weeks = 12,
-                        today = uiState.heatmapToday,
-                        firstDayOfWeek = uiState.heatmapFirstDayOfWeek,
-                        modifier = Modifier.padding(top = Spacing.sm),
-                    )
-                }
-            }
-
-            // M8d: Goals card, right below the heatmap — both are "progress" widgets, kept
-            // together above the actionable Start/routines content.
-            GoalsSection(
-                uiState = goalsUiState,
-                onCreateGoal = goalsViewModel::createGoal,
-                onDeleteGoal = goalsViewModel::deleteGoal,
-            )
-
-            // M4b: the global WorkoutMiniBar (docked above the bottom tab bar on every tab, §5.1.3)
-            // now covers "in-progress workout, tap to resume" — this tab's own banner would just
-            // duplicate it whenever the user is actually on this tab.
-            FilledTonalButton(
-                onClick = { startEmpty() },
-                modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-            ) {
-                Text(stringResource(R.string.workout_start_empty))
-            }
-
-            if (uiState.isLoading) return@Column
-
-            if (uiState.folders.isEmpty() && uiState.rootRoutines.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Filled.FitnessCenter,
-                    title = stringResource(R.string.workout_empty_title),
-                    subtitle = stringResource(R.string.workout_empty_subtitle),
-                    ctaLabel = stringResource(R.string.workout_create_first_routine),
-                    onCtaClick = { onCreateRoutine(null) },
-                )
-                return@Column
-            }
-
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(items = uiState.folders, key = { it.folder.id }) { section ->
-                    FolderHeaderRow(
-                        folder = section.folder,
-                        isCollapsed = section.folder.id in collapsedFolders,
-                        isReordering = reorderTarget == ReorderTarget.Folders,
-                        onToggleCollapse = {
-                            collapsedFolders = if (section.folder.id in collapsedFolders) collapsedFolders - section.folder.id else collapsedFolders + section.folder.id
-                        },
-                        onRename = { renamingFolder = section.folder },
-                        onAddRoutine = { onCreateRoutine(section.folder.id) },
-                        onReorder = { reorderTarget = ReorderTarget.Folders },
-                        onDelete = { deletingFolder = section.folder },
-                        onMoveUp = {
-                            val ids = uiState.folders.map { it.folder.id }.toMutableList()
-                            val i = ids.indexOf(section.folder.id)
-                            if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderFolders(ids) }
-                        },
-                        onMoveDown = {
-                            val ids = uiState.folders.map { it.folder.id }.toMutableList()
-                            val i = ids.indexOf(section.folder.id)
-                            if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderFolders(ids) }
-                        },
-                    )
-                    if (section.folder.id !in collapsedFolders) {
-                        section.routines.forEach { card ->
-                            RoutineCard(
-                                card = card,
-                                isReordering = reorderTarget == ReorderTarget.Routines(section.folder.id),
-                                onClick = { onRoutineClick(card.routine.id) },
-                                onStart = { startRoutine(card.routine.id) },
-                                onEdit = { onEditRoutine(card.routine.id) },
-                                onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
-                                onMove = { movingRoutineId = card.routine.id },
-                                onReorder = { reorderTarget = ReorderTarget.Routines(section.folder.id) },
-                                onDelete = { deletingRoutineId = card.routine.id },
-                                onMoveUp = {
-                                    val ids = section.routines.map { it.routine.id }.toMutableList()
-                                    val i = ids.indexOf(card.routine.id)
-                                    if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderRoutines(ids) }
-                                },
-                                onMoveDown = {
-                                    val ids = section.routines.map { it.routine.id }.toMutableList()
-                                    val i = ids.indexOf(card.routine.id)
-                                    if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderRoutines(ids) }
-                                },
-                                modifier = Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.sm),
-                            )
-                        }
-                    }
-                }
-
-                if (uiState.rootRoutines.isNotEmpty()) {
-                    item {
+        // One scrollable list for the whole tab (Owner feedback: the heatmap/Goals/Start button
+        // used to be a fixed, non-scrolling header sitting outside the folder/routine LazyColumn
+        // — scrolling the routines left them permanently on screen, eating vertical space). Now
+        // every section is a LazyColumn item, so the whole tab scrolls as one.
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            item {
+                // M8c: progress heatmap at the very top, before any workout feature — a passive
+                // overview, not something the user acts on, so it never competes with
+                // Start/routines for the first tap.
+                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+                    Column(modifier = Modifier.padding(Spacing.md)) {
                         Text(
-                            stringResource(R.string.workout_my_routines_header),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                            stringResource(R.string.workout_heatmap_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        HeatmapGrid(
+                            countsByDate = uiState.heatmapCounts,
+                            today = uiState.heatmapToday,
+                            firstDayOfWeek = uiState.heatmapFirstDayOfWeek,
+                            modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
                         )
                     }
-                    items(items = uiState.rootRoutines, key = { it.routine.id }) { card ->
+                }
+            }
+
+            item {
+                // M8d: Goals card, right below the heatmap — both are "progress" widgets, kept
+                // together above the actionable Start/routines content.
+                GoalsSection(
+                    uiState = goalsUiState,
+                    onCreateGoal = goalsViewModel::createGoal,
+                    onDeleteGoal = goalsViewModel::deleteGoal,
+                )
+            }
+
+            item {
+                // M4b: the global WorkoutMiniBar (docked above the bottom tab bar on every tab,
+                // §5.1.3) now covers "in-progress workout, tap to resume" — this tab's own banner
+                // would just duplicate it whenever the user is actually on this tab.
+                FilledTonalButton(
+                    onClick = { startEmpty() },
+                    modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                ) {
+                    Text(stringResource(R.string.workout_start_empty))
+                }
+            }
+
+            if (uiState.isLoading) return@LazyColumn
+
+            if (uiState.folders.isEmpty() && uiState.rootRoutines.isEmpty()) {
+                item {
+                    EmptyState(
+                        icon = Icons.Filled.FitnessCenter,
+                        title = stringResource(R.string.workout_empty_title),
+                        subtitle = stringResource(R.string.workout_empty_subtitle),
+                        ctaLabel = stringResource(R.string.workout_create_first_routine),
+                        onCtaClick = { onCreateRoutine(null) },
+                    )
+                }
+                return@LazyColumn
+            }
+
+            items(items = uiState.folders, key = { it.folder.id }) { section ->
+                FolderHeaderRow(
+                    folder = section.folder,
+                    isCollapsed = section.folder.id in collapsedFolders,
+                    isReordering = reorderTarget == ReorderTarget.Folders,
+                    onToggleCollapse = {
+                        collapsedFolders = if (section.folder.id in collapsedFolders) collapsedFolders - section.folder.id else collapsedFolders + section.folder.id
+                    },
+                    onRename = { renamingFolder = section.folder },
+                    onAddRoutine = { onCreateRoutine(section.folder.id) },
+                    onReorder = { reorderTarget = ReorderTarget.Folders },
+                    onDelete = { deletingFolder = section.folder },
+                    onMoveUp = {
+                        val ids = uiState.folders.map { it.folder.id }.toMutableList()
+                        val i = ids.indexOf(section.folder.id)
+                        if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderFolders(ids) }
+                    },
+                    onMoveDown = {
+                        val ids = uiState.folders.map { it.folder.id }.toMutableList()
+                        val i = ids.indexOf(section.folder.id)
+                        if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderFolders(ids) }
+                    },
+                )
+                if (section.folder.id !in collapsedFolders) {
+                    section.routines.forEach { card ->
                         RoutineCard(
                             card = card,
-                            isReordering = reorderTarget == ReorderTarget.Routines(null),
+                            isReordering = reorderTarget == ReorderTarget.Routines(section.folder.id),
                             onClick = { onRoutineClick(card.routine.id) },
                             onStart = { startRoutine(card.routine.id) },
                             onEdit = { onEditRoutine(card.routine.id) },
                             onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
                             onMove = { movingRoutineId = card.routine.id },
-                            onReorder = { reorderTarget = ReorderTarget.Routines(null) },
+                            onReorder = { reorderTarget = ReorderTarget.Routines(section.folder.id) },
                             onDelete = { deletingRoutineId = card.routine.id },
                             onMoveUp = {
-                                val ids = uiState.rootRoutines.map { it.routine.id }.toMutableList()
+                                val ids = section.routines.map { it.routine.id }.toMutableList()
                                 val i = ids.indexOf(card.routine.id)
                                 if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderRoutines(ids) }
                             },
                             onMoveDown = {
-                                val ids = uiState.rootRoutines.map { it.routine.id }.toMutableList()
+                                val ids = section.routines.map { it.routine.id }.toMutableList()
                                 val i = ids.indexOf(card.routine.id)
                                 if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderRoutines(ids) }
                             },
-                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                            modifier = Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.sm),
                         )
                     }
                 }
+            }
 
-                if (reorderTarget != null) {
-                    item {
-                        TextButton(onClick = { reorderTarget = null }, modifier = Modifier.padding(Spacing.md)) {
-                            Text(stringResource(R.string.routine_builder_reorder_done))
-                        }
+            if (uiState.rootRoutines.isNotEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.workout_my_routines_header),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                    )
+                }
+                items(items = uiState.rootRoutines, key = { it.routine.id }) { card ->
+                    RoutineCard(
+                        card = card,
+                        isReordering = reorderTarget == ReorderTarget.Routines(null),
+                        onClick = { onRoutineClick(card.routine.id) },
+                        onStart = { startRoutine(card.routine.id) },
+                        onEdit = { onEditRoutine(card.routine.id) },
+                        onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
+                        onMove = { movingRoutineId = card.routine.id },
+                        onReorder = { reorderTarget = ReorderTarget.Routines(null) },
+                        onDelete = { deletingRoutineId = card.routine.id },
+                        onMoveUp = {
+                            val ids = uiState.rootRoutines.map { it.routine.id }.toMutableList()
+                            val i = ids.indexOf(card.routine.id)
+                            if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderRoutines(ids) }
+                        },
+                        onMoveDown = {
+                            val ids = uiState.rootRoutines.map { it.routine.id }.toMutableList()
+                            val i = ids.indexOf(card.routine.id)
+                            if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderRoutines(ids) }
+                        },
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                    )
+                }
+            }
+
+            if (reorderTarget != null) {
+                item {
+                    TextButton(onClick = { reorderTarget = null }, modifier = Modifier.padding(Spacing.md)) {
+                        Text(stringResource(R.string.routine_builder_reorder_done))
                     }
                 }
             }
