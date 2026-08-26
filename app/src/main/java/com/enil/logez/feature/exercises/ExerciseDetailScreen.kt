@@ -52,6 +52,7 @@ import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
@@ -232,7 +233,7 @@ private fun SummaryTab(
                 if (selected != null && summary.selectedMetric != null) {
                     Text(
                         SummaryFormatters.formatMetricValue(summary.selectedMetric, selected.value, summary.weightUnit, summary.distanceUnit),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = LogEzMono.dataLarge,
                     )
                     Text(
                         dateOf(selected.startedAt),
@@ -298,7 +299,7 @@ private fun SummaryTab(
                     }
                     Text(
                         SummaryFormatters.formatPrValue(pr.prType, pr.value, summary.weightUnit, summary.distanceUnit),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = LogEzMono.dataMedium,
                     )
                 }
             }
@@ -334,7 +335,7 @@ private fun SummaryTab(
                         )
                         Text(
                             SummaryFormatters.formatPrValue(PrType.HEAVIEST_WEIGHT, record.weightKg, summary.weightUnit, summary.distanceUnit),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = LogEzMono.dataMedium,
                         )
                     }
                 }
@@ -387,7 +388,7 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
                     session.sets.forEach { set ->
                         Text(
                             formatHistorySet(set),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = LogEzMono.dataMedium,
                             modifier = Modifier.padding(top = Spacing.xxs),
                         )
                     }

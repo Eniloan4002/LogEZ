@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
@@ -194,7 +195,7 @@ private fun RestTimerBar(remainingMillisFlow: Flow<Long?>, onMinus15: () -> Unit
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "${stringResource(R.string.workout_rest_timer_label)} ${"%d:%02d".format(remainingSeconds / 60, remainingSeconds % 60)}",
-                style = MaterialTheme.typography.labelLarge,
+                style = LogEzMono.dataMedium,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onMinus15) { Text(stringResource(R.string.workout_rest_timer_minus_15)) }
@@ -333,8 +334,7 @@ private fun SetRow(
         }
         Text(
             set.previousLabel,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
             modifier = Modifier.width(76.dp),
         )
         if (showCustomMetric) {
@@ -447,8 +447,9 @@ private fun RpeCell(value: Double?, enabled: Boolean, onClick: () -> Unit, modif
         Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
             Text(
                 value?.let { RpeScale.format(it) } ?: "—",
-                style = MaterialTheme.typography.labelMedium,
-                color = if (value != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = LogEzMono.dataSmall.copy(
+                    color = if (value != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
             )
         }
     }

@@ -29,6 +29,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import java.time.Instant
 import java.time.LocalDate
@@ -150,7 +151,7 @@ private fun RecordsChip() {
 @Composable
 private fun StatCell(label: String, value: String) {
     Column {
-        Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(value, style = LogEzMono.dataMedium)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

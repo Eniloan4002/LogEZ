@@ -33,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.GoalMetric
 import com.enil.logez.core.domain.model.GoalPeriod
@@ -117,8 +118,7 @@ private fun GoalItem(row: GoalRow, weightUnit: WeightUnit, onDelete: () -> Unit,
         LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxs))
         Text(
             goalProgressText(row.goal.metric, progress.current, progress.target, weightUnit),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
         )
     }
 }

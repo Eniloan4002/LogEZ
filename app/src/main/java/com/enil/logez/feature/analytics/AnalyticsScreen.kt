@@ -47,6 +47,7 @@ import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.ChartRange
@@ -192,7 +193,7 @@ internal fun ShareRow(share: MuscleStatsCalculator.GroupShare, maxCount: Int, on
         }
         Text(
             "${share.setCount} · ${share.sharePercent}%",
-            style = MaterialTheme.typography.labelMedium,
+            style = LogEzMono.dataSmall,
             modifier = Modifier.padding(start = Spacing.xs),
         )
     }
@@ -224,8 +225,7 @@ private fun TrainingCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewMode
                     Text(
                         stringResource(R.string.analytics_body_week_prefix, weekLabel(bar.weekStart)) +
                             " — " + AnalyticsFormatters.metricValue(card.metric, bar.value, uiState.weightUnit),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        style = LogEzMono.dataMedium.copy(color = MaterialTheme.colorScheme.tertiary),
                     )
                 }
                 BarChart(
@@ -285,8 +285,7 @@ private fun DistributionCard(
                             )
                             Text(
                                 "${share.setCount} · ${share.sharePercent}%",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                             )
                         }
                     }
@@ -309,7 +308,7 @@ private fun PeriodTiles(totals: com.enil.logez.core.domain.calc.DashboardAggrega
 @Composable
 internal fun Tile(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(value, style = LogEzMono.dataMedium)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -341,7 +340,7 @@ private fun BodyCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
                     Text(muscleGroupLabel(row.group), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Text(
                         pluralStringResource(R.plurals.analytics_set_count, row.setCount, row.setCount),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = LogEzMono.dataSmall,
                     )
                 }
             }
@@ -386,8 +385,7 @@ private fun SetCountCard(
                     Text(
                         bucketReadoutLabel(bar.bucketStart, card.bucket) + " — " +
                             pluralStringResource(R.plurals.analytics_set_count, bar.setCount, bar.setCount),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        style = LogEzMono.dataMedium.copy(color = MaterialTheme.colorScheme.tertiary),
                     )
                 }
                 BarChart(
@@ -421,8 +419,9 @@ private fun SetCountCard(
                     )
                     Text(
                         pluralStringResource(R.plurals.analytics_set_count, row.setCount, row.setCount),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (row.included) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        style = LogEzMono.dataSmall.copy(
+                            color = if (row.included) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        ),
                     )
                     IconButton(onClick = { onMuscleClick(row.group) }) {
                         Icon(
@@ -463,8 +462,7 @@ private fun MainExercisesCard(
                         Text(row.exerciseName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                         Text(
                             pluralStringResource(R.plurals.analytics_exercise_times, row.workoutCount, row.workoutCount),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                         )
                     }
                 }

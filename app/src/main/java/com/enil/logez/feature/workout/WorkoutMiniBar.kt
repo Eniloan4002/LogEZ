@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import kotlinx.coroutines.flow.Flow
 
@@ -54,7 +55,7 @@ private fun MiniBarStatsText(elapsedSecondsFlow: Flow<Long>, restRemainingMillis
     val stats = restRemainingMillis?.let { millis ->
         "${formatMiniBarTime(elapsedSeconds)} · ${stringResource(R.string.workout_rest_timer_label)} ${formatMiniBarTime((millis + 999) / 1000)}"
     } ?: formatMiniBarTime(elapsedSeconds)
-    Text(stats, style = MaterialTheme.typography.bodySmall)
+    Text(stats, style = LogEzMono.dataSmall)
 }
 
 private fun formatMiniBarTime(totalSeconds: Long): String {

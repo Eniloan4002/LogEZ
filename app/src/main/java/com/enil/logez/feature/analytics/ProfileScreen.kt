@@ -37,6 +37,7 @@ import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
@@ -245,7 +246,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
 private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modifier) {
     LogEzCard(modifier = modifier) {
         Column(modifier = Modifier.padding(Spacing.md)) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(value, style = LogEzMono.dataLarge)
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

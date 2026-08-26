@@ -47,6 +47,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -173,8 +174,7 @@ fun CalendarScreen(
                         Text(workout.title, modifier = Modifier.weight(1f))
                         Text(
                             formatCalendarDuration(workout.durationSeconds),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                         )
                     }
                 }

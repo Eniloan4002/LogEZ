@@ -38,7 +38,7 @@ fun BarChart(
     val selectedColor = MaterialTheme.colorScheme.tertiary
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val labelStyle: TextStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
+    val labelStyle: TextStyle = LogEzMono.dataSmall.copy(color = labelColor)
     val textMeasurer = rememberTextMeasurer()
 
     // Bars grow from zero — a bar chart with a non-zero baseline misleads (§5.2's honest-stats

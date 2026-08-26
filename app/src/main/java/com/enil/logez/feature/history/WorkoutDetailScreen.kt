@@ -56,6 +56,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
@@ -239,7 +240,7 @@ private fun DetailStatCell(label: String, value: String, icon: ImageVector? = nu
         if (icon != null) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         } else {
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(value, style = LogEzMono.dataLarge)
         }
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -298,7 +299,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
         }
         Text(
             formatDetailSetValue(position, set, exerciseType),
-            style = MaterialTheme.typography.bodyMedium,
+            style = LogEzMono.dataMedium,
             modifier = Modifier.padding(start = Spacing.sm).weight(1f),
         )
         if (set.pr != null) {

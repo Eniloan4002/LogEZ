@@ -38,7 +38,7 @@ fun LineChart(
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val selectedColor = MaterialTheme.colorScheme.tertiary
-    val labelStyle: TextStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
+    val labelStyle: TextStyle = LogEzMono.dataSmall.copy(color = labelColor)
     val textMeasurer = rememberTextMeasurer()
 
     // Geometry is recomputed identically in draw and tap scopes from the same inputs, so the two

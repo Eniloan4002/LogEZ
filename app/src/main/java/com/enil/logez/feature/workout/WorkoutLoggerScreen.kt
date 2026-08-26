@@ -57,6 +57,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
@@ -163,8 +164,7 @@ fun WorkoutLoggerScreen(
                         if (uiState.isEditMode) {
                             Text(
                                 stringResource(R.string.workout_edit_stats, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg)),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                             )
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -405,7 +405,7 @@ private fun WorkoutStatsText(elapsedSecondsFlow: Flow<Long>, completedSetCount: 
     val elapsedSeconds by elapsedSecondsFlow.collectAsStateWithLifecycle(0L)
     Text(
         stringResource(R.string.workout_logger_stats, formatElapsed(elapsedSeconds), completedSetCount, formatVolume(totalVolumeKg)),
-        style = MaterialTheme.typography.labelSmall,
+        style = LogEzMono.dataSmall,
     )
 }
 
@@ -416,7 +416,7 @@ private fun RestTimerChip(restRemainingMillisFlow: Flow<Long?>, modifier: Modifi
     val remainingSeconds = remainingMillis?.let { (it + 999) / 1000 } ?: return
     AssistChip(
         onClick = {},
-        label = { Text("${stringResource(R.string.workout_rest_timer_label)} ${formatElapsed(remainingSeconds)}") },
+        label = { Text("${stringResource(R.string.workout_rest_timer_label)} ${formatElapsed(remainingSeconds)}", style = LogEzMono.dataMedium) },
         modifier = modifier,
     )
 }

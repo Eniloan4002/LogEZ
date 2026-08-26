@@ -44,6 +44,7 @@ import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.analytics.MonthlyReportViewModel.ComparisonMetric
 import com.enil.logez.feature.exercises.SummaryFormatters
@@ -183,8 +184,7 @@ private fun ComparisonCard(uiState: MonthlyReportUiState, viewModel: MonthlyRepo
                 }
                 Text(
                     monthReadoutFormatter.format(row.month) + " — " + value,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.tertiary,
+                    style = LogEzMono.dataMedium.copy(color = MaterialTheme.colorScheme.tertiary),
                 )
             }
             BarChart(
@@ -302,8 +302,7 @@ private fun MonthPrCard(uiState: MonthlyReportUiState) {
                     }
                     Text(
                         SummaryFormatters.formatPrValue(pr.prType, pr.value, uiState.weightUnit, DistanceUnit.KM),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = LogEzMono.dataMedium,
                     )
                 }
             }
@@ -352,8 +351,7 @@ private fun MonthDistributionCard(uiState: MonthlyReportUiState) {
                         )
                         Text(
                             "${share.setCount} · ${share.sharePercent}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                         )
                     }
                 }
