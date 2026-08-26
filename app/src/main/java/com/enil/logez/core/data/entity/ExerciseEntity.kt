@@ -40,6 +40,22 @@ data class ExerciseEntity(
      * than one head of the same group (e.g. a compound press hitting both anterior and lateral
      * delt), so this is a checklist, not a single pick; empty for every exercise that doesn't
      * specify any, including every exercise that existed before this column. Defaulted so this
-     * addition doesn't break any existing named-arg entity construction. */
-    @ColumnInfo(name = "muscle_heads") val muscleHeads: List<MuscleHead> = emptyList(),
+     * addition doesn't break any existing named-arg entity construction.
+     * `defaultValue = "'[]'"` must match `MIGRATION_3_4`'s `ALTER TABLE ... DEFAULT '[]'` exactly —
+     * without it, Room's post-migration schema validation sees a real SQL-level default on the
+     * live column but no declared default on the entity, and throws `IllegalStateException:
+     * Migration didn't properly handle: ...` on every app open that runs this migration. */
+    @ColumnInfo(name = "muscle_heads", defaultValue = "'[]'") val muscleHeads: List<MuscleHead> = emptyList(),
+    /**
+     * Dead column, kept declared on purpose. `primary_muscle_head` was the pre-checklist M8e
+     * single-pick field; `MIGRATION_3_4` deliberately leaves the live SQL column in place rather
+     * than dropping it (`DROP COLUMN` support is inconsistent across the SQLite versions bundled
+     * across API 26-36). Room's schema validation compares the *entire* column set, not just the
+     * columns an entity happens to declare -- an entity that stops declaring a column Room still
+     * finds on the live table fails validation exactly like a genuinely missing column would (this
+     * is what actually broke `debug13.9`: the field was deleted outright here, not just unused).
+     * Never read or written anywhere; always null going forward. Do not remove without also
+     * physically dropping the column via a real migration on every supported SQLite version. */
+    @Deprecated("Superseded by muscleHeads; kept only so Room's schema validation matches the live column.")
+    @ColumnInfo(name = "primary_muscle_head") val deprecatedPrimaryMuscleHead: MuscleHead? = null,
 )

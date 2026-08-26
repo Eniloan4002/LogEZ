@@ -88,4 +88,15 @@ class Converters {
     fun toMuscleHeadList(value: String): List<MuscleHead> =
         if (value.isBlank()) emptyList()
         else json.decodeFromString<List<String>>(value).map { MuscleHead.valueOf(it) }
+
+    /**
+     * Superseded by [fromMuscleHeadList]/[toMuscleHeadList] (M8e revision), kept only because
+     * [com.enil.logez.core.data.entity.ExerciseEntity.deprecatedPrimaryMuscleHead] must stay
+     * declared in the entity for Room's schema validation -- see that field's KDoc.
+     */
+    @TypeConverter
+    fun fromMuscleHead(value: MuscleHead?): String? = value?.name
+
+    @TypeConverter
+    fun toMuscleHead(value: String?): MuscleHead? = value?.let { MuscleHead.valueOf(it) }
 }

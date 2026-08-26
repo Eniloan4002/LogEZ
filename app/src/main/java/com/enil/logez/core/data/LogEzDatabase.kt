@@ -96,9 +96,14 @@ abstract class LogEzDatabase : RoomDatabase() {
          * convention) and carries forward any already-set `primary_muscle_head` as that head's
          * single-element list. `primary_muscle_head` itself is left in place, unused, rather than
          * dropped — `DROP COLUMN` support varies across the SQLite versions bundled with API
-         * 26-36 (this app's minSdk-to-target range), while an inert extra column is harmless:
-         * Room's schema validation only checks that an entity's declared columns are present with
-         * matching types, not that the table has no others.
+         * 26-36 (this app's minSdk-to-target range). Unlike a hand-written schema, this does
+         * *not* mean the column can simply stop being declared in [ExerciseEntity]: Room's
+         * post-migration validation ([androidx.room.util.TableInfo]) compares the live table's
+         * *entire* column set against the entity's, so an undeclared-but-still-present column
+         * fails validation exactly like a genuinely missing one would — see
+         * [ExerciseEntity.deprecatedPrimaryMuscleHead] (this exact gap crashed every upgrade in
+         * `debug13.9`, caught and fixed the same day via [LogEzDatabaseMigrationTest]'s real-open
+         * reproduction test).
          */
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
