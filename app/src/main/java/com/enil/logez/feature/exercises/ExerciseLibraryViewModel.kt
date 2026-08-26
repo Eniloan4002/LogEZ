@@ -90,10 +90,9 @@ class ExerciseLibraryViewModel @Inject constructor(
         }
     }
 
-    /** §5.2: custom exercises only — soft delete keeps history queryable. */
+    /** §5.2, widened 2026-08-26 to any exercise (seed or custom) — soft delete keeps history queryable. */
     fun deleteExercise(exercise: Exercise) {
-        if (!exercise.isCustom) return
-        viewModelScope.launch { exerciseRepository.softDeleteCustom(exercise.id) }
+        viewModelScope.launch { exerciseRepository.softDelete(exercise.id) }
     }
 }
 

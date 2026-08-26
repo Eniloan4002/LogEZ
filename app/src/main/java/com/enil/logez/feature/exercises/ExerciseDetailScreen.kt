@@ -105,12 +105,10 @@ fun ExerciseDetailScreen(
                             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                            if (exercise.isCustom) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.action_edit)) },
-                                    onClick = { menuExpanded = false; onEdit(exercise.id) },
-                                )
-                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_edit)) },
+                                onClick = { menuExpanded = false; onEdit(exercise.id) },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_duplicate)) },
                                 onClick = {
@@ -118,12 +116,10 @@ fun ExerciseDetailScreen(
                                     scope.launch { viewModel.duplicate()?.let(onDuplicated) }
                                 },
                             )
-                            if (exercise.isCustom) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.action_delete)) },
-                                    onClick = { menuExpanded = false; showDeleteConfirm = true },
-                                )
-                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_delete)) },
+                                onClick = { menuExpanded = false; showDeleteConfirm = true },
+                            )
                         }
                     }
                 },

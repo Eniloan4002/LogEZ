@@ -214,12 +214,11 @@ class ExerciseDetailViewModel @Inject constructor(
         return newId
     }
 
-    /** §5.2: custom exercises only — soft delete keeps history queryable. */
+    /** §5.2, widened 2026-08-26 to any exercise (seed or custom) — soft delete keeps history queryable. */
     fun delete(onDeleted: () -> Unit) {
         val exercise = _uiState.value.exercise ?: return
-        if (!exercise.isCustom) return
         viewModelScope.launch {
-            exerciseRepository.softDeleteCustom(exercise.id)
+            exerciseRepository.softDelete(exercise.id)
             onDeleted()
         }
     }

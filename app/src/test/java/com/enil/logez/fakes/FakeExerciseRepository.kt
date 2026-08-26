@@ -24,10 +24,9 @@ class FakeExerciseRepository(initial: List<Exercise> = emptyList()) : ExerciseRe
         exercises.update { it + (exercise.id to exercise) }
     }
 
-    override suspend fun softDeleteCustom(id: String) {
+    override suspend fun softDelete(id: String) {
         exercises.update { map ->
             val existing = map[id] ?: return@update map
-            if (!existing.isCustom) return@update map
             map + (id to existing.copy(isDeleted = true))
         }
     }

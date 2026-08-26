@@ -21,9 +21,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.2 "Custom exercise creation" / "Edit (custom only)". [exerciseId] absent
- * (or the value is null) = create mode; present = edit mode, where [ExerciseType] becomes
- * immutable — "greyed with a 'Type can't be changed' hint" (§5.2, library-analytics.md §1).
+ * PHASE2_PLAN.md §5.2 "Custom exercise creation" / "Edit". [exerciseId] absent (or the value is
+ * null) = create mode; present = edit mode, where [ExerciseType] becomes immutable — "greyed with
+ * a 'Type can't be changed' hint" (§5.2, library-analytics.md §1).
+ *
+ * Edit mode works on any exercise, seed or custom (Owner directive 2026-08-26) — this screen has
+ * no fields for `instructions` or `isBodyweightVolumeEligible`, so [save] must carry both forward
+ * from the loaded row rather than the old create-mode defaults it used to hardcode; a seeded
+ * bodyweight movement (Pull-Up, Dip, ...) saving with `isBodyweightVolumeEligible` silently reset
+ * to `false` would corrupt that exercise's volume math on every workout logged against it from
+ * then on. [save] always writes `isCustom = true`, regardless of what was loaded — this is what
+ * permanently exempts an edited seed row from a future seed-file sync (see `ExerciseDao.kt`'s
+ * `updateSeedFields`/`pruneRetiredSeeds` KDoc), so an edit is never silently reverted later.
  */
 @HiltViewModel
 class CustomExerciseEditorViewModel @Inject constructor(
@@ -36,6 +45,8 @@ class CustomExerciseEditorViewModel @Inject constructor(
     val isEditMode: Boolean = editingId != null
 
     private var loadedCreatedAt: Long = clock.now().toEpochMilliseconds()
+    private var loadedInstructions: String = ""
+    private var loadedIsBodyweightVolumeEligible: Boolean = false
 
     private val _uiState = MutableStateFlow(
         CustomExerciseEditorUiState(
@@ -53,6 +64,8 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 val existing = exerciseRepository.getById(id)
                 if (existing != null) {
                     loadedCreatedAt = existing.createdAt
+                    loadedInstructions = existing.instructions
+                    loadedIsBodyweightVolumeEligible = existing.isBodyweightVolumeEligible
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -112,10 +125,10 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 primaryMuscleGroup = state.primaryMuscleGroup,
                 secondaryMuscleGroups = state.secondaryMuscleGroups.toList(),
                 equipment = state.equipment,
-                instructions = "",
+                instructions = loadedInstructions,
                 mediaPath = state.mediaPath,
                 isCustom = true,
-                isBodyweightVolumeEligible = false,
+                isBodyweightVolumeEligible = loadedIsBodyweightVolumeEligible,
                 isDeleted = false,
                 createdAt = loadedCreatedAt,
                 updatedAt = clock.now().toEpochMilliseconds(),

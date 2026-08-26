@@ -17,7 +17,7 @@ class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun getAllActive(): List<Exercise> = dao.getAllActive().map { it.toDomain() }
 
     override suspend fun upsertCustom(exercise: Exercise) = dao.upsert(exercise.toEntity())
-    override suspend fun softDeleteCustom(id: String) = dao.softDeleteCustom(id, System.currentTimeMillis())
+    override suspend fun softDelete(id: String) = dao.softDelete(id, System.currentTimeMillis())
 
     override suspend fun count(): Int = dao.count()
 }

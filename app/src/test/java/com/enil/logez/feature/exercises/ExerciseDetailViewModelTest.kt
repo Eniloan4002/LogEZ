@@ -119,7 +119,7 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
-    fun `delete is a no-op for seed exercises`() = runTest {
+    fun `delete also works for seed exercises (Owner directive 2026-08-26)`() = runTest {
         val seed = seedExercise()
         val exerciseRepo = FakeExerciseRepository(listOf(seed))
         val vm = ExerciseDetailViewModel(
@@ -135,8 +135,8 @@ class ExerciseDetailViewModelTest {
         var deletedCallback = false
         vm.delete { deletedCallback = true }
 
-        assertFalse(deletedCallback)
-        assertFalse(exerciseRepo.getById(seed.id)!!.isDeleted)
+        assertTrue(deletedCallback)
+        assertTrue(exerciseRepo.getById(seed.id)!!.isDeleted)
     }
 
     // --- M6a Summary tab (§5.2 / §8.9 / §8.5) ---

@@ -112,16 +112,16 @@ class ExerciseDaoTest : RoomDatabaseTestBase() {
     }
 
     @Test
-    fun `soft delete only affects custom exercises and is reflected in observeAllActive`() = runTest {
+    fun `soft delete works on both seed and custom exercises, reflected in observeAllActive`() = runTest {
         dao.insertIgnore(listOf(seedExercise(id = "seed-a")))
         dao.upsert(seedExercise(id = "custom-a").copy(isCustom = true))
 
-        dao.softDeleteCustom("seed-a", 5_000L) // WHERE is_custom = 1 — no-op on a seed row
-        assertFalse(dao.getById("seed-a")!!.isDeleted)
+        dao.softDelete("seed-a", 5_000L)
+        assertTrue(dao.getById("seed-a")!!.isDeleted)
 
-        dao.softDeleteCustom("custom-a", 5_000L)
+        dao.softDelete("custom-a", 5_000L)
         assertTrue(dao.getById("custom-a")!!.isDeleted)
-        assertEquals(listOf("seed-a"), dao.getAllActive().map { it.id })
+        assertEquals(emptyList<String>(), dao.getAllActive().map { it.id })
     }
 
     @Test

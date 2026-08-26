@@ -140,6 +140,46 @@ class CustomExerciseEditorViewModelTest {
     }
 
     @Test
+    fun `editing a seed exercise sets isCustom, exempting it from future seed syncs`() = runTest {
+        val seed = seedExercise(id = "seed-1").copy(isCustom = false)
+        val repo = FakeExerciseRepository(listOf(seed))
+        val vm = CustomExerciseEditorViewModel(
+            SavedStateHandle(mapOf("exerciseId" to "seed-1")),
+            repo,
+            FakeExerciseMediaStore(),
+            FakeClock(),
+        )
+
+        vm.onNameChange("Bench Press (Barbell) — renamed")
+        vm.save {}
+
+        assertTrue(repo.getById("seed-1")!!.isCustom)
+    }
+
+    @Test
+    fun `editing preserves instructions and bodyweight eligibility, which this screen has no fields for`() = runTest {
+        val seed = seedExercise(id = "seed-1").copy(
+            isCustom = false,
+            instructions = "Grip the bar slightly wider than shoulder width.",
+            isBodyweightVolumeEligible = true,
+        )
+        val repo = FakeExerciseRepository(listOf(seed))
+        val vm = CustomExerciseEditorViewModel(
+            SavedStateHandle(mapOf("exerciseId" to "seed-1")),
+            repo,
+            FakeExerciseMediaStore(),
+            FakeClock(),
+        )
+
+        vm.onEquipmentChange(Equipment.MACHINE) // touch an unrelated field, then save
+        vm.save {}
+
+        val stored = repo.getById("seed-1")!!
+        assertEquals("Grip the bar slightly wider than shoulder width.", stored.instructions)
+        assertTrue(stored.isBodyweightVolumeEligible)
+    }
+
+    @Test
     fun `prefill name seeds the create form from a library search query`() = runTest {
         val vm = CustomExerciseEditorViewModel(
             SavedStateHandle(mapOf("prefillName" to "Nordic Curl")),

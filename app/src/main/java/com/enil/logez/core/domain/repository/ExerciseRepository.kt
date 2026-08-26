@@ -11,9 +11,15 @@ interface ExerciseRepository {
     suspend fun getById(id: String): Exercise?
     suspend fun getAllActive(): List<Exercise>
 
-    /** Custom-exercise create/edit (PHASE2_PLAN.md §5.2 — M2). Exercise type is immutable on edit. */
+    /**
+     * Create or edit (PHASE2_PLAN.md §5.2 — M2, widened 2026-08-26 to cover seeded exercises too).
+     * Exercise type is immutable on edit. Editing any exercise — seed or custom — always writes
+     * `isCustom = true`, permanently exempting that row from future seed-file syncs.
+     */
     suspend fun upsertCustom(exercise: Exercise)
-    suspend fun softDeleteCustom(id: String)
+
+    /** Soft delete — any exercise, seed or custom. See [com.enil.logez.core.data.dao.ExerciseDao.softDelete] for the seed-resurrection caveat. */
+    suspend fun softDelete(id: String)
 
     suspend fun count(): Int
 }

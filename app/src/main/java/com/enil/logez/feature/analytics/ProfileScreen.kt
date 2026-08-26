@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -59,6 +61,7 @@ fun ProfileScreen(
 ) {
     val rpeTrackingEnabled by viewModel.rpeTrackingEnabled.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isSeedingDemoData by viewModel.isSeedingDemoData.collectAsStateWithLifecycle()
 
     RefreshOnResume(viewModel::refresh)
 
@@ -69,6 +72,9 @@ fun ProfileScreen(
             onStatisticsClick = onStatisticsClick,
             rpeTrackingEnabled = rpeTrackingEnabled,
             onRpeToggle = viewModel::setRpeTrackingEnabled,
+            isSeedingDemoData = isSeedingDemoData,
+            onSeedDemoData = viewModel::seedDemoData,
+            onClearDemoData = viewModel::clearDemoData,
         )
         profileStatsItems(uiState, onStatisticsClick)
     }
@@ -176,6 +182,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
     onStatisticsClick: (TrainingMetric?) -> Unit,
     rpeTrackingEnabled: Boolean,
     onRpeToggle: (Boolean) -> Unit,
+    isSeedingDemoData: Boolean,
+    onSeedDemoData: () -> Unit,
+    onClearDemoData: () -> Unit,
 ) {
         item(key = "nav_statistics") {
             ListItem(
@@ -210,6 +219,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
                 headlineContent = { Text(stringResource(R.string.profile_rpe_toggle_title)) },
                 supportingContent = { Text(stringResource(R.string.profile_rpe_toggle_subtitle)) },
                 trailingContent = { Switch(checked = rpeTrackingEnabled, onCheckedChange = onRpeToggle) },
+            )
+            HorizontalDivider()
+        }
+        item(key = "seed_demo_data") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onSeedDemoData),
+                headlineContent = { Text(stringResource(R.string.profile_seed_demo_data_title)) },
+                supportingContent = { Text(stringResource(R.string.profile_seed_demo_data_subtitle)) },
+                trailingContent = { if (isSeedingDemoData) CircularProgressIndicator(modifier = Modifier.size(20.dp)) },
+            )
+            HorizontalDivider()
+        }
+        item(key = "clear_demo_data") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onClearDemoData),
+                headlineContent = { Text(stringResource(R.string.profile_clear_demo_data_title)) },
+                supportingContent = { Text(stringResource(R.string.profile_clear_demo_data_subtitle)) },
             )
             HorizontalDivider()
         }

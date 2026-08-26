@@ -142,12 +142,30 @@ fun CustomExerciseEditorScreen(
             )
 
             EnumDropdown(
+                label = stringResource(R.string.exercise_editor_type),
+                selectedLabel = exerciseTypeLabel(uiState.exerciseType),
+                options = ExerciseType.Companion.userSelectable,
+                optionLabel = ::exerciseTypeLabel,
+                onSelect = viewModel::onExerciseTypeChange,
+                enabled = !uiState.isEditMode,
+                modifier = Modifier.padding(top = Spacing.md),
+            )
+            if (uiState.isEditMode) {
+                Text(
+                    stringResource(R.string.exercise_editor_type_immutable_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
+            }
+
+            EnumDropdown(
                 label = stringResource(R.string.exercise_editor_equipment),
                 selectedLabel = equipmentLabel(uiState.equipment),
                 options = Equipment.entries,
                 optionLabel = ::equipmentLabel,
                 onSelect = viewModel::onEquipmentChange,
-                modifier = Modifier.padding(top = Spacing.md),
+                modifier = Modifier.padding(top = Spacing.lg),
             )
 
             EnumDropdown(
@@ -176,24 +194,6 @@ fun CustomExerciseEditorScreen(
                         Text(muscleGroupLabel(m))
                     }
                 }
-            }
-
-            EnumDropdown(
-                label = stringResource(R.string.exercise_editor_type),
-                selectedLabel = exerciseTypeLabel(uiState.exerciseType),
-                options = ExerciseType.Companion.userSelectable,
-                optionLabel = ::exerciseTypeLabel,
-                onSelect = viewModel::onExerciseTypeChange,
-                enabled = !uiState.isEditMode,
-                modifier = Modifier.padding(top = Spacing.lg),
-            )
-            if (uiState.isEditMode) {
-                Text(
-                    stringResource(R.string.exercise_editor_type_immutable_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = Spacing.xxs),
-                )
             }
 
             Spacer(modifier = Modifier.height(Spacing.xxl))

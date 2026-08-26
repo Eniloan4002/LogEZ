@@ -3,6 +3,7 @@ package com.enil.logez.feature.analytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
+import com.enil.logez.core.data.seed.DemoDataSeeder
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
@@ -32,13 +33,16 @@ import kotlinx.coroutines.launch
  * series (default 3m, §5.2 region 4). Fresh zone/today per refresh; single-snapshot publish.
  *
  * Also still hosts the temporary RPE toggle (see [[decisions]] 2026-08-24 — no Settings screen
- * exists until M7; remove the toggle when the real Settings tree lands).
+ * exists until M7; remove the toggle when the real Settings tree lands) and, as of 2026-08-26, a
+ * temporary "Seed/Clear Demo Data" row for the same reason — both belong on a real Settings/dev
+ * tools screen once one exists, not permanently on Profile.
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val settingsRepository: SettingsRepository,
+    private val demoDataSeeder: DemoDataSeeder,
     private val clock: Clock,
 ) : ViewModel() {
     val rpeTrackingEnabled: StateFlow<Boolean> = settingsRepository.settings
@@ -51,6 +55,30 @@ class ProfileViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    private val _isSeedingDemoData = MutableStateFlow(false)
+    val isSeedingDemoData: StateFlow<Boolean> = _isSeedingDemoData.asStateFlow()
+
+    /** Temporary dev tool (Owner request 2026-08-26) — see [DemoDataSeeder]. */
+    fun seedDemoData() {
+        if (_isSeedingDemoData.value) return
+        viewModelScope.launch {
+            _isSeedingDemoData.value = true
+            demoDataSeeder.seed()
+            refresh()
+            _isSeedingDemoData.value = false
+        }
+    }
+
+    fun clearDemoData() {
+        if (_isSeedingDemoData.value) return
+        viewModelScope.launch {
+            _isSeedingDemoData.value = true
+            demoDataSeeder.clear()
+            refresh()
+            _isSeedingDemoData.value = false
+        }
+    }
 
     /** The screen's single load trigger — RefreshOnResume calls this on every ON_RESUME (no init load). */
     fun refresh() {

@@ -69,9 +69,17 @@ interface ExerciseDao {
     @Query("SELECT COUNT(*) FROM exercises WHERE is_custom = 0")
     suspend fun seedCount(): Int
 
-    /** Soft delete (custom exercises only — spine entity 1). */
-    @Query("UPDATE exercises SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id AND is_custom = 1")
-    suspend fun softDeleteCustom(id: String, updatedAt: Long)
+    /**
+     * Soft delete (spine entity 1) — any exercise, seed or custom (Owner directive 2026-08-26).
+     * For a seed row this is not necessarily permanent: a future seed-version bump's
+     * [updateSeedFields]/[pruneRetiredSeeds] pass writes `is_deleted` from the seed file's own
+     * value, so an exercise still present in that file would be un-deleted on the next bump. This
+     * matches how editing a seed row already behaves ([CustomExerciseEditorViewModel] always
+     * writes `is_custom = 1` on save, which *does* permanently exempt a row from seed-sync) — a
+     * bare delete with no edit does not get that same exemption.
+     */
+    @Query("UPDATE exercises SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id")
+    suspend fun softDelete(id: String, updatedAt: Long)
 
     /**
      * §7.9's library-swap step: any seed row (`is_custom = 0`) whose id is no longer in the
