@@ -16,6 +16,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 /**
  * Temporary dev/demo tool (Owner request 2026-08-26) — populates 12 weeks of realistic COMPLETED
@@ -26,6 +27,15 @@ import kotlin.math.roundToInt
  * [clear] can find and remove exactly what this seeded — via the same [WorkoutDeleter] a real
  * "Delete Workout" uses, so PRs get rebuilt correctly on clear too — and never touch a real logged
  * workout, which would never carry that marker.
+ *
+ * Session scheduling follows a real periodization shape (Owner request 2026-08-26, "slight noise
+ * ... as if the user is periodizing") rather than a flat N-times-a-week grid: a 4-week mesocycle of
+ * 3 build weeks (3-5 sessions, ramping) followed by 1 deload week (1-2 sessions), repeated across
+ * the 12 weeks, with each week's session days drawn at random rather than fixed to e.g. Mon/Wed/Fri
+ * — a perfectly uniform grid is exactly what would read as fake on the heatmap. [SEED] is fixed so
+ * the "randomness" is still deterministic and testable, not [kotlin.random.Random]'s default
+ * source (which this codebase avoids in production logic for the same reason it avoids
+ * `Clock.System`/`Date()` — see `Clock` in `core/common`).
  */
 @Singleton
 class DemoDataSeeder @Inject constructor(
@@ -48,62 +58,72 @@ class DemoDataSeeder @Inject constructor(
         val includeWarmups = personalRecordsUpdater.includeWarmupsInStats()
         val nowMillis = clock.now().toEpochMilliseconds()
         val touchedExerciseIds = mutableSetOf<String>()
-        val totalSessions = WEEKS * SESSIONS_PER_WEEK
+        val random = Random(SEED)
 
-        for (i in 0 until totalSessions) {
-            // i=0 is the oldest session (~12 weeks back); the most recent lands a couple of days
-            // ago, never "today", so today's own cell in the heatmap stays honestly empty until a
-            // real workout is logged.
-            val daysAgo = ((totalSessions - 1 - i) * 7) / SESSIONS_PER_WEEK + 2
-            val startedAt = nowMillis - daysAgo * DAY_MILLIS - MORNING_OFFSET_MILLIS
-            val durationSeconds = 2_700 + (i % 5) * 300 // 45-65 min
-            val progression = i.toDouble() / (totalSessions - 1).coerceAtLeast(1) // 0.0 (oldest) .. 1.0 (newest): light progressive overload
+        var sessionIndex = 0 // runs across the whole 12 weeks -- drives the push/pull/legs rotation and the progression trend, independent of any one week's session count
 
-            val todays = when (i % 3) { 0 -> push; 1 -> pull; else -> legs }
-            if (todays.isEmpty()) continue
+        for (week in 0 until WEEKS) {
+            val sessionCount = sessionsForWeek(week, random)
+            // Distinct random weekdays, not a fixed Mon/Wed/Fri slot -- this is the actual "noise".
+            val daysInWeek = (0..6).shuffled(random).take(sessionCount).sorted()
 
-            val workoutId = UUID.randomUUID().toString()
-            val workoutExercises = mutableListOf<WorkoutExerciseEntity>()
-            val workoutSets = mutableListOf<WorkoutSetEntity>()
+            for (dayOfWeek in daysInWeek) {
+                // dayOfWeek 0=Monday..6=Sunday. +2 keeps even the most recent week's latest
+                // possible day at least 2 days back, so "today" (and "yesterday") stay honestly
+                // empty on the heatmap until a real workout is logged.
+                val daysAgo = (WEEKS - 1 - week) * 7 + (6 - dayOfWeek) + 2
+                val timeJitterMillis = random.nextLong(-3 * HOUR_MILLIS, 3 * HOUR_MILLIS)
+                val startedAt = nowMillis - daysAgo * DAY_MILLIS - MORNING_OFFSET_MILLIS + timeJitterMillis
+                val durationSeconds = 2_700 + random.nextInt(0, 1_800) // 45-75 min
+                val progression = (sessionIndex.toDouble() / ESTIMATED_TOTAL_SESSIONS).coerceIn(0.0, 1.0)
 
-            todays.forEachIndexed { exIndex, exercise ->
-                val weId = UUID.randomUUID().toString()
-                workoutExercises += WorkoutExerciseEntity(
-                    id = weId, workoutId = workoutId, exerciseId = exercise.id, orderIndex = exIndex,
-                    supersetGroup = null, restTimerSeconds = null, notes = null,
-                )
-                touchedExerciseIds += exercise.id
+                val todays = when (sessionIndex % 3) { 0 -> push; 1 -> pull; else -> legs }
+                sessionIndex++
+                if (todays.isEmpty()) continue
 
-                for (setIndex in 0 until SETS_PER_EXERCISE) {
-                    val isWarmup = setIndex == 0 && exercise.exerciseType == ExerciseType.WEIGHT_REPS
-                    val values = setValues(exercise, setIndex, progression, isWarmup)
-                    workoutSets += WorkoutSetEntity(
-                        id = UUID.randomUUID().toString(),
-                        workoutExerciseId = weId,
-                        orderIndex = setIndex,
-                        setType = if (isWarmup) SetType.WARMUP else SetType.NORMAL,
-                        weightKg = values.weightKg,
-                        reps = values.reps,
-                        durationSeconds = values.durationSeconds,
-                        distanceMeters = null,
-                        rpe = null,
-                        customMetric = null,
-                        isCompleted = true,
-                        completedAt = startedAt + setIndex * 90_000L,
+                val workoutId = UUID.randomUUID().toString()
+                val workoutExercises = mutableListOf<WorkoutExerciseEntity>()
+                val workoutSets = mutableListOf<WorkoutSetEntity>()
+
+                todays.forEachIndexed { exIndex, exercise ->
+                    val weId = UUID.randomUUID().toString()
+                    workoutExercises += WorkoutExerciseEntity(
+                        id = weId, workoutId = workoutId, exerciseId = exercise.id, orderIndex = exIndex,
+                        supersetGroup = null, restTimerSeconds = null, notes = null,
                     )
-                }
-            }
+                    touchedExerciseIds += exercise.id
 
-            workoutRepository.insertFullWorkout(
-                WorkoutEntity(
-                    id = workoutId, routineId = null, title = DEMO_TITLE, notes = DEMO_MARKER,
-                    status = WorkoutStatus.COMPLETED, startedAt = startedAt,
-                    endedAt = startedAt + durationSeconds * 1_000L, durationSeconds = durationSeconds,
-                    createdAt = startedAt, updatedAt = startedAt,
-                ),
-                workoutExercises,
-                workoutSets,
-            )
+                    for (setIndex in 0 until SETS_PER_EXERCISE) {
+                        val isWarmup = setIndex == 0 && exercise.exerciseType == ExerciseType.WEIGHT_REPS
+                        val values = setValues(exercise, setIndex, progression, isWarmup, random)
+                        workoutSets += WorkoutSetEntity(
+                            id = UUID.randomUUID().toString(),
+                            workoutExerciseId = weId,
+                            orderIndex = setIndex,
+                            setType = if (isWarmup) SetType.WARMUP else SetType.NORMAL,
+                            weightKg = values.weightKg,
+                            reps = values.reps,
+                            durationSeconds = values.durationSeconds,
+                            distanceMeters = null,
+                            rpe = null,
+                            customMetric = null,
+                            isCompleted = true,
+                            completedAt = startedAt + setIndex * 90_000L,
+                        )
+                    }
+                }
+
+                workoutRepository.insertFullWorkout(
+                    WorkoutEntity(
+                        id = workoutId, routineId = null, title = DEMO_TITLE, notes = DEMO_MARKER,
+                        status = WorkoutStatus.COMPLETED, startedAt = startedAt,
+                        endedAt = startedAt + durationSeconds * 1_000L, durationSeconds = durationSeconds,
+                        createdAt = startedAt, updatedAt = startedAt,
+                    ),
+                    workoutExercises,
+                    workoutSets,
+                )
+            }
         }
 
         if (touchedExerciseIds.isNotEmpty()) {
@@ -118,16 +138,33 @@ class DemoDataSeeder @Inject constructor(
             .forEach { workoutDeleter.delete(it.id) }
     }
 
+    /** 4-week mesocycle: 3 build weeks (ramping volume) then 1 lighter deload week, repeated. */
+    private fun sessionsForWeek(week: Int, random: Random): Int =
+        if (week % 4 == 3) 1 + random.nextInt(0, 2) else 3 + random.nextInt(0, 3)
+
     private data class SetValues(val weightKg: Double?, val reps: Int?, val durationSeconds: Int?)
 
-    private fun setValues(exercise: Exercise, setIndex: Int, progression: Double, isWarmup: Boolean): SetValues =
+    private fun setValues(exercise: Exercise, setIndex: Int, progression: Double, isWarmup: Boolean, random: Random): SetValues =
         when (exercise.exerciseType) {
             ExerciseType.WEIGHT_REPS -> {
-                val working = roundToNearestPlate(BASELINE_KG.getValue(exercise.name) * (1.0 + progression * 0.15))
-                SetValues(weightKg = if (isWarmup) roundToNearestPlate(working * 0.5) else working, reps = 6 + (setIndex % 3), durationSeconds = null)
+                val jitter = 1.0 + random.nextInt(-5, 6) / 100.0 // +/-5%, session-to-session variation
+                val working = roundToNearestPlate(BASELINE_KG.getValue(exercise.name) * (1.0 + progression * 0.15) * jitter)
+                SetValues(
+                    weightKg = if (isWarmup) roundToNearestPlate(working * 0.5) else working,
+                    reps = 6 + (setIndex % 3) + random.nextInt(0, 2),
+                    durationSeconds = null,
+                )
             }
-            ExerciseType.REPS_ONLY -> SetValues(weightKg = null, reps = 6 + (progression * 4).roundToInt() + (setIndex % 2), durationSeconds = null)
-            ExerciseType.DURATION -> SetValues(weightKg = null, reps = null, durationSeconds = 30 + (progression * 30).roundToInt() + setIndex * 5)
+            ExerciseType.REPS_ONLY -> SetValues(
+                weightKg = null,
+                reps = 6 + (progression * 4).roundToInt() + (setIndex % 2) + random.nextInt(0, 2),
+                durationSeconds = null,
+            )
+            ExerciseType.DURATION -> SetValues(
+                weightKg = null,
+                reps = null,
+                durationSeconds = 30 + (progression * 30).roundToInt() + setIndex * 5 + random.nextInt(-5, 6),
+            )
             else -> SetValues(null, null, null)
         }
 
@@ -136,11 +173,13 @@ class DemoDataSeeder @Inject constructor(
     companion object {
         const val DEMO_MARKER = "__logEZ_demo_seed__"
         private const val DEMO_TITLE = "Workout"
+        private const val SEED = 20_260_826L
         private const val WEEKS = 12
-        private const val SESSIONS_PER_WEEK = 3
         private const val SETS_PER_EXERCISE = 4
-        private const val DAY_MILLIS = 24 * 60 * 60 * 1_000L
-        private const val MORNING_OFFSET_MILLIS = 15 * 60 * 60 * 1_000L // "today minus N days" lands ~9am
+        private const val ESTIMATED_TOTAL_SESSIONS = 41.0 // ~(3 build weeks avg 4 + 1 deload avg 1.5) x 3 cycles -- only used to shape the progression trend, not asserted on
+        private const val HOUR_MILLIS = 60 * 60 * 1_000L
+        private const val DAY_MILLIS = 24 * HOUR_MILLIS
+        private const val MORNING_OFFSET_MILLIS = 15 * HOUR_MILLIS // "today minus N days" lands ~9am before jitter
 
         private val PUSH_NAMES = listOf("Bench Press (Barbell)", "Overhead Press (Barbell)", "Plank")
         private val PULL_NAMES = listOf("Bent Over Row (Barbell)", "Pull Up")

@@ -63,7 +63,7 @@ class DemoDataSeederTest {
     }
 
     @Test
-    fun `seed creates 36 marked workouts (12 weeks x 3 sessions) across real exercise ids`() = runTest {
+    fun `seed creates a variable number of marked workouts within the periodized range`() = runTest {
         val exerciseRepo = FakeExerciseRepository(seedExercises())
         val workoutRepo = FakeWorkoutRepository()
         val seeder = newSeeder(exerciseRepo, workoutRepo)
@@ -71,9 +71,30 @@ class DemoDataSeederTest {
         seeder.seed()
 
         val created = workoutRepo.getCompletedWorkouts()
-        assertEquals(36, created.size)
+        // 12 weeks x 1-5 sessions/week (3 build weeks ramping 3-5, 1 deload week 1-2, per 4-week cycle).
+        assertTrue("expected 12..60 sessions, got ${created.size}", created.size in 12..60)
         assertTrue(created.all { it.notes == DemoDataSeeder.DEMO_MARKER })
         assertTrue(created.all { it.status == WorkoutStatus.COMPLETED })
+    }
+
+    @Test
+    fun `session count varies week to week -- periodization, not a flat N-times-a-week grid`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(seedExercises())
+        val workoutRepo = FakeWorkoutRepository()
+        val seeder = newSeeder(exerciseRepo, workoutRepo)
+        val nowMillis = 1_800_000_000_000L
+
+        seeder.seed()
+
+        val weeklySessionCounts = workoutRepo.getCompletedWorkouts()
+            .groupingBy { (nowMillis - it.startedAt) / (7 * 24 * 60 * 60 * 1000L) } // which week-ago bucket
+            .eachCount()
+
+        // A real periodization pattern has more than one distinct weekly session count -- a flat
+        // N-per-week grid (what shipped before this fix) would collapse every week to the same value.
+        assertTrue("expected varied weekly counts, got $weeklySessionCounts", weeklySessionCounts.values.toSet().size > 1)
+        assertTrue("expected at least one deload-shaped week (<=2 sessions)", weeklySessionCounts.values.any { it <= 2 })
+        assertTrue("expected at least one build-shaped week (>=4 sessions)", weeklySessionCounts.values.any { it >= 4 })
     }
 
     @Test
@@ -88,7 +109,9 @@ class DemoDataSeederTest {
         val seeder = newSeeder(exerciseRepo, workoutRepo)
 
         seeder.seed()
-        assertEquals(37, workoutRepo.getCompletedWorkouts().size) // 36 demo + 1 real
+        val afterSeed = workoutRepo.getCompletedWorkouts()
+        assertTrue(afterSeed.size > 1)
+        assertTrue(afterSeed.any { it.id == "real-1" })
 
         seeder.clear()
 
