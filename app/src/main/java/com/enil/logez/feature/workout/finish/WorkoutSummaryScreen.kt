@@ -1,6 +1,12 @@
 package com.enil.logez.feature.workout.finish
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,10 +30,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 
 /**
@@ -89,24 +97,7 @@ fun WorkoutSummaryScreen(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.sm).fillMaxWidth(),
                 )
-                uiState.prMedals.forEach { medal ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(LogEzIcons.PersonalRecord, contentDescription = null)
-                            Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
-                                Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)
-                            }
-                            Text(formatPrValue(medal), style = MaterialTheme.typography.titleMedium)
-                        }
-                    }
-                }
+                uiState.prMedals.forEach { medal -> PrMedalCard(medal) }
             }
 
             Button(onClick = onDone, modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg)) {
@@ -116,10 +107,47 @@ fun WorkoutSummaryScreen(
     }
 }
 
+/**
+ * M9d (Neon Lab, docs/adr/0003-neon-lab-rebrand.md) — the one deliberate, bounded exception to
+ * M8a's near-zero-animation rule. M8a's actual concern was interaction *latency* (a delayed
+ * transition or ripple standing between a tap and its result), not decoration in general; this
+ * glow is purely decorative on an already-fully-rendered card -- it never gates, delays, or blocks
+ * reaching this screen or anything on it, so it doesn't reintroduce what M8a removed. Scoped to
+ * exactly this one celebratory moment (a personal record on the post-workout summary), not applied
+ * anywhere else a PR could appear (the live in-session PR banner is untouched).
+ */
+@Composable
+private fun PrMedalCard(medal: PrMedal) {
+    val glow = rememberInfiniteTransition(label = "prGlow")
+    val glowAlpha by glow.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1100), repeatMode = RepeatMode.Reverse),
+        label = "prGlowAlpha",
+    )
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(LogEzIcons.PersonalRecord, contentDescription = null)
+            Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
+                Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)
+            }
+            Text(formatPrValue(medal), style = LogEzMono.dataLarge)
+        }
+    }
+}
+
 @Composable
 private fun StatCell(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(value, style = LogEzMono.dataLarge)
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
