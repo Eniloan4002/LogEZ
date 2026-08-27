@@ -2,12 +2,14 @@ package com.enil.logez.core.designsystem
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -18,28 +20,37 @@ import androidx.compose.ui.unit.dp
  * colored bloom around a filled element — CTAs, active chips) and the chart-bar helpers
  * ([glowBarBrush], [drawBarGlow]) used by dashboard graphs specifically.
  *
- * Compose has no true blur-shadow primitive below API 31; [neonGlow] approximates it via a colored
- * elevation shadow ([Modifier.shadow]'s `spotColor`/`ambientColor`, honored from API 28) — on
- * 26-27 (this app's minSdk) it degrades to an ordinary dark shadow, flatter but never broken.
+ * Compose has no true blur-shadow primitive below API 31.
  */
 
 /**
  * A colored bloom around a filled element — the mockup's
  * `box-shadow: 0 0 14px rgba(57,255,110,0.45)` on primary buttons and active chips.
- * Apply BEFORE `background(...)`/`clip(...)` so the shadow renders outside the fill.
+ * Apply BEFORE `background(...)`/`clip(...)` so the glow renders outside the fill.
+ *
+ * Draws [passes] progressively larger, fainter copies of [shape]'s own outline (via
+ * [Shape.createOutline], so this works for a pill just as well as a rounded rect) centered on the
+ * element, rather than relying on [androidx.compose.ui.draw.shadow]'s elevation model — Android's
+ * elevation shadow simulates a single overhead light, so its `spotColor` bloom always reads
+ * stronger at the bottom than the top/sides (Owner-reported: "glow around its border not just
+ * bottom"). An explicit drawn outline has no such direction; it comes out even on every side.
  */
 fun Modifier.neonGlow(
     color: Color,
     radius: Dp = 12.dp,
     shape: Shape = RoundedCornerShape(Radius.md),
     alpha: Float = 0.55f,
-): Modifier = this.shadow(
-    elevation = radius,
-    shape = shape,
-    clip = false,
-    ambientColor = color.copy(alpha = alpha),
-    spotColor = color.copy(alpha = alpha),
-)
+    passes: Int = 4,
+): Modifier = this.drawBehind {
+    val step = radius.toPx() / passes
+    for (i in passes downTo 1) {
+        val grow = step * i
+        val outline = shape.createOutline(Size(size.width + grow * 2, size.height + grow * 2), layoutDirection, this)
+        translate(left = -grow, top = -grow) {
+            drawOutline(outline, color = color.copy(alpha = (alpha / i).coerceIn(0f, 1f)))
+        }
+    }
+}
 
 /**
  * The mockup's bar fill: a vertical gradient from the solid accent at the top to a translucent

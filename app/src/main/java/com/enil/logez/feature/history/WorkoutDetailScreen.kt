@@ -259,6 +259,7 @@ private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (Stri
                 Text(
                     exercise?.name.orEmpty(),
                     style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier,
                 )
                 if (!block.workoutExercise.notes.isNullOrBlank()) {
@@ -300,6 +301,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
         Text(
             formatDetailSetValue(position, set, exerciseType),
             style = LogEzMono.dataMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = Spacing.sm).weight(1f),
         )
         if (set.pr != null) {

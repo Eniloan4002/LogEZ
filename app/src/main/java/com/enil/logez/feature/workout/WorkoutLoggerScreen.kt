@@ -4,7 +4,9 @@ import android.app.Activity
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +16,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DatePicker
@@ -54,10 +56,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
@@ -167,8 +171,15 @@ fun WorkoutLoggerScreen(
                                 style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                             )
                         } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.clickable { timerMenuExpanded = true }) {
+                            // Owner: this row was reading as stacked, not side-by-side -- it was
+                            // always a Row, but AssistChip's Material3 spec padding/min-height made
+                            // it visually heavy next to the compact mono stats text, and the stats
+                            // text had no maxLines cap, so a long "elapsed · sets · volume" string
+                            // could push the chip out of the TopAppBar title slot's limited width.
+                            // Box(weight) + a maxLines/ellipsis cap + a hand-built compact chip
+                            // (not AssistChip's padding) both fix that.
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                Box(modifier = Modifier.weight(1f, fill = false).clickable { timerMenuExpanded = true }) {
                                     WorkoutStatsText(
                                         elapsedSecondsFlow = viewModel.elapsedSecondsFlow,
                                         completedSetCount = uiState.completedSetCount,
@@ -182,7 +193,7 @@ fun WorkoutLoggerScreen(
                                     )
                                 }
                                 if (uiState.restExerciseId != null) {
-                                    RestTimerChip(viewModel.restRemainingMillisFlow, modifier = Modifier.padding(start = Spacing.xs))
+                                    RestTimerChip(viewModel.restRemainingMillisFlow)
                                 }
                             }
                         }
@@ -202,12 +213,17 @@ fun WorkoutLoggerScreen(
                             },
                         ) { Text(stringResource(R.string.action_save)) }
                     } else {
-                        TextButton(
+                        // A filled green box, not a plain text action (Owner) -- Finish is the
+                        // screen's one high-stakes action, so it gets the same vibrant-primary
+                        // treatment as every other primary CTA in the app.
+                        Button(
                             // Guarded: prepareForFinish does a Room write and the service stop is
                             // an IPC, so the first tap is slow enough to double-tap. Two runs would
                             // end the session, take the no-session duration fallback on the second,
                             // and push a second Save screen onto the back stack.
                             enabled = !isFinishing,
+                            contentPadding = PaddingValues(horizontal = Spacing.md, vertical = Spacing.xs),
+                            modifier = Modifier.padding(end = Spacing.xs),
                             onClick = {
                                 // Freeze the live duration into the row, stop the service, then
                                 // hand off to the Save screen — the workout stays IN_PROGRESS
@@ -406,19 +422,34 @@ private fun WorkoutStatsText(elapsedSecondsFlow: Flow<Long>, completedSetCount: 
     Text(
         stringResource(R.string.workout_logger_stats, formatElapsed(elapsedSeconds), completedSetCount, formatVolume(totalVolumeKg)),
         style = LogEzMono.dataSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
 }
 
-/** Leaf composable — the compact top-bar rest countdown chip. */
+/**
+ * Leaf composable — the compact top-bar rest countdown chip. Hand-built rather than Material3's
+ * `AssistChip`: that component's spec padding/min-height read as visually heavy next to
+ * [WorkoutStatsText]'s small mono readout and pushed the row wider than the TopAppBar's title slot
+ * has room for (Owner: "make it fit").
+ */
 @Composable
 private fun RestTimerChip(restRemainingMillisFlow: Flow<Long?>, modifier: Modifier = Modifier) {
     val remainingMillis by restRemainingMillisFlow.collectAsStateWithLifecycle(null)
     val remainingSeconds = remainingMillis?.let { (it + 999) / 1000 } ?: return
-    AssistChip(
-        onClick = {},
-        label = { Text("${stringResource(R.string.workout_rest_timer_label)} ${formatElapsed(remainingSeconds)}", style = LogEzMono.dataMedium) },
+    Surface(
+        shape = RoundedCornerShape(Radius.pill),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
         modifier = modifier,
-    )
+    ) {
+        Text(
+            "${stringResource(R.string.workout_rest_timer_label)} ${formatElapsed(remainingSeconds)}",
+            style = LogEzMono.dataSmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+        )
+    }
 }
 
 private fun formatElapsed(totalSeconds: Long): String {

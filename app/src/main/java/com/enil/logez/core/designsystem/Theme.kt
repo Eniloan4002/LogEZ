@@ -28,6 +28,18 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Neutral700,
     error = Danger500,
     onError = Neutral950,
+    // The `surfaceContainer*` family -- what NavigationBar, dialogs, dropdown menus and bottom
+    // sheets default their own background to -- was never set here, so it fell through to
+    // Material3's own baseline dark tokens, disconnected from this app's palette (Owner-reported:
+    // the nav bar background looked "off the color palette"). This is the exact bug class
+    // ADR-0002 already found and fixed once for `tertiary`/`secondaryContainer` -- same root
+    // cause (an unset-but-consumed role), a different role this time. Mapped onto the existing
+    // neutral ramp rather than introducing new hex values.
+    surfaceContainerLowest = Neutral950,
+    surfaceContainerLow = Neutral950,
+    surfaceContainer = Neutral900,
+    surfaceContainerHigh = Neutral800,
+    surfaceContainerHighest = Neutral800,
 )
 
 /** Dark-only (Owner directive) — applies the design-system color scheme + typography. All screens must be composed under this. */

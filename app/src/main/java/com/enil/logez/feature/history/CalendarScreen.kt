@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -96,7 +97,10 @@ fun CalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.displayedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))) },
+                // Owner: the header should read "CALENDAR", not the month -- the month name
+                // already lives in the stepper row below (uiState.displayedMonth + Chevron
+                // controls), so the header would otherwise just duplicate it.
+                title = { ScreenTitle(stringResource(R.string.calendar_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
