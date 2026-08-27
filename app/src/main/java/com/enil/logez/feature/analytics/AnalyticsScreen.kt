@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +54,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.neonGlow
 import com.enil.logez.core.domain.calc.ChartRange
@@ -91,26 +91,7 @@ fun AnalyticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.analytics_title).uppercase(Locale.getDefault()),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.06.em,
-                            // Text stays onSurface (white) — matching Workout/History/Profile's
-                            // plain title color, Owner-reported as mismatched when this was green.
-                            // The glow (a *text* shadow, not `neonGlow`'s box bloom, which would
-                            // halo transparent text's bounding box rather than its letterforms)
-                            // stays: a green glow on white text is fine for a screen TITLE, just
-                            // not for the text's own color.
-                            shadow = Shadow(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                                blurRadius = 18f,
-                            ),
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                },
+                title = { ScreenTitle(stringResource(R.string.analytics_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

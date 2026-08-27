@@ -42,6 +42,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.RefreshOnResume
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 
@@ -71,7 +72,7 @@ fun ProfileScreen(
     RefreshOnResume(viewModel::refresh)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_profile)) }) },
+        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_profile)) }) },
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             navItems(

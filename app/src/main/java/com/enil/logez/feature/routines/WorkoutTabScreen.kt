@@ -25,7 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +57,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.neonGlow
 import com.enil.logez.feature.workout.StartResult
@@ -120,7 +121,7 @@ fun WorkoutTabScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.workout_tab_title)) },
+                title = { ScreenTitle(stringResource(R.string.workout_tab_title)) },
                 actions = {
                     IconButton(onClick = { showCreateFolder = true }) {
                         Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.workout_new_folder))
@@ -139,9 +140,11 @@ fun WorkoutTabScreen(
             // workout, tap to resume" (§5.1.3), which is why no resume banner belongs here.
             Surface(color = MaterialTheme.colorScheme.surface) {
                 // One shape for the button and its bloom: neonGlow paints a shadow silhouette, and
-                // an unmatched silhouette bleeds past the pill's rounded ends.
+                // an unmatched silhouette bleeds past the pill's rounded ends. Plain Button, not
+                // FilledTonalButton -- Owner: the CTA's own fill should be the vibrant primary
+                // green, not FilledTonalButton's muted secondaryContainer default.
                 val ctaShape = RoundedCornerShape(Radius.pill)
-                FilledTonalButton(
+                Button(
                     onClick = { startEmpty() },
                     shape = ctaShape,
                     modifier = Modifier

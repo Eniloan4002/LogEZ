@@ -23,6 +23,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.em
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
@@ -30,6 +31,7 @@ import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import java.time.Instant
 import java.time.LocalDate
@@ -56,7 +58,7 @@ fun HistoryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_history)) }) },
+        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_history)) }) },
     ) { padding ->
         if (uiState.isLoading) return@Scaffold
 
@@ -89,10 +91,12 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                 // hands the first one the whole width, so a long title (routine names feed straight
                 // into this field, unbounded) squeezed the Records chip to zero and a workout that
                 // set a PR showed no chip at all — while its Detail screen still showed the trophy.
+                // Owner: wide and bold, matching the mockup's display-face treatment ("BENCH
+                // PRESS") — the one piece of card text that keeps its own identity rather than
+                // turning plain white like the metrics/exercise lines below it.
                 Text(
                     card.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.02.em),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -118,6 +122,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                         Text(
                             "${line.setCount} × ${line.name}",
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                     val remaining = card.exerciseSummaries.size - 3
@@ -125,7 +130,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                         Text(
                             pluralStringResource(R.plurals.history_card_more_exercises, remaining, remaining),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(top = Spacing.xxs),
                         )
                     }
@@ -151,8 +156,8 @@ private fun RecordsChip() {
 @Composable
 private fun StatCell(label: String, value: String) {
     Column {
-        Text(value, style = LogEzMono.dataMedium)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = LogEzMono.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
