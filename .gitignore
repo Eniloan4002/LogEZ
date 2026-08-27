@@ -13,6 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+/docs
 
 # Module build outputs (root /build above only covers the root)
 **/build/
