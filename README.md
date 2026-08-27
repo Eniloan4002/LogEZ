@@ -1,0 +1,2 @@
+# LogEZ
+Fitness Logging App
