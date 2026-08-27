@@ -45,6 +45,7 @@ import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.analytics.MonthlyReportViewModel.ComparisonMetric
 import com.enil.logez.feature.exercises.SummaryFormatters
@@ -75,7 +76,7 @@ fun MonthlyReportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.analytics_monthly_report_title)) },
+                title = { ScreenTitle(stringResource(R.string.analytics_monthly_report_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))

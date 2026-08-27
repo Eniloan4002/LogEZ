@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -174,7 +175,7 @@ private fun ExerciseRow(
                         Icon(
                             imageVector = muscleGroupIcon(exercise.primaryMuscleGroup),
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -231,6 +232,10 @@ private fun EquipmentFilterChip(selected: Equipment?, onSelect: (Equipment?) -> 
             selected = selected != null,
             onClick = { expanded = true },
             label = { Text(selected?.let { equipmentLabel(it) } ?: stringResource(R.string.exercise_library_filter_equipment)) },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            ),
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.exercise_library_filter_all)) }, onClick = { expanded = false; onSelect(null) })
@@ -249,6 +254,10 @@ private fun MuscleFilterChip(selected: MuscleGroup?, onSelect: (MuscleGroup?) ->
             selected = selected != null,
             onClick = { expanded = true },
             label = { Text(selected?.let { muscleGroupLabel(it) } ?: stringResource(R.string.exercise_library_filter_muscle)) },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            ),
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.exercise_library_filter_all)) }, onClick = { expanded = false; onSelect(null) })

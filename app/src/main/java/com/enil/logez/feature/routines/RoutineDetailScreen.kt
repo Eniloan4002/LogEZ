@@ -87,11 +87,16 @@ fun RoutineDetailScreen(
                 items(items = uiState.exercises, key = { it.routineExercise.id }) { row ->
                     LogEzCard(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
-                            Text(row.exercise?.name.orEmpty(), style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                row.exercise?.name.orEmpty(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                             row.sets.forEachIndexed { index, set ->
                                 Text(
                                     formatDetailSetTargets(index + 1, set),
                                     style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(top = Spacing.xxs),
                                 )
                             }

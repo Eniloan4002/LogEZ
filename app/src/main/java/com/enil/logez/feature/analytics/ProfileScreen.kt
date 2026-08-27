@@ -45,6 +45,7 @@ import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
+import java.util.Locale
 
 /**
  * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats (lifetime Workouts + Streak,
@@ -129,17 +130,22 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
-                        stringResource(R.string.profile_last7_title),
+                        stringResource(R.string.profile_last7_title).uppercase(Locale.getDefault()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     if (uiState.last7Count == 0) {
                         // §5.2 region 2: the strip hides behind an honest hint when the window is empty.
-                        Text(stringResource(R.string.profile_last7_empty), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.profile_last7_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
                     } else {
                         Text(
                             pluralStringResource(R.plurals.profile_last7_count, uiState.last7Count, uiState.last7Count),
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         BodyDiagram(intensity = uiState.last7Heat)
                     }
@@ -152,7 +158,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
-                        stringResource(R.string.profile_quick_charts_title),
+                        stringResource(R.string.profile_quick_charts_title).uppercase(Locale.getDefault()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -166,7 +172,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
                             modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(metric) },
                             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
-                            Text(trainingMetricLabel(metric), style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                trainingMetricLabel(metric),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                             if (bars.isEmpty()) {
                                 Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
                             } else {
