@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -90,7 +92,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                 // Weighted and clipped to one line: a Row measures unweighted children in order and
                 // hands the first one the whole width, so a long title (routine names feed straight
                 // into this field, unbounded) squeezed the Records chip to zero and a workout that
-                // set a PR showed no chip at all — while its Detail screen still showed the trophy.
+                // set a PR showed no chip at all.
                 // Owner: wide and bold, matching the mockup's display-face treatment ("BENCH
                 // PRESS") — the one piece of card text that keeps its own identity rather than
                 // turning plain white like the metrics/exercise lines below it.
@@ -144,7 +146,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
 private fun RecordsChip() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            LogEzIcons.PersonalRecord,
+            Icons.Filled.EmojiEvents,
             contentDescription = stringResource(R.string.history_card_records_chip),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(end = Spacing.xxs),
@@ -161,11 +163,11 @@ private fun StatCell(label: String, value: String) {
     }
 }
 
-/** "Today, 14:32" / "Yesterday, 14:32" / "12 Aug, 14:32" / "12 Aug 2025, 14:32" once the year rolls over. */
+/** "Today, 2:32 PM" / "Yesterday, 2:32 PM" / "12 Aug, 2:32 PM" / "12 Aug 2025, 2:32 PM" once the year rolls over. */
 internal fun formatCardDateTime(millis: Long, today: LocalDate = LocalDate.now(ZoneId.systemDefault())): String {
     val zoned = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
     val date = zoned.toLocalDate()
-    val time = zoned.format(DateTimeFormatter.ofPattern("HH:mm"))
+    val time = zoned.format(DateTimeFormatter.ofPattern("h:mm a"))
     val dayPart = when {
         date == today -> "Today"
         date == today.minusDays(1) -> "Yesterday"

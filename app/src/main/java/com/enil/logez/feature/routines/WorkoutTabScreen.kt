@@ -59,7 +59,6 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
-import com.enil.logez.core.designsystem.neonGlow
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
@@ -139,20 +138,15 @@ fun WorkoutTabScreen(
             // top of them rather than over them — and the mini-bar still owns "in-progress
             // workout, tap to resume" (§5.1.3), which is why no resume banner belongs here.
             Surface(color = MaterialTheme.colorScheme.surface) {
-                // One shape for the button and its bloom: neonGlow paints a shadow silhouette, and
-                // an unmatched silhouette bleeds past the pill's rounded ends. Plain Button, not
-                // FilledTonalButton -- Owner: the CTA's own fill should be the vibrant primary
-                // green, not FilledTonalButton's muted secondaryContainer default.
+                // Plain Button, not FilledTonalButton -- Owner: the CTA's own fill should be the
+                // vibrant primary green, not FilledTonalButton's muted secondaryContainer default.
                 val ctaShape = RoundedCornerShape(Radius.pill)
                 Button(
                     onClick = { startEmpty() },
                     shape = ctaShape,
                     modifier = Modifier
                         .fillMaxWidth()
-                        // padding before neonGlow, so the bloom is measured against the button's
-                        // own bounds and has room to fall off inside the bar.
-                        .padding(Spacing.md)
-                        .neonGlow(MaterialTheme.colorScheme.primary, shape = ctaShape),
+                        .padding(Spacing.md),
                 ) {
                     Text(stringResource(R.string.workout_start_empty))
                 }

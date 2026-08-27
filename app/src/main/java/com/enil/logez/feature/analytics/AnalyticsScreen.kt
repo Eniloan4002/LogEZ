@@ -56,7 +56,6 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
-import com.enil.logez.core.designsystem.neonGlow
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
@@ -153,8 +152,6 @@ private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val primary = MaterialTheme.colorScheme.primary
     Box(
         modifier = Modifier
-            // neonGlow is a shadow — it has to precede the fill, or the fill covers the bloom.
-            .let { if (selected) it.neonGlow(primary, radius = 10.dp, shape = shape, alpha = 0.5f) else it }
             .clip(shape)
             .background(if (selected) primary else Color.Transparent)
             .let { if (selected) it else it.border(1.dp, MaterialTheme.colorScheme.outline, shape) }

@@ -24,6 +24,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +54,7 @@ import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
@@ -93,7 +95,7 @@ fun ExerciseDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.exercise?.name.orEmpty()) },
+                title = { ScreenTitle(uiState.exercise?.name.orEmpty()) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -222,6 +224,10 @@ private fun SummaryTab(
                         selected = summary.selectedRange == range,
                         onClick = { onRangeSelected(range) },
                         label = { Text(stringResource(range.labelRes())) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                     )
                 }
             }
@@ -271,6 +277,10 @@ private fun SummaryTab(
                         selected = summary.selectedMetric == metric,
                         onClick = { onMetricSelected(metric) },
                         label = { Text(stringResource(metric.labelRes())) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                     )
                 }
             }
@@ -386,11 +396,16 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
             // the card, so a content-hugging card would end the accent in a seam mid-row.
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
-                    Text(session.workoutTitle, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        session.workoutTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                     session.sets.forEach { set ->
                         Text(
                             formatHistorySet(set),
                             style = LogEzMono.dataMedium,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = Spacing.xxs),
                         )
                     }

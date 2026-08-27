@@ -10,12 +10,12 @@ import androidx.compose.ui.unit.dp
 
 /**
  * M9b (Neon Lab, docs/adr/0003-neon-lab-rebrand.md) — custom lab-signage-styled line icons for the
- * app's domain-meaningful moments (nav tabs, personal records), replacing default Material icons.
- * Deliberately scoped: universal UI chrome (back arrows, close, check, chevrons, search, ...) stays
- * default Material — those are conventions users already read instantly, and redesigning them buys
- * no brand payoff. [PersonalRecord] ports the hazard-triangle glyph from the approved design-canvas
- * mockup verbatim. Per-[com.enil.logez.core.domain.model.MuscleGroup] illustrations remain the
- * separate, already-deferred §7.5 placeholder ([muscleGroupIcon]) -- not touched here.
+ * app's nav tabs, replacing default Material icons. Deliberately scoped: universal UI chrome
+ * (back arrows, close, check, chevrons, search, ...) stays default Material — those are
+ * conventions users already read instantly, and redesigning them buys no brand payoff. Personal
+ * records use the default Material trophy (`Icons.Filled.EmojiEvents`), not a custom glyph.
+ * Per-[com.enil.logez.core.domain.model.MuscleGroup] illustrations remain the separate,
+ * already-deferred §7.5 placeholder ([muscleGroupIcon]) -- not touched here.
  *
  * `Icon(imageVector = ..., tint = ...)` recolors whatever is drawn regardless of the stroke color
  * set below, so these use a plain black stroke -- what matters is that each path is drawn as a
@@ -79,22 +79,6 @@ object LogEzIcons {
             path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
                 // shoulders
                 moveTo(7f, 19f); lineTo(9f, 14.5f); lineTo(15f, 14.5f); lineTo(17f, 19f)
-            }
-        }.build()
-    }
-
-    /** Replaces every `Icons.Filled.EmojiEvents` call site (PR badges) -- ports the approved mockup's hazard-triangle glyph verbatim. */
-    val PersonalRecord: ImageVector by lazy {
-        ImageVector.Builder(name = "LogEzPersonalRecord", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineJoin = StrokeJoin.Round) {
-                moveTo(12f, 2f); lineTo(22f, 20f); lineTo(2f, 20f); close()
-            }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round) {
-                moveTo(12f, 9f); lineTo(12f, 14f)
-            }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = 2.2f, strokeLineCap = StrokeCap.Round) {
-                // degenerate line + round cap = a dot
-                moveTo(12f, 17f); lineTo(12f, 17.001f)
             }
         }.build()
     }

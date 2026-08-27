@@ -107,8 +107,6 @@ fun BarChart(
         entries.forEachIndexed { i, entry ->
             val barHeight = (plotHeight * (entry.value / yHigh).toFloat()).coerceAtLeast(0f)
             // An empty bucket has no bar to draw, and a flat drawRect of zero height drew nothing.
-            // Skip it outright now: the bloom below has real extent even at zero height, so an
-            // untrained week would otherwise smear a green blur along the baseline.
             if (barHeight <= 0f) return@forEachIndexed
 
             val isSelected = i == selectedIndex
@@ -116,21 +114,16 @@ fun BarChart(
             val barTopLeft = Offset(barCenterX(i, size.width) - barWidth / 2f, plotHeight - barHeight)
             val barSize = Size(barWidth, barHeight)
 
-            // Bloom first, bar over it. The selected bar blooms roughly twice as hard as the rest:
-            // with blue and amber gone from the palette, "selected" has to read as vibrancy.
-            drawBarGlow(color, barTopLeft, barSize, alpha = if (isSelected) 0.30f else 0.14f)
-
-            // inset() rather than a plain topLeft/size pair: it makes the bar the DrawScope's whole
-            // coordinate space, so glowBarBrush's gradient resolves over THIS bar (brushes resolve
-            // against the scope's size and origin, which would otherwise be the entire canvas —
-            // every bar would sample one canvas-tall ramp instead of fading across its own height).
+            // inset() rather than a plain topLeft/size pair: barPath() is defined in bar-local
+            // coordinates (its RoundRect starts at Offset.Zero), so the DrawScope's origin has to
+            // be translated to this bar's position for the path to land in the right place.
             inset(
                 left = barTopLeft.x,
                 top = barTopLeft.y,
                 right = size.width - barTopLeft.x - barSize.width,
                 bottom = size.height - barTopLeft.y - barSize.height,
             ) {
-                drawPath(barPath(barSize, topRadius, bottomRadius), brush = glowBarBrush(color))
+                drawPath(barPath(barSize, topRadius, bottomRadius), color = color)
             }
         }
 

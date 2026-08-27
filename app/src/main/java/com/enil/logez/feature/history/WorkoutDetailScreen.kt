@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -55,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
-import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
@@ -79,7 +79,6 @@ fun WorkoutDetailScreen(
     onSavedAsRoutine: (routineId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
     onExerciseClick: (exerciseId: String) -> Unit,
-    onRoutineClick: (routineId: String) -> Unit,
     viewModel: WorkoutDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,7 +115,7 @@ fun WorkoutDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.workout?.title.orEmpty()) },
+                title = { Text(uiState.workout?.title.orEmpty(), color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -161,21 +160,11 @@ fun WorkoutDetailScreen(
             item {
                 Column(modifier = Modifier.padding(top = Spacing.md)) {
                     Text(
-                        DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")
+                        DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a")
                             .format(Instant.ofEpochMilli(workout.startedAt).atZone(ZoneId.systemDefault())),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    val routineId = workout.routineId
-                    val routineName = uiState.routineName
-                    if (routineId != null && routineName != null) {
-                        Text(
-                            routineName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = Spacing.xxs).clickable { onRoutineClick(routineId) },
-                        )
-                    }
                     if (!workout.notes.isNullOrBlank()) {
                         Text(workout.notes, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = Spacing.sm))
                     }
@@ -187,7 +176,7 @@ fun WorkoutDetailScreen(
                         DetailStatCell(stringResource(R.string.summary_duration), formatDetailDuration(uiState.durationSeconds))
                         DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg))
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
-                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = LogEzIcons.PersonalRecord)
+                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Filled.EmojiEvents)
                     }
                 }
             }
@@ -259,7 +248,7 @@ private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (Stri
                 Text(
                     exercise?.name.orEmpty(),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier,
                 )
                 if (!block.workoutExercise.notes.isNullOrBlank()) {
@@ -306,7 +295,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
         )
         if (set.pr != null) {
             Icon(
-                LogEzIcons.PersonalRecord,
+                Icons.Filled.EmojiEvents,
                 contentDescription = stringResource(set.pr.prType.labelRes()),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),

@@ -71,7 +71,6 @@ fun LogEzNavHost(
                 onSavedAsRoutine = { routineId -> navController.navigate(RoutineRoutes.builder(routineId = routineId)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
-                onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
             )
         }
         composable(HistoryRoutes.CALENDAR) {
