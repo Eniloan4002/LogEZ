@@ -45,7 +45,7 @@
     <string name="profile_rpe_toggle_title">RPE tracking (testing toggle)</string>
     <string name="profile_rpe_toggle_subtitle">Temporary switch until the real Settings screen ships. Turns the RPE picker on in the workout logger.</string>
     <string name="profile_seed_demo_data_title">Seed demo data (dev tool)</string>
-    <string name="profile_seed_demo_data_subtitle">Adds 12 weeks of sample workouts so the dashboard and stats have something to show. Temporary — remove once a real Settings/dev tools screen exists.</string>
+    <string name="profile_seed_demo_data_subtitle">Adds 2 years of sample workouts so the dashboard and stats have something to show. Temporary — remove once a real Settings/dev tools screen exists.</string>
     <string name="profile_clear_demo_data_title">Clear demo data</string>
     <string name="profile_clear_demo_data_subtitle">Removes only the sample workouts added above — never your real logged history.</string>
     <string name="profile_nav_statistics">Statistics</string>

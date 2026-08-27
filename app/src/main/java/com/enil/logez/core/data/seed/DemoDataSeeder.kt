@@ -19,23 +19,23 @@ import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /**
- * Temporary dev/demo tool (Owner request 2026-08-26) — populates 12 weeks of realistic COMPLETED
- * workout history against real seeded exercises, so the Analytics dashboard, Statistics, the
- * Workout-tab heatmap, and Goals progress all have real content to show rather than an empty
- * install. Not wired into app-start seeding anywhere; only the temporary "Seed Demo Data" row on
- * the Profile tab calls [seed]. Every generated workout's `notes` field is tagged [DEMO_MARKER] so
- * [clear] can find and remove exactly what this seeded — via the same [WorkoutDeleter] a real
- * "Delete Workout" uses, so PRs get rebuilt correctly on clear too — and never touch a real logged
- * workout, which would never carry that marker.
+ * Temporary dev/demo tool (Owner request 2026-08-26, extended to 2 years 2026-08-27) — populates
+ * 2 years of realistic COMPLETED workout history against real seeded exercises, so the Analytics
+ * dashboard, Statistics, the Workout-tab heatmap, and Goals progress all have real content to show
+ * rather than an empty install. Not wired into app-start seeding anywhere; only the temporary "Seed
+ * Demo Data" row on the Profile tab calls [seed]. Every generated workout's `notes` field is
+ * tagged [DEMO_MARKER] so [clear] can find and remove exactly what this seeded — via the same
+ * [WorkoutDeleter] a real "Delete Workout" uses, so PRs get rebuilt correctly on clear too — and
+ * never touch a real logged workout, which would never carry that marker.
  *
  * Session scheduling follows a real periodization shape (Owner request 2026-08-26, "slight noise
  * ... as if the user is periodizing") rather than a flat N-times-a-week grid: a 4-week mesocycle of
  * 3 build weeks (3-5 sessions, ramping) followed by 1 deload week (1-2 sessions), repeated across
- * the 12 weeks, with each week's session days drawn at random rather than fixed to e.g. Mon/Wed/Fri
- * — a perfectly uniform grid is exactly what would read as fake on the heatmap. [SEED] is fixed so
- * the "randomness" is still deterministic and testable, not [kotlin.random.Random]'s default
- * source (which this codebase avoids in production logic for the same reason it avoids
- * `Clock.System`/`Date()` — see `Clock` in `core/common`).
+ * the full span, with each week's session days drawn at random rather than fixed to e.g.
+ * Mon/Wed/Fri — a perfectly uniform grid is exactly what would read as fake on the heatmap.
+ * [SEED] is fixed so the "randomness" is still deterministic and testable, not
+ * [kotlin.random.Random]'s default source (which this codebase avoids in production logic for the
+ * same reason it avoids `Clock.System`/`Date()` — see `Clock` in `core/common`).
  */
 @Singleton
 class DemoDataSeeder @Inject constructor(
@@ -174,9 +174,9 @@ class DemoDataSeeder @Inject constructor(
         const val DEMO_MARKER = "__logEZ_demo_seed__"
         private const val DEMO_TITLE = "Workout"
         private const val SEED = 20_260_826L
-        private const val WEEKS = 12
+        private const val WEEKS = 104 // 2 years
         private const val SETS_PER_EXERCISE = 4
-        private const val ESTIMATED_TOTAL_SESSIONS = 41.0 // ~(3 build weeks avg 4 + 1 deload avg 1.5) x 3 cycles -- only used to shape the progression trend, not asserted on
+        private const val ESTIMATED_TOTAL_SESSIONS = 351.0 // ~(3 build weeks avg 4 + 1 deload avg 1.5) x 26 cycles -- only used to shape the progression trend, not asserted on
         private const val HOUR_MILLIS = 60 * 60 * 1_000L
         private const val DAY_MILLIS = 24 * HOUR_MILLIS
         private const val MORNING_OFFSET_MILLIS = 15 * HOUR_MILLIS // "today minus N days" lands ~9am before jitter

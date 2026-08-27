@@ -71,8 +71,9 @@ class DemoDataSeederTest {
         seeder.seed()
 
         val created = workoutRepo.getCompletedWorkouts()
-        // 12 weeks x 1-5 sessions/week (3 build weeks ramping 3-5, 1 deload week 1-2, per 4-week cycle).
-        assertTrue("expected 12..60 sessions, got ${created.size}", created.size in 12..60)
+        // 104 weeks (2 years) x 1-5 sessions/week (3 build weeks ramping 3-5, 1 deload week 1-2,
+        // per 4-week cycle) -- 26 cycles x 10..17 sessions/cycle.
+        assertTrue("expected 260..442 sessions, got ${created.size}", created.size in 260..442)
         assertTrue(created.all { it.notes == DemoDataSeeder.DEMO_MARKER })
         assertTrue(created.all { it.status == WorkoutStatus.COMPLETED })
     }
