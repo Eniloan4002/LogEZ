@@ -97,15 +97,18 @@ fun AnalyticsScreen(
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.06.em,
-                            // A *text* glow, not a box glow: `neonGlow` blooms an element's shape,
-                            // which around transparent text would halo the title's bounding box
-                            // instead of the letterforms. `Shadow` is the mockup's `text-shadow`.
+                            // Text stays onSurface (white) — matching Workout/History/Profile's
+                            // plain title color, Owner-reported as mismatched when this was green.
+                            // The glow (a *text* shadow, not `neonGlow`'s box bloom, which would
+                            // halo transparent text's bounding box rather than its letterforms)
+                            // stays: a green glow on white text is fine for a screen TITLE, just
+                            // not for the text's own color.
                             shadow = Shadow(
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
                                 blurRadius = 18f,
                             ),
                         ),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 },
                 navigationIcon = {

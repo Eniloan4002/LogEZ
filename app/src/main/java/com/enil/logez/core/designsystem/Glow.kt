@@ -2,7 +2,6 @@ package com.enil.logez.core.designsystem
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -13,15 +12,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * The mockup's glow language, finally in code (v4.0). The approved design-canvas mockup leaned on
- * CSS `box-shadow`/`text-shadow` bloom around the neon accent — none of which survived into the
- * first implementation passes, which is why the shipped app reads flatter than the mockup did.
+ * The mockup's glow language, in code (v4.0). Scoped narrowly on Owner feedback (2026-08-27): a
+ * card top-edge accent was tried and rejected as "ugly" and removed outright — glow is for
+ * *titles and dashboards*, not ambient decoration on every card. What remains: [neonGlow] (a
+ * colored bloom around a filled element — CTAs, active chips) and the chart-bar helpers
+ * ([glowBarBrush], [drawBarGlow]) used by dashboard graphs specifically.
  *
- * Compose has no true blur-shadow primitive below API 31, so these approximate it two ways:
- * [neonGlow] uses a colored elevation shadow ([Modifier.shadow]'s `spotColor`/`ambientColor`,
- * honored from API 28) and [glowFalloff] paints an explicit gradient bloom, which works on every
- * supported API. minSdk here is 26, so on 26-27 [neonGlow] degrades to an ordinary dark shadow —
- * a slightly flatter look, never a broken one.
+ * Compose has no true blur-shadow primitive below API 31; [neonGlow] approximates it via a colored
+ * elevation shadow ([Modifier.shadow]'s `spotColor`/`ambientColor`, honored from API 28) — on
+ * 26-27 (this app's minSdk) it degrades to an ordinary dark shadow, flatter but never broken.
  */
 
 /**
@@ -41,39 +40,6 @@ fun Modifier.neonGlow(
     ambientColor = color.copy(alpha = alpha),
     spotColor = color.copy(alpha = alpha),
 )
-
-/**
- * An explicit vertical gradient bloom fading downward from the top edge — the mockup's card
- * top-edge accent (`linear-gradient(90deg, accent, transparent 70%)` plus the ambient wash that
- * made cards feel lit from above rather than flat). API-independent, unlike [neonGlow].
- */
-fun Modifier.glowFalloff(
-    color: Color,
-    height: Dp = 2.dp,
-    spread: Dp = 28.dp,
-    alpha: Float = 0.5f,
-): Modifier = this.drawBehind {
-    val lineH = height.toPx()
-    val spreadPx = spread.toPx()
-    // Soft wash under the top edge, strongest at the edge itself.
-    drawRect(
-        brush = Brush.verticalGradient(
-            colors = listOf(color.copy(alpha = alpha * 0.35f), Color.Transparent),
-            startY = 0f,
-            endY = spreadPx,
-        ),
-        size = Size(size.width, spreadPx.coerceAtMost(size.height)),
-    )
-    // The bright edge itself, fading out along its length like the mockup's accent bar.
-    drawRect(
-        brush = Brush.horizontalGradient(
-            colors = listOf(color.copy(alpha = alpha), Color.Transparent),
-            startX = 0f,
-            endX = size.width * 0.7f,
-        ),
-        size = Size(size.width, lineH),
-    )
-}
 
 /**
  * The mockup's bar fill: a vertical gradient from the solid accent at the top to a translucent
