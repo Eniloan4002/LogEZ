@@ -4,12 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -31,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -52,8 +55,10 @@ import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.HeatmapGrid
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.neonGlow
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
@@ -126,12 +131,42 @@ fun WorkoutTabScreen(
                 },
             )
         },
+        bottomBar = {
+            // v4.0: Start Empty Workout is the tab's primary action, so it stays put instead of
+            // scrolling away with the routines. LogEzApp's Scaffold already insets this whole
+            // NavHost above the WorkoutMiniBar and the bottom NavigationBar, so this bar docks on
+            // top of them rather than over them — and the mini-bar still owns "in-progress
+            // workout, tap to resume" (§5.1.3), which is why no resume banner belongs here.
+            Surface(color = MaterialTheme.colorScheme.surface) {
+                // One shape for the button and its bloom: neonGlow paints a shadow silhouette, and
+                // an unmatched silhouette bleeds past the pill's rounded ends.
+                val ctaShape = RoundedCornerShape(Radius.pill)
+                FilledTonalButton(
+                    onClick = { startEmpty() },
+                    shape = ctaShape,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // padding before neonGlow, so the bloom is measured against the button's
+                        // own bounds and has room to fall off inside the bar.
+                        .padding(Spacing.md)
+                        .neonGlow(MaterialTheme.colorScheme.primary, shape = ctaShape),
+                ) {
+                    Text(stringResource(R.string.workout_start_empty))
+                }
+            }
+        },
     ) { padding ->
-        // One scrollable list for the whole tab (Owner feedback: the heatmap/Goals/Start button
-        // used to be a fixed, non-scrolling header sitting outside the folder/routine LazyColumn
-        // — scrolling the routines left them permanently on screen, eating vertical space). Now
-        // every section is a LazyColumn item, so the whole tab scrolls as one.
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // One scrollable list for the whole tab (Owner feedback: the heatmap/Goals used to be a
+        // fixed, non-scrolling header sitting outside the folder/routine LazyColumn — scrolling
+        // the routines left them permanently on screen, eating vertical space). Every section is
+        // a LazyColumn item, so the tab scrolls as one; the Start button is the one deliberate
+        // exception, pinned in bottomBar above.
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
+            // The pinned bar's height rides in contentPadding rather than the modifier, so the
+            // last routine card can scroll clear of it instead of sitting behind it forever.
+            contentPadding = PaddingValues(bottom = padding.calculateBottomPadding()),
+        ) {
             item {
                 // M8c: progress heatmap at the very top, before any workout feature — a passive
                 // overview, not something the user acts on, so it never competes with
@@ -160,18 +195,6 @@ fun WorkoutTabScreen(
                     onCreateGoal = goalsViewModel::createGoal,
                     onDeleteGoal = goalsViewModel::deleteGoal,
                 )
-            }
-
-            item {
-                // M4b: the global WorkoutMiniBar (docked above the bottom tab bar on every tab,
-                // §5.1.3) now covers "in-progress workout, tap to resume" — this tab's own banner
-                // would just duplicate it whenever the user is actually on this tab.
-                FilledTonalButton(
-                    onClick = { startEmpty() },
-                    modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-                ) {
-                    Text(stringResource(R.string.workout_start_empty))
-                }
             }
 
             if (uiState.isLoading) return@LazyColumn

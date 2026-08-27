@@ -382,7 +382,9 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
         items(items = sessions, key = { it.workoutId }) { session ->
-            LogEzCard(modifier = Modifier.padding(bottom = Spacing.sm)) {
+            // Explicitly full-width, like every other card in the app: v4.0's top-edge accent spans
+            // the card, so a content-hugging card would end the accent in a seam mid-row.
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
                     Text(session.workoutTitle, style = MaterialTheme.typography.titleSmall)
                     session.sets.forEach { set ->

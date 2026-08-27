@@ -52,7 +52,9 @@ fun GoalsSection(
     var deletingGoalId by remember { mutableStateOf<String?>(null) }
 
     LogEzCard(modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-        Column(modifier = Modifier.padding(Spacing.md)) {
+        // Compact pass (Owner): the card's own padding and the per-goal spacing each drop
+        // one step on the Spacing scale (md -> sm, sm -> xs) so the card eats less height.
+        Column(modifier = Modifier.padding(Spacing.sm)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.goal_section_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 IconButton(onClick = { showAddDialog = true }) {
@@ -65,7 +67,7 @@ fun GoalsSection(
                         stringResource(R.string.goal_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = Spacing.xs),
+                        modifier = Modifier.padding(top = Spacing.xxs),
                     )
                 } else {
                     uiState.goals.forEach { row ->
@@ -73,7 +75,7 @@ fun GoalsSection(
                             row = row,
                             weightUnit = uiState.weightUnit,
                             onDelete = { deletingGoalId = row.goal.id },
-                            modifier = Modifier.padding(top = Spacing.sm),
+                            modifier = Modifier.padding(top = Spacing.xs),
                         )
                     }
                 }
@@ -115,7 +117,14 @@ private fun GoalItem(row: GoalRow, weightUnit: WeightUnit, onDelete: () -> Unit,
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_delete))
             }
         }
-        LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxs))
+        // Material3 draws a trailing "stop indicator" dot at the end of the track by default;
+        // an empty draw lambda is the supported way to suppress it (Owner: the dot reads as a
+        // stray artifact next to the mono readout).
+        LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxs),
+            drawStopIndicator = {},
+        )
         Text(
             goalProgressText(row.goal.metric, progress.current, progress.target, weightUnit),
             style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),

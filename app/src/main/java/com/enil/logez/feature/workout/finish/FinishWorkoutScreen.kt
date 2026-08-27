@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,17 +35,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import java.time.Instant
 import java.time.ZoneId
@@ -138,17 +138,20 @@ fun FinishWorkoutScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
             )
 
-            // Date & duration are freely editable — this is what makes backdated manual logging
-            // work (§5.1.8: "fully editable, enabling backdated manual logging").
+            // The date stays freely editable — that is what makes backdated manual logging work
+            // (§5.1.8: "fully editable, enabling backdated manual logging"). Duration does not:
+            // it reports how long the session actually ran, frozen into the workout row by
+            // WorkoutLoggerViewModel.prepareForFinish() before this screen opened.
             LabeledRow(
                 label = stringResource(R.string.finish_date_time_label),
                 value = formatDateTime(uiState.startedAtMillis),
                 onClick = { showDatePicker = true },
             )
             HorizontalDivider()
-            DurationRow(
-                seconds = uiState.durationSeconds,
-                onChange = viewModel::updateDuration,
+            LabeledRow(
+                label = stringResource(R.string.finish_duration_label),
+                value = formatFinishDuration(uiState.durationSeconds),
+                valueStyle = LogEzMono.dataMedium,
             )
 
             if (uiState.isRoutineBased) {
@@ -266,62 +269,37 @@ fun FinishWorkoutScreen(
     }
 }
 
+/**
+ * One label/value line. [onClick] is null for read-only rows, which then take no ripple and offer
+ * no click affordance to accessibility services.
+ */
 @Composable
-private fun LabeledRow(label: String, value: String, onClick: () -> Unit) {
+private fun LabeledRow(
+    label: String,
+    value: String,
+    valueStyle: TextStyle = LocalTextStyle.current,
+    onClick: (() -> Unit)? = null,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.md),
+        modifier = Modifier.fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, modifier = Modifier.weight(1f))
-        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = valueStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 /**
- * Free-form duration entry in minutes (§5.1.8: "Duration edits are free-form... don't retro-tick
- * timers").
- *
- * Input is constrained to digits and a length cap rather than validated after the fact: an
- * unparseable string used to leave the field showing one thing while the save wrote another, and
- * `minutes * 60` in Int arithmetic wrapped a large entry into a plausible small duration.
+ * Minutes are zero-padded past the hour mark ("1h 04m") so the mono readout keeps a stable width.
+ * Named apart from WorkoutSummaryScreen's own formatter — same package, different file.
  */
-@Composable
-private fun DurationRow(seconds: Int, onChange: (Int) -> Unit) {
-    // Seeded once, deliberately un-keyed. This row is only composed after the workout has loaded
-    // and the user is the sole writer from then on, so keying on `seconds` would let our own
-    // onChange reset the text mid-edit: clearing the field snapped it back to "0" and the next
-    // digits typed landed in front of that zero.
-    var text by rememberSaveable { mutableStateOf((seconds / 60).toString()) }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(R.string.finish_duration_label), modifier = Modifier.weight(1f))
-        OutlinedTextField(
-            value = text,
-            onValueChange = { new ->
-                val digits = new.filter { it.isDigit() }.take(MAX_DURATION_DIGITS)
-                text = digits
-                // An emptied field reads as zero rather than holding the previous value, so what
-                // the row shows and what a Save would write can never disagree.
-                val minutes = digits.toLongOrNull() ?: 0L
-                // Only re-derive seconds when the minute figure actually changed, so merely
-                // tapping into the field doesn't truncate a 45:37 session down to 45:00.
-                if (minutes != seconds / 60L) {
-                    onChange((minutes * 60).coerceIn(0L, MAX_DURATION_SECONDS).toInt())
-                }
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            suffix = { Text("min") },
-            modifier = Modifier.weight(1f),
-        )
-    }
+private fun formatFinishDuration(totalSeconds: Int): String {
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    return if (h > 0) "%dh %02dm".format(h, m) else "%dm".format(m)
 }
-
-/** Five digits — 99 999 minutes, ~69 days — is past any real session and well inside Int seconds. */
-private const val MAX_DURATION_DIGITS = 5
-private const val MAX_DURATION_SECONDS = 99_999L * 60L
 
 /**
  * The UTC-midnight value Material3's DatePicker expects, for whichever local day [millis] falls on.

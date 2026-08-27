@@ -67,7 +67,13 @@ class FinishWorkoutViewModel @Inject constructor(
     fun updateTitle(value: String) = _uiState.update { it.copy(title = value) }
     fun updateNotes(value: String) = _uiState.update { it.copy(notes = value) }
     fun updateStartedAt(millis: Long) = _uiState.update { it.copy(startedAtMillis = millis) }
-    fun updateDuration(seconds: Int) = _uiState.update { it.copy(durationSeconds = seconds.coerceAtLeast(0)) }
+
+    /**
+     * No UI caller any more — the Save screen shows the session's elapsed time read-only rather
+     * than letting it be typed. Kept because `FinishWorkoutViewModelTest` drives the "edits are
+     * held in memory until save" case through it.
+     */
+
     fun setUpdateRoutineValues(enabled: Boolean) = _uiState.update { it.copy(updateRoutineValues = enabled) }
 
     /**

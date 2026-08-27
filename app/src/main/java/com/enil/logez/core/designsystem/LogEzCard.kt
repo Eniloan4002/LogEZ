@@ -1,7 +1,9 @@
 package com.enil.logez.core.designsystem
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,8 +31,9 @@ fun LogEzCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = Elevation.card),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        content = content,
-    )
+    ) {
+        TopEdgeAccent(content)
+    }
 }
 
 @Composable
@@ -46,6 +49,29 @@ fun LogEzCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = Elevation.card),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        TopEdgeAccent(content)
+    }
+}
+
+/**
+ * v4.0's card top-edge accent: a bright primary edge fading out to the right over a soft wash.
+ *
+ * It has to live in the content slot, not on the card's own `modifier` — a `drawBehind` there
+ * paints under the card's opaque surface (invisible), and it is Surface's clip that makes the
+ * accent follow the rounded corners. A bare wrapper Column adds no padding and no offset, so
+ * content keeps its position and the card keeps its shape, border and elevation.
+ *
+ * `fillMaxWidth` is load-bearing rather than cosmetic: without it the wrapper measures to its
+ * widest child, and the wash — which spans its whole width — would end in a hard vertical seam
+ * partway across cards whose content does not fill them.
+ */
+@Composable
+private fun TopEdgeAccent(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glowFalloff(MaterialTheme.colorScheme.primary),
         content = content,
     )
 }

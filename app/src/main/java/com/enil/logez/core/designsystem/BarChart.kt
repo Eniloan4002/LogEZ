@@ -7,8 +7,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -84,7 +89,10 @@ fun BarChart(
         val plotHeight = size.height - bottomPadding
         val plotWidth = size.width - leftPadding
         val slot = plotWidth / entries.size
-        val barWidth = (slot * 0.65f).coerceAtMost(48.dp.toPx())
+        // Clamped at zero because inset() below rejects a negative-size region: a canvas narrower
+        // than its own y-axis labels makes plotWidth (and so slot) negative, which the old flat
+        // drawRect absorbed silently by drawing nothing.
+        val barWidth = (slot * 0.65f).coerceAtMost(48.dp.toPx()).coerceAtLeast(0f)
 
         gridLines.forEach { (value, label) ->
             val y = plotHeight * (1f - (value / yHigh).toFloat())
@@ -93,13 +101,37 @@ fun BarChart(
             drawText(layout, topLeft = Offset(0f, (y - layout.size.height / 2f).coerceIn(0f, plotHeight - layout.size.height)))
         }
 
+        val topRadius = CornerRadius(4.dp.toPx())
+        val bottomRadius = CornerRadius(2.dp.toPx())
+
         entries.forEachIndexed { i, entry ->
             val barHeight = (plotHeight * (entry.value / yHigh).toFloat()).coerceAtLeast(0f)
-            drawRect(
-                color = if (i == selectedIndex) selectedColor else barColor,
-                topLeft = Offset(barCenterX(i, size.width) - barWidth / 2f, plotHeight - barHeight),
-                size = Size(barWidth, barHeight),
-            )
+            // An empty bucket has no bar to draw, and a flat drawRect of zero height drew nothing.
+            // Skip it outright now: the bloom below has real extent even at zero height, so an
+            // untrained week would otherwise smear a green blur along the baseline.
+            if (barHeight <= 0f) return@forEachIndexed
+
+            val isSelected = i == selectedIndex
+            val color = if (isSelected) selectedColor else barColor
+            val barTopLeft = Offset(barCenterX(i, size.width) - barWidth / 2f, plotHeight - barHeight)
+            val barSize = Size(barWidth, barHeight)
+
+            // Bloom first, bar over it. The selected bar blooms roughly twice as hard as the rest:
+            // with blue and amber gone from the palette, "selected" has to read as vibrancy.
+            drawBarGlow(color, barTopLeft, barSize, alpha = if (isSelected) 0.30f else 0.14f)
+
+            // inset() rather than a plain topLeft/size pair: it makes the bar the DrawScope's whole
+            // coordinate space, so glowBarBrush's gradient resolves over THIS bar (brushes resolve
+            // against the scope's size and origin, which would otherwise be the entire canvas —
+            // every bar would sample one canvas-tall ramp instead of fading across its own height).
+            inset(
+                left = barTopLeft.x,
+                top = barTopLeft.y,
+                right = size.width - barTopLeft.x - barSize.width,
+                bottom = size.height - barTopLeft.y - barSize.height,
+            ) {
+                drawPath(barPath(barSize, topRadius, bottomRadius), brush = glowBarBrush(color))
+            }
         }
 
         val firstLabel = textMeasurer.measure(entries.first().label, labelStyle)
@@ -110,3 +142,21 @@ fun BarChart(
         }
     }
 }
+
+/**
+ * A bar's silhouette in bar-local coordinates. The mockup's corners are asymmetric — rounded at the
+ * lit top cap, near-square at the baseline so the bar still sits flush on the axis — and drawRoundRect
+ * rounds all four equally, so the shape goes through an explicit [RoundRect] path instead.
+ */
+private fun barPath(size: Size, topRadius: CornerRadius, bottomRadius: CornerRadius): Path =
+    Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = Rect(Offset.Zero, size),
+                topLeft = topRadius,
+                topRight = topRadius,
+                bottomRight = bottomRadius,
+                bottomLeft = bottomRadius,
+            ),
+        )
+    }

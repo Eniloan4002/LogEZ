@@ -1,6 +1,7 @@
 package com.enil.logez.feature.analytics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,10 +34,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
@@ -48,8 +53,10 @@ import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.neonGlow
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
@@ -84,7 +91,23 @@ fun AnalyticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.analytics_title)) },
+                title = {
+                    Text(
+                        stringResource(R.string.analytics_title).uppercase(Locale.getDefault()),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.06.em,
+                            // A *text* glow, not a box glow: `neonGlow` blooms an element's shape,
+                            // which around transparent text would halo the title's bounding box
+                            // instead of the letterforms. `Shadow` is the mockup's `text-shadow`.
+                            shadow = Shadow(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                blurRadius = 18f,
+                            ),
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -125,12 +148,90 @@ fun AnalyticsScreen(
 internal fun RangeChips(selected: ChartRange, onSelect: (ChartRange) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         ChartRange.entries.forEach { range ->
-            FilterChip(
-                selected = range == selected,
-                onClick = { onSelect(range) },
-                label = { Text(rangeLabel(range)) },
-            )
+            RangeChip(rangeLabel(range), selected = range == selected, onClick = { onSelect(range) })
         }
+    }
+}
+
+/**
+ * v4.0 chip vocabulary. Material3's `FilterChip` is gone from this screen: its container/label
+ * colors, 8dp corner and 32dp height are all baked into `FilterChipDefaults`, so a chip that reads
+ * like the mockup's — pill, mono caps, a *glowing* selected state — is less code hand-rolled than
+ * fought for through overrides.
+ *
+ * Two weights, matching the mockup's own two jobs. [MetricChip] is the loud one (what am I
+ * measuring), [RangeChip] the quiet one (over what window) — so a card never shows two equally
+ * shouting rows of chips stacked on top of each other.
+ */
+@Composable
+private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Radius.pill)
+    val primary = MaterialTheme.colorScheme.primary
+    Box(
+        modifier = Modifier
+            // neonGlow is a shadow — it has to precede the fill, or the fill covers the bloom.
+            .let { if (selected) it.neonGlow(primary, radius = 10.dp, shape = shape, alpha = 0.5f) else it }
+            .clip(shape)
+            .background(if (selected) primary else Color.Transparent)
+            .let { if (selected) it else it.border(1.dp, MaterialTheme.colorScheme.outline, shape) }
+            .clickable(onClick = onClick)
+            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+    ) {
+        Text(
+            label.uppercase(Locale.getDefault()),
+            style = LogEzMono.dataSmall.copy(
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.08.em,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+    }
+}
+
+/** The quiet chip: rounded-rect (not a pill), smaller, selected = a green *tint* rather than a fill. */
+@Composable
+private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Radius.sm)
+    val primary = MaterialTheme.colorScheme.primary
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (selected) primary.copy(alpha = 0.14f) else Color.Transparent)
+            .border(
+                1.dp,
+                if (selected) primary.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant,
+                shape,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+    ) {
+        Text(
+            label.uppercase(Locale.getDefault()),
+            style = LogEzMono.dataSmall.copy(
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                letterSpacing = 0.06.em,
+                color = if (selected) primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+    }
+}
+
+/**
+ * The tapped-bar readout above a chart: a quiet mono caption over the value itself, sized like a
+ * lab display. Split in two so the number can be big without the period label pushing it to wrap.
+ */
+@Composable
+private fun ChartReadout(label: String, value: String) {
+    Column {
+        Text(
+            label.uppercase(Locale.getDefault()),
+            style = LogEzMono.dataSmall.copy(
+                letterSpacing = 0.08.em,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+        Text(value, style = LogEzMono.dataLarge.copy(color = MaterialTheme.colorScheme.tertiary))
     }
 }
 
@@ -142,9 +243,18 @@ internal fun rangeLabel(range: ChartRange): String = when (range) {
     ChartRange.ALL_TIME -> stringResource(R.string.chart_range_all)
 }
 
+/**
+ * v4.0 card headings — display face, all-caps, letter-spaced, like the mockup's stencilled
+ * "TRAINING LOG" plates. Every card on this screen goes through here, so the treatment stays a
+ * single decision rather than six.
+ */
 @Composable
 private fun CardTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(
+        text.uppercase(Locale.getDefault()),
+        style = MaterialTheme.typography.titleMedium.copy(letterSpacing = 0.05.em),
+        color = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 private val weekLabelFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
@@ -209,10 +319,10 @@ private fun TrainingCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewMode
             CardTitle(stringResource(R.string.analytics_training_title))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 items(TrainingMetric.entries) { metric ->
-                    FilterChip(
+                    MetricChip(
+                        label = trainingMetricLabel(metric),
                         selected = metric == card.metric,
                         onClick = { viewModel.selectTrainingMetric(metric) },
-                        label = { Text(trainingMetricLabel(metric)) },
                     )
                 }
             }
@@ -222,10 +332,9 @@ private fun TrainingCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewMode
             } else {
                 card.selectedBar?.let { i ->
                     val bar = card.bars[i]
-                    Text(
-                        stringResource(R.string.analytics_body_week_prefix, weekLabel(bar.weekStart)) +
-                            " — " + AnalyticsFormatters.metricValue(card.metric, bar.value, uiState.weightUnit),
-                        style = LogEzMono.dataMedium.copy(color = MaterialTheme.colorScheme.tertiary),
+                    ChartReadout(
+                        label = stringResource(R.string.analytics_body_week_prefix, weekLabel(bar.weekStart)),
+                        value = AnalyticsFormatters.metricValue(card.metric, bar.value, uiState.weightUnit),
                     )
                 }
                 BarChart(
@@ -325,12 +434,13 @@ private fun BodyCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
                 Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
                 return@Column
             }
+            // Week pickers are a *window* selector, so they wear the quiet chip, same as RangeChips.
             LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 items(card.weeks) { week ->
-                    FilterChip(
+                    RangeChip(
+                        label = weekLabel(week),
                         selected = week == card.selectedWeek,
                         onClick = { viewModel.selectBodyWeek(week) },
-                        label = { Text(weekLabel(week)) },
                     )
                 }
             }
@@ -362,15 +472,15 @@ private fun SetCountCard(
             CardTitle(stringResource(R.string.analytics_set_count_title))
             RangeChips(card.range, viewModel::selectSetCountRange)
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                FilterChip(
+                RangeChip(
+                    label = stringResource(R.string.analytics_bucket_week),
                     selected = card.bucket == StatBucket.WEEK,
                     onClick = { viewModel.selectSetCountBucket(StatBucket.WEEK) },
-                    label = { Text(stringResource(R.string.analytics_bucket_week)) },
                 )
-                FilterChip(
+                RangeChip(
+                    label = stringResource(R.string.analytics_bucket_month),
                     selected = card.bucket == StatBucket.MONTH,
                     onClick = { viewModel.selectSetCountBucket(StatBucket.MONTH) },
-                    label = { Text(stringResource(R.string.analytics_bucket_month)) },
                 )
             }
             if (card.muscles.isEmpty()) {
@@ -382,10 +492,9 @@ private fun SetCountCard(
                 var selectedBar by remember(card.bars) { mutableStateOf<Int?>(null) }
                 selectedBar?.let { i ->
                     val bar = card.bars[i]
-                    Text(
-                        bucketReadoutLabel(bar.bucketStart, card.bucket) + " — " +
-                            pluralStringResource(R.plurals.analytics_set_count, bar.setCount, bar.setCount),
-                        style = LogEzMono.dataMedium.copy(color = MaterialTheme.colorScheme.tertiary),
+                    ChartReadout(
+                        label = bucketReadoutLabel(bar.bucketStart, card.bucket),
+                        value = pluralStringResource(R.plurals.analytics_set_count, bar.setCount, bar.setCount),
                     )
                 }
                 BarChart(

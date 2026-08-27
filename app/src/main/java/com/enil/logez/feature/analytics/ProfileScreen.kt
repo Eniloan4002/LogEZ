@@ -16,12 +16,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -53,6 +56,7 @@ import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
  * behind `rpeTrackingEnabled`, but no Settings screen exists until M7. Remove this row once the
  * real Settings tree lands with its own row for the same setting.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onExercisesClick: () -> Unit = {},
@@ -66,18 +70,22 @@ fun ProfileScreen(
 
     RefreshOnResume(viewModel::refresh)
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        navItems(
-            onExercisesClick = onExercisesClick,
-            onCalendarClick = onCalendarClick,
-            onStatisticsClick = onStatisticsClick,
-            rpeTrackingEnabled = rpeTrackingEnabled,
-            onRpeToggle = viewModel::setRpeTrackingEnabled,
-            isSeedingDemoData = isSeedingDemoData,
-            onSeedDemoData = viewModel::seedDemoData,
-            onClearDemoData = viewModel::clearDemoData,
-        )
-        profileStatsItems(uiState, onStatisticsClick)
+    Scaffold(
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_profile)) }) },
+    ) { padding ->
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            navItems(
+                onExercisesClick = onExercisesClick,
+                onCalendarClick = onCalendarClick,
+                onStatisticsClick = onStatisticsClick,
+                rpeTrackingEnabled = rpeTrackingEnabled,
+                onRpeToggle = viewModel::setRpeTrackingEnabled,
+                isSeedingDemoData = isSeedingDemoData,
+                onSeedDemoData = viewModel::seedDemoData,
+                onClearDemoData = viewModel::clearDemoData,
+            )
+            profileStatsItems(uiState, onStatisticsClick)
+        }
     }
 }
 

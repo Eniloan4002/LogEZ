@@ -107,11 +107,17 @@ class FinishWorkoutViewModelTest {
 
     @Test
     fun `edits are held in memory and only applied on save`() = runTest {
-        val workoutRepo = FakeWorkoutRepository(workouts = listOf(workout()), exercises = listOf(workoutExercise()), sets = listOf(set("s1", completed = true)))
+        // 1800s stands in for the elapsed session time WorkoutLoggerViewModel.prepareForFinish()
+        // freezes into the row before this screen opens — v4.0 made duration a read-only readout,
+        // so the save must carry that value through untouched rather than take an edited one.
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout(durationSeconds = 1800)),
+            exercises = listOf(workoutExercise()),
+            sets = listOf(set("s1", completed = true)),
+        )
         val vm = newViewModel(workoutRepo = workoutRepo)
 
         vm.updateTitle("Leg Day")
-        vm.updateDuration(1800)
 
         // Nothing persisted yet — §5.1.8: killing the app here leaves a recoverable IN_PROGRESS workout.
         assertEquals("Original Title", workoutRepo.getById("w1")!!.title)
@@ -190,10 +196,10 @@ class FinishWorkoutViewModelTest {
         )
     }
 
-    private fun workout(routineId: String? = null) = WorkoutEntity(
+    private fun workout(routineId: String? = null, durationSeconds: Int = 0) = WorkoutEntity(
         id = "w1", routineId = routineId, title = "Original Title", notes = null,
         status = WorkoutStatus.IN_PROGRESS, startedAt = 10_000L, endedAt = null,
-        durationSeconds = 0, createdAt = 10_000L, updatedAt = 10_000L,
+        durationSeconds = durationSeconds, createdAt = 10_000L, updatedAt = 10_000L,
     )
 
     private fun workoutExercise(id: String = "we1", exerciseId: String = "ex-1", orderIndex: Int = 0) =

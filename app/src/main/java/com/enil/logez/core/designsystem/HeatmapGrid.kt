@@ -17,8 +17,17 @@ import java.time.temporal.TemporalAdjusters
 import kotlin.math.max
 
 private const val ROWS = 7
-private val CELL_SIZE = 10.dp
-private val CELL_GAP = 3.dp
+
+// ROWS is fixed at 7 (days of the week), so the grid's height is purely a function of these two:
+// CELL_SIZE * 7 + CELL_GAP * 6 = 61.dp. Down from 10.dp cells / 3.dp gaps (88.dp) on repeat Owner
+// feedback that the card still ate too much of the tab's first screen. Shrinking the cell rather
+// than dropping rows also fits ~33 weeks instead of ~23 in the same width, which is the more
+// useful history anyway.
+private val CELL_SIZE = 7.dp
+private val CELL_GAP = 2.dp
+
+/** Scaled with [CELL_SIZE] (~30% of it): a fixed radius would round a cell this small into a dot. */
+private val CELL_CORNER = 2.dp
 
 /** Day-counts at or above this many completed workouts render at full color intensity. */
 private const val MAX_INTENSITY_COUNT = 2
@@ -34,7 +43,8 @@ private const val MAX_INTENSITY_COUNT = 2
  * The week count is derived from the available width, not a fixed constant: cells stay a small,
  * compact fixed size (a short, wide grid rather than a tall one), and however many whole weeks
  * fit at that size are shown — so the grid always fills its container, on any screen, with no
- * dead space and no horizontal scroll to discover.
+ * dead space and no horizontal scroll to discover. At the v4.0 cell size that is a 61.dp-tall
+ * band carrying roughly eight months of history on a typical phone.
  */
 @Composable
 fun HeatmapGrid(
@@ -55,7 +65,7 @@ fun HeatmapGrid(
         Canvas(modifier = Modifier.height(gridHeight)) {
             val cell = CELL_SIZE.toPx()
             val gap = CELL_GAP.toPx()
-            val corner = CornerRadius(3.dp.toPx())
+            val corner = CornerRadius(CELL_CORNER.toPx())
             for (week in 0 until weeks) {
                 val weekStart = firstWeekStart.plusWeeks(week.toLong())
                 for (day in 0 until ROWS) {

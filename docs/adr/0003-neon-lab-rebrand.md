@@ -294,3 +294,62 @@ committing, not just trusted from the agents' self-reported summaries.
 performed by this session (same standing caveat as every prior visual change here) — the Owner
 should confirm the monospace numbers, the copy changes, and the PR-card glow all read correctly on
 a real screen.
+
+## v4.0 (2026-08-27) — mono-green palette, and the glow language the mockup actually had
+
+**Context:** Owner reviewed the shipped M9 build on-device and asked for four things at once:
+drop blue and amber entirely in favour of **black, white and green**, with *"different hues or
+opacities of the green… differentiate hierarchy by how dark to light it is, the more vibrant green
+it is the more primary it is"*; implement the glow effects that were in the approved mockup but
+never made it into the app; and bring the Statistics screen closer to what that mockup showed.
+
+**Decision — the palette narrows to one hue.** Hierarchy moves from *hue* to *vibrancy*:
+
+| Role | Color | Hex | On `background` |
+|---|---|---|---|
+| `primary` — hero CTAs, active states, chart fills | NeonGreen | `#39FF6E` | 14.58:1 |
+| `tertiary` — selection / highlight | SpringGreen | `#B8FF5C` | 16.24:1 |
+| `secondary` — filled banners (recedes on purpose) | DeepGreen | `#12A65A` | 6.15:1 |
+
+`onSecondary` is the near-black neutral, not the light one: light-on-DeepGreen measures **2.77:1**
+(fails AA) against **6.15:1** for dark-on — caught by computing it rather than assuming the
+light-text-on-fill convention the other two roles use. `Warning500` (warm-up badges) drops its
+amber for a deliberately *muted* green `#5E8C6A` — a warm-up is a lesser set, so under the new
+rule it should read as a lesser green. `Danger500` stays red: "delete is red" is a safety
+convention, not branding.
+
+**Decision — `SupersetPalette` goes green-only too, but is optimized, not hand-picked.** These nine
+colors have a hard functional job (superset group A must be tellable from group B at badge size),
+which a single-hue ramp threatens. A naive lightness-only green ramp scored a worst-pair CIE
+**ΔE 12.9** — two of the nine would have looked identical. Instead the ramp was derived by
+optimizing for *maximum minimum pairwise ΔE* across a green-only hue band, subject to every step
+clearing 4.5:1 on the background. A first run over a wide band (90°–175°) scored ΔE 35.3 but drifted
+into colors that read as cyan/teal — outside what the Owner asked for — so the band was tightened to
+**100°–158°** (yellow-green through spring-green, deliberately stopping short of cyan), landing at
+worst-pair **ΔE 30.4** with everything unmistakably green. Ordered lightest-first, so the low group
+indices a real routine actually uses are the most vibrant ones.
+
+**Decision — the glow language becomes real code** (`core/designsystem/Glow.kt`). The mockup's look
+leaned on CSS `box-shadow`/`text-shadow` bloom that no earlier pass translated, which is the concrete
+reason the shipped app read flatter than the mockup. Compose has no blur-shadow primitive across this
+app's whole API range, so this provides two complementary approximations: `Modifier.neonGlow` (a
+*colored* elevation shadow via `shadow(spotColor=, ambientColor=)`, honored from API 28 — on 26–27 it
+degrades to an ordinary dark shadow, flatter but never broken) and `Modifier.glowFalloff` /
+`glowBarBrush` / `DrawScope.drawBarGlow`, which paint gradient bloom explicitly and therefore work on
+every supported API.
+
+**Rationale:** the Owner's "more vibrant = more primary" instinct is sound and is what makes a
+single-hue palette workable at all — it gives the system an ordering axis that hue was previously
+doing. The one place it genuinely strains is `SupersetPalette`, where nine peers need mutual
+distinction rather than a rank ordering; that is why that specific ramp is the only part of the
+palette derived numerically instead of chosen.
+
+**Impact:** `Color.kt` rewritten, `Theme.kt` roles remapped, `Glow.kt` added; no other file
+references the removed `SpecimenBlue`/`HazardAmber` constants (verified by grep) and no test asserts
+on any color value, so the palette swap is contained to those three files. The glow primitives are
+then applied at the chart/card level and across the Statistics restyle.
+
+**Follow-up:** The superset ramp's worst pair (ΔE 30.4) is comfortable but measurably tighter than
+the old multi-hue palette's; if a future routine regularly runs 6+ simultaneous supersets and they
+start reading alike, that ramp — not the brand roles — is the thing to revisit. As always, none of
+this was verified on a real screen by the implementing session.
