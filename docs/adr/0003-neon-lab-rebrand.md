@@ -353,3 +353,47 @@ then applied at the chart/card level and across the Statistics restyle.
 the old multi-hue palette's; if a future routine regularly runs 6+ simultaneous supersets and they
 start reading alike, that ramp — not the brand roles — is the thing to revisit. As always, none of
 this was verified on a real screen by the implementing session.
+
+## v4.0 round 3 (2026-08-27) — drawn-geometry glow, calendar header, and the surfaceContainer* gap
+
+**Context:** Owner's third correction round on the v4.0 build (`debug13.17`), six itemized fixes: a
+static "CALENDAR" header instead of the current month, a CTA glow reading as bottom-only instead of
+wrapping the whole border, green set-detail text in expanded History rows that should be plain white,
+an overflowing rest-timer chip in the Logger's top bar, a Finish button that should read as a filled
+CTA instead of a plain text action, and a navigation bar background/spacing that looked off the
+palette.
+
+**Decision:** (1) `CalendarScreen.kt` now uses the existing shared `ScreenTitle` composable with a
+static "CALENDAR" label — the month already has its own stepper row underneath. (2) `neonGlow`
+(`Glow.kt`) rewritten off `Modifier.shadow`'s `ambientColor`/`spotColor` params onto `drawBehind` +
+`Shape.createOutline` + multiple `drawOutline` passes. (3) `WorkoutDetailScreen.kt`'s expanded set
+rows get explicit `color = MaterialTheme.colorScheme.onSurface` on the exercise-name and set-value
+Text. (4) `WorkoutLoggerScreen.kt`'s `AssistChip` replaced with a hand-built `RestTimerChip`
+Surface+Text pill; stats text capped at `maxLines = 1` with ellipsis. (5) The Finish button changed
+from `TextButton` to `Button`. (6) `Theme.kt`'s `darkColorScheme(...)` call gained the five
+`surfaceContainer*` roles, mapped onto the app's existing `Neutral950`/`Neutral900`/`Neutral800` — no
+new hex values.
+
+**Rationale:** #2 and #6 both trace to the same underlying failure shape — Material3 components
+silently defaulting to baseline tokens when a `darkColorScheme(...)` call leaves a role unset, rather
+than failing loudly. `Theme.kt` had only ever set 21 of Material3's ~44 roles; `NavigationBar`'s
+default background resolves to `colorScheme.surfaceContainer`, which was never one of the 21, so it
+silently rendered Material3's own hardcoded dark tokens instead of this app's palette — the same bug
+class ADR-0002 already documented once for `tertiary`/`secondaryContainer`. For the glow,
+`Modifier.shadow`'s `ambientColor`/`spotColor` simulate a single overhead light source, which is
+asymmetric by construction regardless of how closely the two colors are matched — the fix required
+replacing the simulated-lighting approach entirely with actual drawn geometry, not tuning the
+existing shadow parameters further.
+
+**Impact:** `CalendarScreen.kt`, `Glow.kt`, `WorkoutDetailScreen.kt`, `WorkoutLoggerScreen.kt`, and
+`Theme.kt` touched. The `surfaceContainer*` fix also resolves the same defaulting behavior for any
+other component that reads that role family (dialogs, dropdown menus, bottom sheets), not just the
+nav bar. The reported nav-bar spacing irregularity had no identifiable code-level cause
+(`NavigationBarItem` is stock Material3, equal-weight items, consistent 24dp icons, no custom
+padding) — left as-is, possibly a visual side effect of the wrong background color rather than a real
+spacing bug.
+
+**Follow-up:** Confirm on-device that the nav bar spacing now reads as uniform once the correct
+`surfaceContainer` color is in place — if it still looks uneven, the cause is elsewhere. No on-device
+verification was performed by this session (same standing caveat as every prior visual change in this
+ADR). Shipped as `logEZ-debug13.18.apk` (commit `c70515a`).
