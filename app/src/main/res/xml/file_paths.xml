@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WorkoutShareController's export dir and nothing else — the databases, DataStore, and media
+     dirs must never be reachable through the provider. -->
+<paths>
+    <cache-path name="shared_images" path="shared_images/" />
+</paths>

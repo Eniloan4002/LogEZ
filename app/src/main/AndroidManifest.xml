@@ -50,6 +50,20 @@
                 android:value="@string/notification_workout_fgs_subtype" />
         </service>
 
+        <!-- Summary-card share (WorkoutShareController): grants the user's chosen ACTION_SEND
+             target one-off read access to PNGs under cacheDir/shared_images/ — the only exposed
+             path (see res/xml/file_paths.xml). Local-only posture unchanged: still no network
+             permission; the image leaves the device only through that explicit user choice. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.enil.logez.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 
 </manifest>

@@ -17,10 +17,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -33,11 +37,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.feature.history.formatCardDateTime
+import com.enil.logez.feature.workout.finish.share.ShareCardData
+import com.enil.logez.feature.workout.finish.share.ShareSummarySheet
 
 /**
- * PHASE2_PLAN.md §5.1.8(c) post-save summary. No share buttons or images — social is a hard
- * exclusion. Back is intercepted to mean Done: the workout is already saved, so re-entering the
- * finish screen behind it would offer to save something that no longer exists.
+ * PHASE2_PLAN.md §5.1.8(c) post-save summary, plus the local-only summary-card export: the share
+ * button renders the summary as a branded PNG and hands it to the system share sheet — no network,
+ * no social SDKs; the image leaves the device only through the target the user picks there. Back
+ * is intercepted to mean Done: the workout is already saved, so re-entering the finish screen
+ * behind it would offer to save something that no longer exists.
  */
 @Composable
 fun WorkoutSummaryScreen(
@@ -45,6 +54,8 @@ fun WorkoutSummaryScreen(
     viewModel: WorkoutSummaryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Saveable so a rotation with the sheet open re-opens it instead of silently swallowing the tap.
+    var showShareSheet by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onDone)
 
     Scaffold { padding ->
@@ -96,9 +107,32 @@ fun WorkoutSummaryScreen(
                 uiState.prMedals.forEach { medal -> PrMedalCard(medal) }
             }
 
-            Button(onClick = onDone, modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg)) {
+            OutlinedButton(
+                onClick = { showShareSheet = true },
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg),
+            ) {
+                Text(stringResource(R.string.summary_share))
+            }
+            Button(onClick = onDone, modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
                 Text(stringResource(R.string.summary_done))
             }
+        }
+
+        if (showShareSheet) {
+            ShareSummarySheet(
+                data = ShareCardData(
+                    title = uiState.title,
+                    dateLine = formatCardDateTime(uiState.startedAtMillis),
+                    durationText = formatDuration(uiState.durationSeconds),
+                    volumeText = formatVolume(uiState.totalVolumeKg),
+                    setsText = uiState.completedSetCount.toString(),
+                    workoutOrdinal = uiState.workoutOrdinal,
+                    weeklyStreak = uiState.weeklyStreak,
+                    prs = uiState.prMedals,
+                    exerciseLines = uiState.exerciseLines.map { "${it.setCount} × ${it.name}" },
+                ),
+                onDismiss = { showShareSheet = false },
+            )
         }
     }
 }

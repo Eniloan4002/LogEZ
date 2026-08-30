@@ -334,6 +334,23 @@
     </plurals>
     <string name="summary_prs_header">Personal records</string>
     <string name="summary_done">Done</string>
+    <string name="summary_share">Share</string>
+
+    <!-- Shareable summary-card export -->
+    <string name="share_sheet_title">Share summary</string>
+    <string name="share_format_square">Square</string>
+    <string name="share_format_story">Story</string>
+    <string name="share_action">Share image</string>
+    <string name="share_export_failed">Couldn\'t create the image. Nothing was shared — try again.</string>
+    <plurals name="share_card_prs_header">
+        <item quantity="one">Anomaly detected</item>
+        <item quantity="other">Anomalies detected</item>
+    </plurals>
+    <string name="share_card_more_prs">+%1$d more</string>
+    <plurals name="share_card_more_exercises">
+        <item quantity="one">+%1$d more exercise</item>
+        <item quantity="other">+%1$d more exercises</item>
+    </plurals>
 
     <string name="pr_banner">Anomaly detected: %1$s</string>
     <string name="pr_type_heaviest_weight">Heaviest weight</string>

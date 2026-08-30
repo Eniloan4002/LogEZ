@@ -77,6 +77,19 @@ class WorkoutSummaryViewModel @Inject constructor(
                 firstDayOfWeek = settings.firstDayOfWeek,
             )
 
+            // Share-card exercise lines, built the way HistoryViewModel builds its card summaries
+            // (group by workoutExerciseId, order by exerciseOrderIndex, count through the same
+            // `isIncluded` predicate as the Sets stat) so the card can't contradict History.
+            val exerciseLines = sets.groupBy { it.workoutExerciseId }
+                .entries
+                .sortedBy { (_, blockRows) -> blockRows.first().exerciseOrderIndex }
+                .map { (_, blockRows) ->
+                    SummaryExerciseLine(
+                        name = exerciseRepository.getById(blockRows.first().exerciseId)?.name.orEmpty(),
+                        setCount = blockRows.count { isIncluded(it.set, settings.includeWarmupsInStats) },
+                    )
+                }
+
             val prs = personalRecordsRepository.getForWorkout(workoutId).map { pr ->
                 PrMedal(
                     exerciseName = exerciseRepository.getById(pr.exerciseId)?.name.orEmpty(),
@@ -88,12 +101,14 @@ class WorkoutSummaryViewModel @Inject constructor(
             _uiState.value = WorkoutSummaryUiState(
                 isLoading = false,
                 title = workout.title,
+                startedAtMillis = workout.startedAt,
                 durationSeconds = workout.durationSeconds,
                 completedSetCount = included.size,
                 totalVolumeKg = volumeKg,
                 workoutOrdinal = workoutRepository.countCompletedWorkoutsUpTo(workout.startedAt, workout.id),
                 weeklyStreak = streak,
                 prMedals = prs,
+                exerciseLines = exerciseLines,
             )
         }
     }
@@ -105,13 +120,18 @@ class WorkoutSummaryViewModel @Inject constructor(
 
 data class PrMedal(val exerciseName: String, val prType: PrType, val value: Double)
 
+/** One share-card exercise line, History's "3 × Bench Press (Barbell)" convention. */
+data class SummaryExerciseLine(val name: String, val setCount: Int)
+
 data class WorkoutSummaryUiState(
     val isLoading: Boolean = true,
     val title: String = "",
+    val startedAtMillis: Long = 0L,
     val durationSeconds: Int = 0,
     val completedSetCount: Int = 0,
     val totalVolumeKg: Double = 0.0,
     val workoutOrdinal: Int = 0,
     val weeklyStreak: Int = 0,
     val prMedals: List<PrMedal> = emptyList(),
+    val exerciseLines: List<SummaryExerciseLine> = emptyList(),
 )
