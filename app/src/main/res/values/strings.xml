@@ -342,6 +342,10 @@
     <string name="share_format_story">Story</string>
     <string name="share_action">Share image</string>
     <string name="share_export_failed">Couldn\'t create the image. Nothing was shared — try again.</string>
+    <string name="share_save_action">Save image</string>
+    <string name="share_save_confirmation">Saved to Pictures/logEZ.</string>
+    <string name="share_save_failed">Couldn\'t save the image. Nothing was saved — try again.</string>
+    <string name="share_save_permission_denied">Storage permission is off — the image can\'t be saved without it.</string>
     <plurals name="share_card_prs_header">
         <item quantity="one">Anomaly detected</item>
         <item quantity="other">Anomalies detected</item>

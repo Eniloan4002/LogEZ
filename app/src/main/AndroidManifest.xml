@@ -18,6 +18,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Solely for the pre-Q "Save image" path (WorkoutShareController.saveToPictures): on
+         API 26–28 writing the summary PNG into the shared Pictures library still requires this
+         legacy permission. API 29+ saves through scoped MediaStore inserts and requests nothing,
+         hence the hard maxSdkVersion cap. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <application
         android:name=".LogEzApplication"
         android:allowBackup="true"

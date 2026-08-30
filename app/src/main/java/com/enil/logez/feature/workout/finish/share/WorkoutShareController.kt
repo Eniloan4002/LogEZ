@@ -1,10 +1,15 @@
 package com.enil.logez.feature.workout.finish.share
 
 import android.content.ClipData
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -22,7 +27,8 @@ import kotlinx.coroutines.withContext
  * Platform side-effect component for the summary-card share flow ([com.enil.logez.feature.workout.audio.WorkoutAudioPlayer]
  * precedent: never injected into a ViewModel — the screen captures the card and hands the bitmap
  * straight here). Local-only posture holds: the PNG lands in this app's own cache and leaves the
- * device only through the share target the user picks in the system chooser.
+ * device only through the share target the user picks in the system chooser — or, via
+ * [saveToPictures], stays on the device in the user's own Pictures library.
  */
 @Singleton
 class WorkoutShareController @Inject constructor(
@@ -41,15 +47,84 @@ class WorkoutShareController @Inject constructor(
         dir.mkdirs()
         val cutoff = System.currentTimeMillis() - STALE_EXPORT_MAX_AGE_MS
         dir.listFiles()?.forEach { if (it.lastModified() < cutoff) it.delete() }
-        val file = File(
-            dir,
-            "logez_workout_${format.name.lowercase(Locale.US)}_${System.currentTimeMillis()}.png",
-        )
+        val file = File(dir, exportFileName(format))
         file.outputStream().use { out ->
             if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) throw IOException("PNG encoding failed")
         }
         FileProvider.getUriForFile(context, AUTHORITY, file)
     }
+
+    /**
+     * Saves [bitmap] as a PNG into the device's shared Pictures library under `Pictures/logEZ/`
+     * and returns the MediaStore item Uri. Q+ uses a scoped MediaStore insert (row held at
+     * IS_PENDING while the bytes stream in, so gallery apps never see a half-written image);
+     * API 26–28 writes the public file directly and indexes it — that branch needs
+     * WRITE_EXTERNAL_STORAGE, which the caller must already hold. Every failure throws after
+     * rolling back the partial row/file — never a silent no-op success.
+     */
+    suspend fun saveToPictures(bitmap: Bitmap, format: ShareCardFormat): Uri = withContext(Dispatchers.IO) {
+        val displayName = exportFileName(format)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            insertIntoMediaStore(displayName, bitmap)
+        } else {
+            writeToLegacyPicturesDir(displayName, bitmap)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun insertIntoMediaStore(displayName: String, bitmap: Bitmap): Uri {
+        val resolver = context.contentResolver
+        val pending = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, MIME_TYPE_PNG)
+            put(MediaStore.Images.Media.RELATIVE_PATH, PICTURES_RELATIVE_PATH)
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, pending)
+            ?: throw IOException("MediaStore insert returned no row")
+        try {
+            val stream = resolver.openOutputStream(uri) ?: throw IOException("MediaStore row not writable")
+            stream.use { out ->
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) throw IOException("PNG encoding failed")
+            }
+            resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
+            return uri
+        } catch (e: Exception) {
+            // A row stuck at IS_PENDING=1 would linger invisibly in the library forever.
+            resolver.delete(uri, null, null)
+            throw e
+        }
+    }
+
+    /**
+     * Pre-Q: MediaStore can't stream into shared storage on the app's behalf, so write the public
+     * file directly and insert an index row so gallery apps pick it up without waiting for a scan.
+     */
+    private fun writeToLegacyPicturesDir(displayName: String, bitmap: Bitmap): Uri {
+        @Suppress("DEPRECATION")
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), SAVE_SUBDIR)
+        if (!dir.isDirectory && !dir.mkdirs()) throw IOException("Couldn't create ${dir.path}")
+        val file = File(dir, displayName)
+        try {
+            file.outputStream().use { out ->
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) throw IOException("PNG encoding failed")
+            }
+            @Suppress("DEPRECATION")
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, MIME_TYPE_PNG)
+                put(MediaStore.Images.Media.DATA, file.absolutePath)
+            }
+            return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: throw IOException("MediaStore insert returned no row")
+        } catch (e: Exception) {
+            file.delete()
+            throw e
+        }
+    }
+
+    private fun exportFileName(format: ShareCardFormat) =
+        "logez_workout_${format.name.lowercase(Locale.US)}_${System.currentTimeMillis()}.png"
 
     /**
      * Generic ACTION_SEND chooser only — no Instagram story intent (that path requires a Meta app
@@ -75,6 +150,8 @@ class WorkoutShareController @Inject constructor(
         private const val AUTHORITY = "com.enil.logez.fileprovider"
         private const val SHARED_IMAGES_DIR = "shared_images"
         private const val MIME_TYPE_PNG = "image/png"
+        private const val SAVE_SUBDIR = "logEZ"
+        private const val PICTURES_RELATIVE_PATH = "Pictures/$SAVE_SUBDIR"
 
         /** Grace window before a prior export's file may be pruned (see [exportPng]). */
         private const val STALE_EXPORT_MAX_AGE_MS = 24L * 60 * 60 * 1000

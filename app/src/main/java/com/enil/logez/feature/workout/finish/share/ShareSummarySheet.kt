@@ -1,5 +1,10 @@
 package com.enil.logez.feature.workout.finish.share
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -48,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.core.content.ContextCompat
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
@@ -59,7 +66,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Share flow for the post-workout summary: live preview, Square/Story selection, and the system
- * ACTION_SEND chooser. Export goes through [WorkoutShareController]; nothing here (or in the
+ * ACTION_SEND chooser — plus a "Save image" action that lands the same capture in the device's
+ * Pictures library. Export and save go through [WorkoutShareController]; nothing here (or in the
  * ViewModel) performs the platform side-effects itself.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,10 +84,36 @@ fun ShareSummarySheet(
             .workoutShareController()
     }
     var format by rememberSaveable { mutableStateOf(ShareCardFormat.SQUARE) }
-    var isExporting by remember { mutableStateOf(false) }
-    var exportFailed by remember { mutableStateOf(false) }
+    // activeAction is deliberately NOT saveable: its coroutine dies with the activity, so restoring
+    // an in-flight state would leave both buttons disabled behind a spinner nothing will ever clear.
+    // A finished outcome (status) is real information and does survive rotation.
+    var activeAction by remember { mutableStateOf<SheetAction?>(null) }
+    var status by rememberSaveable { mutableStateOf(SheetStatus.NONE) }
     val graphicsLayer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
+
+    val performSave: () -> Unit = {
+        scope.launch {
+            activeAction = SheetAction.SAVE
+            status = SheetStatus.NONE
+            try {
+                val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                shareController.saveToPictures(bitmap, format)
+                status = SheetStatus.SAVED
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                status = SheetStatus.SAVE_FAILED
+            } finally {
+                activeAction = null
+            }
+        }
+    }
+    // Pre-Q only: the legacy Pictures write needs WRITE_EXTERNAL_STORAGE at runtime. On Q+ this
+    // launcher is never fired — saveToPictures goes through scoped MediaStore inserts instead.
+    val writePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) performSave() else status = SheetStatus.SAVE_PERMISSION_DENIED
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         // Scrollable: in landscape the sheet is shorter than title+preview+chips+button, and the
@@ -108,20 +142,20 @@ fun ShareSummarySheet(
                 FormatChip(R.string.share_format_story, format == ShareCardFormat.STORY) { format = ShareCardFormat.STORY }
             }
 
-            if (exportFailed) {
-                Text(
-                    stringResource(R.string.share_export_failed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
-                )
+            // Single status slot: at most one message, and the latest action's outcome wins.
+            when (status) {
+                SheetStatus.NONE -> Unit
+                SheetStatus.SAVED -> StatusText(R.string.share_save_confirmation, isError = false)
+                SheetStatus.SHARE_FAILED -> StatusText(R.string.share_export_failed, isError = true)
+                SheetStatus.SAVE_FAILED -> StatusText(R.string.share_save_failed, isError = true)
+                SheetStatus.SAVE_PERMISSION_DENIED -> StatusText(R.string.share_save_permission_denied, isError = true)
             }
 
             Button(
                 onClick = {
                     scope.launch {
-                        isExporting = true
-                        exportFailed = false
+                        activeAction = SheetAction.SHARE
+                        status = SheetStatus.NONE
                         try {
                             val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
                             val uri = shareController.exportPng(bitmap, format)
@@ -130,23 +164,61 @@ fun ShareSummarySheet(
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            exportFailed = true
+                            status = SheetStatus.SHARE_FAILED
                         } finally {
-                            isExporting = false
+                            activeAction = null
                         }
                     }
                 },
-                enabled = !isExporting,
+                enabled = activeAction == null,
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.md),
             ) {
-                if (isExporting) {
+                if (activeAction == SheetAction.SHARE) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
                     Text(stringResource(R.string.share_action))
                 }
             }
+
+            // Filled-vs-outlined pairing mirrors WorkoutSummaryScreen's Done/Share buttons.
+            OutlinedButton(
+                onClick = {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        writePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    } else {
+                        performSave()
+                    }
+                },
+                enabled = activeAction == null,
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+            ) {
+                if (activeAction == SheetAction.SAVE) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.share_save_action))
+                }
+            }
         }
     }
+}
+
+/** The one platform action in flight; both buttons disable while either runs. */
+private enum class SheetAction { SHARE, SAVE }
+
+/** Outcome shown in the sheet's single status slot. */
+private enum class SheetStatus { NONE, SAVED, SHARE_FAILED, SAVE_FAILED, SAVE_PERMISSION_DENIED }
+
+@Composable
+private fun StatusText(@StringRes textRes: Int, isError: Boolean) {
+    Text(
+        stringResource(textRes),
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+    )
 }
 
 /**
