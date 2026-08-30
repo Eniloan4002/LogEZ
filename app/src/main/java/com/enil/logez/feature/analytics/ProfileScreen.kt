@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.enil.logez.BuildConfig
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.BarChartEntry
@@ -242,22 +243,26 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
             )
             HorizontalDivider()
         }
-        item(key = "seed_demo_data") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onSeedDemoData),
-                headlineContent = { Text(stringResource(R.string.profile_seed_demo_data_title)) },
-                supportingContent = { Text(stringResource(R.string.profile_seed_demo_data_subtitle)) },
-                trailingContent = { if (isSeedingDemoData) CircularProgressIndicator(modifier = Modifier.size(20.dp)) },
-            )
-            HorizontalDivider()
-        }
-        item(key = "clear_demo_data") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onClearDemoData),
-                headlineContent = { Text(stringResource(R.string.profile_clear_demo_data_title)) },
-                supportingContent = { Text(stringResource(R.string.profile_clear_demo_data_subtitle)) },
-            )
-            HorizontalDivider()
+        // Dev-only tooling (seeding/clearing sample data) must never reach a release build — a real
+        // tester tapping "Clear demo data" would wipe their own logged workouts by mistake.
+        if (BuildConfig.DEBUG) {
+            item(key = "seed_demo_data") {
+                ListItem(
+                    modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onSeedDemoData),
+                    headlineContent = { Text(stringResource(R.string.profile_seed_demo_data_title)) },
+                    supportingContent = { Text(stringResource(R.string.profile_seed_demo_data_subtitle)) },
+                    trailingContent = { if (isSeedingDemoData) CircularProgressIndicator(modifier = Modifier.size(20.dp)) },
+                )
+                HorizontalDivider()
+            }
+            item(key = "clear_demo_data") {
+                ListItem(
+                    modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onClearDemoData),
+                    headlineContent = { Text(stringResource(R.string.profile_clear_demo_data_title)) },
+                    supportingContent = { Text(stringResource(R.string.profile_clear_demo_data_subtitle)) },
+                )
+                HorizontalDivider()
+            }
         }
 }
 
