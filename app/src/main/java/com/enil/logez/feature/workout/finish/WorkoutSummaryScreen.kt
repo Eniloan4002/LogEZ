@@ -145,8 +145,9 @@ fun WorkoutSummaryScreen(
                     prs = uiState.prMedals,
                     // CIRCUIT drops the "N × " prefix — the card's own rounds line already says
                     // how many times the sequence ran; REGULAR keeps History's shape.
-                    exerciseLines = uiState.exerciseLines.map {
-                        if (uiState.structure == WorkoutStructure.CIRCUIT) it.name else "${it.setCount} × ${it.name}"
+                    exerciseLines = uiState.exerciseLines.map { line ->
+                        val base = if (uiState.structure == WorkoutStructure.CIRCUIT) line.name else "${line.setCount} × ${line.name}"
+                        line.avgReps?.let { base + " · " + stringResource(R.string.share_card_avg_reps, formatAvgReps(it)) } ?: base
                     },
                     structure = uiState.structure,
                     rounds = uiState.rounds,
@@ -194,6 +195,12 @@ private fun StatCell(label: String, value: String) {
             textAlign = TextAlign.Center,
         )
     }
+}
+
+/** Whole numbers stay whole ("8"); fractional averages keep one honest decimal ("6.5"). */
+private fun formatAvgReps(value: Double): String {
+    val rounded = (value * 10).toLong() / 10.0
+    return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
 }
 
 private fun formatVolume(kg: Double): String =

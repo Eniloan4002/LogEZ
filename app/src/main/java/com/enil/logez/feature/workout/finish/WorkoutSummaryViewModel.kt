@@ -89,9 +89,18 @@ class WorkoutSummaryViewModel @Inject constructor(
                 .entries
                 .sortedBy { (_, blockRows) -> blockRows.first().exerciseOrderIndex }
                 .map { (_, blockRows) ->
+                    val includedRows = blockRows.filter { isIncluded(it.set, settings.includeWarmupsInStats) }
                     SummaryExerciseLine(
                         name = exerciseRepository.getById(blockRows.first().exerciseId)?.name.orEmpty(),
-                        setCount = blockRows.count { isIncluded(it.set, settings.includeWarmupsInStats) },
+                        setCount = includedRows.size,
+                        // Owner (P-079): each line also carries average reps per set. Null (not 0)
+                        // for exercises that log no reps at all — duration/distance rows have no
+                        // honest average to show.
+                        avgReps = if (includedRows.any { it.set.reps != null } && includedRows.isNotEmpty()) {
+                            includedRows.sumOf { it.set.reps ?: 0 }.toDouble() / includedRows.size
+                        } else {
+                            null
+                        },
                     )
                 }
 
@@ -133,7 +142,7 @@ class WorkoutSummaryViewModel @Inject constructor(
 data class PrMedal(val exerciseName: String, val prType: PrType, val value: Double)
 
 /** One share-card exercise line, History's "3 × Bench Press (Barbell)" convention. */
-data class SummaryExerciseLine(val name: String, val setCount: Int)
+data class SummaryExerciseLine(val name: String, val setCount: Int, val avgReps: Double? = null)
 
 data class WorkoutSummaryUiState(
     val isLoading: Boolean = true,

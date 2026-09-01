@@ -87,7 +87,6 @@ fun ShareSummaryDialog(
         EntryPointAccessors.fromApplication(context.applicationContext, WorkoutShareEntryPoint::class.java)
             .workoutShareController()
     }
-    var format by rememberSaveable { mutableStateOf(ShareCardFormat.SQUARE) }
     // activeAction is deliberately NOT saveable: its coroutine dies with the activity, so restoring
     // an in-flight state would leave the button disabled behind a spinner nothing will ever clear.
     // A finished outcome (status) is real information and does survive rotation.
@@ -105,7 +104,7 @@ fun ShareSummaryDialog(
             status = DialogStatus.NONE
             try {
                 val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                val uri = shareController.exportPng(bitmap, format)
+                val uri = shareController.exportPng(bitmap, ShareCardFormat.STORY)
                 shareController.launchShareChooser(context, uri)
                 onDismiss()
             } catch (e: CancellationException) {
@@ -123,7 +122,7 @@ fun ShareSummaryDialog(
             status = DialogStatus.NONE
             try {
                 val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                shareController.saveToPictures(bitmap, format)
+                shareController.saveToPictures(bitmap, ShareCardFormat.STORY)
                 status = DialogStatus.SAVED
             } catch (e: CancellationException) {
                 throw e
@@ -170,15 +169,7 @@ fun ShareSummaryDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                ScaledCardPreview(data, format, graphicsLayer, Modifier.padding(top = Spacing.md))
-
-                Row(
-                    modifier = Modifier.padding(top = Spacing.md),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                ) {
-                    FormatChip(R.string.share_format_square, format == ShareCardFormat.SQUARE) { format = ShareCardFormat.SQUARE }
-                    FormatChip(R.string.share_format_story, format == ShareCardFormat.STORY) { format = ShareCardFormat.STORY }
-                }
+                ScaledCardPreview(data, ShareCardFormat.STORY, graphicsLayer, Modifier.padding(top = Spacing.md))
 
                 // Single status slot: at most one message, and the latest action's outcome wins.
                 when (status) {
@@ -307,26 +298,3 @@ private fun ScaledCardPreview(
 // small phone; the scale math above coerces either format into whatever height this allows.
 private val PREVIEW_AREA_HEIGHT = 280.dp
 
-/** Pill/mono-caps selection chip in the v4.0 chip vocabulary (AnalyticsScreen's MetricChip). */
-@Composable
-private fun FormatChip(@StringRes labelRes: Int, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(Radius.pill)
-    val primary = MaterialTheme.colorScheme.primary
-    Box(
-        modifier = Modifier
-            .clip(shape)
-            .background(if (selected) primary else Color.Transparent)
-            .let { if (selected) it else it.border(1.dp, MaterialTheme.colorScheme.outline, shape) }
-            .clickable(onClick = onClick)
-            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
-    ) {
-        Text(
-            stringResource(labelRes).uppercase(Locale.getDefault()),
-            style = LogEzMono.dataSmall.copy(
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.08.em,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        )
-    }
-}

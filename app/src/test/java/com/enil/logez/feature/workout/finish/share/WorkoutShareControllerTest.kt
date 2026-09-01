@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
 /**
  * Export contract only. The GraphicsLayer capture itself isn't exercised here — recording and
  * rasterizing a composition's layer under Robolectric is not reliable — so the tests feed the
- * controller a synthetic bitmap at the exact SQUARE export resolution instead.
+ * controller a synthetic bitmap instead (the controller is agnostic to its dimensions).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -40,7 +40,7 @@ class WorkoutShareControllerTest {
     fun `export writes a decodable 1080px png behind a content uri and prunes only stale prior exports`() = runTest {
         val bitmap = Bitmap.createBitmap(1080, 1080, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFF39FF6E.toInt()) }
 
-        val uri = controller.exportPng(bitmap, ShareCardFormat.SQUARE)
+        val uri = controller.exportPng(bitmap, ShareCardFormat.STORY)
 
         assertEquals("content", uri.scheme)
         assertEquals("com.enil.logez.fileprovider", uri.authority)
@@ -56,7 +56,7 @@ class WorkoutShareControllerTest {
 
         // Second export: the fresh prior export survives (a share target may still hold a lazy
         // read grant on it), while one past the grace window is pruned.
-        val stale = File(sharedImagesDir, "logez_workout_square_0.png").apply {
+        val stale = File(sharedImagesDir, "logez_workout_story_0.png").apply {
             writeBytes(byteArrayOf(1))
             assertTrue(setLastModified(1L))
         }
@@ -86,14 +86,14 @@ class WorkoutShareControllerTest {
         val sink = ByteArrayOutputStream()
         resolver.registerOutputStream(expectedUri, sink)
 
-        val uri = controller.saveToPictures(bitmap, ShareCardFormat.SQUARE)
+        val uri = controller.saveToPictures(bitmap, ShareCardFormat.STORY)
 
         assertEquals("content", uri.scheme)
         assertEquals(expectedUri, uri)
 
         val inserted = resolver.insertStatements.single().contentValues
         assertTrue(
-            inserted.getAsString(MediaStore.Images.Media.DISPLAY_NAME).matches(Regex("logez_workout_square_\\d+\\.png")),
+            inserted.getAsString(MediaStore.Images.Media.DISPLAY_NAME).matches(Regex("logez_workout_story_\\d+\\.png")),
         )
         assertEquals("image/png", inserted.getAsString(MediaStore.Images.Media.MIME_TYPE))
         assertEquals("Pictures/logEZ", inserted.getAsString(MediaStore.Images.Media.RELATIVE_PATH))

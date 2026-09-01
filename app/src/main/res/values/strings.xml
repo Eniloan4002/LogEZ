@@ -366,9 +366,8 @@
     <string name="summary_share">Share</string>
 
     <!-- Shareable summary-card export -->
+    <string name="share_card_avg_reps">avg %1$s reps</string>
     <string name="share_sheet_title">Share summary</string>
-    <string name="share_format_square">Square</string>
-    <string name="share_format_story">Story</string>
     <string name="share_action">Share image</string>
     <string name="share_export_failed">Couldn\'t create the image. Nothing was shared — try again.</string>
     <string name="share_save_action">Save to gallery</string>

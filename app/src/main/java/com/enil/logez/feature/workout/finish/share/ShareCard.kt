@@ -58,21 +58,20 @@ data class ShareCardData(
 /**
  * The exported summary card. Fixed-size ([Modifier.requiredSize], never the caller's constraints)
  * and self-themed, because it is composed under a fixed export density and captured to a PNG —
- * nothing about the host screen may leak into its layout. SQUARE gets the compact treatment
- * (1-line-leaning sizes, fewer detail rows) since it has roughly half STORY's vertical room; the
- * detail block additionally clips inside a weighted column so a worst-case card (long 2-line
- * title + PRs + streak) degrades by dropping list rows, never by pushing the wordmark off-canvas.
+ * nothing about the host screen may leak into its layout. Story (9:16) is the only format
+ * (Owner directive — square retired); the detail block clips inside a weighted column so a
+ * worst-case card (long 2-line title + PRs + streak) degrades by dropping list rows, never by
+ * pushing the wordmark off-canvas.
  */
 @Composable
 fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier = Modifier) {
     LogEzTheme {
-        val compact = format == ShareCardFormat.SQUARE
-        val sectionGap = if (compact) Spacing.sm else Spacing.md
+        val sectionGap = Spacing.md
         Column(
             modifier = modifier
                 .requiredSize(format.width, format.height)
                 .background(MaterialTheme.colorScheme.background)
-                .padding(if (compact) Spacing.md else Spacing.lg),
+                .padding(Spacing.lg),
         ) {
             Text(
                 stringResource(R.string.summary_title).uppercase(Locale.getDefault()),
@@ -81,7 +80,7 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
             )
             Text(
                 data.title,
-                style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -131,25 +130,19 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
             }
 
             Column(modifier = Modifier.weight(1f).clipToBounds()) {
-                val detailStyle = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
+                val detailStyle = MaterialTheme.typography.bodyMedium
                 if (data.prs.isNotEmpty()) {
                     SectionHeader(
                         pluralStringResource(R.plurals.share_card_prs_header, data.prs.size),
                         modifier = Modifier.padding(top = sectionGap, bottom = Spacing.xxs),
                     )
-                    val maxPrs = if (compact) 2 else 3
+                    val maxPrs = 3
                     data.prs.take(maxPrs).forEach { pr -> PrLine(pr, detailStyle) }
                     val morePrs = data.prs.size - maxPrs
                     if (morePrs > 0) MoreLine(stringResource(R.string.share_card_more_prs, morePrs))
                 }
                 if (data.exerciseLines.isNotEmpty()) {
-                    // SQUARE's detail budget is shared: PRs are the rarer, louder content, so when
-                    // they are present the exercise list yields rows rather than the PR list.
-                    val maxExercises = when {
-                        !compact -> 5
-                        data.prs.isEmpty() -> 4
-                        else -> 2
-                    }
+                    val maxExercises = 5
                     Column(modifier = Modifier.padding(top = sectionGap)) {
                         data.exerciseLines.take(maxExercises).forEach { line ->
                             Text(line, style = detailStyle, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis)
