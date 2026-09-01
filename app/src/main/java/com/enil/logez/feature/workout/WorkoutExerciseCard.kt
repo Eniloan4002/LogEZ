@@ -188,7 +188,7 @@ internal fun WorkoutExerciseCard(
  * collection — the parent Card/Screen never reads a per-second value.
  */
 @Composable
-private fun RestTimerBar(remainingMillisFlow: Flow<Long?>, onMinus15: () -> Unit, onPlus15: () -> Unit, onSkip: () -> Unit) {
+internal fun RestTimerBar(remainingMillisFlow: Flow<Long?>, onMinus15: () -> Unit, onPlus15: () -> Unit, onSkip: () -> Unit) {
     val remainingMillis by remainingMillisFlow.collectAsStateWithLifecycle(null)
     val remainingSeconds = remainingMillis?.let { (it + 999) / 1000 } ?: return
     Column(modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs)) {
@@ -277,7 +277,7 @@ private fun SetTable(
 }
 
 @Composable
-private fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null) {
+internal fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null) {
     Text(
         label,
         style = MaterialTheme.typography.labelSmall,
@@ -287,7 +287,7 @@ private fun HeaderCell(label: String, modifier: Modifier = Modifier, width: andr
 }
 
 @Composable
-private fun SetRow(
+internal fun SetRow(
     index: Int,
     set: WorkoutSetUiModel,
     fields: Set<TargetField>,
@@ -308,6 +308,10 @@ private fun SetRow(
     isEditMode: Boolean = false,
     showRpe: Boolean = false,
     onRpeChange: (Double?) -> Unit = {},
+    /** M11 circuit rows: WARMUP leaves the badge menu (breaks row-index == round) ... */
+    allowWarmup: Boolean = true,
+    /** ... and so does per-row Delete (rounds are removed whole via the round header). */
+    allowDelete: Boolean = true,
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var showRpeSheet by remember { mutableStateOf(false) }
@@ -326,10 +330,14 @@ private fun SetRow(
             SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
-                DropdownMenuItem(text = { Text(stringResource(R.string.set_type_warmup)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.WARMUP) })
+                if (allowWarmup) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.set_type_warmup)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.WARMUP) })
+                }
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_failure)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.FAILURE) })
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_dropset)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.DROPSET) })
-                DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { typeMenuExpanded = false; onRemove() })
+                if (allowDelete) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { typeMenuExpanded = false; onRemove() })
+                }
             }
         }
         Text(
@@ -389,7 +397,7 @@ private fun SetRow(
 }
 
 @Composable
-private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
+internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
     val (label, color) = when (setType) {
         SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
         SetType.WARMUP -> "W" to Warning500
@@ -408,7 +416,7 @@ private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
 }
 
 @Composable
-private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
     var text by remember(value) { mutableStateOf(value?.let { formatTargetNumber(it) }.orEmpty()) }
     OutlinedTextField(
         value = text,
@@ -421,7 +429,7 @@ private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled
 }
 
 @Composable
-private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
     var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
     OutlinedTextField(
         value = text,

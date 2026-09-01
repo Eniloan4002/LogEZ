@@ -9,6 +9,7 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
@@ -262,5 +263,154 @@ class RoutineBuilderViewModelTest {
         val savedId = vm.save()!!
 
         assertEquals("f1", repo.getRoutineById(savedId)!!.folderId)
+    }
+
+    // --- M11 circuit templates ---
+
+    @Test
+    fun `switching a draft to CIRCUIT pads every exercise to the largest set count, clears supersets and coerces warm-ups`() = runTest {
+        val vm = newViewModel()
+        vm.onTitleChange("Conditioning")
+        vm.addExercises(listOf(exercise("ex-1", "Kettlebell Swing"), exercise("ex-2", "Goblet Squat")))
+        // ex-1 grows to 3 sets, one of them WARMUP; ex-2 stays at 1.
+        val ex1 = vm.uiState.value.exercises[0]
+        vm.addSet(ex1.id)
+        vm.addSet(ex1.id)
+        vm.updateSetType(ex1.id, vm.uiState.value.exercises[0].sets[0].id, SetType.WARMUP)
+        vm.updateWeight(ex1.id, vm.uiState.value.exercises[0].sets[2].id, 24.0)
+        vm.startSupersetSelection(ex1.id)
+        vm.confirmSupersetTarget(vm.uiState.value.exercises[1].id)
+
+        vm.setStructure(WorkoutStructure.CIRCUIT)
+
+        val state = vm.uiState.value
+        assertEquals(WorkoutStructure.CIRCUIT, state.structure)
+        assertEquals(3, state.rounds)
+        assertEquals(listOf(3, 3), state.exercises.map { it.sets.size }) // ex-2 padded up
+        assertTrue(state.exercises.all { it.supersetGroup == null }) // circuit IS the sequence
+        assertTrue(state.exercises[0].sets.none { it.setType == SetType.WARMUP }) // coerced to NORMAL
+        assertEquals(24.0, state.exercises[0].sets[2].targetWeightKg) // values untouched
+    }
+
+    @Test
+    fun `addRound appends one target row to every exercise, copying that exercise's previous round`() = runTest {
+        val vm = newViewModel()
+        vm.onTitleChange("Conditioning")
+        vm.setStructure(WorkoutStructure.CIRCUIT)
+        vm.addExercises(listOf(exercise("ex-1", "Kettlebell Swing"), exercise("ex-2", "Goblet Squat")))
+        val exercises = vm.uiState.value.exercises
+        vm.updateWeight(exercises[0].id, exercises[0].sets[0].id, 24.0)
+        vm.updateReps(exercises[0].id, exercises[0].sets[0].id, 15)
+        vm.updateWeight(exercises[1].id, exercises[1].sets[0].id, 16.0)
+
+        vm.addRound()
+
+        val state = vm.uiState.value
+        assertEquals(2, state.rounds)
+        assertEquals(listOf(2, 2), state.exercises.map { it.sets.size })
+        assertEquals(24.0, state.exercises[0].sets[1].targetWeightKg) // each exercise copies ITS OWN last round
+        assertEquals(15, state.exercises[0].sets[1].targetReps)
+        assertEquals(16.0, state.exercises[1].sets[1].targetWeightKg)
+    }
+
+    @Test
+    fun `removeLastRound drops the last row everywhere and refuses to go below one round`() = runTest {
+        val vm = newViewModel()
+        vm.onTitleChange("Conditioning")
+        vm.setStructure(WorkoutStructure.CIRCUIT)
+        vm.addExercises(listOf(exercise("ex-1", "Kettlebell Swing"), exercise("ex-2", "Goblet Squat")))
+        vm.addRound()
+        assertEquals(2, vm.uiState.value.rounds)
+
+        vm.removeLastRound()
+        assertEquals(1, vm.uiState.value.rounds)
+        assertEquals(listOf(1, 1), vm.uiState.value.exercises.map { it.sets.size })
+
+        vm.removeLastRound() // already at the minimum
+        assertEquals(1, vm.uiState.value.rounds)
+        assertEquals(listOf(1, 1), vm.uiState.value.exercises.map { it.sets.size })
+    }
+
+    @Test
+    fun `adding an exercise to a circuit draft seeds exactly rounds rows`() = runTest {
+        val vm = newViewModel()
+        vm.onTitleChange("Conditioning")
+        vm.setStructure(WorkoutStructure.CIRCUIT)
+        vm.addExercises(listOf(exercise("ex-1", "Kettlebell Swing")))
+        vm.addRound()
+        vm.addRound() // 3 rounds
+
+        vm.addExercises(listOf(exercise("ex-2", "Goblet Squat")))
+
+        assertEquals(listOf(3, 3), vm.uiState.value.exercises.map { it.sets.size })
+    }
+
+    @Test
+    fun `per-exercise addSet and removeSet are inert on a circuit draft`() = runTest {
+        val vm = newViewModel()
+        vm.onTitleChange("Conditioning")
+        vm.setStructure(WorkoutStructure.CIRCUIT)
+        vm.addExercises(listOf(exercise("ex-1", "Kettlebell Swing")))
+        val ex = vm.uiState.value.exercises.single()
+
+        vm.addSet(ex.id)
+        vm.removeSet(ex.id, vm.uiState.value.exercises.single().sets[0].id)
+
+        assertEquals(1, vm.uiState.value.exercises.single().sets.size)
+    }
+
+    @Test
+    fun `save persists the CIRCUIT structure and a circuit routine loads back as one`() = runTest {
+        val repo = FakeRoutineRepository()
+        val vm = newViewModel(routineRepo = repo)
+        vm.onTitleChange("Conditioning")
+        vm.setStructure(WorkoutStructure.CIRCUIT)
+        vm.addExercises(listOf(exercise("ex-1", "Kettlebell Swing")))
+        vm.addRound()
+
+        val savedId = vm.save()!!
+        assertEquals(WorkoutStructure.CIRCUIT, repo.getRoutineById(savedId)!!.structure)
+
+        // Reopen in edit mode: structure and rounds come back, and setStructure is refused.
+        val editVm = newViewModel(
+            routineId = savedId,
+            routineRepo = repo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Kettlebell Swing"))),
+        )
+        assertEquals(WorkoutStructure.CIRCUIT, editVm.uiState.value.structure)
+        assertEquals(2, editVm.uiState.value.rounds)
+        editVm.setStructure(WorkoutStructure.REGULAR)
+        assertEquals(WorkoutStructure.CIRCUIT, editVm.uiState.value.structure) // immutable after creation
+    }
+
+    @Test
+    fun `loading a circuit routine with drifted unequal set counts repairs it to a rectangle`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Kettlebell Swing"), exercise("ex-2", "Goblet Squat")))
+        val routineRepo = FakeRoutineRepository(
+            routines = listOf(
+                RoutineEntity(
+                    id = "r1", folderId = null, name = "Conditioning", notes = null, orderIndex = 0,
+                    createdAt = 0, updatedAt = 0, structure = WorkoutStructure.CIRCUIT,
+                ),
+            ),
+            exercises = listOf(
+                RoutineExerciseEntity(id = "re1", routineId = "r1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                RoutineExerciseEntity(id = "re2", routineId = "r1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                RoutineSetEntity(id = "s1", routineExerciseId = "re1", orderIndex = 0, setType = SetType.NORMAL, targetWeightKg = 24.0, targetReps = 15, targetRepRangeMin = null, targetRepRangeMax = null, targetDurationSeconds = null, targetDistanceMeters = null),
+                RoutineSetEntity(id = "s2", routineExerciseId = "re1", orderIndex = 1, setType = SetType.NORMAL, targetWeightKg = 24.0, targetReps = 12, targetRepRangeMin = null, targetRepRangeMax = null, targetDurationSeconds = null, targetDistanceMeters = null),
+                RoutineSetEntity(id = "s3", routineExerciseId = "re2", orderIndex = 0, setType = SetType.NORMAL, targetWeightKg = 16.0, targetReps = 10, targetRepRangeMin = null, targetRepRangeMax = null, targetDurationSeconds = null, targetDistanceMeters = null),
+            ),
+        )
+
+        val vm = newViewModel(routineId = "r1", routineRepo = routineRepo, exerciseRepo = exerciseRepo)
+
+        val state = vm.uiState.value
+        assertEquals(2, state.rounds)
+        assertEquals(listOf(2, 2), state.exercises.map { it.sets.size })
+        // The short exercise's pad copies its own last round's targets.
+        assertEquals(16.0, state.exercises[1].sets[1].targetWeightKg)
+        assertEquals(10, state.exercises[1].sets[1].targetReps)
     }
 }

@@ -39,7 +39,11 @@ class WorkoutTabViewModel @Inject constructor(
     val uiState: StateFlow<WorkoutTabUiState> = combine(
         routineRepository.observeFolders(),
         routineRepository.observeAllRoutines(),
-        routineRepository.observeRoutineExercisePreviews(),
+        // M11: round counts nested with the previews so the outer combine stays within
+        // kotlinx.coroutines' 5-flow typed overload (the same trick the heatmap input uses).
+        combine(routineRepository.observeRoutineExercisePreviews(), routineRepository.observeRoutineRoundCounts()) { previews, roundCounts ->
+            previews to roundCounts
+        },
         workoutRepository.observeInProgress(),
         // M8c heatmap: nested so the outer combine stays within kotlinx.coroutines' 5-flow typed
         // overload. Reuses `observeCompleted()` (already Flow-based) rather than the suspend-only
@@ -48,11 +52,18 @@ class WorkoutTabViewModel @Inject constructor(
         combine(workoutRepository.observeCompleted(), settingsRepository.settings) { completed, settings ->
             settings.firstDayOfWeek to completed
         },
-    ) { folders, routines, previewRows, inProgress, heatmapInput ->
+    ) { folders, routines, previewInput, inProgress, heatmapInput ->
+        val (previewRows, roundCountRows) = previewInput
         val previewByRoutine = previewRows.groupBy { it.routineId }
+        val roundsByRoutine = roundCountRows.associate { it.routineId to it.rounds }
         fun cardFor(routine: RoutineEntity): RoutineCardModel {
             val names = previewByRoutine[routine.id].orEmpty().sortedBy { it.orderIndex }.map { it.exerciseName }
-            return RoutineCardModel(routine = routine, exercisePreview = buildExercisePreview(names))
+            return RoutineCardModel(
+                routine = routine,
+                exercisePreview = buildExercisePreview(names),
+                exerciseCount = names.size,
+                rounds = (roundsByRoutine[routine.id] ?: 1).coerceAtLeast(1),
+            )
         }
         val routinesByFolder = routines.filter { it.folderId != null }.groupBy { it.folderId }
 
@@ -177,7 +188,13 @@ data class WorkoutTabUiState(
 )
 
 data class FolderSection(val folder: RoutineFolderEntity, val routines: List<RoutineCardModel>)
-data class RoutineCardModel(val routine: RoutineEntity, val exercisePreview: String)
+data class RoutineCardModel(
+    val routine: RoutineEntity,
+    val exercisePreview: String,
+    /** M11 circuit card preview line ("N rounds · M exercises"); harmless extras for REGULAR cards. */
+    val exerciseCount: Int = 0,
+    val rounds: Int = 1,
+)
 
 /** §5.1.1 routine card subtitle: "Bench Press, Incline DB Press, +3 more". Pure — unit-tested directly. */
 internal fun buildExercisePreview(names: List<String>): String = when {

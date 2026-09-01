@@ -1,0 +1,215 @@
+package com.enil.logez.feature.workout
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import com.enil.logez.R
+import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.feature.routines.TargetField
+import com.enil.logez.feature.routines.targetFields
+import java.util.Locale
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
+/**
+ * M11: one card per ROUND — the circuit logger's replacement for the per-exercise card. Each row
+ * is one exercise's turn in this round, in sequence order: name (tap -> detail, overflow ->
+ * replace/remove), then the same type-specific input matrix a regular set row carries (PREVIOUS,
+ * value cells, RPE, inline timer, check), reusing [SetRow] so completion behavior — sounds, rest
+ * timer, PR rules, FAILURE validation — is literally the same code path.
+ *
+ * Defensive rendering: an exercise whose set count falls short of this round (edited data,
+ * partial adds) contributes an inert "—" slot instead of crashing or re-flowing rows — the
+ * grouping in [buildCircuitRounds] never invents or reassigns rows.
+ */
+@Composable
+internal fun CircuitRoundCard(
+    round: CircuitRound,
+    viewModel: WorkoutLoggerViewModel,
+    onExerciseClick: (exerciseId: String) -> Unit,
+    onOpenReplacePicker: (workoutExerciseId: String) -> Unit,
+    onRemoveRound: () -> Unit,
+    canRemoveRound: Boolean = true,
+    rpeTrackingEnabled: Boolean,
+    inlineTimerEnabled: Boolean,
+    inlineTimerExerciseId: String?,
+    inlineTimerSetId: String?,
+    inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
+    isEditMode: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    LogEzCard(modifier = modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.workout_round_header, round.roundNumber)
+                        .uppercase(Locale.getDefault()),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.06.em),
+                    modifier = Modifier.weight(1f),
+                )
+                // Hidden (not just inert) for the only remaining round — the ViewModel guards
+                // removeRound the same way, so the two can't drift into a dead menu item.
+                if (canRemoveRound) {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workout_remove_round)) },
+                                onClick = { menuExpanded = false; onRemoveRound() },
+                            )
+                        }
+                    }
+                }
+            }
+
+            round.entries.forEachIndexed { entryIndex, entry ->
+                if (entryIndex > 0) HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
+                CircuitEntry(
+                    roundIndex = round.roundNumber - 1,
+                    entry = entry,
+                    viewModel = viewModel,
+                    onExerciseClick = { onExerciseClick(entry.exercise.exerciseId) },
+                    onOpenReplacePicker = { onOpenReplacePicker(entry.exercise.id) },
+                    rpeTrackingEnabled = rpeTrackingEnabled,
+                    inlineTimerEnabled = inlineTimerEnabled,
+                    inlineTimerRunning = inlineTimerExerciseId == entry.exercise.id && inlineTimerSetId == entry.set?.id,
+                    inlineTimerSecondsFlow = inlineTimerSecondsFlow,
+                    isEditMode = isEditMode,
+                )
+            }
+        }
+    }
+}
+
+/** One exercise's turn in one round: name row (with per-exercise ops), column headers, input row. */
+@Composable
+private fun CircuitEntry(
+    roundIndex: Int,
+    entry: CircuitRoundEntry,
+    viewModel: WorkoutLoggerViewModel,
+    onExerciseClick: () -> Unit,
+    onOpenReplacePicker: () -> Unit,
+    rpeTrackingEnabled: Boolean,
+    inlineTimerEnabled: Boolean,
+    inlineTimerRunning: Boolean,
+    inlineTimerSecondsFlow: Flow<Int?>,
+    isEditMode: Boolean,
+) {
+    val exercise = entry.exercise
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                exercise.exerciseName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f).clickable(onClick = onExerciseClick),
+            )
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    // M11: replace/remove only — no superset (the circuit IS the sequence) and no
+                    // per-exercise reorder affordance in the round-grouped view.
+                    DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; viewModel.removeExercise(exercise.id) })
+                }
+            }
+        }
+
+        val set = entry.set
+        if (set == null) {
+            // Defensive slot: this exercise has no row for this round (unequal set counts).
+            Text(
+                "—",
+                style = LogEzMono.dataMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = Spacing.md, top = Spacing.xxs),
+            )
+            return@Column
+        }
+
+        val fields = exercise.exerciseType.targetFields()
+        val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
+        val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
+        val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
+
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            HeaderCell(stringResource(R.string.routine_builder_col_round), width = 36.dp)
+            HeaderCell(stringResource(R.string.workout_col_previous), width = 76.dp)
+            if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f))
+            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f))
+            if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
+            if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
+            if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
+            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = 44.dp)
+            Spacer(modifier = Modifier.width(40.dp))
+        }
+        SetRow(
+            index = roundIndex,
+            set = set,
+            fields = fields,
+            showCustomMetric = showCustomMetric,
+            onSetTypeChange = { type -> viewModel.updateSetType(exercise.id, set.id, type) },
+            onRemove = { /* disabled in circuit mode — rounds are removed whole */ },
+            onWeightChange = { viewModel.updateWeight(exercise.id, set.id, it) },
+            onRepsChange = { viewModel.updateReps(exercise.id, set.id, it) },
+            onDurationChange = { viewModel.updateDuration(exercise.id, set.id, it) },
+            onDistanceChange = { viewModel.updateDistance(exercise.id, set.id, it) },
+            onCustomMetricChange = { viewModel.updateCustomMetric(exercise.id, set.id, it) },
+            onToggleCheck = { viewModel.toggleCheck(exercise.id, set.id) },
+            showInlineTimer = showInlineTimer,
+            inlineTimerRunning = inlineTimerRunning,
+            inlineTimerSecondsFlow = inlineTimerSecondsFlow,
+            onStartInlineTimer = { viewModel.startInlineTimer(exercise.id, set.id) },
+            onStopInlineTimer = { viewModel.stopInlineTimer(exercise.id, set.id) },
+            isEditMode = isEditMode,
+            showRpe = showRpe,
+            onRpeChange = { rpe -> viewModel.updateRpe(exercise.id, set.id, rpe) },
+            allowWarmup = false,
+            allowDelete = false,
+        )
+        if (set.failureError) {
+            Text(
+                stringResource(R.string.workout_failure_error),
+                color = com.enil.logez.core.designsystem.Danger500,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 44.dp, bottom = Spacing.xxs),
+            )
+        }
+    }
+}

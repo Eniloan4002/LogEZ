@@ -49,10 +49,16 @@ import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 
-/** One `routine_exercises` card (PHASE2_PLAN.md §5.1.2): header, notes, rest timer, set table. */
+/**
+ * One `routine_exercises` card (PHASE2_PLAN.md §5.1.2): header, notes, rest timer, set table.
+ * [isCircuit] (M11) locks per-exercise structure to the routine-level round count: the SET column
+ * reads ROUND, per-exercise add/remove-set and superset controls disappear, and WARMUP leaves the
+ * set-type menu (a warm-up row would break the row-index == round invariant).
+ */
 @Composable
 internal fun RoutineExerciseCard(
     exercise: RoutineExerciseDraft,
+    isCircuit: Boolean,
     defaultRestTimerSeconds: Int,
     reorderModeActive: Boolean,
     canMoveUp: Boolean,
@@ -115,10 +121,13 @@ internal fun RoutineExerciseCard(
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_reorder)) }, onClick = { menuExpanded = false; viewModel.toggleReorderMode() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
-                        if (exercise.supersetGroup == null) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_add_to_superset)) }, onClick = { menuExpanded = false; viewModel.startSupersetSelection(exercise.id) })
-                        } else {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_from_superset)) }, onClick = { menuExpanded = false; viewModel.removeFromSuperset(exercise.id) })
+                        // M11: no superset controls inside a circuit — the circuit IS the sequence.
+                        if (!isCircuit) {
+                            if (exercise.supersetGroup == null) {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_add_to_superset)) }, onClick = { menuExpanded = false; viewModel.startSupersetSelection(exercise.id) })
+                            } else {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_from_superset)) }, onClick = { menuExpanded = false; viewModel.removeFromSuperset(exercise.id) })
+                            }
                         }
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; viewModel.removeExercise(exercise.id) })
                     }
@@ -146,21 +155,25 @@ internal fun RoutineExerciseCard(
                 Text(stringResource(R.string.routine_builder_rest_timer_label, restLabel), style = MaterialTheme.typography.bodyMedium)
             }
 
-            SetTable(exercise = exercise, viewModel = viewModel)
+            SetTable(exercise = exercise, isCircuit = isCircuit, viewModel = viewModel)
 
-            TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
-                Text(stringResource(R.string.routine_builder_add_set))
+            // M11: per-exercise + Add Set is meaningless in a circuit — the routine-level rounds
+            // stepper is the only way set counts change, keeping every exercise in lockstep.
+            if (!isCircuit) {
+                TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
+                    Text(stringResource(R.string.routine_builder_add_set))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SetTable(exercise: RoutineExerciseDraft, viewModel: RoutineBuilderViewModel) {
+private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewModel: RoutineBuilderViewModel) {
     val fields = exercise.exerciseType.targetFields()
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HeaderCell(stringResource(R.string.routine_builder_col_set), width = 40.dp)
+            HeaderCell(stringResource(if (isCircuit) R.string.routine_builder_col_round else R.string.routine_builder_col_set), width = 40.dp)
             if (TargetField.WEIGHT in fields) HeaderCell(weightHeaderLabel(exercise.exerciseType), modifier = Modifier.weight(1f))
             if (TargetField.REPS in fields) {
                 HeaderCell(
@@ -177,6 +190,7 @@ private fun SetTable(exercise: RoutineExerciseDraft, viewModel: RoutineBuilderVi
                 index = index,
                 set = set,
                 fields = fields,
+                isCircuit = isCircuit,
                 isRepRangeMode = exercise.isRepRangeMode,
                 onSetTypeChange = { type -> viewModel.updateSetType(exercise.id, set.id, type) },
                 onRemove = { viewModel.removeSet(exercise.id, set.id) },
@@ -206,6 +220,7 @@ private fun SetRow(
     index: Int,
     set: RoutineSetDraft,
     fields: Set<TargetField>,
+    isCircuit: Boolean,
     isRepRangeMode: Boolean,
     onSetTypeChange: (SetType) -> Unit,
     onRemove: () -> Unit,
@@ -223,10 +238,16 @@ private fun SetRow(
             SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
-                DropdownMenuItem(text = { Text(stringResource(R.string.set_type_warmup)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.WARMUP) })
+                // M11: no WARMUP row inside a circuit (breaks row-index == round), and no per-row
+                // delete — rounds are removed for every exercise at once via the stepper.
+                if (!isCircuit) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.set_type_warmup)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.WARMUP) })
+                }
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_failure)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.FAILURE) })
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_dropset)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.DROPSET) })
-                DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { typeMenuExpanded = false; onRemove() })
+                if (!isCircuit) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { typeMenuExpanded = false; onRemove() })
+                }
             }
         }
         if (TargetField.WEIGHT in fields) {
@@ -248,8 +269,13 @@ private fun SetRow(
         if (TargetField.DISTANCE in fields) {
             NumberCell(value = set.targetDistanceMeters, onValueChange = onDistanceChange, modifier = Modifier.weight(1f))
         }
-        IconButton(onClick = onRemove, modifier = Modifier.width(40.dp)) {
-            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
+        if (isCircuit) {
+            // Keep the column grid aligned with the regular layout's trailing delete slot.
+            Spacer(modifier = Modifier.width(40.dp))
+        } else {
+            IconButton(onClick = onRemove, modifier = Modifier.width(40.dp)) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
+            }
         }
     }
 }

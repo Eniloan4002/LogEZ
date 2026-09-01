@@ -2,6 +2,7 @@ package com.enil.logez.feature.routines
 
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutStructure
 
 /**
  * In-memory Routine Builder state (PHASE2_PLAN.md §5.1.2) — mirrors `routines` +
@@ -16,6 +17,14 @@ data class RoutineDraft(
     val notes: String? = null,
     /** Edit mode only — preserved so Save doesn't re-home the routine to the top of its bucket. Ignored on create. */
     val orderIndex: Int = 0,
+    /** M11: selectable at create only — immutable after save, like an exercise's type. */
+    val structure: WorkoutStructure = WorkoutStructure.REGULAR,
+    /**
+     * CIRCUIT only: how many rounds the circuit runs. Invariant the ViewModel enforces on every
+     * mutation: each exercise's [RoutineExerciseDraft.sets] list is exactly this long, so row k
+     * IS round k+1. Meaningless (and left at 1) for REGULAR drafts.
+     */
+    val rounds: Int = 1,
     val exercises: List<RoutineExerciseDraft> = emptyList(),
 )
 

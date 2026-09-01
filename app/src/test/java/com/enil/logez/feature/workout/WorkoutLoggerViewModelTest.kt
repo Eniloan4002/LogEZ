@@ -11,6 +11,7 @@ import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
@@ -30,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -776,6 +778,186 @@ class WorkoutLoggerViewModelTest {
         // would never reach durationSeconds.
         assertNull(sessionController.state.value.inlineTimer)
         assertEquals(42, workoutRepo.getSetsForWorkoutExercise("we1").single().durationSeconds)
+    }
+
+    // --- M11 circuit mode ---
+
+    private fun aCircuitWorkout(id: String) = anInProgressWorkout(id).copy(structure = WorkoutStructure.CIRCUIT)
+
+    private fun circuitFixture(): FakeWorkoutRepository = FakeWorkoutRepository(
+        workouts = listOf(aCircuitWorkout("w1")),
+        exercises = listOf(
+            WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+            WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+        ),
+        sets = listOf(
+            WorkoutSetEntity(id = "a0", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            WorkoutSetEntity(id = "a1", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 65.0, reps = 6, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            WorkoutSetEntity(id = "b0", workoutExerciseId = "we2", orderIndex = 0, setType = SetType.NORMAL, weightKg = 20.0, reps = 12, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            WorkoutSetEntity(id = "b1", workoutExerciseId = "we2", orderIndex = 1, setType = SetType.NORMAL, weightKg = 22.5, reps = 10, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+        ),
+    )
+
+    private fun circuitExerciseRepo() = FakeExerciseRepository(listOf(exercise("ex-1", "Kettlebell Swing"), exercise("ex-2", "Goblet Squat")))
+
+    @Test
+    fun `a workout started from a circuit routine reports CIRCUIT structure in the ui state`() = runTest {
+        val vm = newViewModel(workoutRepo = circuitFixture(), exerciseRepo = circuitExerciseRepo())
+        assertEquals(WorkoutStructure.CIRCUIT, vm.uiState.value.structure)
+    }
+
+    @Test
+    fun `addRound appends one row to EVERY exercise, seeded from that exercise's previous round, and persists contiguous orderIndex`() = runTest {
+        val workoutRepo = circuitFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.addRound()
+
+        val state = vm.uiState.value.exercises
+        assertEquals(listOf(3, 3), state.map { it.sets.size })
+        assertEquals(65.0, state[0].sets[2].weightKg) // copied from we1's round 2
+        assertEquals(6, state[0].sets[2].reps)
+        assertEquals(22.5, state[1].sets[2].weightKg) // copied from we2's round 2
+        assertFalse(state[1].sets[2].isCompleted)
+
+        val persisted1 = workoutRepo.getSetsForWorkoutExercise("we1")
+        val persisted2 = workoutRepo.getSetsForWorkoutExercise("we2")
+        assertEquals(listOf(0, 1, 2), persisted1.map { it.orderIndex })
+        assertEquals(listOf(0, 1, 2), persisted2.map { it.orderIndex })
+        assertEquals(65.0, persisted1[2].weightKg)
+    }
+
+    @Test
+    fun `removeRound drops that round's row from every exercise and re-indexes later rounds contiguously`() = runTest {
+        val workoutRepo = circuitFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.removeRound(0)
+
+        val state = vm.uiState.value.exercises
+        assertEquals(listOf(1, 1), state.map { it.sets.size })
+        assertEquals("a1", state[0].sets[0].id)
+        assertEquals("b1", state[1].sets[0].id)
+
+        // Persisted: round 1's rows gone, the survivors re-homed at orderIndex 0.
+        val persisted1 = workoutRepo.getSetsForWorkoutExercise("we1").single()
+        val persisted2 = workoutRepo.getSetsForWorkoutExercise("we2").single()
+        assertEquals("a1", persisted1.id)
+        assertEquals(0, persisted1.orderIndex)
+        assertEquals("b1", persisted2.id)
+        assertEquals(0, persisted2.orderIndex)
+    }
+
+    @Test
+    fun `removeRound with unequal set counts only touches exercises that actually have the round`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(aCircuitWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                WorkoutSetEntity(id = "a0", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "a1", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 65.0, reps = 6, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "b0", workoutExerciseId = "we2", orderIndex = 0, setType = SetType.NORMAL, weightKg = 20.0, reps = 12, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.removeRound(1) // we2 has no round 2 — must not crash or disturb its single row
+
+        assertEquals(listOf(1, 1), vm.uiState.value.exercises.map { it.sets.size })
+        assertEquals("a0", workoutRepo.getSetsForWorkoutExercise("we1").single().id)
+        assertEquals("b0", workoutRepo.getSetsForWorkoutExercise("we2").single().id)
+    }
+
+    @Test
+    fun `addExercises mid-circuit gives the newcomer exactly one row per existing round`() = runTest {
+        val workoutRepo = circuitFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.addExercises(listOf(exercise("ex-3", "Burpee")))
+
+        val added = vm.uiState.value.exercises.last()
+        assertEquals("ex-3", added.exerciseId)
+        assertEquals(2, added.sets.size) // matches the circuit's current round count
+        val persisted = workoutRepo.getSetsForWorkoutExercise(added.id)
+        assertEquals(listOf(0, 1), persisted.map { it.orderIndex })
+    }
+
+    @Test
+    fun `addExercises mid-circuit auto-fills each round from PREVIOUS where a matching round exists`() = runTest {
+        val previous = mapOf(
+            "ex-3" to listOf(
+                StatSet(setId = "old1", workoutId = "wOld", workoutStartedAt = 1L, orderIndex = 0, setType = SetType.NORMAL, weightKg = 40.0, reps = 10, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = null, routineId = null),
+            ),
+        )
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(aCircuitWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                WorkoutSetEntity(id = "a0", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "a1", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 65.0, reps = 6, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+            statSetsByExercise = previous,
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.addExercises(listOf(exercise("ex-3", "Burpee")))
+
+        val added = vm.uiState.value.exercises.last()
+        assertEquals(2, added.sets.size)
+        assertEquals(40.0, added.sets[0].weightKg) // round 1 auto-filled from PREVIOUS
+        assertNull(added.sets[1].weightKg) // no matching previous round — blank, not invented
+    }
+
+    @Test
+    fun `addSet and removeSet are inert in circuit mode - set counts move only via rounds`() = runTest {
+        val workoutRepo = circuitFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.addSet("we1")
+        vm.removeSet("we1", "a0")
+
+        assertEquals(listOf(2, 2), vm.uiState.value.exercises.map { it.sets.size })
+        assertEquals(2, workoutRepo.getSetsForWorkoutExercise("we1").size)
+    }
+
+    @Test
+    fun `WARMUP is refused in circuit mode but other set types still apply`() = runTest {
+        val workoutRepo = circuitFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        vm.updateSetType("we1", "a0", SetType.WARMUP)
+        assertEquals(SetType.NORMAL, vm.uiState.value.exercises[0].sets[0].setType)
+
+        vm.updateSetType("we1", "a0", SetType.DROPSET)
+        assertEquals(SetType.DROPSET, vm.uiState.value.exercises[0].sets[0].setType)
+        assertEquals(SetType.DROPSET, workoutRepo.getSetsForWorkoutExercise("we1").first { it.id == "a0" }.setType)
+    }
+
+    @Test
+    fun `superset selection is refused in circuit mode`() = runTest {
+        val vm = newViewModel(workoutRepo = circuitFixture(), exerciseRepo = circuitExerciseRepo())
+
+        vm.startSupersetSelection("we1")
+
+        assertFalse(vm.uiState.value.supersetSelectionActive)
+    }
+
+    @Test
+    fun `checking a circuit row scrolls to the next incomplete row of the same round, wrapping into the next round`() = runTest {
+        val vm = newViewModel(workoutRepo = circuitFixture(), exerciseRepo = circuitExerciseRepo())
+        val scrolled = mutableListOf<Int>()
+        val job = launch(UnconfinedTestDispatcher()) { vm.scrollToRound.collect { scrolled.add(it) } }
+
+        vm.toggleCheck("we1", "a0") // round 1, first exercise -> b0 still open in round 1
+        vm.toggleCheck("we2", "b0") // round 1 done -> round 2
+
+        assertEquals(listOf(0, 1), scrolled)
+        job.cancel()
     }
 
     @Test

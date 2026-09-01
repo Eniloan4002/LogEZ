@@ -80,6 +80,9 @@ class FakeWorkoutRepository(
     override suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?) =
         mutateSet(id) { it.copy(isCompleted = completed, completedAt = completedAt) }
 
+    override suspend fun updateWorkoutSetOrderIndex(id: String, orderIndex: Int) =
+        mutateSet(id) { it.copy(orderIndex = orderIndex) }
+
     private fun mutateSet(id: String, transform: (WorkoutSetEntity) -> WorkoutSetEntity) {
         setsState.update { list -> list.map { if (it.id == id) transform(it) else it } }
     }

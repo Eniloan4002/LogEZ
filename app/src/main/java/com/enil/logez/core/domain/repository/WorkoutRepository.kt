@@ -42,6 +42,8 @@ interface WorkoutRepository {
     suspend fun updateWorkoutSetRpe(id: String, rpe: Double?)
     suspend fun updateWorkoutSetType(id: String, type: SetType)
     suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?)
+    /** M11 circuits: Remove Round re-indexes every exercise's later rounds down to keep orderIndex contiguous. */
+    suspend fun updateWorkoutSetOrderIndex(id: String, orderIndex: Int)
     suspend fun deleteWorkoutSet(id: String)
     suspend fun deleteWorkoutExercise(id: String)
     suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int)

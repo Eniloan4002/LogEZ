@@ -29,12 +29,14 @@ import androidx.compose.ui.unit.em
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.WorkoutStructure
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -103,6 +105,8 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                // M11: circuit workouts identify themselves on the card.
+                if (card.structure == WorkoutStructure.CIRCUIT) CircuitChip(modifier = Modifier.padding(end = Spacing.xs))
                 if (card.hasRecords) RecordsChip()
             }
             Text(
@@ -116,6 +120,10 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                 StatCell(stringResource(R.string.summary_duration), formatCardDuration(card.durationSeconds))
                 StatCell(stringResource(R.string.summary_volume), formatCardVolume(card.volumeKg))
                 StatCell(stringResource(R.string.summary_sets), card.setCount.toString())
+                // M11: circuit cards report their round count alongside the shared stats.
+                if (card.structure == WorkoutStructure.CIRCUIT) {
+                    StatCell(stringResource(R.string.routine_rounds_label), card.rounds.toString())
+                }
             }
 
             if (card.exerciseSummaries.isNotEmpty()) {

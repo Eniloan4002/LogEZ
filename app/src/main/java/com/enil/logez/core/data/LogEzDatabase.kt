@@ -28,7 +28,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
 /**
  * Schema v1 (PHASE2_PLAN.md §3.2, §10.4), v2 adds `goal_definitions` (M8d), v3 adds
  * `exercises.primary_muscle_head` (M8e), v4 replaces that with `exercises.muscle_heads` (M8e
- * revision — a checklist, not a single pick). `exportSchema = true` from day one — `schemas/` is
+ * revision — a checklist, not a single pick), v5 adds `routines.structure` and
+ * `workouts.structure` (M11 circuits — a discriminator only, no new tables). `exportSchema = true`
+ * from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
  * app (project-rules.md testing expectations): this app's entire value is the historical log, so
  * every schema change ships as a real, tested [androidx.room.migration.Migration].
@@ -48,7 +50,7 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         ProgressPhotoEntity::class,
         GoalDefinitionEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -115,6 +117,20 @@ abstract class LogEzDatabase : RoomDatabase() {
                     WHERE `primary_muscle_head` IS NOT NULL
                     """.trimIndent(),
                 )
+            }
+        }
+
+        /**
+         * v4 -> v5 (M11 circuits): one defaulted TEXT column on each of `routines` and `workouts`.
+         * Purely additive — every pre-existing row reads back as REGULAR, which is exactly what it
+         * was. The `DEFAULT 'REGULAR'` literal must stay byte-identical to the entities'
+         * `@ColumnInfo(defaultValue = "'REGULAR'")` declarations or Room's post-migration schema
+         * validation rejects the live table on the next open (the `debug13.9` failure mode).
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `routines` ADD COLUMN `structure` TEXT NOT NULL DEFAULT 'REGULAR'")
+                db.execSQL("ALTER TABLE `workouts` ADD COLUMN `structure` TEXT NOT NULL DEFAULT 'REGULAR'")
             }
         }
     }

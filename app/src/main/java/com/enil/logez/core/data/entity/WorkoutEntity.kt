@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.model.WorkoutStructure
 
 /**
  * A live or completed logging session (PHASE2_PLAN.md §3.2). At most one row with
@@ -35,4 +36,9 @@ data class WorkoutEntity(
     @ColumnInfo(name = "duration_seconds") val durationSeconds: Int,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    /** M11 circuits: copied from the source routine (or workout) at start; round k of exercise i
+     * IS the `workout_sets` row with `orderIndex = k-1` under block i — no separate circuit
+     * tables. `defaultValue` must match `MIGRATION_4_5`'s SQL default exactly (see
+     * [RoutineEntity.structure]). */
+    @ColumnInfo(name = "structure", defaultValue = "'REGULAR'") val structure: WorkoutStructure = WorkoutStructure.REGULAR,
 )

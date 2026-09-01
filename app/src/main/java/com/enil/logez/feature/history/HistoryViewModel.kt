@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.isIncluded
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -102,6 +103,10 @@ class HistoryViewModel @Inject constructor(
                 setCount = included.size,
                 hasRecords = workout.id in workoutIdsWithRecords,
                 exerciseSummaries = exerciseSummaries,
+                structure = workout.structure,
+                // M11: the saved rows are post-purge, so this is the count of rounds that
+                // actually survived — MAX across blocks, matching the round-grouped detail view.
+                rounds = rows.groupBy { it.workoutExerciseId }.values.maxOfOrNull { it.size } ?: 0,
             )
         }
     }
@@ -122,6 +127,9 @@ data class WorkoutCardModel(
     val setCount: Int,
     val hasRecords: Boolean,
     val exerciseSummaries: List<ExerciseSummaryLine>,
+    /** M11: CIRCUIT cards add a chip and a Rounds stat. */
+    val structure: WorkoutStructure = WorkoutStructure.REGULAR,
+    val rounds: Int = 0,
 )
 
 data class ExerciseSummaryLine(val name: String, val setCount: Int)

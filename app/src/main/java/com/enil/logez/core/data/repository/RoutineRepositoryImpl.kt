@@ -2,6 +2,7 @@ package com.enil.logez.core.data.repository
 
 import com.enil.logez.core.data.dao.RoutineDao
 import com.enil.logez.core.data.dao.RoutineExercisePreviewRow
+import com.enil.logez.core.data.dao.RoutineRoundCountRow
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
@@ -40,6 +41,9 @@ class RoutineRepositoryImpl @Inject constructor(
 
     override fun observeRoutineExercisePreviews(): Flow<List<RoutineExercisePreviewRow>> =
         dao.observeRoutineExercisePreviews()
+
+    override fun observeRoutineRoundCounts(): Flow<List<RoutineRoundCountRow>> =
+        dao.observeRoutineRoundCounts()
 
     override suspend fun insertFullRoutine(
         routine: RoutineEntity,

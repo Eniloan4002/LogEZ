@@ -5,6 +5,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
@@ -131,6 +132,40 @@ class WorkoutToRoutineConverterTest {
         assertNull(routine.folderId)
         assertEquals(0, routine.orderIndex)
         assertNotNull(f.routineRepo.getRoutineById(routineId))
+    }
+
+    // --- M11 circuits ---
+
+    @Test
+    fun `a circuit workout saves as a circuit routine with rounds equal to the workout's row counts`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w1", routineId = null, title = "Conditioning", notes = null,
+                    status = WorkoutStatus.COMPLETED, startedAt = 1_000L, endedAt = 5_000L,
+                    durationSeconds = 4000, createdAt = 1_000L, updatedAt = 1_000L,
+                    structure = WorkoutStructure.CIRCUIT,
+                ),
+            ),
+            exercises = listOf(we("we1", "ex-1", 0), we("we2", "ex-2", 1)),
+            sets = listOf(
+                set("s1", "we1", 0, 24.0, 15),
+                set("s2", "we1", 1, 24.0, 12),
+                set("s3", "we2", 0, 16.0, 10),
+                set("s4", "we2", 1, 16.0, 10),
+            ),
+        )
+        val routineRepo = FakeRoutineRepository()
+        val converter = WorkoutToRoutineConverter(workoutRepo, routineRepo, FakeClock(currentMillis = 9_000L))
+
+        val routineId = converter.convert("w1")!!
+
+        val routine = routineRepo.getRoutineById(routineId)!!
+        assertEquals(WorkoutStructure.CIRCUIT, routine.structure)
+        val exercises = routineRepo.getExercisesForRoutine(routineId).sortedBy { it.orderIndex }
+        // Rounds = the workout's per-exercise row counts, carried as ordinary per-round set rows.
+        assertEquals(2, routineRepo.getSetsForRoutineExercise(exercises[0].id).size)
+        assertEquals(2, routineRepo.getSetsForRoutineExercise(exercises[1].id).size)
     }
 
     // --- fixture ---

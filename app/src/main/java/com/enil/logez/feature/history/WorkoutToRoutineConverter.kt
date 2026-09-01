@@ -4,6 +4,7 @@ import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import java.util.UUID
@@ -49,10 +50,39 @@ class WorkoutToRoutineConverter @Inject constructor(
             )
         }
 
-        val routineSets = workoutExercises.flatMapIndexed { index: Int, we ->
-            workoutRepository.getSetsForWorkoutExercise(we.id)
-                .sortedBy { it.orderIndex }
-                .mapIndexed { setIndex, ws ->
+        val setsByExercise = workoutExercises.map { we ->
+            workoutRepository.getSetsForWorkoutExercise(we.id).sortedBy { it.orderIndex }
+        }
+        val isCircuit = workout.structure == WorkoutStructure.CIRCUIT
+        // In a circuit, a set's orderIndex IS its round, and the finish-flow purge leaves gaps
+        // where rounds were skipped — compacting by list position here would shift a surviving
+        // later round's values onto an earlier round in the new routine (the same misattribution
+        // WorkoutFinisher's circuit rewrite guards against). Map by round instead, padding a
+        // skipped round from the nearest earlier surviving one so the routine stays rectangular.
+        val circuitRounds = if (isCircuit) setsByExercise.maxOf { rows -> rows.maxOfOrNull { it.orderIndex + 1 } ?: 0 } else 0
+        val routineSets = setsByExercise.flatMapIndexed { index: Int, rows ->
+            if (isCircuit) {
+                // A finished workout shouldn't hold a zero-set exercise, but if one slips through,
+                // emitting no rows (builder pads on open) beats crashing on rows.first() below.
+                if (rows.isEmpty()) return@flatMapIndexed emptyList()
+                val byRound = rows.associateBy { it.orderIndex }
+                (0 until circuitRounds).map { round ->
+                    val ws = byRound[round] ?: rows.lastOrNull { it.orderIndex < round } ?: rows.first()
+                    RoutineSetEntity(
+                        id = UUID.randomUUID().toString(),
+                        routineExerciseId = routineExercises[index].id,
+                        orderIndex = round,
+                        setType = ws.setType,
+                        targetWeightKg = ws.weightKg,
+                        targetReps = ws.reps,
+                        targetRepRangeMin = null,
+                        targetRepRangeMax = null,
+                        targetDurationSeconds = ws.durationSeconds,
+                        targetDistanceMeters = ws.distanceMeters,
+                    )
+                }
+            } else {
+                rows.mapIndexed { setIndex, ws ->
                     RoutineSetEntity(
                         id = UUID.randomUUID().toString(),
                         routineExerciseId = routineExercises[index].id,
@@ -66,6 +96,7 @@ class WorkoutToRoutineConverter @Inject constructor(
                         targetDistanceMeters = ws.distanceMeters,
                     )
                 }
+            }
         }
 
         routineRepository.createRoutineAtTop(
@@ -77,6 +108,9 @@ class WorkoutToRoutineConverter @Inject constructor(
                 orderIndex = 0,
                 createdAt = now,
                 updatedAt = now,
+                // M11: a circuit workout saves as a circuit routine — targets mapped round-by-round
+                // (orderIndex), with purged rounds padded, in the flatMapIndexed block above.
+                structure = workout.structure,
             ),
             dropOrphanSupersets(routineExercises),
             routineSets,

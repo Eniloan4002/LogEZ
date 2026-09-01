@@ -63,6 +63,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
 import com.enil.logez.feature.workout.finish.fromDatePickerMillis
@@ -96,6 +97,8 @@ fun WorkoutLoggerScreen(
     var showDiscardEditConfirm by remember { mutableStateOf(false) }
     var showEditIncompleteConfirm by remember { mutableStateOf(false) }
     var showEditDatePicker by remember { mutableStateOf(false) }
+    // M11: which round's "Remove Round" is awaiting confirmation (0-based), if any.
+    var pendingRemoveRoundIndex by remember { mutableStateOf<Int?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val editSaveState by viewModel.editSaveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -136,6 +139,13 @@ fun WorkoutLoggerScreen(
         viewModel.scrollToExercise.collect { exerciseId ->
             val index = uiState.exercises.indexOfFirst { it.id == exerciseId }
             if (index >= 0) listState.scrollToItem(index)
+        }
+    }
+
+    // M11: the circuit analog — round-card indices map 1:1 onto the circuit list's items.
+    LaunchedEffect(Unit) {
+        viewModel.scrollToRound.collect { roundIndex ->
+            if (roundIndex >= 0) listState.scrollToItem(roundIndex)
         }
     }
 
@@ -277,6 +287,71 @@ fun WorkoutLoggerScreen(
                     )
                 }
 
+                val isCircuit = uiState.structure == WorkoutStructure.CIRCUIT
+
+                // M11: in circuit mode the per-exercise cards' rest bar has no single home (a
+                // round card holds every exercise), so the countdown + controls dock here instead,
+                // pinned above the round list. Same engine, same flow, same controls.
+                if (isCircuit && uiState.restExerciseId != null && !uiState.isEditMode) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+                        RestTimerBar(
+                            remainingMillisFlow = viewModel.restRemainingMillisFlow,
+                            onMinus15 = { viewModel.adjustRestTimer(-15) },
+                            onPlus15 = { viewModel.adjustRestTimer(15) },
+                            onSkip = viewModel::skipRestTimer,
+                        )
+                    }
+                }
+
+                if (isCircuit) {
+                    // M11: round-grouped rendering — one card per round, exercises in sequence
+                    // order inside it. Grouping is pure (buildCircuitRounds) and never repairs
+                    // data: unequal set counts render as inert "—" slots.
+                    val rounds = buildCircuitRounds(uiState.exercises)
+                    LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
+                        // Keyed by the round's first surviving set id, not its position: removing
+                        // an earlier round must not re-attach later cards' remembered UI state
+                        // (open menus, unparsed cell text) to a different round.
+                        items(
+                            items = rounds,
+                            key = { r -> r.entries.firstNotNullOfOrNull { it.set?.id } ?: "round-${r.roundNumber}" },
+                        ) { round ->
+                            CircuitRoundCard(
+                                round = round,
+                                viewModel = viewModel,
+                                onExerciseClick = onExerciseClick,
+                                onOpenReplacePicker = { weId -> replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE },
+                                onRemoveRound = {
+                                    val roundIndex = round.roundNumber - 1
+                                    if (viewModel.roundHasLoggedValues(roundIndex)) {
+                                        pendingRemoveRoundIndex = roundIndex
+                                    } else {
+                                        viewModel.removeRound(roundIndex)
+                                    }
+                                },
+                                canRemoveRound = rounds.size > 1,
+                                rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+                                inlineTimerEnabled = uiState.inlineTimerEnabled,
+                                inlineTimerExerciseId = uiState.inlineTimerExerciseId,
+                                inlineTimerSetId = uiState.inlineTimerSetId,
+                                inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
+                                isEditMode = uiState.isEditMode,
+                            )
+                        }
+                    }
+
+                    // M11: + Add Round replaces per-exercise + Add Set — pinned beside Add Exercise.
+                    Row(modifier = Modifier.fillMaxWidth().padding(Spacing.md), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Button(onClick = viewModel::addRound, modifier = Modifier.weight(1f), enabled = uiState.exercises.isNotEmpty()) {
+                            Text(stringResource(R.string.workout_add_round))
+                        }
+                        Button(onClick = { pickerMode = ExercisePickerMode.ADD }, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.routine_builder_add_exercise))
+                        }
+                    }
+                    return@Column
+                }
+
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
                     items(items = uiState.exercises, key = { it.id }) { exercise ->
                         val index = uiState.exercises.indexOf(exercise)
@@ -396,6 +471,23 @@ fun WorkoutLoggerScreen(
 
     // M4c: no confirm dialog here any more — Finish opens §5.1.8's Save Workout screen, which is
     // itself the review-and-confirm step (and owns the incomplete-sets / no-sets warnings).
+
+    // M11: Remove Round holds logged values somewhere — confirm before deleting the whole slice.
+    pendingRemoveRoundIndex?.let { roundIndex ->
+        AlertDialog(
+            onDismissRequest = { pendingRemoveRoundIndex = null },
+            title = { Text(stringResource(R.string.workout_remove_round_title, roundIndex + 1)) },
+            text = { Text(stringResource(R.string.workout_remove_round_body)) },
+            confirmButton = {
+                TextButton(onClick = { pendingRemoveRoundIndex = null; viewModel.removeRound(roundIndex) }) {
+                    Text(stringResource(R.string.workout_remove_round))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRemoveRoundIndex = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
 
     if (showDiscardConfirm) {
         AlertDialog(

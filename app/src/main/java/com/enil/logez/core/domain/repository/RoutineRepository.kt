@@ -1,6 +1,7 @@
 package com.enil.logez.core.domain.repository
 
 import com.enil.logez.core.data.dao.RoutineExercisePreviewRow
+import com.enil.logez.core.data.dao.RoutineRoundCountRow
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
@@ -27,6 +28,9 @@ interface RoutineRepository {
     suspend fun getExercisesForRoutine(routineId: String): List<RoutineExerciseEntity>
     suspend fun getSetsForRoutineExercise(routineExerciseId: String): List<RoutineSetEntity>
     fun observeRoutineExercisePreviews(): Flow<List<RoutineExercisePreviewRow>>
+
+    /** M11: routineId -> round count (largest per-exercise set count) for circuit card previews. */
+    fun observeRoutineRoundCounts(): Flow<List<RoutineRoundCountRow>>
 
     suspend fun insertFullRoutine(
         routine: RoutineEntity,

@@ -9,6 +9,7 @@ import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
@@ -55,6 +56,8 @@ class RoutineBuilderViewModel @Inject constructor(
             isLoading = loading,
             isEditMode = isEditMode,
             title = d.title,
+            structure = d.structure,
+            rounds = d.rounds,
             exercises = d.exercises,
             defaultRestTimerSeconds = settings.defaultRestTimerSeconds,
             isDirty = !loading && loadedSnapshot != null && d != loadedSnapshot,
@@ -110,6 +113,19 @@ class RoutineBuilderViewModel @Inject constructor(
                 },
             )
         }
+        // CIRCUIT invariant repair on load: every exercise must carry exactly `rounds` rows
+        // (row k == round k+1). Edited/legacy data can drift — pad any short exercise with copies
+        // of its own last round's targets so the builder always shows a rectangular table.
+        val rounds = if (routine.structure == WorkoutStructure.CIRCUIT) {
+            (exerciseDrafts.maxOfOrNull { it.sets.size } ?: 1).coerceAtLeast(1)
+        } else {
+            1
+        }
+        val normalizedExercises = if (routine.structure == WorkoutStructure.CIRCUIT) {
+            exerciseDrafts.map { it.copy(sets = it.sets.padToRounds(rounds)) }
+        } else {
+            exerciseDrafts
+        }
         return RoutineDraft(
             id = routine.id,
             folderId = routine.folderId,
@@ -117,7 +133,9 @@ class RoutineBuilderViewModel @Inject constructor(
             title = routine.name,
             notes = routine.notes,
             orderIndex = routine.orderIndex,
-            exercises = exerciseDrafts,
+            structure = routine.structure,
+            rounds = rounds,
+            exercises = normalizedExercises,
         )
     }
 
@@ -125,7 +143,64 @@ class RoutineBuilderViewModel @Inject constructor(
 
     fun onTitleChange(text: String) = updateDraft { it.copy(title = text) }
 
+    /**
+     * M11 structure choice — create mode only; after save the structure is immutable (same rule as
+     * an exercise's type). Switching an in-progress draft to CIRCUIT reshapes it to the circuit
+     * invariant: rounds = the largest current set count, every exercise padded to that length,
+     * supersets cleared (the circuit IS the sequence) and WARMUP rows coerced to NORMAL (a warm-up
+     * row would break row-index == round). Switching back to REGULAR keeps the rows as they are.
+     */
+    fun setStructure(structure: WorkoutStructure) {
+        if (isEditMode) return
+        updateDraft { d ->
+            if (d.structure == structure) return@updateDraft d
+            if (structure == WorkoutStructure.REGULAR) {
+                d.copy(structure = structure, rounds = 1)
+            } else {
+                val rounds = (d.exercises.maxOfOrNull { it.sets.size } ?: 1).coerceAtLeast(1)
+                d.copy(
+                    structure = structure,
+                    rounds = rounds,
+                    exercises = d.exercises.map { ex ->
+                        ex.copy(
+                            supersetGroup = null,
+                            sets = ex.sets.map { s -> if (s.setType == SetType.WARMUP) s.copy(setType = SetType.NORMAL) else s }
+                                .padToRounds(rounds),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    /** CIRCUIT: appends round `rounds + 1` — one new target row on EVERY exercise, seeded from that exercise's previous round. */
+    fun addRound() = updateDraft { d ->
+        if (d.structure != WorkoutStructure.CIRCUIT) return@updateDraft d
+        d.copy(
+            rounds = d.rounds + 1,
+            exercises = d.exercises.map { it.copy(sets = it.sets.padToRounds(d.rounds + 1)) },
+        )
+    }
+
+    /** CIRCUIT: drops the LAST round's row from every exercise (min 1 round — a zero-round circuit is meaningless). */
+    fun removeLastRound() = updateDraft { d ->
+        if (d.structure != WorkoutStructure.CIRCUIT || d.rounds <= 1) return@updateDraft d
+        d.copy(
+            rounds = d.rounds - 1,
+            exercises = d.exercises.map { it.copy(sets = it.sets.take(d.rounds - 1)) },
+        )
+    }
+
+    /** Whether the stepper-down should confirm first: true when any exercise's last-round row carries a target value. */
+    fun lastRoundHasTargets(): Boolean {
+        val d = draft.value
+        if (d.structure != WorkoutStructure.CIRCUIT) return false
+        return d.exercises.any { ex -> ex.sets.getOrNull(d.rounds - 1)?.hasAnyTarget() == true }
+    }
+
     fun addExercises(exercises: List<Exercise>) = updateDraft { d ->
+        // CIRCUIT: a newcomer joins every existing round, so it gets exactly `rounds` blank rows.
+        val setCount = if (d.structure == WorkoutStructure.CIRCUIT) d.rounds else 1
         d.copy(
             exercises = d.exercises + exercises.map { e ->
                 RoutineExerciseDraft(
@@ -133,7 +208,7 @@ class RoutineBuilderViewModel @Inject constructor(
                     exerciseId = e.id,
                     exerciseName = e.name,
                     exerciseType = e.exerciseType,
-                    sets = listOf(RoutineSetDraft(id = UUID.randomUUID().toString())),
+                    sets = List(setCount) { RoutineSetDraft(id = UUID.randomUUID().toString()) },
                 )
             },
         )
@@ -176,6 +251,9 @@ class RoutineBuilderViewModel @Inject constructor(
     }
 
     fun addSet(exerciseId: String) = updateDraft { d ->
+        // CIRCUIT: per-exercise set counts are locked to the round count; the UI hides this
+        // affordance, and the guard keeps the invariant even if a stale callback fires.
+        if (d.structure == WorkoutStructure.CIRCUIT) return@updateDraft d
         d.copy(
             exercises = d.exercises.map { ex ->
                 if (ex.id != exerciseId) return@map ex
@@ -196,10 +274,21 @@ class RoutineBuilderViewModel @Inject constructor(
     }
 
     fun removeSet(exerciseId: String, setId: String) = updateDraft { d ->
+        // CIRCUIT: rounds are removed for every exercise at once via removeLastRound, never row-by-row.
+        if (d.structure == WorkoutStructure.CIRCUIT) return@updateDraft d
         d.copy(exercises = d.exercises.map { if (it.id != exerciseId) it else it.copy(sets = it.sets.filterNot { s -> s.id == setId }) })
     }
 
-    fun updateSetType(exerciseId: String, setId: String, type: SetType) = updateSet(exerciseId, setId) { it.copy(setType = type) }
+    fun updateSetType(exerciseId: String, setId: String, type: SetType) = updateDraft { d ->
+        // CIRCUIT: WARMUP is unavailable — a warm-up row would break row-index == round (the UI
+        // hides the menu item; this guard is the invariant's backstop).
+        if (d.structure == WorkoutStructure.CIRCUIT && type == SetType.WARMUP) return@updateDraft d
+        d.copy(
+            exercises = d.exercises.map { ex ->
+                if (ex.id != exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) it.copy(setType = type) else it })
+            },
+        )
+    }
     fun updateWeight(exerciseId: String, setId: String, kg: Double?) = updateSet(exerciseId, setId) { it.copy(targetWeightKg = kg) }
     fun updateReps(exerciseId: String, setId: String, reps: Int?) = updateSet(exerciseId, setId) { it.copy(targetReps = reps) }
     fun updateRepRangeMin(exerciseId: String, setId: String, min: Int?) = updateSet(exerciseId, setId) { it.copy(targetRepRangeMin = min) }
@@ -235,7 +324,11 @@ class RoutineBuilderViewModel @Inject constructor(
         )
     }
 
-    fun startSupersetSelection(sourceExerciseId: String) = supersetSource.update { sourceExerciseId }
+    fun startSupersetSelection(sourceExerciseId: String) {
+        // CIRCUIT: the circuit IS the sequence — grouping inside it is meaningless, controls hidden.
+        if (draft.value.structure == WorkoutStructure.CIRCUIT) return
+        supersetSource.update { sourceExerciseId }
+    }
     fun cancelSupersetSelection() = supersetSource.update { null }
 
     fun confirmSupersetTarget(targetExerciseId: String) {
@@ -276,6 +369,7 @@ class RoutineBuilderViewModel @Inject constructor(
             orderIndex = current.orderIndex,
             createdAt = current.createdAt,
             updatedAt = now,
+            structure = current.structure,
         )
         val exerciseEntities = current.exercises.mapIndexed { index, ex ->
             RoutineExerciseEntity(
@@ -324,6 +418,10 @@ data class RoutineBuilderUiState(
     val isLoading: Boolean = true,
     val isEditMode: Boolean = false,
     val title: String = "",
+    /** M11: REGULAR/CIRCUIT — selectable at create, shown greyed with a hint when editing. */
+    val structure: WorkoutStructure = WorkoutStructure.REGULAR,
+    /** CIRCUIT only — every exercise's set table is exactly this many rows. */
+    val rounds: Int = 1,
     val exercises: List<RoutineExerciseDraft> = emptyList(),
     val defaultRestTimerSeconds: Int = 90,
     val isDirty: Boolean = false,
@@ -332,3 +430,27 @@ data class RoutineBuilderUiState(
     val supersetSourceExerciseId: String? = null,
     val reorderModeActive: Boolean = false,
 )
+
+/** Appends copies of the last row's targets (fresh ids, NORMAL-safe) until the list is [rounds] long. */
+private fun List<RoutineSetDraft>.padToRounds(rounds: Int): List<RoutineSetDraft> {
+    if (size >= rounds) return this
+    val padded = toMutableList()
+    while (padded.size < rounds) {
+        val last = padded.lastOrNull()
+        padded += RoutineSetDraft(
+            id = UUID.randomUUID().toString(),
+            setType = SetType.NORMAL,
+            targetWeightKg = last?.targetWeightKg,
+            targetReps = last?.targetReps,
+            targetRepRangeMin = last?.targetRepRangeMin,
+            targetRepRangeMax = last?.targetRepRangeMax,
+            targetDurationSeconds = last?.targetDurationSeconds,
+            targetDistanceMeters = last?.targetDistanceMeters,
+        )
+    }
+    return padded
+}
+
+private fun RoutineSetDraft.hasAnyTarget(): Boolean =
+    targetWeightKg != null || targetReps != null || targetRepRangeMin != null ||
+        targetRepRangeMax != null || targetDurationSeconds != null || targetDistanceMeters != null

@@ -57,6 +57,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun updateWorkoutSetRpe(id: String, rpe: Double?) = dao.updateWorkoutSetRpe(id, rpe)
     override suspend fun updateWorkoutSetType(id: String, type: SetType) = dao.updateWorkoutSetType(id, type)
     override suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?) = dao.updateWorkoutSetCompletion(id, completed, completedAt)
+    override suspend fun updateWorkoutSetOrderIndex(id: String, orderIndex: Int) = dao.updateWorkoutSetOrderIndex(id, orderIndex)
     override suspend fun deleteWorkoutSet(id: String) = dao.deleteWorkoutSetById(id)
     override suspend fun deleteWorkoutExercise(id: String) = dao.deleteWorkoutExerciseById(id)
     override suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int) = dao.updateWorkoutExerciseOrderIndex(id, orderIndex)

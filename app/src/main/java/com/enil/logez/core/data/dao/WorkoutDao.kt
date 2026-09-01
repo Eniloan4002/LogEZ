@@ -91,6 +91,10 @@ interface WorkoutDao {
     @Query("UPDATE workout_sets SET is_completed = :completed, completed_at = :completedAt WHERE id = :id")
     suspend fun updateWorkoutSetCompletion(id: String, completed: Boolean, completedAt: Long?)
 
+    /** M11 circuits: removing round k re-indexes every exercise's later rounds down by one. */
+    @Query("UPDATE workout_sets SET order_index = :orderIndex WHERE id = :id")
+    suspend fun updateWorkoutSetOrderIndex(id: String, orderIndex: Int)
+
     @Query("DELETE FROM workout_sets WHERE id = :id")
     suspend fun deleteWorkoutSetById(id: String)
 

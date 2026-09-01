@@ -124,6 +124,26 @@ interface RoutineDao {
     )
     fun observeRoutineExercisePreviews(): Flow<List<RoutineExercisePreviewRow>>
 
+    /**
+     * M11: per-routine round count for circuit card previews — the largest per-exercise set count
+     * (`MAX`, not `MIN`, so a routine whose exercises somehow drifted apart still reports the full
+     * table the builder would repair it to). Rows exist for every routine; REGULAR consumers just
+     * ignore them.
+     */
+    @Query(
+        """
+        SELECT routineId, MAX(setCount) AS rounds
+        FROM (
+            SELECT re.routine_id AS routineId, COUNT(rs.id) AS setCount
+            FROM routine_exercises re
+            LEFT JOIN routine_sets rs ON rs.routine_exercise_id = re.id
+            GROUP BY re.id
+        )
+        GROUP BY routineId
+        """,
+    )
+    fun observeRoutineRoundCounts(): Flow<List<RoutineRoundCountRow>>
+
     // --- Routine exercises / sets ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutineExercises(exercises: List<RoutineExerciseEntity>)
@@ -188,4 +208,10 @@ data class RoutineExercisePreviewRow(
     @ColumnInfo(name = "routineId") val routineId: String,
     @ColumnInfo(name = "exerciseName") val exerciseName: String,
     @ColumnInfo(name = "orderIndex") val orderIndex: Int,
+)
+
+/** M11: backs [RoutineDao.observeRoutineRoundCounts] — circuit card previews' "N rounds". */
+data class RoutineRoundCountRow(
+    @ColumnInfo(name = "routineId") val routineId: String,
+    @ColumnInfo(name = "rounds") val rounds: Int,
 )

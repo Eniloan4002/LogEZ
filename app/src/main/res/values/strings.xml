@@ -235,6 +235,34 @@
     <string name="routine_builder_discard_title">Discard changes?</string>
     <string name="routine_builder_discard_body">You have unsaved changes to this routine.</string>
     <string name="routine_builder_discard_confirm">Discard</string>
+    <!-- M11: circuit-training structure -->
+    <string name="routine_structure_label">Structure</string>
+    <string name="routine_structure_regular">Standard</string>
+    <string name="routine_structure_circuit">Circuit</string>
+    <string name="routine_structure_immutable_hint">Structure can\'t be changed after creation.</string>
+    <string name="routine_structure_chip_circuit">CIRCUIT</string>
+    <string name="routine_rounds_label">Rounds</string>
+    <plurals name="routine_rounds_count">
+        <item quantity="one">%1$d round</item>
+        <item quantity="other">%1$d rounds</item>
+    </plurals>
+    <plurals name="routine_exercises_count">
+        <item quantity="one">%1$d exercise</item>
+        <item quantity="other">%1$d exercises</item>
+    </plurals>
+    <string name="routine_builder_col_round">ROUND</string>
+    <string name="routine_builder_add_round">Add round</string>
+    <string name="routine_builder_remove_round">Remove round</string>
+    <string name="routine_builder_remove_round_title">Remove round %1$d?</string>
+    <string name="routine_builder_remove_round_body">Its targets are removed from every exercise in this routine.</string>
+    <string name="workout_round_header">Round %1$d</string>
+    <string name="routine_detail_round_line">Round %1$d: %2$s</string>
+    <string name="routine_detail_set_line">Set %1$d: %2$s</string>
+    <string name="workout_add_round">+ Add Round</string>
+    <string name="workout_remove_round">Remove Round</string>
+    <string name="workout_remove_round_title">Remove round %1$d?</string>
+    <string name="workout_remove_round_body">This can\'t be undone — anything logged in this round is deleted from every exercise.</string>
+
     <string name="routine_builder_col_set">SET</string>
     <string name="routine_builder_col_weight">KG</string>
     <string name="routine_builder_col_weight_added">+KG</string>

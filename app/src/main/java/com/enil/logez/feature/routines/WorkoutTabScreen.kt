@@ -46,11 +46,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.data.entity.RoutineFolderEntity
+import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.HeatmapGrid
 import com.enil.logez.core.designsystem.LogEzCard
@@ -59,6 +61,7 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
@@ -434,7 +437,23 @@ private fun RoutineCard(
     var menuExpanded by remember { mutableStateOf(false) }
     LogEzCard(modifier = modifier.fillMaxWidth().clickable(enabled = !isReordering, onClick = onClick)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
-            Text(card.routine.name, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(card.routine.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                if (card.routine.structure == WorkoutStructure.CIRCUIT) {
+                    CircuitChip(modifier = Modifier.padding(start = Spacing.xs))
+                }
+            }
+            if (card.routine.structure == WorkoutStructure.CIRCUIT) {
+                // M11 circuit preview line: "N rounds · M exercises".
+                Text(
+                    pluralStringResource(R.plurals.routine_rounds_count, card.rounds, card.rounds) +
+                        " · " +
+                        pluralStringResource(R.plurals.routine_exercises_count, card.exerciseCount, card.exerciseCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
+            }
             if (card.exercisePreview.isNotBlank()) {
                 Text(card.exercisePreview, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Spacing.xxs))
             }

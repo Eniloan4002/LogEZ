@@ -42,6 +42,15 @@ private val V3_SCHEMA_SQL = listOf(
     """CREATE TABLE IF NOT EXISTS `goal_definitions` (`id` TEXT NOT NULL, `metric` TEXT NOT NULL, `period` TEXT NOT NULL, `target_value` REAL NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))""",
 )
 
+/** The real v4 schema: v3 plus `exercises.muscle_heads` (createSql taken verbatim from the exported `4.json`). */
+private val V4_SCHEMA_SQL = V3_SCHEMA_SQL.map { sql ->
+    if (sql.startsWith("CREATE TABLE IF NOT EXISTS `exercises`")) {
+        """CREATE TABLE IF NOT EXISTS `exercises` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `exercise_type` TEXT NOT NULL, `primary_muscle_group` TEXT NOT NULL, `secondary_muscle_groups` TEXT NOT NULL, `equipment` TEXT NOT NULL, `instructions` TEXT NOT NULL, `media_path` TEXT, `is_custom` INTEGER NOT NULL, `is_bodyweight_volume_eligible` INTEGER NOT NULL, `is_deleted` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `muscle_heads` TEXT NOT NULL DEFAULT '[]', `primary_muscle_head` TEXT, PRIMARY KEY(`id`))"""
+    } else {
+        sql
+    }
+}
+
 private val V1_SCHEMA_SQL = listOf(
     """CREATE TABLE IF NOT EXISTS `exercises` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `exercise_type` TEXT NOT NULL, `primary_muscle_group` TEXT NOT NULL, `secondary_muscle_groups` TEXT NOT NULL, `equipment` TEXT NOT NULL, `instructions` TEXT NOT NULL, `media_path` TEXT, `is_custom` INTEGER NOT NULL, `is_bodyweight_volume_eligible` INTEGER NOT NULL, `is_deleted` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))""",
     """CREATE INDEX IF NOT EXISTS `index_exercises_primary_muscle_group` ON `exercises` (`primary_muscle_group`)""",
@@ -333,6 +342,141 @@ class LogEzDatabaseMigrationTest {
     }
 
     /**
+     * A "v4" stand-in with just the two tables MIGRATION_4_5 touches (`routines`, `workouts`) --
+     * enough columns to insert realistic rows, matching [openV2]/[openV3]'s scope.
+     */
+    private fun openV4(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(4) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE `routines` (
+                        `id` TEXT NOT NULL, `folder_id` TEXT, `name` TEXT NOT NULL, `notes` TEXT,
+                        `order_index` INTEGER NOT NULL, `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE `workouts` (
+                        `id` TEXT NOT NULL, `routine_id` TEXT, `title` TEXT NOT NULL, `notes` TEXT,
+                        `status` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER,
+                        `duration_seconds` INTEGER NOT NULL, `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_4_5 adds a non-null structure column defaulting to REGULAR on both routines and workouts`() {
+        val helper = openV4()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_4_5.migrate(db)
+
+        listOf("routines", "workouts").forEach { table ->
+            val cursor = db.query("PRAGMA table_info(`$table`)")
+            var found = false
+            var type = ""
+            var notNull = false
+            var default: String? = null
+            cursor.use {
+                val nameIdx = it.getColumnIndexOrThrow("name")
+                val typeIdx = it.getColumnIndexOrThrow("type")
+                val notNullIdx = it.getColumnIndexOrThrow("notnull")
+                val defaultIdx = it.getColumnIndexOrThrow("dflt_value")
+                while (it.moveToNext()) {
+                    if (it.getString(nameIdx) == "structure") {
+                        found = true
+                        type = it.getString(typeIdx)
+                        notNull = it.getInt(notNullIdx) == 1
+                        default = it.getString(defaultIdx)
+                    }
+                }
+            }
+            assertTrue("expected a structure column on $table", found)
+            assertEquals("TEXT", type)
+            assertTrue("$table.structure must be NOT NULL", notNull)
+            assertEquals("'REGULAR'", default)
+        }
+        db.close()
+    }
+
+    @Test
+    fun `MIGRATION_4_5 leaves pre-existing routine and workout rows intact, reading back as REGULAR`() {
+        val helper = openV4()
+        val db = helper.writableDatabase
+        db.execSQL(
+            "INSERT INTO routines (id, folder_id, name, notes, order_index, created_at, updated_at) " +
+                "VALUES ('r1', NULL, 'Push Day', NULL, 0, 0, 0)",
+        )
+        db.execSQL(
+            "INSERT INTO workouts (id, routine_id, title, notes, status, started_at, ended_at, duration_seconds, created_at, updated_at) " +
+                "VALUES ('w1', NULL, 'Morning Session', NULL, 'COMPLETED', 100, 200, 100, 0, 0)",
+        )
+
+        LogEzDatabase.MIGRATION_4_5.migrate(db)
+
+        val routineCursor = db.query("SELECT name, structure FROM routines WHERE id = 'r1'")
+        routineCursor.moveToFirst()
+        assertEquals("Push Day", routineCursor.getString(0))
+        assertEquals("REGULAR", routineCursor.getString(1))
+        routineCursor.close()
+
+        val workoutCursor = db.query("SELECT title, structure FROM workouts WHERE id = 'w1'")
+        workoutCursor.moveToFirst()
+        assertEquals("Morning Session", workoutCursor.getString(0))
+        assertEquals("REGULAR", workoutCursor.getString(1))
+        workoutCursor.close()
+        db.close()
+    }
+
+    /**
+     * Same real-open technique as the historical-chain tests below: a database physically built to
+     * the real v4 schema (`4.json`'s createSql), opened through [LogEzDatabase]'s own
+     * `Room.databaseBuilder(...).addMigrations(...)` path — so Room's post-migration validation
+     * checks MIGRATION_4_5's live columns against what [com.enil.logez.core.data.entity.RoutineEntity]
+     * and [com.enil.logez.core.data.entity.WorkoutEntity] declare, `defaultValue` included.
+     */
+    @Test
+    fun `a real v4 database opened through LogEzDatabase's own migration path upgrades to v5 without a validation crash`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbFile = context.getDatabasePath("repro_v4_to_v5.db")
+        dbFile.delete()
+        try {
+            val seedCallback = object : SupportSQLiteOpenHelper.Callback(4) {
+                override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    V4_SCHEMA_SQL.forEach { db.execSQL(it) }
+                }
+                override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+            }
+            val seedConfig = SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(dbFile.name)
+                .callback(seedCallback)
+                .build()
+            FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
+
+            val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
+                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
+                .build()
+
+            db.openHelper.writableDatabase // forces Room to actually open + migrate + validate
+            db.close()
+        } finally {
+            dbFile.delete()
+        }
+    }
+
+    /**
      * Reproduces the real upgrade path end to end -- a database physically built to the real v3
      * schema (every `CREATE TABLE`/`CREATE INDEX` statement taken verbatim from the exported
      * `3.json`, not a hand-typed stand-in), then opened through the actual [LogEzDatabase]
@@ -344,7 +488,7 @@ class LogEzDatabaseMigrationTest {
      * declares.
      */
     @Test
-    fun `a real v3 database opened through LogEzDatabase's own migration path upgrades to v4 without a validation crash`() {
+    fun `a real v3 database opened through LogEzDatabase's own migration path upgrades to the current version without a validation crash`() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val dbFile = context.getDatabasePath("repro_v3_to_v4.db")
         dbFile.delete()
@@ -362,7 +506,7 @@ class LogEzDatabaseMigrationTest {
             FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
 
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
-                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4)
+                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
                 .build()
 
             db.openHelper.writableDatabase // forces Room to actually open + migrate + validate
@@ -383,7 +527,7 @@ class LogEzDatabaseMigrationTest {
      * rather than leaving it asymmetric.
      */
     @Test
-    fun `a real v1 database opened through LogEzDatabase's full migration chain upgrades to v4 without a validation crash`() {
+    fun `a real v1 database opened through LogEzDatabase's full migration chain upgrades to the current version without a validation crash`() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val dbFile = context.getDatabasePath("repro_v1_to_v4.db")
         dbFile.delete()
@@ -401,10 +545,10 @@ class LogEzDatabaseMigrationTest {
             FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
 
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
-                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4)
+                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
                 .build()
 
-            db.openHelper.writableDatabase // forces Room to actually open + migrate (1->2->3->4) + validate
+            db.openHelper.writableDatabase // forces Room to actually open + migrate (1->2->3->4->5) + validate
             db.close()
         } finally {
             dbFile.delete()

@@ -54,6 +54,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
@@ -62,6 +63,7 @@ import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.finish.labelRes
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -155,16 +157,24 @@ fun WorkoutDetailScreen(
     ) { padding ->
         val workout = uiState.workout
         if (workout == null || uiState.isLoading) return@Scaffold
+        val isCircuit = workout.structure == WorkoutStructure.CIRCUIT
+        // M11: post-purge round count — the largest surviving round number; unequal blocks (a
+        // skipped exercise in some round) simply produce rounds with fewer entries.
+        val detailRounds = if (isCircuit) buildDetailRounds(uiState.exerciseBlocks) else emptyList()
 
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.md)) {
             item {
                 Column(modifier = Modifier.padding(top = Spacing.md)) {
-                    Text(
-                        DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a")
-                            .format(Instant.ofEpochMilli(workout.startedAt).atZone(ZoneId.systemDefault())),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a")
+                                .format(Instant.ofEpochMilli(workout.startedAt).atZone(ZoneId.systemDefault())),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (isCircuit) CircuitChip()
+                    }
                     if (!workout.notes.isNullOrBlank()) {
                         Text(workout.notes, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = Spacing.sm))
                     }
@@ -176,13 +186,21 @@ fun WorkoutDetailScreen(
                         DetailStatCell(stringResource(R.string.summary_duration), formatDetailDuration(uiState.durationSeconds))
                         DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg))
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
+                        if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
                         if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Filled.EmojiEvents)
                     }
                 }
             }
 
-            items(items = uiState.exerciseBlocks, key = { it.workoutExercise.id }) { block ->
-                ExerciseBlockCard(block, onExerciseClick)
+            if (isCircuit) {
+                // M11: round-grouped record — mirrors the circuit logger's view of the same rows.
+                items(items = detailRounds, key = { it.roundNumber }) { round ->
+                    DetailRoundCard(round, onExerciseClick)
+                }
+            } else {
+                items(items = uiState.exerciseBlocks, key = { it.workoutExercise.id }) { block ->
+                    ExerciseBlockCard(block, onExerciseClick)
+                }
             }
         }
     }
@@ -235,6 +253,59 @@ private fun DetailStatCell(label: String, value: String, icon: ImageVector? = nu
     }
 }
 
+/** M11: one round of a completed circuit — the exercises' rows at the same orderIndex, sequence order. */
+private data class DetailRound(val roundNumber: Int, val entries: List<DetailRoundEntry>)
+private data class DetailRoundEntry(val block: DetailExerciseBlock, val set: DetailSetRow?)
+
+/**
+ * Groups a circuit workout's post-purge blocks round-first, keyed by each row's `orderIndex`
+ * (== its round), NOT its list position: the finish flow's uncompleted-set purge deletes skipped
+ * rows without re-indexing, so a skipped MIDDLE round leaves a gap ({0,2}) that positional
+ * grouping would silently shift — attributing round 3's performance to "ROUND 2" forever.
+ * Defensive by construction: a block with no surviving row at a round contributes a null
+ * (rendered "—") entry — gaps and unequal counts must render, never crash.
+ */
+private fun buildDetailRounds(blocks: List<DetailExerciseBlock>): List<DetailRound> {
+    val rounds = blocks.maxOfOrNull { block -> block.sets.maxOfOrNull { it.orderIndex + 1 } ?: 0 } ?: 0
+    return (0 until rounds).map { roundIndex ->
+        DetailRound(
+            roundNumber = roundIndex + 1,
+            entries = blocks.map { block -> DetailRoundEntry(block, block.sets.find { it.orderIndex == roundIndex }) },
+        )
+    }
+}
+
+@Composable
+private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Unit) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.workout_round_header, round.roundNumber).uppercase(java.util.Locale.getDefault()),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                )
+            }
+            round.entries.forEach { entry ->
+                val exercise = entry.block.exercise
+                Text(
+                    exercise?.name.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = (if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier)
+                        .padding(top = Spacing.sm),
+                )
+                val set = entry.set
+                if (set == null) {
+                    // Defensive slot: no surviving row for this exercise in this round.
+                    Text("—", style = LogEzMono.dataMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    DetailSetRowView(round.roundNumber, set, exercise?.exerciseType, positionLabel = false)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (String) -> Unit) {
     val supersetColor = block.workoutExercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
@@ -268,7 +339,7 @@ private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (Stri
 }
 
 @Composable
-private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: ExerciseType?) {
+private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, positionLabel: Boolean = true) {
     val (badgeLabel, badgeColor) = when (set.setType) {
         SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
         SetType.WARMUP -> "W" to Warning500
@@ -288,7 +359,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
             }
         }
         Text(
-            formatDetailSetValue(position, set, exerciseType),
+            formatDetailSetValue(position, set, exerciseType, positionLabel),
             style = LogEzMono.dataMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = Spacing.sm).weight(1f),
@@ -304,7 +375,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
     }
 }
 
-private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType: ExerciseType?): String {
+private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, positionLabel: Boolean = true): String {
     if (!set.isCompleted) return "—"
     val parts = mutableListOf<String>()
     when (exerciseType) {
@@ -332,7 +403,9 @@ private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType:
         null -> Unit
     }
     set.rpe?.let { parts.add("@$it") }
-    return if (parts.isEmpty()) "—" else "Set $position: ${parts.joinToString(" · ")}"
+    if (parts.isEmpty()) return "—"
+    // M11 circuit rounds carry the round number in the card header, so their rows skip the prefix.
+    return if (positionLabel) "Set $position: ${parts.joinToString(" · ")}" else parts.joinToString(" · ")
 }
 
 private fun formatDetailNum(value: Double): String =

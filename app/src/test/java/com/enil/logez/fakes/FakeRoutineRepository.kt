@@ -1,6 +1,7 @@
 package com.enil.logez.fakes
 
 import com.enil.logez.core.data.dao.RoutineExercisePreviewRow
+import com.enil.logez.core.data.dao.RoutineRoundCountRow
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
@@ -82,6 +83,17 @@ class FakeRoutineRepository(
         setsState.value.filter { it.routineExerciseId == routineExerciseId }.sortedBy { it.orderIndex }
 
     override fun observeRoutineExercisePreviews(): Flow<List<RoutineExercisePreviewRow>> = previewRowsState
+
+    /** Mirrors the DAO's MAX(per-exercise set count) per routine. */
+    override fun observeRoutineRoundCounts(): Flow<List<RoutineRoundCountRow>> =
+        kotlinx.coroutines.flow.combine(exercisesState, setsState) { exercises, sets ->
+            exercises.groupBy { it.routineId }.map { (routineId, routineExercises) ->
+                RoutineRoundCountRow(
+                    routineId = routineId,
+                    rounds = routineExercises.maxOf { re -> sets.count { it.routineExerciseId == re.id } },
+                )
+            }
+        }
 
     override suspend fun insertFullRoutine(routine: RoutineEntity, exercises: List<RoutineExerciseEntity>, sets: List<RoutineSetEntity>) {
         routinesState.update { it + (routine.id to routine) }

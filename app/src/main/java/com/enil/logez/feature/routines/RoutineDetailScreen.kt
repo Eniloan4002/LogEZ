@@ -26,13 +26,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.pluralStringResource
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
@@ -75,7 +79,27 @@ fun RoutineDetailScreen(
             )
         },
     ) { padding ->
+        val isCircuit = uiState.routine?.structure == WorkoutStructure.CIRCUIT
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // M11: circuit routines identify themselves before the exercise list — a chip plus the
+            // "N rounds · M exercises" preview line, matching the routine card.
+            if (isCircuit) {
+                val rounds = (uiState.exercises.maxOfOrNull { it.sets.size } ?: 1).coerceAtLeast(1)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = Spacing.md).padding(top = Spacing.sm),
+                ) {
+                    CircuitChip()
+                    Text(
+                        pluralStringResource(R.plurals.routine_rounds_count, rounds, rounds) +
+                            " · " +
+                            pluralStringResource(R.plurals.routine_exercises_count, uiState.exercises.size, uiState.exercises.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = Spacing.xs),
+                    )
+                }
+            }
             Button(
                 onClick = { start() },
                 modifier = Modifier.fillMaxWidth().padding(Spacing.md),
@@ -94,7 +118,11 @@ fun RoutineDetailScreen(
                             )
                             row.sets.forEachIndexed { index, set ->
                                 Text(
-                                    formatDetailSetTargets(index + 1, set),
+                                    stringResource(
+                                        if (isCircuit) R.string.routine_detail_round_line else R.string.routine_detail_set_line,
+                                        index + 1,
+                                        formatDetailSetTargets(set),
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(top = Spacing.xxs),
@@ -126,7 +154,7 @@ fun RoutineDetailScreen(
     }
 }
 
-private fun formatDetailSetTargets(position: Int, set: com.enil.logez.core.data.entity.RoutineSetEntity): String {
+private fun formatDetailSetTargets(set: com.enil.logez.core.data.entity.RoutineSetEntity): String {
     val parts = mutableListOf<String>()
     set.targetWeightKg?.let { parts.add("${formatNum(it)}kg") }
     if (set.targetRepRangeMin != null) {
@@ -136,8 +164,7 @@ private fun formatDetailSetTargets(position: Int, set: com.enil.logez.core.data.
     }
     set.targetDurationSeconds?.let { parts.add(formatMmSs(it)) }
     set.targetDistanceMeters?.let { parts.add("${formatNum(it)}m") }
-    val body = if (parts.isEmpty()) "—" else parts.joinToString(" · ")
-    return "Set $position: $body"
+    return if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 }
 
 private fun formatNum(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()

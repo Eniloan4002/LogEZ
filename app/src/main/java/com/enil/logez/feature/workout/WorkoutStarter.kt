@@ -71,6 +71,9 @@ class WorkoutStarter @Inject constructor(
             WorkoutEntity(
                 id = workoutId, routineId = routineId, title = routine.name, notes = null, status = WorkoutStatus.IN_PROGRESS,
                 startedAt = now, endedAt = null, durationSeconds = 0, createdAt = now, updatedAt = now,
+                // M11: a circuit routine starts a circuit session — the copied set rows are
+                // already per-round, so only the discriminator needs carrying.
+                structure = routine.structure,
             ),
             workoutExercises,
             workoutSets,
@@ -99,10 +102,16 @@ class WorkoutStarter @Inject constructor(
                 supersetGroup = we.supersetGroup, restTimerSeconds = we.restTimerSeconds, notes = null,
             )
         }
+        // Re-indexed contiguously (0..n-1), NOT copied verbatim: the source is COMPLETED, and the
+        // finish flow's uncompleted-set purge deletes skipped rows without re-indexing, so its
+        // surviving orderIndex can carry gaps ({0,2}). Copying those gaps into a live session
+        // would collide with addSet/addRound's "next index = current row count" (two rows at the
+        // same orderIndex, nondeterministic order after a reload) and break the circuit logger's
+        // row-index == round invariant. A copy is a fresh session, so it starts freshly numbered.
         val workoutSets = sourceExercises.flatMap { we ->
-            workoutRepository.getSetsForWorkoutExercise(we.id).map { ws ->
+            workoutRepository.getSetsForWorkoutExercise(we.id).sortedBy { it.orderIndex }.mapIndexed { index, ws ->
                 WorkoutSetEntity(
-                    id = UUID.randomUUID().toString(), workoutExerciseId = idMap.getValue(we.id), orderIndex = ws.orderIndex,
+                    id = UUID.randomUUID().toString(), workoutExerciseId = idMap.getValue(we.id), orderIndex = index,
                     setType = ws.setType, weightKg = ws.weightKg, reps = ws.reps, durationSeconds = ws.durationSeconds,
                     distanceMeters = ws.distanceMeters, rpe = null, customMetric = ws.customMetric, isCompleted = false, completedAt = null,
                 )
@@ -113,6 +122,8 @@ class WorkoutStarter @Inject constructor(
             WorkoutEntity(
                 id = workoutId, routineId = source.routineId, title = source.title, notes = null, status = WorkoutStatus.IN_PROGRESS,
                 startedAt = now, endedAt = null, durationSeconds = 0, createdAt = now, updatedAt = now,
+                // M11: a copy of a circuit workout stays a circuit — same rows, same grouping.
+                structure = source.structure,
             ),
             workoutExercises,
             workoutSets,

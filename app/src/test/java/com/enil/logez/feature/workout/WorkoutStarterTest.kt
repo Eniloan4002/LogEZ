@@ -8,6 +8,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
@@ -159,5 +160,62 @@ class WorkoutStarterTest {
         val result = starter.startFromWorkoutOrConflict("w-source")
 
         assertEquals(StartResult.AlreadyInProgress(firstId), result)
+    }
+
+    // --- M11 circuits ---
+
+    @Test
+    fun `startFromRoutine carries a circuit routine's structure onto the workout`() = runTest {
+        val routineRepo = FakeRoutineRepository(
+            routines = listOf(
+                RoutineEntity(
+                    id = "r1", folderId = null, name = "Conditioning", notes = null, orderIndex = 0,
+                    createdAt = 0, updatedAt = 0, structure = WorkoutStructure.CIRCUIT,
+                ),
+            ),
+            exercises = listOf(RoutineExerciseEntity(id = "re1", routineId = "r1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(
+                RoutineSetEntity(id = "s1", routineExerciseId = "re1", orderIndex = 0, setType = SetType.NORMAL, targetWeightKg = 24.0, targetReps = 15, targetRepRangeMin = null, targetRepRangeMax = null, targetDurationSeconds = null, targetDistanceMeters = null),
+                RoutineSetEntity(id = "s2", routineExerciseId = "re1", orderIndex = 1, setType = SetType.NORMAL, targetWeightKg = 24.0, targetReps = 12, targetRepRangeMin = null, targetRepRangeMax = null, targetDurationSeconds = null, targetDistanceMeters = null),
+            ),
+        )
+        val workoutRepo = FakeWorkoutRepository()
+        val starter = WorkoutStarter(workoutRepo, routineRepo, FakeClock())
+
+        val workoutId = starter.startFromRoutine("r1")
+
+        assertEquals(WorkoutStructure.CIRCUIT, workoutRepo.getById(workoutId)!!.structure)
+        // The rows themselves are ordinary per-round sets — nothing circuit-specific to copy.
+        val we = workoutRepo.getExercisesForWorkout(workoutId).single()
+        assertEquals(listOf(0, 1), workoutRepo.getSetsForWorkoutExercise(we.id).map { it.orderIndex })
+    }
+
+    @Test
+    fun `startEmpty stays REGULAR`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val starter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock())
+
+        val id = starter.startEmpty()
+
+        assertEquals(WorkoutStructure.REGULAR, workoutRepo.getById(id)!!.structure)
+    }
+
+    @Test
+    fun `startFromWorkout copies the source workout's circuit structure`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w-source", routineId = null, title = "Conditioning", notes = null,
+                    status = WorkoutStatus.COMPLETED, startedAt = 1_000L, endedAt = 2_000L,
+                    durationSeconds = 1000, createdAt = 1_000L, updatedAt = 1_000L,
+                    structure = WorkoutStructure.CIRCUIT,
+                ),
+            ),
+        )
+        val starter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock())
+
+        val newId = starter.startFromWorkout("w-source")
+
+        assertEquals(WorkoutStructure.CIRCUIT, workoutRepo.getById(newId)!!.structure)
     }
 }
