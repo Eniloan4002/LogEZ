@@ -8,6 +8,7 @@ import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
@@ -119,6 +120,52 @@ class WorkoutLoggerViewModelTest {
         val vmOn = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = true)))
         assertFalse(vmOff.uiState.value.rpeTrackingEnabled)
         assertTrue(vmOn.uiState.value.rpeTrackingEnabled)
+    }
+
+    // --- M16: Settings is reachable mid-session from the logger's overflow menu, with plain
+    // navigation keeping this ViewModel alive underneath — so these settings must apply live,
+    // not as an init-time snapshot that only a fresh logger nav entry would refresh ---
+
+    @Test
+    fun `mid-session toggles to RPE, keep-awake and inline timer apply without a reload`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val vm = newViewModel(settingsRepo = settingsRepo)
+        assertFalse(vm.uiState.value.rpeTrackingEnabled)
+        assertTrue(vm.uiState.value.keepAwakeEnabled)
+        assertTrue(vm.uiState.value.inlineTimerEnabled)
+
+        settingsRepo.setRpeTrackingEnabled(true)
+        settingsRepo.setKeepAwake(false)
+        settingsRepo.setInlineTimerEnabled(false)
+
+        assertTrue(vm.uiState.value.rpeTrackingEnabled)
+        assertFalse(vm.uiState.value.keepAwakeEnabled)
+        assertFalse(vm.uiState.value.inlineTimerEnabled)
+    }
+
+    @Test
+    fun `switching previous-values mode mid-session re-resolves the PREVIOUS column`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1", routineId = "r1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+            statSetsByExercise = mapOf(
+                "ex-1" to listOf(
+                    // The most recent session of this exercise was outside the routine...
+                    StatSet(setId = "any1", workoutId = "wAny", workoutStartedAt = 3_000L, orderIndex = 0, setType = SetType.NORMAL, weightKg = 80.0, reps = 8, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = null, routineId = null),
+                    // ...while the last same-routine session lifted less.
+                    StatSet(setId = "same1", workoutId = "wSame", workoutStartedAt = 2_000L, orderIndex = 0, setType = SetType.NORMAL, weightKg = 50.0, reps = 5, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = null, routineId = "r1"),
+                ),
+            ),
+        )
+        val settingsRepo = FakeSettingsRepository()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, settingsRepo = settingsRepo)
+        assertEquals("80 kg x 8", vm.uiState.value.exercises[0].sets[0].previousLabel)
+
+        settingsRepo.setPreviousValuesMode(PreviousValuesMode.SAME_ROUTINE)
+
+        assertEquals("50 kg x 5", vm.uiState.value.exercises[0].sets[0].previousLabel)
     }
 
     @Test

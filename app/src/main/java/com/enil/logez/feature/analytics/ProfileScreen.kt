@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -22,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -53,11 +53,8 @@ import java.util.Locale
  * real zeros for a fresh install — honest, never faked), the last-7-days strip with a mini muscle
  * heat-map, the swipeable quick chart card (tap → Statistics with that chart focused), and
  * navigation rows. The Calendar entry stays a nav row rather than an inline grid — Owner-confirmed
- * permanent M5c trim.
- *
- * Also carries the temporary RPE-tracking toggle (2026-08-24): §5.1.7's RPE picker is gated
- * behind `rpeTrackingEnabled`, but no Settings screen exists until M7. Remove this row once the
- * real Settings tree lands with its own row for the same setting.
+ * permanent M5c trim. The temporary RPE toggle this screen carried since 2026-08-24 moved to the
+ * real Settings screen in M16 — Settings is now a nav row here instead.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,9 +62,9 @@ fun ProfileScreen(
     onExercisesClick: () -> Unit = {},
     onCalendarClick: () -> Unit = {},
     onStatisticsClick: (TrainingMetric?) -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
-    val rpeTrackingEnabled by viewModel.rpeTrackingEnabled.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isSeedingDemoData by viewModel.isSeedingDemoData.collectAsStateWithLifecycle()
 
@@ -81,8 +78,7 @@ fun ProfileScreen(
                 onExercisesClick = onExercisesClick,
                 onCalendarClick = onCalendarClick,
                 onStatisticsClick = onStatisticsClick,
-                rpeTrackingEnabled = rpeTrackingEnabled,
-                onRpeToggle = viewModel::setRpeTrackingEnabled,
+                onSettingsClick = onSettingsClick,
                 isSeedingDemoData = isSeedingDemoData,
                 onSeedDemoData = viewModel::seedDemoData,
                 onClearDemoData = viewModel::clearDemoData,
@@ -201,8 +197,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
     onExercisesClick: () -> Unit,
     onCalendarClick: () -> Unit,
     onStatisticsClick: (TrainingMetric?) -> Unit,
-    rpeTrackingEnabled: Boolean,
-    onRpeToggle: (Boolean) -> Unit,
+    onSettingsClick: () -> Unit,
     isSeedingDemoData: Boolean,
     onSeedDemoData: () -> Unit,
     onClearDemoData: () -> Unit,
@@ -234,12 +229,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
             )
             HorizontalDivider()
         }
-        item(key = "rpe_toggle") {
+        item(key = "nav_settings") {
             ListItem(
-                modifier = Modifier.fillMaxWidth().clickable { onRpeToggle(!rpeTrackingEnabled) },
-                headlineContent = { Text(stringResource(R.string.profile_rpe_toggle_title)) },
-                supportingContent = { Text(stringResource(R.string.profile_rpe_toggle_subtitle)) },
-                trailingContent = { Switch(checked = rpeTrackingEnabled, onCheckedChange = onRpeToggle) },
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onSettingsClick),
+                leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                headlineContent = { Text(stringResource(R.string.settings_title)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }

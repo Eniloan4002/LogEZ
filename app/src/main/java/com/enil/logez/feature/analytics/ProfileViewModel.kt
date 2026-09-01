@@ -19,12 +19,9 @@ import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -32,10 +29,9 @@ import kotlinx.coroutines.launch
  * the last-7-days strip with its mini muscle heat-map, and the quick chart card's four weekly
  * series (default 3m, §5.2 region 4). Fresh zone/today per refresh; single-snapshot publish.
  *
- * Also still hosts the temporary RPE toggle (see [[decisions]] 2026-08-24 — no Settings screen
- * exists until M7; remove the toggle when the real Settings tree lands) and, as of 2026-08-26, a
- * temporary "Seed/Clear Demo Data" row for the same reason — both belong on a real Settings/dev
- * tools screen once one exists, not permanently on Profile.
+ * Also still hosts the temporary DEBUG-only "Seed/Clear Demo Data" rows (2026-08-26) — dev
+ * tooling that belongs on a dedicated dev-tools surface once one exists, not permanently on
+ * Profile. The temporary RPE toggle (2026-08-24) moved to the real Settings screen in M16.
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -45,14 +41,6 @@ class ProfileViewModel @Inject constructor(
     private val demoDataSeeder: DemoDataSeeder,
     private val clock: Clock,
 ) : ViewModel() {
-    val rpeTrackingEnabled: StateFlow<Boolean> = settingsRepository.settings
-        .map { it.rpeTrackingEnabled }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
-
-    fun setRpeTrackingEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setRpeTrackingEnabled(enabled) }
-    }
-
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 

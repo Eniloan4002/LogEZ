@@ -3,7 +3,6 @@ package com.enil.logez.feature.analytics
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.seed.DemoDataSeeder
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
-import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
@@ -69,29 +68,8 @@ class ProfileViewModelTest {
             .also { it.refresh() }
     }
 
-    // --- temporary RPE toggle (standing in for M7's Settings screen) ---
-
-    @Test
-    fun `rpeTrackingEnabled reflects the settings repository's current value`() = runTest {
-        val viewModel = newViewModel(settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = true)))
-        assertTrue(viewModel.rpeTrackingEnabled.value)
-    }
-
-    @Test
-    fun `setRpeTrackingEnabled writes through to the settings repository`() = runTest {
-        val settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = false))
-        val viewModel = newViewModel(settingsRepo = settingsRepo)
-
-        viewModel.setRpeTrackingEnabled(true)
-        assertTrue(viewModel.rpeTrackingEnabled.value)
-        assertTrue(settingsRepo.settings.value.rpeTrackingEnabled)
-
-        viewModel.setRpeTrackingEnabled(false)
-        assertFalse(viewModel.rpeTrackingEnabled.value)
-        assertFalse(settingsRepo.settings.value.rpeTrackingEnabled)
-    }
-
     // --- §5.2 Profile headline stats ---
+    // (The temporary RPE toggle tests moved to SettingsViewModelTest with the M16 relocation.)
 
     @Test
     fun `a fresh install shows honest zeros`() = runTest {

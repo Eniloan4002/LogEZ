@@ -27,6 +27,9 @@ import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.enil.logez.feature.settings.SettingsRoutes
+import com.enil.logez.feature.settings.SettingsScreen
+import com.enil.logez.feature.settings.SoundsSettingsScreen
 import com.enil.logez.feature.workout.WorkoutLoggerScreen
 import com.enil.logez.feature.workout.WorkoutLoggerViewModel
 import com.enil.logez.feature.workout.WorkoutRoutes
@@ -92,7 +95,22 @@ fun LogEzNavHost(
                 onExercisesClick = { navController.navigate(ExerciseRoutes.library()) },
                 onCalendarClick = { navController.navigate(HistoryRoutes.CALENDAR) },
                 onStatisticsClick = { metric -> navController.navigate(AnalyticsRoutes.dashboard(focus = metric?.name)) },
+                onSettingsClick = { navController.navigate(SettingsRoutes.SETTINGS) { launchSingleTop = true } },
             )
+        }
+
+        // M16: reachable from Profile and from the live Logger's overflow menu. A plain navigate
+        // keeps whatever pushed it (Logger included) alive beneath it on the back stack, so
+        // logger -> settings -> back lands back in the untouched session (write-through +
+        // foreground service — no state to preserve beyond the destination itself).
+        composable(SettingsRoutes.SETTINGS) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onSoundsClick = { navController.navigate(SettingsRoutes.SOUNDS) { launchSingleTop = true } },
+            )
+        }
+        composable(SettingsRoutes.SOUNDS) {
+            SoundsSettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = AnalyticsRoutes.DASHBOARD,
@@ -195,6 +213,7 @@ fun LogEzNavHost(
                 onDiscarded = { navController.popBackStack() },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
+                onSettingsClick = { navController.navigate(SettingsRoutes.SETTINGS) { launchSingleTop = true } },
             )
         }
 
@@ -216,6 +235,7 @@ fun LogEzNavHost(
                 onDiscarded = { navController.popBackStack() },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
                 onCreateExercise = { prefill -> navController.navigate(ExerciseRoutes.editor(prefillName = prefill)) },
+                onSettingsClick = { navController.navigate(SettingsRoutes.SETTINGS) { launchSingleTop = true } },
             )
         }
 

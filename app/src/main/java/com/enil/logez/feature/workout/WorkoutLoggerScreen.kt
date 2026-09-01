@@ -83,6 +83,7 @@ fun WorkoutLoggerScreen(
     onDiscarded: () -> Unit,
     onExerciseClick: (exerciseId: String) -> Unit,
     onCreateExercise: (prefillName: String?) -> Unit,
+    onSettingsClick: () -> Unit,
     viewModel: WorkoutLoggerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -253,6 +254,11 @@ fun WorkoutLoggerScreen(
                         ) { Text(stringResource(R.string.workout_finish)) }
                         IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            // M16: mid-session settings access (rest timer default, sounds, …).
+                            // Plain navigation — the session is write-through and foregrounded by
+                            // the service, and the ViewModel (kept alive beneath Settings) observes
+                            // the settings Flow, so edits made there apply live on return.
+                            DropdownMenuItem(text = { Text(stringResource(R.string.settings_title)) }, onClick = { menuExpanded = false; onSettingsClick() })
                             DropdownMenuItem(text = { Text(stringResource(R.string.workout_discard)) }, onClick = { menuExpanded = false; showDiscardConfirm = true })
                         }
                     }

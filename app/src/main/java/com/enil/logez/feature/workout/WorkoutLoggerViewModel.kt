@@ -8,10 +8,14 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.PreviousValueFormatter
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
@@ -81,10 +85,15 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val reorderModeActive = MutableStateFlow(false)
     private val keepAwakeEnabled = MutableStateFlow(true)
     private val inlineTimerEnabled = MutableStateFlow(true)
-    /** §5.1.7: the RPE column and picker exist only when this setting is on. No live Settings screen
-     * exists yet to flip it mid-session (M7), so — like keepAwake/inlineTimer above — it's a one-time
-     * snapshot taken at load, not a continuously observed Flow. */
+    /** §5.1.7: the RPE column and picker exist only when this setting is on. Like keepAwake/
+     * inlineTimer above, kept current by the settings collector in init — M16 made Settings
+     * reachable mid-session from this screen's overflow menu (plain navigation, this ViewModel
+     * stays alive underneath), so a one-time load snapshot would go stale on return. */
     private val rpeTrackingEnabled = MutableStateFlow(false)
+
+    /** The (mode, weight unit, distance unit) the PREVIOUS column was last resolved with — the
+     * settings collector in init re-queries labels only when this actually changes. */
+    private var appliedPreviousKey: Triple<PreviousValuesMode, WeightUnit, DistanceUnit>? = null
 
     private val _scrollToExercise = MutableSharedFlow<String>(extraBufferCapacity = 1)
     /** §5.1.3 step 7 "Smart Superset Scrolling" — the Screen collects this to `animateScrollToItem`. */
@@ -175,9 +184,9 @@ class WorkoutLoggerViewModel @Inject constructor(
             editedStartedAt.value = w?.startedAt ?: 0L
             editedDurationSeconds.value = w?.durationSeconds ?: 0
             val currentSettings = settingsRepository.settings.first()
-            keepAwakeEnabled.value = currentSettings.keepAwake
-            inlineTimerEnabled.value = currentSettings.inlineTimerEnabled
-            rpeTrackingEnabled.value = currentSettings.rpeTrackingEnabled
+            // Marks the PREVIOUS column as resolved with these settings BEFORE isLoading flips, so
+            // the settings collector below doesn't immediately re-run the queries this load runs.
+            appliedPreviousKey = Triple(currentSettings.previousValuesMode, currentSettings.weightUnit, currentSettings.distanceUnit)
             val workoutExercises = workoutRepository.getExercisesForWorkout(workoutId)
             exercises.value = workoutExercises.map { we ->
                 val exercise = exerciseRepository.getById(we.exerciseId)
@@ -219,6 +228,27 @@ class WorkoutLoggerViewModel @Inject constructor(
             isLoading.value = false
         }
 
+        // M16: the logger's overflow menu opens Settings mid-session with plain navigation, so
+        // this ViewModel stays alive beneath the Settings screen and init never re-runs on
+        // return. The load-time snapshot these four settings used to live off was fresh pre-M16
+        // only because Settings was reachable solely via Profile, which forced a brand-new logger
+        // nav entry — now they must be observed for the ViewModel's lifetime or a mid-session
+        // toggle (RPE tracking, keep-awake, inline timer, previous-values mode) never applies.
+        viewModelScope.launch {
+            settingsRepository.settings.collect { s ->
+                keepAwakeEnabled.value = s.keepAwake
+                inlineTimerEnabled.value = s.inlineTimerEnabled
+                rpeTrackingEnabled.value = s.rpeTrackingEnabled
+                // PREVIOUS re-resolution costs repo queries, so it runs only on a real change
+                // after the initial load (which applies the first value itself and stamps the key).
+                val key = Triple(s.previousValuesMode, s.weightUnit, s.distanceUnit)
+                if (!isLoading.value && key != appliedPreviousKey) {
+                    appliedPreviousKey = key
+                    refreshPreviousLabels(s)
+                }
+            }
+        }
+
         // Both collectors below belong to a *live* session. Edit mode has no service, no
         // notification, and no external set-completion source (§5.1.10) — starting them would let
         // an edit session push content into a notification for a workout that finished days ago.
@@ -241,6 +271,42 @@ class WorkoutLoggerViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * M16: re-resolves every set's PREVIOUS label after a mid-session change to the previous-values
+     * mode (or display units) — the same queries and pairing rules as the init load, applied onto
+     * the live in-memory list.
+     */
+    private suspend fun refreshPreviousLabels(settings: UserSettings) {
+        val w = workout.value
+        val labelsBySetId = mutableMapOf<String, String>()
+        for (ex in exercises.value) {
+            val previousRows = workoutRepository.getPreviousWorkoutSets(
+                ex.exerciseId,
+                settings.previousValuesMode,
+                w?.routineId,
+                beforeStartedAt = if (isEditMode) w?.startedAt else null,
+            ).sortedBy { it.orderIndex }
+            ex.sets.forEachIndexed { index, s ->
+                // Same pairing rule as init: a circuit pairs by round — and the live list keeps
+                // list index == orderIndex (addRound appends, removeRound re-indexes), so index
+                // stands in for the entity orderIndex init pairs with. Regular is positional.
+                val previous = if (w?.structure == WorkoutStructure.CIRCUIT) {
+                    previousRows.find { it.orderIndex == index }
+                } else {
+                    previousRows.getOrNull(index)
+                }
+                labelsBySetId[s.id] = previous?.let {
+                    PreviousValueFormatter.format(it, ex.exerciseType, settings.weightUnit, settings.distanceUnit)
+                } ?: "—"
+            }
+        }
+        // Applied by set id onto whatever the list holds NOW — user edits that landed while the
+        // queries above ran are preserved, and a set added meanwhile just keeps its default "—".
+        updateExercises { list ->
+            list.map { ex -> ex.copy(sets = ex.sets.map { s -> labelsBySetId[s.id]?.let { s.copy(previousLabel = it) } ?: s }) }
         }
     }
 

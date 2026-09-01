@@ -1,0 +1,157 @@
+package com.enil.logez.feature.settings
+
+import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.PreviousValuesMode
+import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.VolumeLevel
+import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.fakes.FakeSettingsRepository
+import java.time.DayOfWeek
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+/** M16: every Settings row's write function must persist through its repository setter. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class SettingsViewModelTest {
+    private val dispatcher = UnconfinedTestDispatcher()
+
+    @Before
+    fun setUp() = Dispatchers.setMain(dispatcher)
+
+    @After
+    fun tearDown() = Dispatchers.resetMain()
+
+    private val repository = FakeSettingsRepository()
+    private val viewModel by lazy { SettingsViewModel(repository) }
+
+    @Test
+    fun `settings state mirrors the repository`() = runTest {
+        val custom = UserSettings(weightUnit = WeightUnit.LB, defaultRestTimerSeconds = 120, rpeTrackingEnabled = true)
+        val vm = SettingsViewModel(FakeSettingsRepository(custom))
+        assertEquals(custom, vm.settings.value)
+    }
+
+    // --- Preferences ---
+
+    @Test
+    fun `setWeightUnit persists LB`() = runTest {
+        viewModel.setWeightUnit(WeightUnit.LB)
+        assertEquals(WeightUnit.LB, repository.settings.value.weightUnit)
+    }
+
+    @Test
+    fun `setDistanceUnit persists MILES`() = runTest {
+        viewModel.setDistanceUnit(DistanceUnit.MILES)
+        assertEquals(DistanceUnit.MILES, repository.settings.value.distanceUnit)
+    }
+
+    @Test
+    fun `setFirstDayOfWeek persists SUNDAY`() = runTest {
+        viewModel.setFirstDayOfWeek(DayOfWeek.SUNDAY)
+        assertEquals(DayOfWeek.SUNDAY, repository.settings.value.firstDayOfWeek)
+    }
+
+    // --- Workouts ---
+
+    @Test
+    fun `setDefaultRestTimerSeconds persists 0 as off and 300 as five minutes`() = runTest {
+        viewModel.setDefaultRestTimerSeconds(0)
+        assertEquals(0, repository.settings.value.defaultRestTimerSeconds)
+        viewModel.setDefaultRestTimerSeconds(300)
+        assertEquals(300, repository.settings.value.defaultRestTimerSeconds)
+    }
+
+    @Test
+    fun `setPreviousValuesMode persists SAME_ROUTINE`() = runTest {
+        viewModel.setPreviousValuesMode(PreviousValuesMode.SAME_ROUTINE)
+        assertEquals(PreviousValuesMode.SAME_ROUTINE, repository.settings.value.previousValuesMode)
+    }
+
+    @Test
+    fun `setKeepAwake persists false`() = runTest {
+        viewModel.setKeepAwake(false)
+        assertFalse(repository.settings.value.keepAwake)
+    }
+
+    @Test
+    fun `setSmartSupersetScrolling persists false`() = runTest {
+        viewModel.setSmartSupersetScrolling(false)
+        assertFalse(repository.settings.value.smartSupersetScrolling)
+    }
+
+    @Test
+    fun `setInlineTimerEnabled persists false`() = runTest {
+        viewModel.setInlineTimerEnabled(false)
+        assertFalse(repository.settings.value.inlineTimerEnabled)
+    }
+
+    @Test
+    fun `setLivePrNotificationEnabled persists false`() = runTest {
+        viewModel.setLivePrNotificationEnabled(false)
+        assertFalse(repository.settings.value.livePrNotificationEnabled)
+    }
+
+    @Test
+    fun `setRpeTrackingEnabled writes through both ways`() = runTest {
+        viewModel.setRpeTrackingEnabled(true)
+        assertTrue(repository.settings.value.rpeTrackingEnabled)
+        viewModel.setRpeTrackingEnabled(false)
+        assertFalse(repository.settings.value.rpeTrackingEnabled)
+    }
+
+    @Test
+    fun `setIncludeWarmupsInStats persists true`() = runTest {
+        viewModel.setIncludeWarmupsInStats(true)
+        assertTrue(repository.settings.value.includeWarmupsInStats)
+    }
+
+    // --- Calculators ---
+
+    @Test
+    fun `setPlateCalculatorEnabled persists false`() = runTest {
+        viewModel.setPlateCalculatorEnabled(false)
+        assertFalse(repository.settings.value.plateCalculatorEnabled)
+    }
+
+    @Test
+    fun `setWarmupCalculatorEnabled persists false`() = runTest {
+        viewModel.setWarmupCalculatorEnabled(false)
+        assertFalse(repository.settings.value.warmupCalculatorEnabled)
+    }
+
+    // --- Sounds ---
+
+    @Test
+    fun `setTimerSound persists tone 3`() = runTest {
+        viewModel.setTimerSound(3)
+        assertEquals(3, repository.settings.value.timerSound)
+    }
+
+    @Test
+    fun `setTimerVolume persists HIGH`() = runTest {
+        viewModel.setTimerVolume(VolumeLevel.HIGH)
+        assertEquals(VolumeLevel.HIGH, repository.settings.value.timerVolume)
+    }
+
+    @Test
+    fun `setSetCompleteVolume persists OFF`() = runTest {
+        viewModel.setSetCompleteVolume(VolumeLevel.OFF)
+        assertEquals(VolumeLevel.OFF, repository.settings.value.setCompleteVolume)
+    }
+
+    @Test
+    fun `setPrVolume persists LOW`() = runTest {
+        viewModel.setPrVolume(VolumeLevel.LOW)
+        assertEquals(VolumeLevel.LOW, repository.settings.value.prVolume)
+    }
+}
