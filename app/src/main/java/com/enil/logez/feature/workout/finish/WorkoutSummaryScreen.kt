@@ -37,9 +37,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.history.formatCardDateTime
 import com.enil.logez.feature.workout.finish.share.ShareCardData
-import com.enil.logez.feature.workout.finish.share.ShareSummarySheet
+import com.enil.logez.feature.workout.finish.share.ShareSummaryDialog
 
 /**
  * PHASE2_PLAN.md §5.1.8(c) post-save summary, plus the local-only summary-card export: the share
@@ -54,8 +55,8 @@ fun WorkoutSummaryScreen(
     viewModel: WorkoutSummaryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    // Saveable so a rotation with the sheet open re-opens it instead of silently swallowing the tap.
-    var showShareSheet by rememberSaveable { mutableStateOf(false) }
+    // Saveable so a rotation with the dialog open re-opens it instead of silently swallowing the tap.
+    var showShareDialog by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onDone)
 
     Scaffold { padding ->
@@ -78,6 +79,16 @@ fun WorkoutSummaryScreen(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = Spacing.xxs),
             )
+            if (uiState.structure == WorkoutStructure.CIRCUIT) {
+                // M11: the same "CIRCUIT · N rounds" line the share card carries.
+                Text(
+                    stringResource(R.string.routine_structure_chip_circuit) + " · " +
+                        pluralStringResource(R.plurals.routine_rounds_count, uiState.rounds, uiState.rounds),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg),
@@ -85,6 +96,7 @@ fun WorkoutSummaryScreen(
             ) {
                 StatCell(stringResource(R.string.summary_volume), formatVolume(uiState.totalVolumeKg))
                 StatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
+                StatCell(stringResource(R.string.summary_reps), uiState.totalReps.toString())
                 StatCell(stringResource(R.string.summary_duration), formatDuration(uiState.durationSeconds))
             }
 
@@ -108,7 +120,7 @@ fun WorkoutSummaryScreen(
             }
 
             OutlinedButton(
-                onClick = { showShareSheet = true },
+                onClick = { showShareDialog = true },
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg),
             ) {
                 Text(stringResource(R.string.summary_share))
@@ -118,20 +130,27 @@ fun WorkoutSummaryScreen(
             }
         }
 
-        if (showShareSheet) {
-            ShareSummarySheet(
+        if (showShareDialog) {
+            ShareSummaryDialog(
                 data = ShareCardData(
                     title = uiState.title,
                     dateLine = formatCardDateTime(uiState.startedAtMillis),
                     durationText = formatDuration(uiState.durationSeconds),
                     volumeText = formatVolume(uiState.totalVolumeKg),
                     setsText = uiState.completedSetCount.toString(),
+                    repsText = uiState.totalReps.toString(),
                     workoutOrdinal = uiState.workoutOrdinal,
                     weeklyStreak = uiState.weeklyStreak,
                     prs = uiState.prMedals,
-                    exerciseLines = uiState.exerciseLines.map { "${it.setCount} × ${it.name}" },
+                    // CIRCUIT drops the "N × " prefix — the card's own rounds line already says
+                    // how many times the sequence ran; REGULAR keeps History's shape.
+                    exerciseLines = uiState.exerciseLines.map {
+                        if (uiState.structure == WorkoutStructure.CIRCUIT) it.name else "${it.setCount} × ${it.name}"
+                    },
+                    structure = uiState.structure,
+                    rounds = uiState.rounds,
                 ),
-                onDismiss = { showShareSheet = false },
+                onDismiss = { showShareDialog = false },
             )
         }
     }

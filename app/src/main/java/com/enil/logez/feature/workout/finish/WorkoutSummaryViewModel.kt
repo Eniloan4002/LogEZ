@@ -8,6 +8,7 @@ import com.enil.logez.core.domain.calc.StreakCalculator
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.PrType
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -22,11 +23,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.1.8(c) post-save summary: total volume, completed sets, duration, ordinal
- * workout count, weekly streak, and one medal per PR achieved. Reads the already-COMPLETED
+ * PHASE2_PLAN.md §5.1.8(c) post-save summary: total volume, completed sets, total reps, duration,
+ * ordinal workout count, weekly streak, and one medal per PR achieved. Reads the already-COMPLETED
  * workout — every number here is derived from persisted rows, never from live logger state, so
  * the screen shows exactly what was saved (the milestone's own acceptance criterion is "summary
  * matches logged data").
+ *
+ * Stat parity invariant: the share card never shows a stat the summary screen doesn't — both
+ * surfaces render the same Duration/Volume/Sets/Reps values from this one UiState, so adding a
+ * card stat means adding the matching screen cell (and vice versa).
  */
 @HiltViewModel
 class WorkoutSummaryViewModel @Inject constructor(
@@ -104,11 +109,18 @@ class WorkoutSummaryViewModel @Inject constructor(
                 startedAtMillis = workout.startedAt,
                 durationSeconds = workout.durationSeconds,
                 completedSetCount = included.size,
+                // Same `included` list as the Sets stat, so warm-up filtering can't drift between
+                // the two numbers. Rep-less sets (cardio/time) honestly contribute 0.
+                totalReps = included.sumOf { it.set.reps ?: 0 },
                 totalVolumeKg = volumeKg,
                 workoutOrdinal = workoutRepository.countCompletedWorkoutsUpTo(workout.startedAt, workout.id),
                 weeklyStreak = streak,
                 prMedals = prs,
                 exerciseLines = exerciseLines,
+                structure = workout.structure,
+                // M11, exactly HistoryViewModel's derivation: the saved rows are post-purge, so
+                // this is the count of rounds that actually survived — MAX across blocks.
+                rounds = sets.groupBy { it.workoutExerciseId }.values.maxOfOrNull { it.size } ?: 0,
             )
         }
     }
@@ -129,9 +141,14 @@ data class WorkoutSummaryUiState(
     val startedAtMillis: Long = 0L,
     val durationSeconds: Int = 0,
     val completedSetCount: Int = 0,
+    /** Reps summed over the same `isIncluded` set list as [completedSetCount]; null reps count 0. */
+    val totalReps: Int = 0,
     val totalVolumeKg: Double = 0.0,
     val workoutOrdinal: Int = 0,
     val weeklyStreak: Int = 0,
     val prMedals: List<PrMedal> = emptyList(),
     val exerciseLines: List<SummaryExerciseLine> = emptyList(),
+    /** M11: CIRCUIT summaries add a "CIRCUIT · N rounds" line on screen and card. */
+    val structure: WorkoutStructure = WorkoutStructure.REGULAR,
+    val rounds: Int = 0,
 )

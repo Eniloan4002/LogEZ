@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
@@ -24,10 +26,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -54,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
@@ -65,14 +69,14 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 /**
- * Share flow for the post-workout summary: live preview, Square/Story selection, and the system
- * ACTION_SEND chooser — plus a "Save image" action that lands the same capture in the device's
- * Pictures library. Export and save go through [WorkoutShareController]; nothing here (or in the
- * ViewModel) performs the platform side-effects itself.
+ * Share flow for the post-workout summary: a centered dialog with the live preview, Square/Story
+ * selection, and one Share button whose menu offers the system ACTION_SEND chooser or a
+ * "Save to gallery" write into the device's Pictures library. Export and save go through
+ * [WorkoutShareController]; nothing here (or in the ViewModel) performs the platform side-effects
+ * itself.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShareSummarySheet(
+fun ShareSummaryDialog(
     data: ShareCardData,
     onDismiss: () -> Unit,
 ) {
@@ -85,25 +89,46 @@ fun ShareSummarySheet(
     }
     var format by rememberSaveable { mutableStateOf(ShareCardFormat.SQUARE) }
     // activeAction is deliberately NOT saveable: its coroutine dies with the activity, so restoring
-    // an in-flight state would leave both buttons disabled behind a spinner nothing will ever clear.
+    // an in-flight state would leave the button disabled behind a spinner nothing will ever clear.
     // A finished outcome (status) is real information and does survive rotation.
-    var activeAction by remember { mutableStateOf<SheetAction?>(null) }
-    var status by rememberSaveable { mutableStateOf(SheetStatus.NONE) }
+    var activeAction by remember { mutableStateOf<DialogAction?>(null) }
+    var status by rememberSaveable { mutableStateOf(DialogStatus.NONE) }
+    // Transient by design: an open menu is a tap away from being reopened, so it need not survive
+    // rotation the way status does.
+    var menuExpanded by remember { mutableStateOf(false) }
     val graphicsLayer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
 
-    val performSave: () -> Unit = {
+    val performShare: () -> Unit = {
         scope.launch {
-            activeAction = SheetAction.SAVE
-            status = SheetStatus.NONE
+            activeAction = DialogAction.SHARE
+            status = DialogStatus.NONE
             try {
                 val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                shareController.saveToPictures(bitmap, format)
-                status = SheetStatus.SAVED
+                val uri = shareController.exportPng(bitmap, format)
+                shareController.launchShareChooser(context, uri)
+                onDismiss()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                status = SheetStatus.SAVE_FAILED
+                status = DialogStatus.SHARE_FAILED
+            } finally {
+                activeAction = null
+            }
+        }
+    }
+    val performSave: () -> Unit = {
+        scope.launch {
+            activeAction = DialogAction.SAVE
+            status = DialogStatus.NONE
+            try {
+                val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                shareController.saveToPictures(bitmap, format)
+                status = DialogStatus.SAVED
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                status = DialogStatus.SAVE_FAILED
             } finally {
                 activeAction = null
             }
@@ -112,104 +137,106 @@ fun ShareSummarySheet(
     // Pre-Q only: the legacy Pictures write needs WRITE_EXTERNAL_STORAGE at runtime. On Q+ this
     // launcher is never fired — saveToPictures goes through scoped MediaStore inserts instead.
     val writePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) performSave() else status = SheetStatus.SAVE_PERMISSION_DENIED
+        if (granted) performSave() else status = DialogStatus.SAVE_PERMISSION_DENIED
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        // Scrollable: in landscape the sheet is shorter than title+preview+chips+button, and the
-        // share button must stay reachable.
-        Column(
+    Dialog(
+        onDismissRequest = onDismiss,
+        // Platform default width is too narrow for the card preview; the Surface below takes 92%.
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        // Styled like LogEzCard (surface fill, Radius.md corners, outlineVariant hairline) so the
+        // dialog reads as one of the app's own cards floating over the summary.
+        Surface(
+            shape = RoundedCornerShape(Radius.md),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.md)
-                .padding(bottom = Spacing.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .fillMaxWidth(0.92f)
+                .heightIn(max = 600.dp),
         ) {
-            Text(
-                stringResource(R.string.share_sheet_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            ScaledCardPreview(data, format, graphicsLayer, Modifier.padding(top = Spacing.md))
-
-            Row(
-                modifier = Modifier.padding(top = Spacing.md),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            // Scrollable: in landscape the dialog is shorter than title+preview+chips+button, and
+            // the share button must stay reachable.
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.md)
+                    .padding(top = Spacing.md, bottom = Spacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                FormatChip(R.string.share_format_square, format == ShareCardFormat.SQUARE) { format = ShareCardFormat.SQUARE }
-                FormatChip(R.string.share_format_story, format == ShareCardFormat.STORY) { format = ShareCardFormat.STORY }
-            }
+                Text(
+                    stringResource(R.string.share_sheet_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-            // Single status slot: at most one message, and the latest action's outcome wins.
-            when (status) {
-                SheetStatus.NONE -> Unit
-                SheetStatus.SAVED -> StatusText(R.string.share_save_confirmation, isError = false)
-                SheetStatus.SHARE_FAILED -> StatusText(R.string.share_export_failed, isError = true)
-                SheetStatus.SAVE_FAILED -> StatusText(R.string.share_save_failed, isError = true)
-                SheetStatus.SAVE_PERMISSION_DENIED -> StatusText(R.string.share_save_permission_denied, isError = true)
-            }
+                ScaledCardPreview(data, format, graphicsLayer, Modifier.padding(top = Spacing.md))
 
-            Button(
-                onClick = {
-                    scope.launch {
-                        activeAction = SheetAction.SHARE
-                        status = SheetStatus.NONE
-                        try {
-                            val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                            val uri = shareController.exportPng(bitmap, format)
-                            shareController.launchShareChooser(context, uri)
-                            onDismiss()
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            status = SheetStatus.SHARE_FAILED
-                        } finally {
-                            activeAction = null
+                Row(
+                    modifier = Modifier.padding(top = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    FormatChip(R.string.share_format_square, format == ShareCardFormat.SQUARE) { format = ShareCardFormat.SQUARE }
+                    FormatChip(R.string.share_format_story, format == ShareCardFormat.STORY) { format = ShareCardFormat.STORY }
+                }
+
+                // Single status slot: at most one message, and the latest action's outcome wins.
+                when (status) {
+                    DialogStatus.NONE -> Unit
+                    DialogStatus.SAVED -> StatusText(R.string.share_save_confirmation, isError = false)
+                    DialogStatus.SHARE_FAILED -> StatusText(R.string.share_export_failed, isError = true)
+                    DialogStatus.SAVE_FAILED -> StatusText(R.string.share_save_failed, isError = true)
+                    DialogStatus.SAVE_PERMISSION_DENIED -> StatusText(R.string.share_save_permission_denied, isError = true)
+                }
+
+                // One Share button; the anchored menu carries both destinations. The in-flight
+                // spinner replaces the label while either action runs.
+                Box(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+                    Button(
+                        onClick = { menuExpanded = true },
+                        enabled = activeAction == null,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (activeAction != null) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(stringResource(R.string.summary_share))
                         }
                     }
-                },
-                enabled = activeAction == null,
-                modifier = Modifier.fillMaxWidth().padding(top = Spacing.md),
-            ) {
-                if (activeAction == SheetAction.SHARE) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.share_action))
-                }
-            }
-
-            // Filled-vs-outlined pairing mirrors WorkoutSummaryScreen's Done/Share buttons.
-            OutlinedButton(
-                onClick = {
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
-                        PackageManager.PERMISSION_GRANTED
-                    ) {
-                        writePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    } else {
-                        performSave()
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.share_action)) },
+                            onClick = {
+                                menuExpanded = false
+                                performShare()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.share_save_action)) },
+                            onClick = {
+                                menuExpanded = false
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+                                    PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    writePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                } else {
+                                    performSave()
+                                }
+                            },
+                        )
                     }
-                },
-                enabled = activeAction == null,
-                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
-            ) {
-                if (activeAction == SheetAction.SAVE) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.share_save_action))
                 }
             }
         }
     }
 }
 
-/** The one platform action in flight; both buttons disable while either runs. */
-private enum class SheetAction { SHARE, SAVE }
+/** The one platform action in flight; the share button disables while either runs. */
+private enum class DialogAction { SHARE, SAVE }
 
-/** Outcome shown in the sheet's single status slot. */
-private enum class SheetStatus { NONE, SAVED, SHARE_FAILED, SAVE_FAILED, SAVE_PERMISSION_DENIED }
+/** Outcome shown in the dialog's single status slot. */
+private enum class DialogStatus { NONE, SAVED, SHARE_FAILED, SAVE_FAILED, SAVE_PERMISSION_DENIED }
 
 @Composable
 private fun StatusText(@StringRes textRes: Int, isError: Boolean) {
@@ -276,7 +303,9 @@ private fun ScaledCardPreview(
     }
 }
 
-private val PREVIEW_AREA_HEIGHT = 300.dp
+// Slightly under the old sheet's 300dp so a STORY preview plus the dialog chrome still fits a
+// small phone; the scale math above coerces either format into whatever height this allows.
+private val PREVIEW_AREA_HEIGHT = 280.dp
 
 /** Pill/mono-caps selection chip in the v4.0 chip vocabulary (AnalyticsScreen's MetricChip). */
 @Composable

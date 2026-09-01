@@ -26,6 +26,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.LogEzTheme
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.finish.PrMedal
 import com.enil.logez.feature.workout.finish.labelRes
 import java.util.Locale
@@ -40,11 +41,18 @@ data class ShareCardData(
     val durationText: String,
     val volumeText: String,
     val setsText: String,
+    val repsText: String,
     val workoutOrdinal: Int,
     val weeklyStreak: Int,
     val prs: List<PrMedal>,
-    /** Already in History's "3 × Bench Press (Barbell)" shape. */
+    /**
+     * REGULAR: History's "3 × Bench Press (Barbell)" shape. CIRCUIT: bare names in sequence order
+     * — the per-block set count is redundant with the card's own "CIRCUIT · N rounds" line.
+     */
     val exerciseLines: List<String>,
+    /** M11: CIRCUIT cards add the rounds line; REGULAR cards are visually unchanged. */
+    val structure: WorkoutStructure,
+    val rounds: Int,
 )
 
 /**
@@ -82,15 +90,29 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
             Text(
                 data.dateLine,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = Spacing.xxs),
             )
+            if (data.structure == WorkoutStructure.CIRCUIT) {
+                // M11: header metadata, not a stat — the workout's shape sits with title/date, and
+                // the exercise list below drops its per-block set counts in favour of this line.
+                Text(
+                    (
+                        stringResource(R.string.routine_structure_chip_circuit) + " · " +
+                            pluralStringResource(R.plurals.routine_rounds_count, data.rounds, data.rounds)
+                        ).uppercase(Locale.getDefault()),
+                    style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
+            }
             Hairline(Modifier.padding(vertical = sectionGap))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 CardStat(R.string.summary_duration, data.durationText)
                 CardStat(R.string.summary_volume, data.volumeText)
                 CardStat(R.string.summary_sets, data.setsText)
+                CardStat(R.string.summary_reps, data.repsText)
             }
 
             Row(modifier = Modifier.padding(top = sectionGap), verticalAlignment = Alignment.CenterVertically) {
@@ -103,7 +125,7 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                     Text(
                         " · " + pluralStringResource(R.plurals.calendar_streak_banner, data.weeklyStreak, data.weeklyStreak),
                         style = LogEzMono.dataMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
             }
@@ -160,7 +182,7 @@ private fun CardStat(@StringRes labelRes: Int, value: String) {
         Text(
             stringResource(labelRes).uppercase(Locale.getDefault()),
             style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onBackground,
         )
     }
 }
@@ -189,7 +211,8 @@ private fun PrLine(pr: PrMedal, style: TextStyle) {
         Text(
             stringResource(pr.prType.labelRes()),
             style = style,
-            color = MaterialTheme.colorScheme.tertiary,
+            // Primary, not tertiary: the card's palette is white + black + exactly ONE green.
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = Spacing.xs),
         )
     }
@@ -197,5 +220,5 @@ private fun PrLine(pr: PrMedal, style: TextStyle) {
 
 @Composable
 private fun MoreLine(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground)
 }

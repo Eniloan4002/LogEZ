@@ -252,7 +252,7 @@ fun RoutineBuilderScreen(
 
 /**
  * M11 structure choice — pill/mono-caps selection chips in the v4.0 chip vocabulary
- * (ShareSummarySheet's FormatChip). Greyed with the immutable hint when editing.
+ * (ShareSummaryDialog's FormatChip). Greyed with the immutable hint when editing.
  */
 @Composable
 private fun StructureRow(structure: WorkoutStructure, enabled: Boolean, onSelect: (WorkoutStructure) -> Unit) {
@@ -282,7 +282,7 @@ private fun StructureRow(structure: WorkoutStructure, enabled: Boolean, onSelect
     }
 }
 
-/** Pill/mono-caps selection chip (v4.0 vocabulary — mirrors ShareSummarySheet's FormatChip, plus a disabled state). */
+/** Pill/mono-caps selection chip (v4.0 vocabulary — mirrors ShareSummaryDialog's FormatChip, plus a disabled state). */
 @Composable
 private fun StructureChip(@StringRes labelRes: Int, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(Radius.pill)

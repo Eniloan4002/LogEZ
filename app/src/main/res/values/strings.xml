@@ -6,7 +6,7 @@
     <string name="nav_workout">Workout</string>
     <string name="nav_profile">Profile</string>
 
-    <string name="history_empty_title">No specimens on file</string>
+    <string name="history_empty_title">No workouts yet</string>
     <string name="history_empty_subtitle">Log your first session to begin the record.</string>
     <string name="history_empty_cta">Start a workout</string>
     <string name="history_card_records_chip">Records</string>
@@ -39,7 +39,7 @@
     <string name="workout_empty_title">Nothing logged yet</string>
     <string name="workout_empty_subtitle">Build a routine or start an empty workout to begin.</string>
 
-    <string name="profile_empty_title">Awaiting your first data point</string>
+    <string name="profile_empty_title">No stats yet</string>
     <string name="profile_empty_subtitle">Log a session to begin tracking streaks, charts, and records.</string>
     <string name="profile_nav_exercises">Exercises</string>
     <string name="profile_rpe_toggle_title">RPE tracking (testing toggle)</string>
@@ -350,10 +350,11 @@
     <string name="finish_structure_update">Update Routine</string>
     <string name="finish_structure_keep">Keep Original</string>
 
-    <string name="summary_title">Experiment complete</string>
+    <string name="summary_title">Workout complete</string>
     <string name="summary_workout_ordinal">Workout #%1$d</string>
     <string name="summary_volume">Volume</string>
     <string name="summary_sets">Sets</string>
+    <string name="summary_reps">Reps</string>
     <string name="summary_duration">Duration</string>
     <string name="summary_streak">Week streak</string>
     <plurals name="summary_streak_value">
@@ -370,13 +371,13 @@
     <string name="share_format_story">Story</string>
     <string name="share_action">Share image</string>
     <string name="share_export_failed">Couldn\'t create the image. Nothing was shared — try again.</string>
-    <string name="share_save_action">Save image</string>
+    <string name="share_save_action">Save to gallery</string>
     <string name="share_save_confirmation">Saved to Pictures/logEZ.</string>
     <string name="share_save_failed">Couldn\'t save the image. Nothing was saved — try again.</string>
     <string name="share_save_permission_denied">Storage permission is off — the image can\'t be saved without it.</string>
     <plurals name="share_card_prs_header">
-        <item quantity="one">Anomaly detected</item>
-        <item quantity="other">Anomalies detected</item>
+        <item quantity="one">Personal best</item>
+        <item quantity="other">Personal bests</item>
     </plurals>
     <string name="share_card_more_prs">+%1$d more</string>
     <plurals name="share_card_more_exercises">
@@ -384,7 +385,7 @@
         <item quantity="other">+%1$d more exercises</item>
     </plurals>
 
-    <string name="pr_banner">Anomaly detected: %1$s</string>
+    <string name="pr_banner">Personal best: %1$s</string>
     <string name="pr_type_heaviest_weight">Heaviest weight</string>
     <string name="pr_type_best_1rm">Best 1RM</string>
     <string name="pr_type_best_set_volume">Best set volume</string>
