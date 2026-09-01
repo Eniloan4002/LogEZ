@@ -32,6 +32,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.ExerciseType
@@ -242,14 +243,14 @@ private fun CircuitColumnsHeader(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        HeaderCell(stringResource(R.string.routine_builder_col_round), width = SetTable.setCell)
+        HeaderCell(stringResource(R.string.routine_builder_col_round), width = SetTable.setCell, textAlign = TextAlign.Center)
         HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
-        if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f))
-        if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f))
-        if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
-        if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
-        if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
-        if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell)
+        if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.width(SetTable.checkCell))
     }
 }

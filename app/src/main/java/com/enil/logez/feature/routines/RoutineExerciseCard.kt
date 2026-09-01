@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.enil.logez.R
@@ -177,16 +178,17 @@ private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewMod
     val fields = exercise.exerciseType.targetFields()
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HeaderCell(stringResource(if (isCircuit) R.string.routine_builder_col_round else R.string.routine_builder_col_set), width = SetTable.setCell)
-            if (TargetField.WEIGHT in fields) HeaderCell(weightHeaderLabel(exercise.exerciseType), modifier = Modifier.weight(1f))
+            HeaderCell(stringResource(if (isCircuit) R.string.routine_builder_col_round else R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
+            if (TargetField.WEIGHT in fields) HeaderCell(weightHeaderLabel(exercise.exerciseType), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.REPS in fields) {
                 HeaderCell(
                     stringResource(R.string.routine_builder_col_reps),
                     modifier = Modifier.weight(1f).clickable { viewModel.toggleRepRangeMode(exercise.id) },
+                    textAlign = TextAlign.Center,
                 )
             }
-            if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
-            if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
+            if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.width(SetTable.checkCell))
         }
         exercise.sets.forEachIndexed { index, set ->
@@ -210,11 +212,12 @@ private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewMod
 }
 
 @Composable
-private fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null) {
+private fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null, textAlign: TextAlign? = null) {
     Text(
         label,
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = textAlign,
         // Cells are sized so every label fits whole (SetTable); backstop so a future regression
         // ellipsizes instead of breaking mid-word.
         maxLines = 1,
@@ -242,7 +245,7 @@ private fun SetRow(
     var typeMenuExpanded by remember { mutableStateOf(false) }
 
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.width(SetTable.setCell)) {
+        Box(modifier = Modifier.width(SetTable.setCell), contentAlignment = Alignment.Center) {
             SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })

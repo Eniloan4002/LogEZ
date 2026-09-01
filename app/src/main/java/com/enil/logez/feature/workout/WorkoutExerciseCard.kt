@@ -57,6 +57,7 @@ import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
@@ -233,14 +234,14 @@ private fun SetTable(
     val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell)
+            HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
             HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
-            if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f))
-            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f))
-            if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
-            if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
-            if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
-            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell)
+            if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.width(SetTable.checkCell))
         }
         exercise.sets.forEachIndexed { index, set ->
@@ -281,11 +282,12 @@ private fun SetTable(
 }
 
 @Composable
-internal fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null) {
+internal fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null, textAlign: TextAlign? = null) {
     Text(
         label,
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = textAlign,
         // Cells are sized so every label fits whole (SetTable); this is the backstop that turns a
         // future regression into an ellipsis instead of a mid-word break ("PREVIO/US").
         maxLines = 1,
@@ -334,7 +336,9 @@ internal fun SetRow(
         modifier = Modifier.fillMaxWidth().background(rowBackground).padding(vertical = Spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(36.dp)) {
+        // Same width as the header's ROUND/SET cell — a 36-vs-48 mismatch here shifted every
+        // value cell 12dp off its header. Badge centered so the number sits under the label.
+        Box(modifier = Modifier.width(SetTable.setCell), contentAlignment = Alignment.Center) {
             SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
