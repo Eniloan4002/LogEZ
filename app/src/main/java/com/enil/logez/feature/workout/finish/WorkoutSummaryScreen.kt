@@ -31,6 +31,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -174,7 +175,7 @@ private fun PrMedalCard(medal: PrMedal) {
         ) {
             Icon(Icons.Filled.EmojiEvents, contentDescription = null)
             Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
-                Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)
             }
             Text(formatPrValue(medal), style = LogEzMono.dataLarge)

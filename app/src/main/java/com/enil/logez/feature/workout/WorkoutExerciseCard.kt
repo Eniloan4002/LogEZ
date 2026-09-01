@@ -56,6 +56,8 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import androidx.compose.ui.text.style.TextOverflow
+import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
@@ -130,6 +132,8 @@ internal fun WorkoutExerciseCard(
                     exercise.exerciseName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).let { m -> if (supersetSelectionActive) m else m.clickable(onClick = onExerciseClick) },
                 )
                 Box {
@@ -229,15 +233,15 @@ private fun SetTable(
     val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HeaderCell(stringResource(R.string.routine_builder_col_set), width = 36.dp)
-            HeaderCell(stringResource(R.string.workout_col_previous), width = 76.dp)
+            HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell)
+            HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
             if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f))
             if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f))
             if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
-            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = 44.dp)
-            Spacer(modifier = Modifier.width(40.dp))
+            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell)
+            Spacer(modifier = Modifier.width(SetTable.checkCell))
         }
         exercise.sets.forEachIndexed { index, set ->
             Column {
@@ -268,7 +272,7 @@ private fun SetTable(
                         stringResource(R.string.workout_failure_error),
                         color = Danger500,
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(start = 44.dp, bottom = Spacing.xxs),
+                        modifier = Modifier.padding(start = SetTable.setCell, bottom = Spacing.xxs),
                     )
                 }
             }
@@ -282,6 +286,10 @@ internal fun HeaderCell(label: String, modifier: Modifier = Modifier, width: and
         label,
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // Cells are sized so every label fits whole (SetTable); this is the backstop that turns a
+        // future regression into an ellipsis instead of a mid-word break ("PREVIO/US").
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = if (width != null) modifier.width(width) else modifier,
     )
 }
@@ -343,7 +351,9 @@ internal fun SetRow(
         Text(
             set.previousLabel,
             style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-            modifier = Modifier.width(76.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(SetTable.previousCell),
         )
         if (showCustomMetric) {
             NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
@@ -376,9 +386,9 @@ internal fun SetRow(
             NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (showRpe) {
-            RpeCell(value = set.rpe, enabled = fieldsEnabled, onClick = { showRpeSheet = true }, modifier = Modifier.width(44.dp))
+            RpeCell(value = set.rpe, enabled = fieldsEnabled, onClick = { showRpeSheet = true }, modifier = Modifier.width(SetTable.rpeCell))
         }
-        IconButton(onClick = onToggleCheck, modifier = Modifier.width(40.dp)) {
+        IconButton(onClick = onToggleCheck, modifier = Modifier.width(SetTable.checkCell)) {
             Icon(
                 Icons.Filled.Check,
                 contentDescription = stringResource(R.string.workout_check_set),

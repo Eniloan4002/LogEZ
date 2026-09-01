@@ -133,6 +133,8 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
                             "${line.setCount} × ${line.name}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     val remaining = card.exerciseSummaries.size - 3

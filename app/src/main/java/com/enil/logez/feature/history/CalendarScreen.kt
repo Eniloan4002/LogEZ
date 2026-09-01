@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -175,7 +176,7 @@ fun CalendarScreen(
                             .padding(vertical = Spacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(workout.title, modifier = Modifier.weight(1f))
+                        Text(workout.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         Text(
                             formatCalendarDuration(workout.durationSeconds),
                             style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),

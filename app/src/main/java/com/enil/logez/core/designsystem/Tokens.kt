@@ -30,3 +30,22 @@ object Radius {
 object Elevation {
     val card: Dp = 4.dp
 }
+
+/**
+ * Shared column geometry for every set-logging table (regular logger card, circuit round card,
+ * routine builder) — one source so the three tables can't drift. Each fixed cell is sized so its
+ * widest header word fits WHOLE on one line ("ROUND" for the set cell; "152.5 kg × 12" for the
+ * PREVIOUS value column): a label that breaks mid-word ("ROU/ND") is a rendering bug, not wrapping.
+ */
+object SetTable {
+    /** SET/ROUND number cell — "ROUND" is the widest label sharing this slot. */
+    val setCell: Dp = 48.dp
+
+    /** PREVIOUS column — header plus the widest realistic value ("152.5 kg × 12") un-broken. */
+    val previousCell: Dp = 92.dp
+
+    val rpeCell: Dp = 44.dp
+
+    /** Trailing check/action column (also the header row's spacer over it). */
+    val checkCell: Dp = 40.dp
+}

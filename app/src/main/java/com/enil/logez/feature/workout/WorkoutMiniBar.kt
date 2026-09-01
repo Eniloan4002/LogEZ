@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,7 +40,7 @@ fun WorkoutMiniBar(
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(uiState.title, style = MaterialTheme.typography.titleSmall)
+                Text(uiState.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 MiniBarStatsText(viewModel.elapsedSecondsFlow, viewModel.restRemainingMillisFlow)
             }
             TextButton(onClick = { expand(workoutId) }) { Text(stringResource(R.string.workout_mini_bar_finish)) }
@@ -55,7 +56,7 @@ private fun MiniBarStatsText(elapsedSecondsFlow: Flow<Long>, restRemainingMillis
     val stats = restRemainingMillis?.let { millis ->
         "${formatMiniBarTime(elapsedSeconds)} · ${stringResource(R.string.workout_rest_timer_label)} ${formatMiniBarTime((millis + 999) / 1000)}"
     } ?: formatMiniBarTime(elapsedSeconds)
-    Text(stats, style = LogEzMono.dataSmall)
+    Text(stats, style = LogEzMono.dataSmall, maxLines = 1)
 }
 
 private fun formatMiniBarTime(totalSeconds: Long): String {

@@ -171,6 +171,8 @@ fun WorkoutLoggerScreen(
                                 uiState.title
                             },
                             style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         // §5.1.10: no elapsed ticking in edit mode — the stopwatch's slot carries
                         // the same set/volume figures without the live timer that has nothing to
@@ -179,6 +181,7 @@ fun WorkoutLoggerScreen(
                             Text(
                                 stringResource(R.string.workout_edit_stats, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg)),
                                 style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                                maxLines = 1,
                             )
                         } else {
                             // Owner: this row was reading as stacked, not side-by-side -- it was

@@ -38,12 +38,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.model.ExerciseType
@@ -108,6 +110,8 @@ internal fun RoutineExerciseCard(
                     exercise.exerciseName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     // No separate click target during superset selection — a tap anywhere on the
                     // card (including the name) must confirm the pairing, not navigate away.
                     modifier = Modifier.weight(1f).let { m ->
@@ -173,7 +177,7 @@ private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewMod
     val fields = exercise.exerciseType.targetFields()
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HeaderCell(stringResource(if (isCircuit) R.string.routine_builder_col_round else R.string.routine_builder_col_set), width = 40.dp)
+            HeaderCell(stringResource(if (isCircuit) R.string.routine_builder_col_round else R.string.routine_builder_col_set), width = SetTable.setCell)
             if (TargetField.WEIGHT in fields) HeaderCell(weightHeaderLabel(exercise.exerciseType), modifier = Modifier.weight(1f))
             if (TargetField.REPS in fields) {
                 HeaderCell(
@@ -183,7 +187,7 @@ private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewMod
             }
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.width(40.dp))
+            Spacer(modifier = Modifier.width(SetTable.checkCell))
         }
         exercise.sets.forEachIndexed { index, set ->
             SetRow(
@@ -211,6 +215,10 @@ private fun HeaderCell(label: String, modifier: Modifier = Modifier, width: andr
         label,
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // Cells are sized so every label fits whole (SetTable); backstop so a future regression
+        // ellipsizes instead of breaking mid-word.
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = if (width != null) modifier.width(width) else modifier,
     )
 }
@@ -234,7 +242,7 @@ private fun SetRow(
     var typeMenuExpanded by remember { mutableStateOf(false) }
 
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.width(40.dp)) {
+        Box(modifier = Modifier.width(SetTable.setCell)) {
             SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
@@ -271,9 +279,9 @@ private fun SetRow(
         }
         if (isCircuit) {
             // Keep the column grid aligned with the regular layout's trailing delete slot.
-            Spacer(modifier = Modifier.width(40.dp))
+            Spacer(modifier = Modifier.width(SetTable.checkCell))
         } else {
-            IconButton(onClick = onRemove, modifier = Modifier.width(40.dp)) {
+            IconButton(onClick = onRemove, modifier = Modifier.width(SetTable.checkCell)) {
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
             }
         }

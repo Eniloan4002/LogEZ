@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
@@ -401,7 +402,7 @@ private fun FolderHeaderRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(if (isCollapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess, contentDescription = null)
-        Text(folder.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = Spacing.xs))
+        Text(folder.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = Spacing.xs))
         if (isReordering) {
             IconButton(onClick = onMoveUp) { Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.workout_move_up)) }
             IconButton(onClick = onMoveDown) { Icon(Icons.Filled.ArrowDownward, contentDescription = stringResource(R.string.workout_move_down)) }
@@ -438,7 +439,7 @@ private fun RoutineCard(
     LogEzCard(modifier = modifier.fillMaxWidth().clickable(enabled = !isReordering, onClick = onClick)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(card.routine.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                Text(card.routine.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (card.routine.structure == WorkoutStructure.CIRCUIT) {
                     CircuitChip(modifier = Modifier.padding(start = Spacing.xs))
                 }

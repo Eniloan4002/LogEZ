@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.em
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import androidx.compose.ui.text.style.TextOverflow
+import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.feature.routines.TargetField
@@ -94,9 +96,26 @@ internal fun CircuitRoundCard(
                 }
             }
 
+            // When every exercise in the round shares one column set (the common case), a single
+            // header row under the ROUND title covers all of them; per-entry headers only return
+            // when a mixed-type circuit genuinely needs different columns per entry.
+            val uniformColumns = round.entries
+                .filter { it.set != null }
+                .map { columnSignature(it.exercise.exerciseType) }
+                .distinct()
+                .singleOrNull()
+            if (uniformColumns != null) {
+                CircuitColumnsHeader(
+                    fields = uniformColumns.fields,
+                    showCustomMetric = uniformColumns.customMetric,
+                    showRpe = rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+            }
             round.entries.forEachIndexed { entryIndex, entry ->
                 if (entryIndex > 0) HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
                 CircuitEntry(
+                    showColumnHeader = uniformColumns == null,
                     roundIndex = round.roundNumber - 1,
                     entry = entry,
                     viewModel = viewModel,
@@ -116,6 +135,7 @@ internal fun CircuitRoundCard(
 /** One exercise's turn in one round: name row (with per-exercise ops), column headers, input row. */
 @Composable
 private fun CircuitEntry(
+    showColumnHeader: Boolean,
     roundIndex: Int,
     entry: CircuitRoundEntry,
     viewModel: WorkoutLoggerViewModel,
@@ -136,6 +156,8 @@ private fun CircuitEntry(
                 exercise.exerciseName,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).clickable(onClick = onExerciseClick),
             )
             Box {
@@ -168,17 +190,7 @@ private fun CircuitEntry(
         val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
         val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
 
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            HeaderCell(stringResource(R.string.routine_builder_col_round), width = 36.dp)
-            HeaderCell(stringResource(R.string.workout_col_previous), width = 76.dp)
-            if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f))
-            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f))
-            if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
-            if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
-            if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
-            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = 44.dp)
-            Spacer(modifier = Modifier.width(40.dp))
-        }
+        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe)
         SetRow(
             index = roundIndex,
             set = set,
@@ -208,8 +220,36 @@ private fun CircuitEntry(
                 stringResource(R.string.workout_failure_error),
                 color = com.enil.logez.core.designsystem.Danger500,
                 style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(start = 44.dp, bottom = Spacing.xxs),
+                modifier = Modifier.padding(start = SetTable.setCell, bottom = Spacing.xxs),
             )
         }
+    }
+}
+
+/** The column set a circuit entry's table needs — entries sharing one signature share one header. */
+private data class CircuitColumns(val fields: Set<TargetField>, val customMetric: Boolean)
+
+private fun columnSignature(type: ExerciseType) = CircuitColumns(
+    fields = type.targetFields(),
+    customMetric = type == ExerciseType.FLOORS_DURATION || type == ExerciseType.STEPS_DURATION,
+)
+
+@Composable
+private fun CircuitColumnsHeader(
+    fields: Set<TargetField>,
+    showCustomMetric: Boolean,
+    showRpe: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        HeaderCell(stringResource(R.string.routine_builder_col_round), width = SetTable.setCell)
+        HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
+        if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f))
+        if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f))
+        if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f))
+        if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f))
+        if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f))
+        if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell)
+        Spacer(modifier = Modifier.width(SetTable.checkCell))
     }
 }
