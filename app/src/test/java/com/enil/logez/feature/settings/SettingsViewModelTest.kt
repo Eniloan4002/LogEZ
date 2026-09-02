@@ -129,6 +129,42 @@ class SettingsViewModelTest {
         assertFalse(repository.settings.value.warmupCalculatorEnabled)
     }
 
+    // --- M17 plate equipment (persisted whole through setPlateEquipment) ---
+
+    @Test
+    fun `addBar persists a second bar in sorted order`() = runTest {
+        viewModel.addBar(15.0)
+        assertEquals(listOf(15.0, 20.0), repository.settings.value.plateEquipment.barsKg)
+    }
+
+    @Test
+    fun `addBar rounds to the quarter-kg grid and skips duplicates`() = runTest {
+        viewModel.addBar(17.4) // stored as 17.5
+        viewModel.addBar(20.0) // already owned — no-op
+        assertEquals(listOf(17.5, 20.0), repository.settings.value.plateEquipment.barsKg)
+    }
+
+    @Test
+    fun `removeBar never removes the last bar`() = runTest {
+        viewModel.removeBar(20.0)
+        assertEquals(listOf(20.0), repository.settings.value.plateEquipment.barsKg)
+    }
+
+    @Test
+    fun `removeBar drops a bar once a second one exists`() = runTest {
+        viewModel.addBar(15.0)
+        viewModel.removeBar(20.0)
+        assertEquals(listOf(15.0), repository.settings.value.plateEquipment.barsKg)
+    }
+
+    @Test
+    fun `addPlate and removePlate persist the transformed denomination list`() = runTest {
+        viewModel.addPlate(0.5)
+        assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0, 25.0), repository.settings.value.plateEquipment.platesKg)
+        viewModel.removePlate(25.0)
+        assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0), repository.settings.value.plateEquipment.platesKg)
+    }
+
     // --- Sounds ---
 
     @Test

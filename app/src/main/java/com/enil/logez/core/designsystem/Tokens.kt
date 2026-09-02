@@ -48,4 +48,11 @@ object SetTable {
 
     /** Trailing check/action column (also the header row's spacer over it). */
     val checkCell: Dp = 40.dp
+
+    /**
+     * M17: the plate-calculator tap target that trails a barbell row's KG cell. The header rows
+     * add a spacer of the same width whenever the affordance renders, so the KG header stays
+     * centered over the (cell + button) pair and the M15 column alignment holds.
+     */
+    val plateCalcCell: Dp = 28.dp
 }

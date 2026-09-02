@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +43,7 @@ private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, FIRST_DAY, REST_
 fun SettingsScreen(
     onBack: () -> Unit,
     onSoundsClick: () -> Unit,
+    onPlateEquipmentClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -159,6 +161,18 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_plate_calculator_subtitle),
                     checked = settings.plateCalculatorEnabled,
                     onCheckedChange = viewModel::setPlateCalculatorEnabled,
+                )
+            }
+            item(key = "plate_equipment") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_plate_equipment_row),
+                    subtitle = stringResource(R.string.settings_plate_equipment_subtitle),
+                    value = stringResource(
+                        R.string.settings_plate_equipment_value,
+                        pluralStringResource(R.plurals.settings_plate_bar_count, settings.plateEquipment.barsKg.size, settings.plateEquipment.barsKg.size),
+                        pluralStringResource(R.plurals.settings_plate_plate_count, settings.plateEquipment.platesKg.size, settings.plateEquipment.platesKg.size),
+                    ),
+                    onClick = onPlateEquipmentClick,
                 )
             }
             item(key = "warmup_calculator") {

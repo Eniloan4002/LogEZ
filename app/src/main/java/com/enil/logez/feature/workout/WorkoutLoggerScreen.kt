@@ -345,6 +345,7 @@ fun WorkoutLoggerScreen(
                                 inlineTimerSetId = uiState.inlineTimerSetId,
                                 inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
                                 isEditMode = uiState.isEditMode,
+                                plateCalculator = uiState.plateCalculator,
                             )
                         }
                     }
@@ -396,6 +397,7 @@ fun WorkoutLoggerScreen(
                             onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
                             onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
                             isEditMode = uiState.isEditMode,
+                            plateCalculator = uiState.plateCalculator,
                         )
                     }
                 }

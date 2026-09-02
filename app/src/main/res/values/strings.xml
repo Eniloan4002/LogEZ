@@ -109,6 +109,7 @@
     <string name="action_done">Done</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_rename">Rename</string>
+    <string name="action_add">Add</string>
 
     <string name="exercise_library_title">Exercises</string>
     <string name="exercise_library_create">Create exercise</string>
@@ -439,4 +440,38 @@
     <string name="settings_volume_low">Low</string>
     <string name="settings_volume_normal">Normal</string>
     <string name="settings_volume_high">High</string>
+
+    <!-- M17 Plate calculator -->
+    <string name="settings_plate_equipment_row">Plate equipment</string>
+    <string name="settings_plate_equipment_subtitle">The bars and plates the calculator can load.</string>
+    <string name="settings_plate_equipment_value">%1$s · %2$s</string>
+    <plurals name="settings_plate_bar_count">
+        <item quantity="one">%1$d bar</item>
+        <item quantity="other">%1$d bars</item>
+    </plurals>
+    <plurals name="settings_plate_plate_count">
+        <item quantity="one">%1$d plate</item>
+        <item quantity="other">%1$d plates</item>
+    </plurals>
+    <string name="settings_plate_bars_section">Bars</string>
+    <string name="settings_plate_plates_section">Plates</string>
+    <string name="settings_plate_add_bar">Add bar</string>
+    <string name="settings_plate_add_plate">Add plate</string>
+    <string name="settings_plate_weight_label">Weight (kg)</string>
+    <string name="settings_plate_invalid_weight">Enter a weight greater than zero.</string>
+    <string name="settings_plate_duplicate_weight">Already in the list.</string>
+    <string name="settings_plate_last_bar_note">The calculator needs a bar, so the last one cannot be removed.</string>
+    <string name="settings_plate_rounding_note">Weights are rounded to the nearest 0.25 kg.</string>
+    <string name="settings_plate_remove">Remove</string>
+    <string name="workout_plate_calc_open">Plate calculator</string>
+    <string name="workout_plate_sheet_title">Plate calculator</string>
+    <string name="workout_plate_target_label">Target weight</string>
+    <string name="workout_plate_bar_label">Bar</string>
+    <string name="workout_plate_per_side">Per side: %1$s</string>
+    <string name="workout_plate_total">Total: %1$s</string>
+    <string name="workout_plate_bar_alone">Bar alone weighs %1$s</string>
+    <string name="workout_plate_closest">Closest possible weight is %1$s</string>
+    <string name="workout_plate_use">Use %1$s</string>
+    <string name="workout_plate_no_plates">No plates saved yet — add some under Settings, Plate equipment.</string>
+    <string name="workout_plate_enter_target">Enter a target weight to see the plates per side.</string>
 </resources>

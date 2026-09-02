@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.feature.routines.TargetField
 import com.enil.logez.feature.routines.targetFields
@@ -67,6 +68,7 @@ internal fun CircuitRoundCard(
     inlineTimerSetId: String?,
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     isEditMode: Boolean = false,
+    plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -102,7 +104,7 @@ internal fun CircuitRoundCard(
             // when a mixed-type circuit genuinely needs different columns per entry.
             val uniformColumns = round.entries
                 .filter { it.set != null }
-                .map { columnSignature(it.exercise.exerciseType) }
+                .map { columnSignature(it.exercise, plateCalculator.enabled) }
                 .distinct()
                 .singleOrNull()
             if (uniformColumns != null) {
@@ -110,6 +112,7 @@ internal fun CircuitRoundCard(
                     fields = uniformColumns.fields,
                     showCustomMetric = uniformColumns.customMetric,
                     showRpe = rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
+                    showPlateCalculator = uniformColumns.plateCalculator,
                     modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
@@ -127,6 +130,7 @@ internal fun CircuitRoundCard(
                     inlineTimerRunning = inlineTimerExerciseId == entry.exercise.id && inlineTimerSetId == entry.set?.id,
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                     isEditMode = isEditMode,
+                    plateCalculator = plateCalculator,
                 )
             }
         }
@@ -147,6 +151,7 @@ private fun CircuitEntry(
     inlineTimerRunning: Boolean,
     inlineTimerSecondsFlow: Flow<Int?>,
     isEditMode: Boolean,
+    plateCalculator: PlateCalculatorConfig,
 ) {
     val exercise = entry.exercise
     var menuExpanded by remember { mutableStateOf(false) }
@@ -190,8 +195,10 @@ private fun CircuitEntry(
         val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
         val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
         val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
+        // Same §5.1.5 gate as the regular table: BARBELL rows only, setting on.
+        val showPlateCalculator = plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
 
-        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe)
+        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator)
         SetRow(
             index = roundIndex,
             set = set,
@@ -215,6 +222,8 @@ private fun CircuitEntry(
             onRpeChange = { rpe -> viewModel.updateRpe(exercise.id, set.id, rpe) },
             allowWarmup = false,
             allowDelete = false,
+            showPlateCalculator = showPlateCalculator,
+            plateCalculatorConfig = plateCalculator,
         )
         if (set.failureError) {
             Text(
@@ -227,19 +236,27 @@ private fun CircuitEntry(
     }
 }
 
-/** The column set a circuit entry's table needs — entries sharing one signature share one header. */
-private data class CircuitColumns(val fields: Set<TargetField>, val customMetric: Boolean)
+/** The column set a circuit entry's table needs — entries sharing one signature share one header.
+ * M17: the plate-calculator affordance is part of the signature (it adds a fixed-width slot), so a
+ * mixed barbell/non-barbell circuit correctly falls back to per-entry headers. */
+private data class CircuitColumns(val fields: Set<TargetField>, val customMetric: Boolean, val plateCalculator: Boolean)
 
-private fun columnSignature(type: ExerciseType) = CircuitColumns(
-    fields = type.targetFields(),
-    customMetric = type == ExerciseType.FLOORS_DURATION || type == ExerciseType.STEPS_DURATION,
-)
+private fun columnSignature(exercise: WorkoutExerciseUiModel, plateCalculatorEnabled: Boolean): CircuitColumns {
+    val type = exercise.exerciseType
+    val fields = type.targetFields()
+    return CircuitColumns(
+        fields = fields,
+        customMetric = type == ExerciseType.FLOORS_DURATION || type == ExerciseType.STEPS_DURATION,
+        plateCalculator = plateCalculatorEnabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields,
+    )
+}
 
 @Composable
 private fun CircuitColumnsHeader(
     fields: Set<TargetField>,
     showCustomMetric: Boolean,
     showRpe: Boolean,
+    showPlateCalculator: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -247,6 +264,8 @@ private fun CircuitColumnsHeader(
         HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
         if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        // Mirrors the row's trailing calculator button (same width) so KG stays over its cell.
+        if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
         if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)

@@ -8,9 +8,11 @@ import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
@@ -141,6 +143,56 @@ class WorkoutLoggerViewModelTest {
         assertTrue(vm.uiState.value.rpeTrackingEnabled)
         assertFalse(vm.uiState.value.keepAwakeEnabled)
         assertFalse(vm.uiState.value.inlineTimerEnabled)
+    }
+
+    // --- M17 §5.1.5 Plate Calculator: config plumbing (the sheet itself is thin — the math is
+    // covered by PlateCalculatorTest, the equipment rules by PlateEquipmentTest) ---
+
+    @Test
+    fun `mid-session plate calculator setting, unit and equipment changes apply without a reload`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val vm = newViewModel(settingsRepo = settingsRepo)
+        assertTrue(vm.uiState.value.plateCalculator.enabled)
+        assertEquals(WeightUnit.KG, vm.uiState.value.plateCalculator.weightUnit)
+        assertEquals(listOf(20.0), vm.uiState.value.plateCalculator.equipment.barsKg)
+
+        settingsRepo.setPlateCalculatorEnabled(false)
+        settingsRepo.setWeightUnit(WeightUnit.LB)
+        settingsRepo.setPlateEquipment(PlateEquipment(barsKg = listOf(15.0, 20.0), platesKg = listOf(2.5, 5.0)))
+
+        assertFalse(vm.uiState.value.plateCalculator.enabled)
+        assertEquals(WeightUnit.LB, vm.uiState.value.plateCalculator.weightUnit)
+        assertEquals(listOf(15.0, 20.0), vm.uiState.value.plateCalculator.equipment.barsKg)
+        assertEquals(listOf(2.5, 5.0), vm.uiState.value.plateCalculator.equipment.platesKg)
+    }
+
+    @Test
+    fun `loaded exercises carry their equipment so barbell rows can gate the affordance`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo)
+        assertEquals(Equipment.BARBELL, vm.uiState.value.exercises[0].equipment)
+    }
+
+    @Test
+    fun `addExercises carries the picked exercise's equipment into the ui model`() = runTest {
+        val vm = newViewModel(exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        assertEquals(Equipment.BARBELL, vm.uiState.value.exercises.single().equipment)
+    }
+
+    @Test
+    fun `edit mode also exposes the plate calculator config`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = editFixture(),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+        assertTrue(vm.uiState.value.plateCalculator.enabled)
+        assertEquals(Equipment.BARBELL, vm.uiState.value.exercises[0].equipment)
     }
 
     @Test

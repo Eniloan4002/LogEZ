@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
@@ -62,6 +63,7 @@ import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
+import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.SetType
@@ -96,6 +98,7 @@ internal fun WorkoutExerciseCard(
     onStartInlineTimer: (setId: String) -> Unit = {},
     onStopInlineTimer: (setId: String) -> Unit = {},
     isEditMode: Boolean = false,
+    plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -178,6 +181,7 @@ internal fun WorkoutExerciseCard(
                 isEditMode = isEditMode,
                 rpeTrackingEnabled = rpeTrackingEnabled,
                 onRpeChange = onRpeChange,
+                plateCalculator = plateCalculator,
             )
 
             TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
@@ -224,6 +228,7 @@ private fun SetTable(
     isEditMode: Boolean,
     rpeTrackingEnabled: Boolean,
     onRpeChange: (setId: String, rpe: Double?) -> Unit,
+    plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
 ) {
     val fields = exercise.exerciseType.targetFields()
     val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
@@ -232,12 +237,17 @@ private fun SetTable(
     // never for the routine builder (which shares none of this UI) and never for duration/distance
     // types, where RPE doesn't apply.
     val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
+    // §5.1.5: the Plate Calculator affordance exists only for BARBELL exercises with the setting
+    // on — "assisted/weighted bodyweight exercises never show the button (equipment ≠ BARBELL)".
+    val showPlateCalculator = plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
             HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
             if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            // Mirrors the row's trailing calculator button so the KG header stays over its cell.
+            if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
             if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
@@ -267,6 +277,8 @@ private fun SetTable(
                     isEditMode = isEditMode,
                     showRpe = showRpe,
                     onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
+                    showPlateCalculator = showPlateCalculator,
+                    plateCalculatorConfig = plateCalculator,
                 )
                 if (set.failureError) {
                     Text(
@@ -322,9 +334,13 @@ internal fun SetRow(
     allowWarmup: Boolean = true,
     /** ... and so does per-row Delete (rounds are removed whole via the round header). */
     allowDelete: Boolean = true,
+    /** M17 §5.1.5: true only for BARBELL rows with the setting on; the caller's header row adds a matching spacer. */
+    showPlateCalculator: Boolean = false,
+    plateCalculatorConfig: PlateCalculatorConfig = PlateCalculatorConfig(),
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var showRpeSheet by remember { mutableStateOf(false) }
+    var showPlateSheet by remember { mutableStateOf(false) }
     // Live logging locks a set's values once it is checked off — the check is the commit. Editing a
     // PAST workout inverts that: every set in a COMPLETED workout is checked, so the same rule
     // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
@@ -364,6 +380,22 @@ internal fun SetRow(
         }
         if (TargetField.WEIGHT in fields) {
             NumberCell(value = set.weightKg, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            if (showPlateCalculator) {
+                // Trails the KG cell inside the same fixed width the header row spaces over, so
+                // the M15 column alignment holds with or without the button.
+                IconButton(
+                    onClick = { showPlateSheet = true },
+                    enabled = fieldsEnabled,
+                    modifier = Modifier.size(SetTable.plateCalcCell),
+                ) {
+                    Icon(
+                        Icons.Filled.Calculate,
+                        contentDescription = stringResource(R.string.workout_plate_calc_open),
+                        tint = if (fieldsEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
         if (TargetField.REPS in fields) {
             IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
@@ -406,6 +438,18 @@ internal fun SetRow(
             initialRpe = set.rpe,
             onDismiss = { showRpeSheet = false },
             onConfirm = { rpe -> onRpeChange(rpe); showRpeSheet = false },
+        )
+    }
+
+    if (showPlateSheet) {
+        PlateCalculatorSheet(
+            initialWeightKg = set.weightKg,
+            weightUnit = plateCalculatorConfig.weightUnit,
+            equipment = plateCalculatorConfig.equipment,
+            // "Use X kg" writes the closest ACHIEVED total into the set — same canonical-kg path
+            // as typing into the cell, so it behaves identically in live and edit modes.
+            onApply = onWeightChange,
+            onDismiss = { showPlateSheet = false },
         )
     }
 }

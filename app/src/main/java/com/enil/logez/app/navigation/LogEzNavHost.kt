@@ -27,6 +27,7 @@ import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.enil.logez.feature.settings.PlateEquipmentScreen
 import com.enil.logez.feature.settings.SettingsRoutes
 import com.enil.logez.feature.settings.SettingsScreen
 import com.enil.logez.feature.settings.SoundsSettingsScreen
@@ -107,10 +108,14 @@ fun LogEzNavHost(
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onSoundsClick = { navController.navigate(SettingsRoutes.SOUNDS) { launchSingleTop = true } },
+                onPlateEquipmentClick = { navController.navigate(SettingsRoutes.PLATE_EQUIPMENT) { launchSingleTop = true } },
             )
         }
         composable(SettingsRoutes.SOUNDS) {
             SoundsSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(SettingsRoutes.PLATE_EQUIPMENT) {
+            PlateEquipmentScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = AnalyticsRoutes.DASHBOARD,

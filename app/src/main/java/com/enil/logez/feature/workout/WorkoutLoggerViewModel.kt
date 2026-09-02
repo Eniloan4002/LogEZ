@@ -9,6 +9,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.PreviousValueFormatter
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.RpeScale
@@ -49,8 +50,8 @@ import kotlinx.coroutines.launch
 /**
  * PHASE2_PLAN.md §5.1.3/§5.1.4/§9.2-§9.7 Live Workout Logger — M4a (core logging) + M4b (timers &
  * foreground service) scope, plus M4c's finish hand-off, M5b's edit mode, and §5.1.7's RPE
- * picker. Still deliberately not built here: Plate Calculator, Warm-up Calculator, Update
- * Bodyweight (all M7 — none change stored data shape).
+ * picker, and M17's Plate Calculator config. Still deliberately not built here: Warm-up
+ * Calculator, Update Bodyweight (neither changes stored data shape).
  */
 @HiltViewModel
 class WorkoutLoggerViewModel @Inject constructor(
@@ -90,6 +91,9 @@ class WorkoutLoggerViewModel @Inject constructor(
      * reachable mid-session from this screen's overflow menu (plain navigation, this ViewModel
      * stays alive underneath), so a one-time load snapshot would go stale on return. */
     private val rpeTrackingEnabled = MutableStateFlow(false)
+    /** M17 §5.1.5: gate + equipment + display unit for the Plate Calculator, live for the same
+     * mid-session-Settings reason as the flags above. */
+    private val plateCalculator = MutableStateFlow(PlateCalculatorConfig())
 
     /** The (mode, weight unit, distance unit) the PREVIOUS column was last resolved with — the
      * settings collector in init re-queries labels only when this actually changes. */
@@ -129,6 +133,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
         exercises, isLoading, workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled,
         sessionController.state, editedStartedAt, editedDurationSeconds, rpeTrackingEnabled,
+        plateCalculator,
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
         val ex = flows[0] as List<WorkoutExerciseUiModel>
@@ -142,6 +147,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         val startedAt = flows[8] as Long
         val duration = flows[9] as Int
         val rpeEnabled = flows[10] as Boolean
+        val plateCalc = flows[11] as PlateCalculatorConfig
         val allSets = ex.flatMap { it.sets }
         WorkoutLoggerUiState(
             isLoading = loading,
@@ -166,6 +172,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             editedStartedAtMillis = startedAt,
             editedDurationSeconds = duration,
             rpeTrackingEnabled = rpeEnabled,
+            plateCalculator = plateCalc,
             // §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." The
             // purge makes the real requirement stronger than a non-empty list: uncompleted sets are
             // dropped on save, so a workout whose every set is unchecked would save as zero
@@ -204,6 +211,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                     exerciseId = we.exerciseId,
                     exerciseName = exercise?.name.orEmpty(),
                     exerciseType = exercise?.exerciseType ?: ExerciseType.WEIGHT_REPS,
+                    equipment = exercise?.equipment ?: Equipment.NONE,
                     supersetGroup = we.supersetGroup,
                     restTimerSeconds = we.restTimerSeconds,
                     notes = we.notes.orEmpty(),
@@ -239,6 +247,11 @@ class WorkoutLoggerViewModel @Inject constructor(
                 keepAwakeEnabled.value = s.keepAwake
                 inlineTimerEnabled.value = s.inlineTimerEnabled
                 rpeTrackingEnabled.value = s.rpeTrackingEnabled
+                plateCalculator.value = PlateCalculatorConfig(
+                    enabled = s.plateCalculatorEnabled,
+                    equipment = s.plateEquipment,
+                    weightUnit = s.weightUnit,
+                )
                 // PREVIOUS re-resolution costs repo queries, so it runs only on a real change
                 // after the initial load (which applies the first value itself and stamps the key).
                 val key = Triple(s.previousValuesMode, s.weightUnit, s.distanceUnit)
@@ -666,7 +679,8 @@ class WorkoutLoggerViewModel @Inject constructor(
                     listOf(WorkoutSetUiModel(id = UUID.randomUUID().toString()))
                 }
                 newModels += WorkoutExerciseUiModel(
-                    id = weId, exerciseId = exercise.id, exerciseName = exercise.name, exerciseType = exercise.exerciseType, sets = sets,
+                    id = weId, exerciseId = exercise.id, exerciseName = exercise.name, exerciseType = exercise.exerciseType,
+                    equipment = exercise.equipment, sets = sets,
                 )
                 newExerciseEntities += WorkoutExerciseEntity(
                     id = weId, workoutId = workoutId, exerciseId = exercise.id, orderIndex = startIndex + offset,
@@ -702,7 +716,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         }
         updateExercises { list ->
             list.map { ex ->
-                if (ex.id != exerciseId) ex else ex.copy(exerciseId = newExercise.id, exerciseName = newExercise.name, exerciseType = newExercise.exerciseType, sets = carriedSets)
+                if (ex.id != exerciseId) ex else ex.copy(exerciseId = newExercise.id, exerciseName = newExercise.name, exerciseType = newExercise.exerciseType, equipment = newExercise.equipment, sets = carriedSets)
             }
         }
         persist {
@@ -917,6 +931,8 @@ data class WorkoutLoggerUiState(
     val canSaveEdit: Boolean = false,
     /** §5.1.7: column + picker exist only when this is true — off by default (Hevy default). */
     val rpeTrackingEnabled: Boolean = false,
+    /** M17 §5.1.5: Plate Calculator gate, owned equipment, and display unit for the set tables. */
+    val plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
 )
 
 private fun WorkoutSetEntity.toUiModel(previousLabel: String) = WorkoutSetUiModel(

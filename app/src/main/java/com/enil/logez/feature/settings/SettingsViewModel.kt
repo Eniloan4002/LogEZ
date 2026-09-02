@@ -3,8 +3,13 @@ package com.enil.logez.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.withBarAdded
+import com.enil.logez.core.domain.model.withBarRemoved
+import com.enil.logez.core.domain.model.withPlateAdded
+import com.enil.logez.core.domain.model.withPlateRemoved
 import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -14,6 +19,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -47,6 +53,25 @@ class SettingsViewModel @Inject constructor(
     // Calculators
     fun setPlateCalculatorEnabled(value: Boolean) = write { setPlateCalculatorEnabled(value) }
     fun setWarmupCalculatorEnabled(value: Boolean) = write { setWarmupCalculatorEnabled(value) }
+
+    // M17 plate equipment — the rounding/dedupe/last-bar rules live on PlateEquipment itself
+    // (pure, tested); each call persists the whole transformed value through setPlateEquipment.
+    fun addBar(kg: Double) = persistPlateEquipment { it.withBarAdded(kg) }
+    fun removeBar(kg: Double) = persistPlateEquipment { it.withBarRemoved(kg) }
+    fun addPlate(kg: Double) = persistPlateEquipment { it.withPlateAdded(kg) }
+    fun removePlate(kg: Double) = persistPlateEquipment { it.withPlateRemoved(kg) }
+
+    private fun persistPlateEquipment(transform: (PlateEquipment) -> PlateEquipment) {
+        // Read the CURRENT persisted equipment inside the coroutine, not the eager stateIn
+        // snapshot: before DataStore's first emission that snapshot is UserSettings() defaults,
+        // and transforming defaults here would silently overwrite a user's customized bars and
+        // plates. first() suspends until a real emission, and sequential edits each re-read the
+        // just-written value, so back-to-back taps compose instead of clobbering.
+        viewModelScope.launch {
+            val current = settingsRepository.settings.first().plateEquipment
+            settingsRepository.setPlateEquipment(transform(current))
+        }
+    }
 
     // Sounds
     fun setTimerSound(value: Int) = write { setTimerSound(value) }
