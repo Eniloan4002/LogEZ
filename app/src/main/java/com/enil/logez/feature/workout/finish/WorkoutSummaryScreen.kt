@@ -203,8 +203,7 @@ private fun formatAvgReps(value: Double): String {
     return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
 }
 
-private fun formatVolume(kg: Double): String =
-    if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+private fun formatVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
 
 private fun formatDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600

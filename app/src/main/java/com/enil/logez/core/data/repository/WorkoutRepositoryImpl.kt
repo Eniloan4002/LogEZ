@@ -2,7 +2,9 @@ package com.enil.logez.core.data.repository
 
 import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseStatRow
+import com.enil.logez.core.data.dao.ExerciseStatRowWithExerciseId
 import com.enil.logez.core.data.dao.WorkoutDao
+import com.enil.logez.core.data.dao.WorkoutSetWithExerciseIdRow
 import com.enil.logez.core.data.dao.WorkoutSetWithExerciseRow
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
@@ -74,6 +76,37 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long?): List<StatSet> =
         resolvePreviousWorkoutSets(dao.getStatRowsForExercise(exerciseId).map { it.toStatSet() }, mode, currentRoutineId, beforeStartedAt)
 
+    override suspend fun getPreviousWorkoutSetsBulk(exerciseIds: List<String>, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long?): Map<String, List<StatSet>> {
+        if (exerciseIds.isEmpty()) return emptyMap()
+        // Fetch all stat rows for all exercises in one DAO call, group by exercise, then convert.
+        val allRows = dao.getStatRowsForExercises(exerciseIds)
+        val grouped = allRows.groupBy({ it.exerciseId }, { it.toStatSet() })
+        return exerciseIds.associateWith { id ->
+            resolvePreviousWorkoutSets(grouped[id].orEmpty(), mode, currentRoutineId, beforeStartedAt)
+        }
+    }
+
+    /** Returns all sets for a workout grouped by exercise ID — replaces N per-exercise queries with one. */
+    suspend fun getAllSetsForWorkoutGroupedByExercise(workoutId: String): Map<String, List<WorkoutSetEntity>> {
+        val rows = dao.getAllSetsForWorkoutGroupedByExercise(workoutId)
+        return rows.groupBy({ it.exerciseId }, { row ->
+            WorkoutSetEntity(
+                id = row.id,
+                workoutExerciseId = row.workoutExerciseId,
+                orderIndex = row.orderIndex,
+                setType = row.setType,
+                weightKg = row.weightKg,
+                reps = row.reps,
+                durationSeconds = row.durationSeconds,
+                distanceMeters = row.distanceMeters,
+                rpe = row.rpe,
+                customMetric = row.customMetric,
+                isCompleted = row.isCompleted,
+                completedAt = row.completedAt,
+            )
+        })
+    }
+
     override suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry> =
         dao.getStatRowsForExercise(exerciseId).map { it.toHistoryEntry() }
 
@@ -129,6 +162,22 @@ private fun WorkoutSetWithExerciseRow.toStatSet() = StatSet(
 )
 
 private fun ExerciseStatRow.toStatSet() = StatSet(
+    setId = setId,
+    workoutId = workoutId,
+    workoutStartedAt = workoutStartedAt,
+    orderIndex = orderIndex,
+    setType = setType,
+    weightKg = weightKg,
+    reps = reps,
+    durationSeconds = durationSeconds,
+    distanceMeters = distanceMeters,
+    customMetric = customMetric,
+    isCompleted = isCompleted,
+    rpe = rpe,
+    routineId = routineId,
+)
+
+private fun ExerciseStatRowWithExerciseId.toStatSet() = StatSet(
     setId = setId,
     workoutId = workoutId,
     workoutStartedAt = workoutStartedAt,

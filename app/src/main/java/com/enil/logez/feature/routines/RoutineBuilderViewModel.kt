@@ -9,7 +9,9 @@ import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository

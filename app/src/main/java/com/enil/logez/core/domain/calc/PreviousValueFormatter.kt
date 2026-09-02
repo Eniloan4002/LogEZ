@@ -37,9 +37,11 @@ object PreviousValueFormatter {
         return "$base @ ${formatNumber(rpe)}"
     }
 
-    private fun convertWeight(kg: Double, unit: WeightUnit) = if (unit == WeightUnit.LB) kg * 2.2046226218 else kg
+    private fun convertWeight(kg: Double, unit: WeightUnit) = WeightDisplay.toDisplay(kg, unit)
     private fun convertDistance(m: Double, unit: DistanceUnit) = if (unit == DistanceUnit.MILES) m / 1609.344 else m / 1000.0
-    private fun formatNumber(v: Double) = if (v == Math.floor(v)) v.toInt().toString() else "%.1f".format(v)
+    // Locale.ROOT: the default-locale overload renders "42,5" on comma-decimal devices (the same
+    // bug class M17's review caught in the plate sheet) — PREVIOUS must match the cells' dot style.
+    private fun formatNumber(v: Double) = if (v == Math.floor(v)) v.toInt().toString() else "%.1f".format(java.util.Locale.ROOT, v)
     private fun formatDuration(seconds: Int): String {
         val m = seconds / 60
         val s = seconds % 60

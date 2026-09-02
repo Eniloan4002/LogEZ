@@ -55,4 +55,12 @@ object SetTable {
      * centered over the (cell + button) pair and the M15 column alignment holds.
      */
     val plateCalcCell: Dp = 28.dp
+
+    /**
+     * M18 (Owner: uniform Hevy-style boxed cells): every set-row cell renders as a box of this
+     * height. 56dp is Material3's OutlinedTextField min height — the KG/REPS/TIME fields already
+     * render at it, so SET, PREVIOUS, and RPE boxes match the fields rather than the other way
+     * round (widths stay the M15 SetTable values; only the fixed cells' chrome changed).
+     */
+    val cellHeight: Dp = 56.dp
 }

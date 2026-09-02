@@ -158,6 +158,38 @@ interface WorkoutDao {
     )
     suspend fun getStatRowsForExercise(exerciseId: String): List<ExerciseStatRow>
 
+    /** Batch version: fetches stat rows for multiple exercises at once, avoiding N+1 queries. */
+    @Query(
+        """
+        SELECT ws.id AS setId, w.id AS workoutId, w.title AS workoutTitle, w.started_at AS workoutStartedAt,
+               w.routine_id AS routineId, ws.order_index AS orderIndex, ws.set_type AS setType,
+               ws.weight_kg AS weightKg, ws.reps AS reps, ws.duration_seconds AS durationSeconds,
+               ws.distance_meters AS distanceMeters, ws.custom_metric AS customMetric,
+               ws.is_completed AS isCompleted, ws.rpe AS rpe, we.exercise_id AS exerciseId
+        FROM workout_sets ws
+        JOIN workout_exercises we ON we.id = ws.workout_exercise_id
+        JOIN workouts w ON w.id = we.workout_id
+        WHERE we.exercise_id IN (:exerciseIds) AND w.status = 'COMPLETED'
+        ORDER BY w.started_at DESC, ws.order_index ASC
+        """,
+    )
+    suspend fun getStatRowsForExercises(exerciseIds: List<String>): List<ExerciseStatRowWithExerciseId>
+
+    /**
+     * Returns all sets for a workout grouped by exercise — replaces N per-exercise queries
+     * with a single query. Used by WorkoutLoggerViewModel.init.
+     */
+    @Query(
+        """
+        SELECT ws.*, we.exercise_id AS exerciseId
+        FROM workout_sets ws
+        JOIN workout_exercises we ON we.id = ws.workout_exercise_id
+        WHERE we.workout_id = :workoutId
+        ORDER BY we.order_index ASC, ws.order_index ASC
+        """,
+    )
+    suspend fun getAllSetsForWorkoutGroupedByExercise(workoutId: String): List<WorkoutSetWithExerciseIdRow>
+
     /**
      * Most recent `completed_at` per exercise, across all COMPLETED-workout sets — backs the
      * Exercise Library's "recently logged first" sort (§5.2).
@@ -358,4 +390,40 @@ data class ExerciseStatRow(
 data class ExerciseRecencyRow(
     val exerciseId: String,
     val lastCompletedAt: Long?,
+)
+
+/** Flat projection backing [WorkoutDao.getStatRowsForExercises] — same as ExerciseStatRow but with exerciseId. */
+data class ExerciseStatRowWithExerciseId(
+    val setId: String,
+    val workoutId: String,
+    val workoutTitle: String,
+    val workoutStartedAt: Long,
+    val routineId: String?,
+    val orderIndex: Int,
+    val setType: com.enil.logez.core.domain.model.SetType,
+    val weightKg: Double?,
+    val reps: Int?,
+    val durationSeconds: Int?,
+    val distanceMeters: Double?,
+    val customMetric: Double?,
+    val isCompleted: Boolean,
+    val rpe: Double?,
+    @androidx.room.ColumnInfo(name = "exerciseId") val exerciseId: String,
+)
+
+/** Flat projection backing [WorkoutDao.getAllSetsForWorkoutGroupedByExercise]. */
+data class WorkoutSetWithExerciseIdRow(
+    val id: String,
+    @androidx.room.ColumnInfo(name = "workout_exercise_id") val workoutExerciseId: String,
+    @androidx.room.ColumnInfo(name = "order_index") val orderIndex: Int,
+    @androidx.room.ColumnInfo(name = "set_type") val setType: com.enil.logez.core.domain.model.SetType,
+    @androidx.room.ColumnInfo(name = "weight_kg") val weightKg: Double?,
+    val reps: Int?,
+    @androidx.room.ColumnInfo(name = "duration_seconds") val durationSeconds: Int?,
+    @androidx.room.ColumnInfo(name = "distance_meters") val distanceMeters: Double?,
+    @androidx.room.ColumnInfo(name = "custom_metric") val customMetric: Double?,
+    @androidx.room.ColumnInfo(name = "is_completed") val isCompleted: Boolean,
+    @androidx.room.ColumnInfo(name = "completed_at") val completedAt: Long?,
+    val rpe: Double?,
+    @androidx.room.ColumnInfo(name = "exerciseId") val exerciseId: String,
 )

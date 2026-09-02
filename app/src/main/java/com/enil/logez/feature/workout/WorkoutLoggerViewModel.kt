@@ -8,6 +8,7 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.PreviousValueFormatter
+import com.enil.logez.core.domain.calc.WarmupCalculator
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
@@ -23,8 +24,8 @@ import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.history.WorkoutEditor
-import com.enil.logez.feature.routines.TargetField
-import com.enil.logez.feature.routines.targetFields
+import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.feature.workout.finish.LivePrDetector
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutNotificationContent
@@ -47,11 +48,49 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** Intermediate grouping for the exercises + loading pair — makes the combine chain readable
+ *  without 14-index casts. */
+private data class ExercisesState(
+    val exercises: List<WorkoutExerciseUiModel> = emptyList(),
+    val isLoading: Boolean = true,
+)
+
+/** Intermediate grouping for workout metadata + UI flags. */
+private data class WorkoutMeta(
+    val workout: WorkoutEntity? = null,
+    val supersetSourceId: String? = null,
+    val reorderModeActive: Boolean = false,
+    val keepAwakeEnabled: Boolean = true,
+    val inlineTimerEnabled: Boolean = true,
+)
+
+/** Intermediate grouping for the session controller's live state. */
+private data class SessionState(
+    val isPaused: Boolean = false,
+    val restExerciseId: String? = null,
+    val inlineTimerExerciseId: String? = null,
+    val inlineTimerSetId: String? = null,
+)
+
+/** Intermediate grouping for edit-mode held-in-memory values. */
+private data class EditState(
+    val editedStartedAtMillis: Long = 0L,
+    val editedDurationSeconds: Int = 0,
+)
+
+/** Intermediate grouping for settings-derived flags. */
+private data class SettingsFlags(
+    val rpeTrackingEnabled: Boolean = false,
+    val plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
+    val weightUnit: WeightUnit = WeightUnit.KG,
+    val warmupCalculatorEnabled: Boolean = true,
+)
+
 /**
  * PHASE2_PLAN.md §5.1.3/§5.1.4/§9.2-§9.7 Live Workout Logger — M4a (core logging) + M4b (timers &
  * foreground service) scope, plus M4c's finish hand-off, M5b's edit mode, and §5.1.7's RPE
- * picker, and M17's Plate Calculator config. Still deliberately not built here: Warm-up
- * Calculator, Update Bodyweight (neither changes stored data shape).
+ * picker, M17's Plate Calculator config, and M18's Warm-up Calculator insert. Still deliberately
+ * not built here: Update Bodyweight (it changes no stored data shape).
  */
 @HiltViewModel
 class WorkoutLoggerViewModel @Inject constructor(
@@ -94,6 +133,16 @@ class WorkoutLoggerViewModel @Inject constructor(
     /** M17 §5.1.5: gate + equipment + display unit for the Plate Calculator, live for the same
      * mid-session-Settings reason as the flags above. */
     private val plateCalculator = MutableStateFlow(PlateCalculatorConfig())
+    /** M18: the display unit the weight cells and KG/LBS headers render in (storage stays kg). */
+    private val weightUnit = MutableStateFlow(WeightUnit.KG)
+    /** M18 §5.1.6: gates the exercise-card "Add warm-up sets" menu item. */
+    private val warmupCalculatorEnabled = MutableStateFlow(true)
+    /** §5.1.3 step 7: gates smart-superset/circuit scrolling. */
+    private val smartSupersetScrolling = MutableStateFlow(true)
+    /** §5.1.3 step 6: gates the live in-workout PR banner. */
+    private val livePrNotificationEnabled = MutableStateFlow(true)
+    /** §8.6: whether warm-up sets are included in volume/PR calculations. */
+    private val includeWarmupsInStats = MutableStateFlow(false)
 
     /** The (mode, weight unit, distance unit) the PREVIOUS column was last resolved with — the
      * settings collector in init re-queries labels only when this actually changes. */
@@ -131,53 +180,76 @@ class WorkoutLoggerViewModel @Inject constructor(
     val inlineTimerSecondsFlow: Flow<Int?> = sessionController.inlineTimerSecondsFlow
 
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
-        exercises, isLoading, workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled,
-        sessionController.state, editedStartedAt, editedDurationSeconds, rpeTrackingEnabled,
-        plateCalculator,
+        // Group 1: exercises + loading
+        combine(exercises, isLoading) { ex, loading ->
+            ExercisesState(exercises = ex, isLoading = loading)
+        },
+        // Group 2: workout + UI flags
+        combine(workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled) { w, src, reordering, keepAwake, inlineTimer ->
+            WorkoutMeta(workout = w, supersetSourceId = src, reorderModeActive = reordering,
+                keepAwakeEnabled = keepAwake && !isEditMode, inlineTimerEnabled = inlineTimer && !isEditMode)
+        },
+        // Group 3: session state
+        sessionController.state.map { s ->
+            SessionState(
+                isPaused = s.isPaused,
+                restExerciseId = s.restExerciseId,
+                inlineTimerExerciseId = s.inlineTimer?.exerciseId,
+                inlineTimerSetId = s.inlineTimer?.setId,
+            )
+        },
+        // Group 4: edit state
+        combine(editedStartedAt, editedDurationSeconds) { startedAt, duration ->
+            EditState(editedStartedAtMillis = startedAt, editedDurationSeconds = duration)
+        },
+        // Group 5: settings-derived flags
+        combine(rpeTrackingEnabled, plateCalculator, weightUnit, warmupCalculatorEnabled) { rpe, plate, unit, warmup ->
+            SettingsFlags(rpeTrackingEnabled = rpe, plateCalculator = plate, weightUnit = unit, warmupCalculatorEnabled = warmup)
+        },
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
-        val ex = flows[0] as List<WorkoutExerciseUiModel>
-        val loading = flows[1] as Boolean
-        val w = flows[2] as WorkoutEntity?
-        val supersetSourceId = flows[3] as String?
-        val reordering = flows[4] as Boolean
-        val keepAwake = flows[5] as Boolean
-        val inlineTimer = flows[6] as Boolean
-        val session = flows[7] as WorkoutSessionState
-        val startedAt = flows[8] as Long
-        val duration = flows[9] as Int
-        val rpeEnabled = flows[10] as Boolean
-        val plateCalc = flows[11] as PlateCalculatorConfig
-        val allSets = ex.flatMap { it.sets }
+        val exState = flows[0] as ExercisesState
+        @Suppress("UNCHECKED_CAST")
+        val meta = flows[1] as WorkoutMeta
+        @Suppress("UNCHECKED_CAST")
+        val session = flows[2] as SessionState
+        @Suppress("UNCHECKED_CAST")
+        val edit = flows[3] as EditState
+        @Suppress("UNCHECKED_CAST")
+        val settings = flows[4] as SettingsFlags
+        val allSets = exState.exercises.flatMap { it.sets }
         WorkoutLoggerUiState(
-            isLoading = loading,
-            title = w?.title.orEmpty(),
-            notes = w?.notes.orEmpty(),
-            structure = w?.structure ?: WorkoutStructure.REGULAR,
+            isLoading = exState.isLoading,
+            title = meta.workout?.title.orEmpty(),
+            notes = meta.workout?.notes.orEmpty(),
+            structure = meta.workout?.structure ?: WorkoutStructure.REGULAR,
             completedSetCount = allSets.count { it.isCompleted },
             totalVolumeKg = allSets.filter { it.isCompleted }.sumOf { (it.weightKg ?: 0.0) * (it.reps ?: 0) },
-            exercises = ex,
-            supersetSelectionActive = supersetSourceId != null,
-            supersetSourceExerciseId = supersetSourceId,
-            reorderModeActive = reordering,
+            exercises = exState.exercises,
+            supersetSelectionActive = meta.supersetSourceId != null,
+            supersetSourceExerciseId = meta.supersetSourceId,
+            reorderModeActive = meta.reorderModeActive,
             isPaused = session.isPaused,
             restExerciseId = session.restExerciseId,
-            // Keep-awake and the inline timer are live-session affordances; edit mode has neither
-            // a running session to keep awake for nor a stopwatch to run (§5.1.10).
-            keepAwakeEnabled = keepAwake && !isEditMode,
-            inlineTimerEnabled = inlineTimer && !isEditMode,
-            inlineTimerExerciseId = session.inlineTimer?.exerciseId,
-            inlineTimerSetId = session.inlineTimer?.setId,
+            keepAwakeEnabled = meta.keepAwakeEnabled,
+            inlineTimerEnabled = meta.inlineTimerEnabled,
+            inlineTimerExerciseId = session.inlineTimerExerciseId,
+            inlineTimerSetId = session.inlineTimerSetId,
             isEditMode = isEditMode,
-            editedStartedAtMillis = startedAt,
-            editedDurationSeconds = duration,
-            rpeTrackingEnabled = rpeEnabled,
-            plateCalculator = plateCalc,
+            editedStartedAtMillis = edit.editedStartedAtMillis,
+            editedDurationSeconds = edit.editedDurationSeconds,
+            rpeTrackingEnabled = settings.rpeTrackingEnabled,
+            plateCalculator = settings.plateCalculator,
+            weightUnit = settings.weightUnit,
+            // M11/M18 invariant backstop: warm-ups must remain impossible in circuits, so the
+            // menu gate is force-false there regardless of the setting.
+            warmupCalculatorEnabled = settings.warmupCalculatorEnabled && meta.workout?.structure != WorkoutStructure.CIRCUIT,
             // §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." The
             // purge makes the real requirement stronger than a non-empty list: uncompleted sets are
             // dropped on save, so a workout whose every set is unchecked would save as zero
             // exercises — the same empty-COMPLETED state the finish flow refuses to create.
-            canSaveEdit = ex.any { block -> block.sets.any { it.isCompleted } },
+            canSaveEdit = exState.exercises.any { block -> block.sets.any { it.isCompleted } },
+
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutLoggerUiState())
 
@@ -195,17 +267,22 @@ class WorkoutLoggerViewModel @Inject constructor(
             // the settings collector below doesn't immediately re-run the queries this load runs.
             appliedPreviousKey = Triple(currentSettings.previousValuesMode, currentSettings.weightUnit, currentSettings.distanceUnit)
             val workoutExercises = workoutRepository.getExercisesForWorkout(workoutId)
+            // Batch: fetch all exercise metadata once, all sets once, all previous values once.
+            val exerciseIds = workoutExercises.map { it.exerciseId }.distinct()
+            val exerciseMap = exerciseIds.mapNotNull { id -> exerciseRepository.getById(id)?.let { id to it } }.toMap()
+            val setsByExercise = (workoutRepository as? com.enil.logez.core.data.repository.WorkoutRepositoryImpl)
+                ?.getAllSetsForWorkoutGroupedByExercise(workoutId)
+                ?: workoutExercises.associate { we -> we.exerciseId to workoutRepository.getSetsForWorkoutExercise(we.id) }
+            val previousByExercise = workoutRepository.getPreviousWorkoutSetsBulk(
+                exerciseIds,
+                currentSettings.previousValuesMode,
+                w?.routineId,
+                beforeStartedAt = if (isEditMode) w?.startedAt else null,
+            )
             exercises.value = workoutExercises.map { we ->
-                val exercise = exerciseRepository.getById(we.exerciseId)
-                // Edit mode bounds the search to workouts before this one — it is itself COMPLETED,
-                // so without the bound it would show its own values as its own PREVIOUS (§5.1.10).
-                val previousRows = workoutRepository.getPreviousWorkoutSets(
-                    we.exerciseId,
-                    currentSettings.previousValuesMode,
-                    w?.routineId,
-                    beforeStartedAt = if (isEditMode) w?.startedAt else null,
-                ).sortedBy { it.orderIndex }
-                val sets = workoutRepository.getSetsForWorkoutExercise(we.id).sortedBy { it.orderIndex }
+                val exercise = exerciseMap[we.exerciseId]
+                val previousRows = previousByExercise[we.exerciseId].orEmpty().sortedBy { it.orderIndex }
+                val sets = setsByExercise[we.exerciseId].orEmpty().sortedBy { it.orderIndex }
                 WorkoutExerciseUiModel(
                     id = we.id,
                     exerciseId = we.exerciseId,
@@ -252,6 +329,11 @@ class WorkoutLoggerViewModel @Inject constructor(
                     equipment = s.plateEquipment,
                     weightUnit = s.weightUnit,
                 )
+                weightUnit.value = s.weightUnit
+                warmupCalculatorEnabled.value = s.warmupCalculatorEnabled
+                smartSupersetScrolling.value = s.smartSupersetScrolling
+                livePrNotificationEnabled.value = s.livePrNotificationEnabled
+                includeWarmupsInStats.value = s.includeWarmupsInStats
                 // PREVIOUS re-resolution costs repo queries, so it runs only on a real change
                 // after the initial load (which applies the first value itself and stamps the key).
                 val key = Triple(s.previousValuesMode, s.weightUnit, s.distanceUnit)
@@ -470,13 +552,12 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     /** §5.1.3 step 6 / §8.4 point 1 — the live in-workout PR banner, gated by the Live PR setting. */
     private suspend fun maybeRaisePrBanner(exerciseId: String, setId: String) {
-        val settings = settingsRepository.settings.first()
-        if (!settings.livePrNotificationEnabled) return
+        if (!livePrNotificationEnabled.value) return
         val prTypes = livePrDetector.detect(
             workoutId = workoutId,
             workoutExerciseId = exerciseId,
             setId = setId,
-            includeWarmupsInStats = settings.includeWarmupsInStats,
+            includeWarmupsInStats = includeWarmupsInStats.value,
         )
         if (prTypes.isNotEmpty()) _prBanner.tryEmit(prTypes)
     }
@@ -488,7 +569,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      * incomplete row of the same round, wrapping into later rounds and around to the top.
      */
     private suspend fun maybeScrollToNextCircuitRow(exerciseId: String, setId: String) {
-        if (!settingsRepository.settings.first().smartSupersetScrolling) return
+        if (!smartSupersetScrolling.value) return
         val list = exercises.value
         val roundIndex = list.find { it.id == exerciseId }?.sets?.indexOfFirst { it.id == setId } ?: return
         if (roundIndex < 0) return
@@ -498,7 +579,7 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     /** §5.1.3 step 7 — Smart Superset Scrolling, gated by the setting. */
     private suspend fun maybeScrollToNextSupersetMember(exerciseId: String) {
-        if (!settingsRepository.settings.first().smartSupersetScrolling) return
+        if (!smartSupersetScrolling.value) return
         val list = exercises.value
         val current = list.find { it.id == exerciseId } ?: return
         val group = current.supersetGroup ?: return
@@ -527,6 +608,48 @@ class WorkoutLoggerViewModel @Inject constructor(
         updateExercises { list -> list.map { if (it.id != exerciseId) it else it.copy(sets = it.sets + newSet) } }
         persist {
             workoutRepository.insertWorkoutSet(newSet.toEntity(exerciseId).copy(orderIndex = exercise.sets.size))
+        }
+    }
+
+    /**
+     * M18 §5.1.6 "Add warm-up sets": generates the Warmup Method ladder from the exercise's first
+     * working (non-WARMUP) set's weight and PREPENDS it as WARMUP rows at orderIndex 0..n,
+     * re-indexing the existing sets after it — write-through like every structural edit.
+     * Re-invoking prepends again (the spec's "insert" verb; extras are removed like any set). The
+     * UI disables the menu item when no working weight exists; the guard here is the backstop.
+     */
+    fun addWarmupSets(exerciseId: String) {
+        // M11: no WARMUP rows inside a circuit — same invariant as updateSetType's guard.
+        if (isCircuit()) return
+        viewModelScope.launch {
+            val settings = settingsRepository.settings.first()
+            if (!settings.warmupCalculatorEnabled) return@launch
+            val exercise = exercises.value.find { it.id == exerciseId } ?: return@launch
+            val workingWeight = exercise.sets.firstOrNull { it.setType != SetType.WARMUP }?.weightKg ?: return@launch
+            val plan = WarmupCalculator.generate(
+                workingWeightKg = workingWeight,
+                method = settings.warmupMethod,
+                barbell = exercise.equipment == Equipment.BARBELL,
+                equipment = settings.plateEquipment,
+            )
+            if (plan.isEmpty()) return@launch
+            val newSets = plan.map {
+                WorkoutSetUiModel(
+                    id = UUID.randomUUID().toString(),
+                    setType = SetType.WARMUP,
+                    weightKg = it.weightKg,
+                    reps = it.reps,
+                )
+            }
+            updateExercises { list -> list.map { ex -> if (ex.id != exerciseId) ex else ex.copy(sets = newSets + ex.sets) } }
+            persist {
+                workoutRepository.insertWorkoutSets(newSets.mapIndexed { index, s -> s.toEntity(exerciseId).copy(orderIndex = index) })
+                // Re-index everything below the prepended ladder so orderIndex stays contiguous
+                // (reads the post-update list, same idiom as removeRound's re-index).
+                exercises.value.find { it.id == exerciseId }?.sets?.forEachIndexed { index, s ->
+                    if (index >= newSets.size) workoutRepository.updateWorkoutSetOrderIndex(s.id, index)
+                }
+            }
         }
     }
 
@@ -933,6 +1056,10 @@ data class WorkoutLoggerUiState(
     val rpeTrackingEnabled: Boolean = false,
     /** M17 §5.1.5: Plate Calculator gate, owned equipment, and display unit for the set tables. */
     val plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
+    /** M18: the unit weight cells display and accept — storage stays canonical kg (WeightDisplay). */
+    val weightUnit: WeightUnit = WeightUnit.KG,
+    /** M18 §5.1.6: shows the exercise-card "Add warm-up sets" item. Always false in a circuit. */
+    val warmupCalculatorEnabled: Boolean = false,
 )
 
 private fun WorkoutSetEntity.toUiModel(previousLabel: String) = WorkoutSetUiModel(
@@ -958,9 +1085,9 @@ private fun WorkoutSetUiModel.carryOverTo(oldType: ExerciseType, newType: Exerci
     )
 }
 
-private fun formatTargetNumber(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
 
-private fun formatMmSs(totalSeconds: Int): String = "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+private fun formatMmSs(totalSeconds: Int): String = com.enil.logez.core.designsystem.formatMmSs(totalSeconds)
 
 /** Where an edit-mode save stands — held in the ViewModel so it survives Activity recreation. */
 sealed interface EditSaveState {

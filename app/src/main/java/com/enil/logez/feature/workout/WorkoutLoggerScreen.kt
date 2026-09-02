@@ -104,6 +104,32 @@ fun WorkoutLoggerScreen(
     val editSaveState by viewModel.editSaveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
+    // Stable callback object for card composables — replaces direct viewModel references.
+    // Each lambda captures only the ViewModel reference (stable across recompositions); the
+    // exercise/set IDs are bound at the call site inside the lambda body.
+    val workoutCallbacks = remember {
+        WorkoutCallbacks(
+            onToggleReorderMode = viewModel::toggleReorderMode,
+            onStartSupersetSelection = viewModel::startSupersetSelection,
+            onConfirmSupersetTarget = viewModel::confirmSupersetTarget,
+            onRemoveFromSuperset = viewModel::removeFromSuperset,
+            onRemoveExercise = viewModel::removeExercise,
+            onUpdateNotes = viewModel::updateExerciseNotes,
+            onAddSet = viewModel::addSet,
+            onUpdateSetType = viewModel::updateSetType,
+            onRemoveSet = viewModel::removeSet,
+            onUpdateWeight = viewModel::updateWeight,
+            onUpdateReps = viewModel::updateReps,
+            onUpdateDuration = viewModel::updateDuration,
+            onUpdateDistance = viewModel::updateDistance,
+            onUpdateCustomMetric = viewModel::updateCustomMetric,
+            onToggleCheck = viewModel::toggleCheck,
+            onUpdateRpe = viewModel::updateRpe,
+            onStartInlineTimer = viewModel::startInlineTimer,
+            onStopInlineTimer = viewModel::stopInlineTimer,
+        )
+    }
+
     // §5.1.10: "Returns to Workout Detail." Driven off ViewModel state, not the tap, so a save
     // that outlives an Activity recreation still navigates when it lands.
     val editSaveFailedMessage = stringResource(R.string.workout_edit_save_failed)
@@ -327,9 +353,9 @@ fun WorkoutLoggerScreen(
                         ) { round ->
                             CircuitRoundCard(
                                 round = round,
-                                viewModel = viewModel,
-                                onExerciseClick = onExerciseClick,
-                                onOpenReplacePicker = { weId -> replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE },
+                            callbacks = workoutCallbacks,
+                            onExerciseClick = onExerciseClick,
+                            onOpenReplacePicker = { weId -> replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE },
                                 onRemoveRound = {
                                     val roundIndex = round.roundNumber - 1
                                     if (viewModel.roundHasLoggedValues(roundIndex)) {
@@ -382,7 +408,7 @@ fun WorkoutLoggerScreen(
                             },
                             supersetSelectionActive = uiState.supersetSelectionActive,
                             isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
-                            viewModel = viewModel,
+                            callbacks = workoutCallbacks,
                             onExerciseClick = { onExerciseClick(exercise.exerciseId) },
                             onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
                             rpeTrackingEnabled = uiState.rpeTrackingEnabled,
@@ -562,7 +588,7 @@ private fun formatElapsed(totalSeconds: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
-private fun formatVolume(kg: Double): String = if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+private fun formatVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
 
 /**
  * §5.1.10's replacement for the live stopwatch: the workout's date and duration, both editable.
@@ -617,5 +643,4 @@ private fun formatEditDate(millis: Long): String =
 private fun formatEditDateTime(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
 
-private fun formatVolumeShort(kg: Double): String =
-    if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+private fun formatVolumeShort(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKgShort(kg)

@@ -60,6 +60,9 @@ interface WorkoutRepository {
     /** §8.10 PREVIOUS column: the matching set from the most recent qualifying COMPLETED workout, by orderIndex. */
     suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long? = null): List<StatSet>
 
+    /** Batch version: resolves PREVIOUS for multiple exercises at once, avoiding N+1 queries. */
+    suspend fun getPreviousWorkoutSetsBulk(exerciseIds: List<String>, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long? = null): Map<String, List<StatSet>>
+
     /** Exercise Detail's History tab (§5.2): every COMPLETED session containing the exercise, newest first. */
     suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry>
 

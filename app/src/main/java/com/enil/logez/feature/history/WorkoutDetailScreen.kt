@@ -419,5 +419,4 @@ private fun formatDetailDuration(totalSeconds: Int): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-private fun formatDetailVolume(kg: Double): String =
-    if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+private fun formatDetailVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)

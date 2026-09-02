@@ -37,8 +37,8 @@ import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
-import com.enil.logez.feature.routines.TargetField
-import com.enil.logez.feature.routines.targetFields
+import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.targetFields
 import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -57,7 +57,7 @@ import kotlinx.coroutines.flow.emptyFlow
 @Composable
 internal fun CircuitRoundCard(
     round: CircuitRound,
-    viewModel: WorkoutLoggerViewModel,
+    callbacks: WorkoutCallbacks,
     onExerciseClick: (exerciseId: String) -> Unit,
     onOpenReplacePicker: (workoutExerciseId: String) -> Unit,
     onRemoveRound: () -> Unit,
@@ -122,7 +122,7 @@ internal fun CircuitRoundCard(
                     showColumnHeader = uniformColumns == null,
                     roundIndex = round.roundNumber - 1,
                     entry = entry,
-                    viewModel = viewModel,
+                    callbacks = callbacks,
                     onExerciseClick = { onExerciseClick(entry.exercise.exerciseId) },
                     onOpenReplacePicker = { onOpenReplacePicker(entry.exercise.id) },
                     rpeTrackingEnabled = rpeTrackingEnabled,
@@ -143,7 +143,7 @@ private fun CircuitEntry(
     showColumnHeader: Boolean,
     roundIndex: Int,
     entry: CircuitRoundEntry,
-    viewModel: WorkoutLoggerViewModel,
+    callbacks: WorkoutCallbacks,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
     rpeTrackingEnabled: Boolean,
@@ -174,7 +174,7 @@ private fun CircuitEntry(
                     // M11: replace/remove only — no superset (the circuit IS the sequence) and no
                     // per-exercise reorder affordance in the round-grouped view.
                     DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; viewModel.removeExercise(exercise.id) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; callbacks.onRemoveExercise(exercise.id) })
                 }
             }
         }
@@ -204,22 +204,22 @@ private fun CircuitEntry(
             set = set,
             fields = fields,
             showCustomMetric = showCustomMetric,
-            onSetTypeChange = { type -> viewModel.updateSetType(exercise.id, set.id, type) },
+            onSetTypeChange = { type -> callbacks.onUpdateSetType(exercise.id, set.id, type) },
             onRemove = { /* disabled in circuit mode — rounds are removed whole */ },
-            onWeightChange = { viewModel.updateWeight(exercise.id, set.id, it) },
-            onRepsChange = { viewModel.updateReps(exercise.id, set.id, it) },
-            onDurationChange = { viewModel.updateDuration(exercise.id, set.id, it) },
-            onDistanceChange = { viewModel.updateDistance(exercise.id, set.id, it) },
-            onCustomMetricChange = { viewModel.updateCustomMetric(exercise.id, set.id, it) },
-            onToggleCheck = { viewModel.toggleCheck(exercise.id, set.id) },
+            onWeightChange = { callbacks.onUpdateWeight(exercise.id, set.id, it) },
+            onRepsChange = { callbacks.onUpdateReps(exercise.id, set.id, it) },
+            onDurationChange = { callbacks.onUpdateDuration(exercise.id, set.id, it) },
+            onDistanceChange = { callbacks.onUpdateDistance(exercise.id, set.id, it) },
+            onCustomMetricChange = { callbacks.onUpdateCustomMetric(exercise.id, set.id, it) },
+            onToggleCheck = { callbacks.onToggleCheck(exercise.id, set.id) },
             showInlineTimer = showInlineTimer,
             inlineTimerRunning = inlineTimerRunning,
             inlineTimerSecondsFlow = inlineTimerSecondsFlow,
-            onStartInlineTimer = { viewModel.startInlineTimer(exercise.id, set.id) },
-            onStopInlineTimer = { viewModel.stopInlineTimer(exercise.id, set.id) },
+            onStartInlineTimer = { callbacks.onStartInlineTimer(exercise.id, set.id) },
+            onStopInlineTimer = { callbacks.onStopInlineTimer(exercise.id, set.id) },
             isEditMode = isEditMode,
             showRpe = showRpe,
-            onRpeChange = { rpe -> viewModel.updateRpe(exercise.id, set.id, rpe) },
+            onRpeChange = { rpe -> callbacks.onUpdateRpe(exercise.id, set.id, rpe) },
             allowWarmup = false,
             allowDelete = false,
             showPlateCalculator = showPlateCalculator,

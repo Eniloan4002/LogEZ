@@ -2,13 +2,16 @@ package com.enil.logez.feature.workout
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,16 +62,19 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
+import com.enil.logez.core.domain.calc.WeightDisplay
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.SetType
-import com.enil.logez.feature.routines.TargetField
-import com.enil.logez.feature.routines.targetFields
+import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.targetFields
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -83,7 +89,7 @@ internal fun WorkoutExerciseCard(
     onMoveDown: () -> Unit,
     supersetSelectionActive: Boolean,
     isSupersetSource: Boolean,
-    viewModel: WorkoutLoggerViewModel,
+    callbacks: WorkoutCallbacks,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
     rpeTrackingEnabled: Boolean = false,
@@ -108,7 +114,7 @@ internal fun WorkoutExerciseCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = Spacing.sm)
-            .let { m -> if (supersetSelectionActive && !isSupersetSource) m.clickable { viewModel.confirmSupersetTarget(exercise.id) } else m },
+            .let { m -> if (supersetSelectionActive && !isSupersetSource) m.clickable { callbacks.onConfirmSupersetTarget(exercise.id) } else m },
     ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             if (supersetColor != null) {
@@ -145,14 +151,14 @@ internal fun WorkoutExerciseCard(
                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_reorder)) }, onClick = { menuExpanded = false; viewModel.toggleReorderMode() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_reorder)) }, onClick = { menuExpanded = false; callbacks.onToggleReorderMode() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
                         if (exercise.supersetGroup == null) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_add_to_superset)) }, onClick = { menuExpanded = false; viewModel.startSupersetSelection(exercise.id) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_add_to_superset)) }, onClick = { menuExpanded = false; callbacks.onStartSupersetSelection(exercise.id) })
                         } else {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_from_superset)) }, onClick = { menuExpanded = false; viewModel.removeFromSuperset(exercise.id) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_from_superset)) }, onClick = { menuExpanded = false; callbacks.onRemoveFromSuperset(exercise.id) })
                         }
-                        DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; viewModel.removeExercise(exercise.id) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; callbacks.onRemoveExercise(exercise.id) })
                     }
                 }
             }
@@ -160,7 +166,7 @@ internal fun WorkoutExerciseCard(
             var notesText by remember(exercise.id) { mutableStateOf(exercise.notes) }
             OutlinedTextField(
                 value = notesText,
-                onValueChange = { notesText = it; viewModel.updateExerciseNotes(exercise.id, it) },
+                onValueChange = { notesText = it; callbacks.onUpdateNotes(exercise.id, it) },
                 placeholder = { Text(stringResource(R.string.routine_builder_notes_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
@@ -172,7 +178,7 @@ internal fun WorkoutExerciseCard(
 
             SetTable(
                 exercise = exercise,
-                viewModel = viewModel,
+                callbacks = callbacks,
                 inlineTimerEnabled = inlineTimerEnabled,
                 inlineTimerSetId = inlineTimerSetId,
                 inlineTimerSecondsFlow = inlineTimerSecondsFlow,
@@ -184,7 +190,7 @@ internal fun WorkoutExerciseCard(
                 plateCalculator = plateCalculator,
             )
 
-            TextButton(onClick = { viewModel.addSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
+            TextButton(onClick = { callbacks.onAddSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
                 Text(stringResource(R.string.routine_builder_add_set))
             }
         }
@@ -219,7 +225,7 @@ internal fun RestTimerBar(remainingMillisFlow: Flow<Long?>, onMinus15: () -> Uni
 @Composable
 private fun SetTable(
     exercise: WorkoutExerciseUiModel,
-    viewModel: WorkoutLoggerViewModel,
+    callbacks: WorkoutCallbacks,
     inlineTimerEnabled: Boolean,
     inlineTimerSetId: String?,
     inlineTimerSecondsFlow: Flow<Int?>,
@@ -261,14 +267,14 @@ private fun SetTable(
                     set = set,
                     fields = fields,
                     showCustomMetric = showCustomMetric,
-                    onSetTypeChange = { type -> viewModel.updateSetType(exercise.id, set.id, type) },
-                    onRemove = { viewModel.removeSet(exercise.id, set.id) },
-                    onWeightChange = { viewModel.updateWeight(exercise.id, set.id, it) },
-                    onRepsChange = { viewModel.updateReps(exercise.id, set.id, it) },
-                    onDurationChange = { viewModel.updateDuration(exercise.id, set.id, it) },
-                    onDistanceChange = { viewModel.updateDistance(exercise.id, set.id, it) },
-                    onCustomMetricChange = { viewModel.updateCustomMetric(exercise.id, set.id, it) },
-                    onToggleCheck = { viewModel.toggleCheck(exercise.id, set.id) },
+                    onSetTypeChange = { type -> callbacks.onUpdateSetType(exercise.id, set.id, type) },
+                    onRemove = { callbacks.onRemoveSet(exercise.id, set.id) },
+                    onWeightChange = { callbacks.onUpdateWeight(exercise.id, set.id, it) },
+                    onRepsChange = { callbacks.onUpdateReps(exercise.id, set.id, it) },
+                    onDurationChange = { callbacks.onUpdateDuration(exercise.id, set.id, it) },
+                    onDistanceChange = { callbacks.onUpdateDistance(exercise.id, set.id, it) },
+                    onCustomMetricChange = { callbacks.onUpdateCustomMetric(exercise.id, set.id, it) },
+                    onToggleCheck = { callbacks.onToggleCheck(exercise.id, set.id) },
                     showInlineTimer = showInlineTimer,
                     inlineTimerRunning = inlineTimerSetId == set.id,
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
@@ -499,7 +505,7 @@ internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolea
     )
 }
 
-private fun formatTargetNumber(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
 
 /** §5.1.7 entry point: "tap the RPE cell". A small tappable pill, not a text field — RPE is never free text. */
 @Composable

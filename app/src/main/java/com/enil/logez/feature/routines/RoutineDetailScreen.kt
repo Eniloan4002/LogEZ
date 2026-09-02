@@ -167,4 +167,4 @@ private fun formatDetailSetTargets(set: com.enil.logez.core.data.entity.RoutineS
     return if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 }
 
-private fun formatNum(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+private fun formatNum(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)

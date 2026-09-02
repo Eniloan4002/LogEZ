@@ -51,6 +51,8 @@ import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.targetFields
 
 /**
  * One `routine_exercises` card (PHASE2_PLAN.md §5.1.2): header, notes, rest timer, set table.
@@ -340,7 +342,7 @@ private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, modifier: Modifi
     )
 }
 
-private fun formatTargetNumber(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
 
 @Composable
 private fun weightHeaderLabel(exerciseType: ExerciseType): String = when (exerciseType) {

@@ -193,5 +193,4 @@ private fun formatCardDuration(totalSeconds: Int): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-private fun formatCardVolume(kg: Double): String =
-    if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+private fun formatCardVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)

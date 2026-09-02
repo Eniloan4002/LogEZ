@@ -134,6 +134,11 @@ class FakeWorkoutRepository(
     override suspend fun getPreviousWorkoutSets(exerciseId: String, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long?): List<StatSet> =
         resolvePreviousWorkoutSets(statSetsByExercise[exerciseId].orEmpty(), mode, currentRoutineId, beforeStartedAt)
 
+    override suspend fun getPreviousWorkoutSetsBulk(exerciseIds: List<String>, mode: PreviousValuesMode, currentRoutineId: String?, beforeStartedAt: Long?): Map<String, List<StatSet>> =
+        exerciseIds.associateWith { id ->
+            resolvePreviousWorkoutSets(statSetsByExercise[id].orEmpty(), mode, currentRoutineId, beforeStartedAt)
+        }
+
     override suspend fun getExerciseHistory(exerciseId: String): List<ExerciseHistoryEntry> = historyByExercise[exerciseId].orEmpty()
 
     override suspend fun getRecentUsageTimestamps(): Map<String, Long> = recentUsage

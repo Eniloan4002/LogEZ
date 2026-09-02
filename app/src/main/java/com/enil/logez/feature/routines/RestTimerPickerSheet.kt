@@ -68,8 +68,4 @@ private fun RestTimerOptionRow(label: String, selected: Boolean, onClick: () -> 
     )
 }
 
-internal fun formatMmSs(totalSeconds: Int): String {
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
-}
+internal fun formatMmSs(totalSeconds: Int): String = com.enil.logez.core.designsystem.formatMmSs(totalSeconds)
