@@ -42,6 +42,7 @@ import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.LogEzMono
+import androidx.compose.foundation.layout.WindowInsets
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
@@ -71,6 +72,7 @@ fun ProfileScreen(
     RefreshOnResume(viewModel::refresh)
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_profile)) }) },
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
