@@ -11,7 +11,9 @@ import com.enil.logez.core.domain.model.withBarRemoved
 import com.enil.logez.core.domain.model.withPlateAdded
 import com.enil.logez.core.domain.model.withPlateRemoved
 import com.enil.logez.core.domain.model.VolumeLevel
+import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.defaultWarmupMethod
 import com.enil.logez.core.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
@@ -70,6 +72,39 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val current = settingsRepository.settings.first().plateEquipment
             settingsRepository.setPlateEquipment(transform(current))
+        }
+    }
+
+    // M18 Warm-up Sets editor — each edit transforms the whole persisted ladder and writes it back
+    // through setWarmupMethod. Indices refer to the CURRENT persisted list (read inside the
+    // coroutine, same rationale as persistPlateEquipment); an index that no longer exists is a
+    // no-op rather than a crash or a wrong-row edit.
+    fun updateWarmupStep(index: Int, step: WarmupStep) = persistWarmupMethod { steps ->
+        steps.mapIndexed { i, s -> if (i == index) step else s }
+    }
+
+    fun addWarmupStep(step: WarmupStep) = persistWarmupMethod { it + step }
+
+    fun removeWarmupStep(index: Int) = persistWarmupMethod { steps ->
+        steps.filterIndexed { i, _ -> i != index }
+    }
+
+    /** Swaps the step at [index] with its neighbor toward [delta] (−1 = up, +1 = down); out-of-range is a no-op. */
+    fun moveWarmupStep(index: Int, delta: Int) = persistWarmupMethod { steps ->
+        val target = index + delta
+        if (index !in steps.indices || target !in steps.indices) steps
+        else steps.toMutableList().apply { this[index] = this[target].also { this[target] = this[index] } }
+    }
+
+    fun resetWarmupMethod() = write { setWarmupMethod(defaultWarmupMethod) }
+
+    private fun persistWarmupMethod(transform: (List<WarmupStep>) -> List<WarmupStep>) {
+        // Same read-current-inside-the-coroutine pattern as persistPlateEquipment (see above) —
+        // transforming the eager stateIn snapshot before DataStore's first emission would reset a
+        // customized ladder back to the 40/60/80 defaults.
+        viewModelScope.launch {
+            val current = settingsRepository.settings.first().warmupMethod
+            settingsRepository.setWarmupMethod(transform(current))
         }
     }
 

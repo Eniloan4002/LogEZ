@@ -44,6 +44,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onSoundsClick: () -> Unit,
     onPlateEquipmentClick: () -> Unit,
+    onWarmupSetsClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -181,6 +182,18 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_warmup_calculator_subtitle),
                     checked = settings.warmupCalculatorEnabled,
                     onCheckedChange = viewModel::setWarmupCalculatorEnabled,
+                )
+            }
+            item(key = "warmup_method") {
+                // M18: value-preview of the persisted ladder ("40% ×5 · 60% ×5 · 80% ×3") — percent
+                // rows are unit-less by construction, so nothing here needs kg/lb conversion.
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_warmup_method_row),
+                    subtitle = stringResource(R.string.settings_warmup_method_subtitle),
+                    value = settings.warmupMethod
+                        .map { stringResource(R.string.settings_warmup_step_value, it.displayPercent(), it.reps) }
+                        .joinToString(" · "),
+                    onClick = onWarmupSetsClick,
                 )
             }
 

@@ -257,6 +257,8 @@
     <string name="workout_round_header">Round %1$d</string>
     <string name="routine_detail_round_line">Round %1$d: %2$s</string>
     <string name="routine_detail_set_line">Set %1$d: %2$s</string>
+    <!-- M18 §5.1.6: exercise-card overflow item that inserts the warm-up ladder. -->
+    <string name="workout_add_warmup_sets">Add warm-up sets</string>
     <string name="workout_add_round">+ Add Round</string>
     <string name="workout_remove_round">Remove Round</string>
     <string name="workout_remove_round_title">Remove round %1$d?</string>
@@ -266,6 +268,10 @@
     <string name="routine_builder_col_weight">KG</string>
     <string name="routine_builder_col_weight_added">+KG</string>
     <string name="routine_builder_col_weight_assisted">−KG</string>
+    <!-- M18: the same three headers when the display unit is pounds. -->
+    <string name="routine_builder_col_weight_lbs">LBS</string>
+    <string name="routine_builder_col_weight_added_lbs">+LBS</string>
+    <string name="routine_builder_col_weight_assisted_lbs">−LBS</string>
     <string name="routine_builder_col_reps">REPS</string>
     <string name="routine_builder_col_time">TIME</string>
     <string name="routine_builder_col_distance">DISTANCE</string>
@@ -428,6 +434,22 @@
     <string name="settings_plate_calculator_subtitle">Shows a plate breakdown on barbell weight fields.</string>
     <string name="settings_warmup_calculator">Warm-up calculator</string>
     <string name="settings_warmup_calculator_subtitle">Offers warm-up sets built from your working weight.</string>
+    <!-- M18: Warm-up Sets editor sub-page. -->
+    <string name="settings_warmup_method_row">Warm-up sets</string>
+    <string name="settings_warmup_method_subtitle">The percent-and-reps ladder that Add warm-up sets inserts.</string>
+    <string name="settings_warmup_method_title">Warm-up Sets</string>
+    <string name="settings_warmup_step_value">%1$d%% ×%2$d</string>
+    <string name="settings_warmup_step_row">%1$d%% of working weight</string>
+    <string name="settings_warmup_step_row_reps">%1$d reps</string>
+    <string name="settings_warmup_add_step">Add step</string>
+    <string name="settings_warmup_reset">Reset to default</string>
+    <string name="settings_warmup_edit_step">Edit warm-up step</string>
+    <string name="settings_warmup_percent_label">Percent of working weight</string>
+    <string name="settings_warmup_reps_label">Reps</string>
+    <string name="settings_warmup_invalid_percent">Enter a whole percent from 1 to 100.</string>
+    <string name="settings_warmup_invalid_reps">Enter reps from 1 to 99.</string>
+    <string name="settings_warmup_remove_step">Remove step</string>
+    <string name="settings_warmup_empty_note">No steps — Add warm-up sets will insert nothing. Add a step or reset to the default ladder.</string>
     <string name="settings_sounds_row">Sounds</string>
     <string name="settings_sounds_row_subtitle">Timer tone and volume levels for timer, set complete, and PR sounds.</string>
     <string name="settings_timer_sound">Timer sound</string>

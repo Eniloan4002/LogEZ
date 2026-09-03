@@ -38,6 +38,7 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.targetFields
 import java.util.Locale
 import kotlinx.coroutines.flow.Flow
@@ -69,6 +70,8 @@ internal fun CircuitRoundCard(
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     isEditMode: Boolean = false,
     plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
+    /** M18: display unit for weight cells and the KG/LBS header (storage stays kg). */
+    weightUnit: WeightUnit = WeightUnit.KG,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -113,6 +116,7 @@ internal fun CircuitRoundCard(
                     showCustomMetric = uniformColumns.customMetric,
                     showRpe = rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
                     showPlateCalculator = uniformColumns.plateCalculator,
+                    weightUnit = weightUnit,
                     modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
@@ -131,6 +135,7 @@ internal fun CircuitRoundCard(
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                     isEditMode = isEditMode,
                     plateCalculator = plateCalculator,
+                    weightUnit = weightUnit,
                 )
             }
         }
@@ -152,6 +157,7 @@ private fun CircuitEntry(
     inlineTimerSecondsFlow: Flow<Int?>,
     isEditMode: Boolean,
     plateCalculator: PlateCalculatorConfig,
+    weightUnit: WeightUnit,
 ) {
     val exercise = entry.exercise
     var menuExpanded by remember { mutableStateOf(false) }
@@ -198,7 +204,7 @@ private fun CircuitEntry(
         // Same §5.1.5 gate as the regular table: BARBELL rows only, setting on.
         val showPlateCalculator = plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
 
-        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator)
+        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator, weightUnit = weightUnit)
         SetRow(
             index = roundIndex,
             set = set,
@@ -224,6 +230,7 @@ private fun CircuitEntry(
             allowDelete = false,
             showPlateCalculator = showPlateCalculator,
             plateCalculatorConfig = plateCalculator,
+            weightUnit = weightUnit,
         )
         if (set.failureError) {
             Text(
@@ -257,13 +264,14 @@ private fun CircuitColumnsHeader(
     showCustomMetric: Boolean,
     showRpe: Boolean,
     showPlateCalculator: Boolean = false,
+    weightUnit: WeightUnit = WeightUnit.KG,
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         HeaderCell(stringResource(R.string.routine_builder_col_round), width = SetTable.setCell, textAlign = TextAlign.Center)
         HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
         if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-        if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // Mirrors the row's trailing calculator button (same width) so KG stays over its cell.
         if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
         if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)

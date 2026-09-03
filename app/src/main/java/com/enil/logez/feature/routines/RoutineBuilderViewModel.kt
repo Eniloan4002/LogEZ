@@ -10,6 +10,7 @@ import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.core.domain.repository.Exercise
@@ -62,6 +63,7 @@ class RoutineBuilderViewModel @Inject constructor(
             rounds = d.rounds,
             exercises = d.exercises,
             defaultRestTimerSeconds = settings.defaultRestTimerSeconds,
+            weightUnit = settings.weightUnit,
             isDirty = !loading && loadedSnapshot != null && d != loadedSnapshot,
             canSave = d.title.isNotBlank() && d.exercises.isNotEmpty(),
             supersetSelectionActive = supersetSourceId != null,
@@ -426,6 +428,8 @@ data class RoutineBuilderUiState(
     val rounds: Int = 1,
     val exercises: List<RoutineExerciseDraft> = emptyList(),
     val defaultRestTimerSeconds: Int = 90,
+    /** M18: unit the target-weight cells display and accept — targets store canonical kg (WeightDisplay). */
+    val weightUnit: WeightUnit = WeightUnit.KG,
     val isDirty: Boolean = false,
     val canSave: Boolean = false,
     val supersetSelectionActive: Boolean = false,

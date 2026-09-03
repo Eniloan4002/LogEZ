@@ -173,9 +173,13 @@ private fun PlateSolveResult(
 
 private fun WeightUnit.shortLabel(): String = if (this == WeightUnit.KG) "kg" else "lb"
 
-private fun toDisplay(kg: Double, unit: WeightUnit): Double = if (unit == WeightUnit.LB) kg * KG_TO_LB else kg
+// M18: the sheet's kg ↔ display conversions delegate to WeightDisplay — the same single boundary
+// the weight cells use — so the two surfaces can never disagree about what "100 lb" means. The
+// apply path stays canonical kg end-to-end (solve → achievedKg → onApply → the cell's kg value),
+// so the sheet's internal conversion and the cell's display conversion never stack.
+private fun toDisplay(kg: Double, unit: WeightUnit): Double = com.enil.logez.core.domain.calc.WeightDisplay.toDisplay(kg, unit)
 
-private fun toKg(display: Double, unit: WeightUnit): Double = if (unit == WeightUnit.LB) display / KG_TO_LB else display
+private fun toKg(display: Double, unit: WeightUnit): Double = com.enil.logez.core.domain.calc.WeightDisplay.toKg(display, unit)
 
 private fun formatWeight(kg: Double, unit: WeightUnit): String =
     "${formatWeightNumber(toDisplay(kg, unit))} ${unit.shortLabel()}"
@@ -185,9 +189,4 @@ private fun formatWeight(kg: Double, unit: WeightUnit): String =
  * Locale.ROOT keeps the decimal separator a dot on comma-decimal locales — the pre-filled target
  * text must round-trip through [String.toDoubleOrNull], which only parses dots.
  */
-private fun formatWeightNumber(value: Double): String {
-    if (value == Math.floor(value) && !value.isInfinite()) return value.toLong().toString()
-    return "%.2f".format(java.util.Locale.ROOT, value).trimEnd('0').trimEnd('.')
-}
-
-private const val KG_TO_LB = 2.2046226218
+private fun formatWeightNumber(value: Double): String = com.enil.logez.core.domain.calc.WeightDisplay.format(value)

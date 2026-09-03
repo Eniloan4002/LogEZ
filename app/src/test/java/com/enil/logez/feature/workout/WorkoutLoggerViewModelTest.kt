@@ -58,9 +58,9 @@ class WorkoutLoggerViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun exercise(id: String, name: String, type: ExerciseType = ExerciseType.WEIGHT_REPS) = Exercise(
+    private fun exercise(id: String, name: String, type: ExerciseType = ExerciseType.WEIGHT_REPS, equipment: Equipment = Equipment.BARBELL) = Exercise(
         id = id, name = name, exerciseType = type, primaryMuscleGroup = MuscleGroup.CHEST, secondaryMuscleGroups = emptyList(),
-        equipment = Equipment.BARBELL, instructions = "", mediaPath = null, isCustom = false, isBodyweightVolumeEligible = false,
+        equipment = equipment, instructions = "", mediaPath = null, isCustom = false, isBodyweightVolumeEligible = false,
         isDeleted = false, createdAt = 0, updatedAt = 0,
     )
 
@@ -122,6 +122,36 @@ class WorkoutLoggerViewModelTest {
         val vmOn = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = true)))
         assertFalse(vmOff.uiState.value.rpeTrackingEnabled)
         assertTrue(vmOn.uiState.value.rpeTrackingEnabled)
+    }
+
+    // --- Regression: batched set loading must key by workout-exercise INSTANCE id, not exercise
+    // id. Nothing dedups the picker or addExercises, so the same exercise can appear twice in one
+    // workout; keying the loaded sets by exercise id hands every duplicate card a merged (or
+    // last-wins) set list — double counts, shifted PREVIOUS pairing, corrupted orderIndex on
+    // addSet. ---
+
+    @Test
+    fun `duplicate instances of the same exercise each load only their own sets`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-1", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "s2", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "s3", workoutExerciseId = "we2", orderIndex = 0, setType = SetType.NORMAL, weightKg = 40.0, reps = 12, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo)
+
+        val cards = vm.uiState.value.exercises
+        assertEquals(listOf("we1", "we2"), cards.map { it.id })
+        // Each card carries exactly its own instance's sets — never the twin's, never a merge.
+        assertEquals(listOf("s1", "s2"), cards[0].sets.map { it.id })
+        assertEquals(listOf("s3"), cards[1].sets.map { it.id })
     }
 
     // --- M16: Settings is reachable mid-session from the logger's overflow menu, with plain
@@ -1075,5 +1105,159 @@ class WorkoutLoggerViewModelTest {
         vm.removeSet("we1", "s1")
 
         assertNull(sessionController.state.value.inlineTimer)
+    }
+
+    // --- M18 §5.1.6 Warm-up Calculator: "Add warm-up sets" ---
+
+    private fun warmupFixture(
+        sets: List<WorkoutSetEntity> = listOf(
+            WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+        ),
+    ): FakeWorkoutRepository = FakeWorkoutRepository(
+        workouts = listOf(anInProgressWorkout("w1")),
+        exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+        sets = sets,
+    )
+
+    @Test
+    fun `addWarmupSets prepends the default 40-60-80 ladder above set 1 and re-indexes, write-through`() = runTest {
+        // Barbell, 100 kg working weight, default method and equipment → literally 40/60/80 kg
+        // (each exactly plate-loadable on the default 20 kg bar — see WarmupCalculatorTest).
+        val workoutRepo = warmupFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+
+        vm.addWarmupSets("we1")
+
+        val sets = vm.uiState.value.exercises[0].sets
+        assertEquals(listOf(SetType.WARMUP, SetType.WARMUP, SetType.WARMUP, SetType.NORMAL), sets.map { it.setType })
+        assertEquals(listOf(40.0, 60.0, 80.0, 100.0), sets.map { it.weightKg })
+        assertEquals(listOf(5, 5, 3, 5), sets.map { it.reps })
+        assertFalse(sets[0].isCompleted)
+
+        // Write-through: the ladder is persisted at orderIndex 0..2 and the original set re-homed at 3.
+        val persisted = workoutRepo.getSetsForWorkoutExercise("we1").sortedBy { it.orderIndex }
+        assertEquals(listOf(0, 1, 2, 3), persisted.map { it.orderIndex })
+        assertEquals(listOf(40.0, 60.0, 80.0, 100.0), persisted.map { it.weightKg })
+        assertEquals(listOf(SetType.WARMUP, SetType.WARMUP, SetType.WARMUP, SetType.NORMAL), persisted.map { it.setType })
+        assertEquals("s1", persisted[3].id)
+    }
+
+    @Test
+    fun `addWarmupSets takes the working weight from the first non-WARMUP set, skipping existing warm-ups`() = runTest {
+        val workoutRepo = warmupFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "w0", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.WARMUP, weightKg = 50.0, reps = 10, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+
+        vm.addWarmupSets("we1")
+
+        // The ladder derives from 100 kg (the NORMAL set), never the 50 kg warm-up above it.
+        val sets = vm.uiState.value.exercises[0].sets
+        assertEquals(listOf(40.0, 60.0, 80.0, 50.0, 100.0), sets.map { it.weightKg })
+    }
+
+    @Test
+    fun `re-invoking addWarmupSets prepends another ladder and keeps orderIndex contiguous`() = runTest {
+        // §5.1.6 edge case: "Re-invoking does not delete previously inserted warm-ups (it just
+        // prepends again — matching the 'insert' verb)".
+        val workoutRepo = warmupFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+
+        vm.addWarmupSets("we1")
+        vm.addWarmupSets("we1")
+
+        val sets = vm.uiState.value.exercises[0].sets
+        assertEquals(7, sets.size)
+        assertEquals(listOf(40.0, 60.0, 80.0, 40.0, 60.0, 80.0, 100.0), sets.map { it.weightKg })
+        val persisted = workoutRepo.getSetsForWorkoutExercise("we1").sortedBy { it.orderIndex }
+        assertEquals((0..6).toList(), persisted.map { it.orderIndex })
+        assertEquals(SetType.NORMAL, persisted[6].setType)
+    }
+
+    @Test
+    fun `addWarmupSets is a no-op when no working set has a weight yet`() = runTest {
+        val workoutRepo = warmupFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+
+        vm.addWarmupSets("we1")
+
+        assertEquals(1, vm.uiState.value.exercises[0].sets.size)
+        assertEquals(1, workoutRepo.getSetsForWorkoutExercise("we1").size)
+    }
+
+    @Test
+    fun `addWarmupSets is a no-op when the warm-up calculator setting is off`() = runTest {
+        val workoutRepo = warmupFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            settingsRepo = FakeSettingsRepository(UserSettings(warmupCalculatorEnabled = false)),
+        )
+
+        vm.addWarmupSets("we1")
+
+        assertFalse(vm.uiState.value.warmupCalculatorEnabled)
+        assertEquals(1, vm.uiState.value.exercises[0].sets.size)
+        assertEquals(1, workoutRepo.getSetsForWorkoutExercise("we1").size)
+    }
+
+    @Test
+    fun `addWarmupSets is refused in circuit mode and the menu gate reads force-false there`() = runTest {
+        // M11/M18 invariant: WARMUP rows would break row-index == round. The card never shows the
+        // item (uiState gate) and the ViewModel refuses even a direct call (backstop).
+        val workoutRepo = circuitFixture()
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        assertFalse("gate must be force-false in a circuit even with the setting on", vm.uiState.value.warmupCalculatorEnabled)
+        vm.addWarmupSets("we1")
+
+        assertEquals(listOf(2, 2), vm.uiState.value.exercises.map { it.sets.size })
+        assertTrue(workoutRepo.getSetsForWorkoutExercise("we1").none { it.setType == SetType.WARMUP })
+    }
+
+    @Test
+    fun `the warm-up gate is on for a regular workout when the setting is on`() = runTest {
+        val vm = newViewModel(workoutRepo = warmupFixture(), exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+        assertTrue(vm.uiState.value.warmupCalculatorEnabled)
+    }
+
+    @Test
+    fun `addWarmupSets on a non-barbell exercise rounds to the 2 point 5 kg grid`() = runTest {
+        // Dumbbell, 41 kg working weight: 16.4 → 17.5, 24.6 → 25, 32.8 → 32.5 (hand-computed).
+        val workoutRepo = warmupFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 41.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Dumbbell Press", equipment = Equipment.DUMBBELL))),
+        )
+
+        vm.addWarmupSets("we1")
+
+        assertEquals(listOf(17.5, 25.0, 32.5, 41.0), vm.uiState.value.exercises[0].sets.map { it.weightKg })
+    }
+
+    @Test
+    fun `addWarmupSets in edit mode is held in memory and does not touch Room until save`() = runTest {
+        val workoutRepo = editFixture()
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.addWarmupSets("we1")
+
+        assertEquals(4, vm.uiState.value.exercises[0].sets.size) // shown
+        assertEquals(1, workoutRepo.getSetsForWorkoutExercise("we1").size) // not persisted before Save
     }
 }

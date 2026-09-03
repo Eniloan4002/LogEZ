@@ -116,6 +116,7 @@ fun WorkoutLoggerScreen(
             onRemoveExercise = viewModel::removeExercise,
             onUpdateNotes = viewModel::updateExerciseNotes,
             onAddSet = viewModel::addSet,
+            onAddWarmupSets = viewModel::addWarmupSets,
             onUpdateSetType = viewModel::updateSetType,
             onRemoveSet = viewModel::removeSet,
             onUpdateWeight = viewModel::updateWeight,
@@ -372,6 +373,7 @@ fun WorkoutLoggerScreen(
                                 inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
                                 isEditMode = uiState.isEditMode,
                                 plateCalculator = uiState.plateCalculator,
+                                weightUnit = uiState.weightUnit,
                             )
                         }
                     }
@@ -424,6 +426,8 @@ fun WorkoutLoggerScreen(
                             onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
                             isEditMode = uiState.isEditMode,
                             plateCalculator = uiState.plateCalculator,
+                            warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
+                            weightUnit = uiState.weightUnit,
                         )
                     }
                 }

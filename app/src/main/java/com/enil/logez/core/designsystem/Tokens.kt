@@ -41,8 +41,10 @@ object SetTable {
     /** SET/ROUND number cell — "ROUND" is the widest label sharing this slot. */
     val setCell: Dp = 48.dp
 
-    /** PREVIOUS column — header plus the widest realistic value ("152.5 kg × 12") un-broken. */
-    val previousCell: Dp = 92.dp
+    /** PREVIOUS column — sized against the boxed-cell era's tighter row budget: the header fits
+     whole and typical values ("50 kg × 10") render un-broken; the longest values ellipsize inside
+     their box so the weight inputs keep room for five characters ("102.5"). */
+    val previousCell: Dp = 84.dp
 
     val rpeCell: Dp = 44.dp
 

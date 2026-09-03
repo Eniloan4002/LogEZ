@@ -31,6 +31,7 @@ import com.enil.logez.feature.settings.PlateEquipmentScreen
 import com.enil.logez.feature.settings.SettingsRoutes
 import com.enil.logez.feature.settings.SettingsScreen
 import com.enil.logez.feature.settings.SoundsSettingsScreen
+import com.enil.logez.feature.settings.WarmupSetsScreen
 import com.enil.logez.feature.workout.WorkoutLoggerScreen
 import com.enil.logez.feature.workout.WorkoutLoggerViewModel
 import com.enil.logez.feature.workout.WorkoutRoutes
@@ -109,6 +110,7 @@ fun LogEzNavHost(
                 onBack = { navController.popBackStack() },
                 onSoundsClick = { navController.navigate(SettingsRoutes.SOUNDS) { launchSingleTop = true } },
                 onPlateEquipmentClick = { navController.navigate(SettingsRoutes.PLATE_EQUIPMENT) { launchSingleTop = true } },
+                onWarmupSetsClick = { navController.navigate(SettingsRoutes.WARMUP_SETS) { launchSingleTop = true } },
             )
         }
         composable(SettingsRoutes.SOUNDS) {
@@ -116,6 +118,9 @@ fun LogEzNavHost(
         }
         composable(SettingsRoutes.PLATE_EQUIPMENT) {
             PlateEquipmentScreen(onBack = { navController.popBackStack() })
+        }
+        composable(SettingsRoutes.WARMUP_SETS) {
+            WarmupSetsScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = AnalyticsRoutes.DASHBOARD,

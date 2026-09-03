@@ -1,5 +1,6 @@
 package com.enil.logez.feature.routines
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,11 +50,14 @@ import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SetTable
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
+import com.enil.logez.core.domain.calc.WeightDisplay
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.targetFields
 
 /**
@@ -65,6 +71,8 @@ internal fun RoutineExerciseCard(
     exercise: RoutineExerciseDraft,
     isCircuit: Boolean,
     defaultRestTimerSeconds: Int,
+    /** M18: unit the target-weight cells display and accept — targets store canonical kg. */
+    weightUnit: WeightUnit = WeightUnit.KG,
     reorderModeActive: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
@@ -162,7 +170,7 @@ internal fun RoutineExerciseCard(
                 Text(stringResource(R.string.routine_builder_rest_timer_label, restLabel), style = MaterialTheme.typography.bodyMedium)
             }
 
-            SetTable(exercise = exercise, isCircuit = isCircuit, viewModel = viewModel)
+            SetTable(exercise = exercise, isCircuit = isCircuit, weightUnit = weightUnit, viewModel = viewModel)
 
             // M11: per-exercise + Add Set is meaningless in a circuit — the routine-level rounds
             // stepper is the only way set counts change, keeping every exercise in lockstep.
@@ -176,12 +184,12 @@ internal fun RoutineExerciseCard(
 }
 
 @Composable
-private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewModel: RoutineBuilderViewModel) {
+private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, weightUnit: WeightUnit, viewModel: RoutineBuilderViewModel) {
     val fields = exercise.exerciseType.targetFields()
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(stringResource(if (isCircuit) R.string.routine_builder_col_round else R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
-            if (TargetField.WEIGHT in fields) HeaderCell(weightHeaderLabel(exercise.exerciseType), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.WEIGHT in fields) HeaderCell(weightHeaderLabel(exercise.exerciseType, weightUnit), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.REPS in fields) {
                 HeaderCell(
                     stringResource(R.string.routine_builder_col_reps),
@@ -199,6 +207,7 @@ private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, viewMod
                 set = set,
                 fields = fields,
                 isCircuit = isCircuit,
+                weightUnit = weightUnit,
                 isRepRangeMode = exercise.isRepRangeMode,
                 onSetTypeChange = { type -> viewModel.updateSetType(exercise.id, set.id, type) },
                 onRemove = { viewModel.removeSet(exercise.id, set.id) },
@@ -234,6 +243,7 @@ private fun SetRow(
     set: RoutineSetDraft,
     fields: Set<TargetField>,
     isCircuit: Boolean,
+    weightUnit: WeightUnit,
     isRepRangeMode: Boolean,
     onSetTypeChange: (SetType) -> Unit,
     onRemove: () -> Unit,
@@ -247,8 +257,10 @@ private fun SetRow(
     var typeMenuExpanded by remember { mutableStateOf(false) }
 
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.width(SetTable.setCell), contentAlignment = Alignment.Center) {
-            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
+        // M18 uniform boxed cells: the badge box fills the cell minus the fields' xxs gutter, so
+        // the builder's grid matches the logger's (regular + circuit) exactly.
+        Box(modifier = Modifier.width(SetTable.setCell).padding(horizontal = Spacing.xxs), contentAlignment = Alignment.Center) {
+            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth())
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
                 // M11: no WARMUP row inside a circuit (breaks row-index == round), and no per-row
@@ -264,7 +276,7 @@ private fun SetRow(
             }
         }
         if (TargetField.WEIGHT in fields) {
-            NumberCell(value = set.targetWeightKg, onValueChange = onWeightChange, modifier = Modifier.weight(1f))
+            WeightCell(valueKg = set.targetWeightKg, unit = weightUnit, onValueChange = onWeightChange, modifier = Modifier.weight(1f))
         }
         if (TargetField.REPS in fields) {
             if (isRepRangeMode) {
@@ -293,8 +305,10 @@ private fun SetRow(
     }
 }
 
+/** M18 uniform boxed cells (Owner): same field-height hairline box as the logger's badge — the
+ * three set tables must match. Type tint and whole-cell tap target unchanged. */
 @Composable
-private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
+private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val (label, color) = when (setType) {
         SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
         SetType.WARMUP -> "W" to Warning500
@@ -302,15 +316,24 @@ private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
         SetType.DROPSET -> "D" to SupersetPalette[4]
     }
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(Radius.sm),
         color = if (setType == SetType.NORMAL) Color.Transparent else color.copy(alpha = 0.15f),
-        modifier = Modifier.clickable(onClick = onClick),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.clickable(onClick = onClick),
     ) {
-        Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
             Text(label, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
+
+/** M18 uniform boxed cells: outlineVariant hairline + Radius token so the builder's fields match
+ * the logger's boxed grid. */
+@Composable
+private fun boxedFieldColors() = OutlinedTextFieldDefaults.colors(
+    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+    disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+)
 
 @Composable
 private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifier: Modifier = Modifier) {
@@ -323,6 +346,28 @@ private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifie
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         singleLine = true,
+        shape = RoundedCornerShape(Radius.sm),
+        colors = boxedFieldColors(),
+        modifier = modifier.padding(horizontal = Spacing.xxs),
+    )
+}
+
+/**
+ * M18: the target-weight cell — the builder's single kg ↔ display-unit boundary ([WeightDisplay]).
+ * `valueKg`/`onValueChange` speak canonical kg (what routine_sets stores); only the text shown and
+ * parsed here is unit-aware, exactly mirroring the logger's WeightCell.
+ */
+@Composable
+private fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Double?) -> Unit, modifier: Modifier = Modifier) {
+    val displayText = valueKg?.let { WeightDisplay.format(WeightDisplay.toDisplay(it, unit)) }.orEmpty()
+    var text by remember(displayText) { mutableStateOf(displayText) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { new -> text = new; onValueChange(new.toDoubleOrNull()?.let { WeightDisplay.toKg(it, unit) }) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        shape = RoundedCornerShape(Radius.sm),
+        colors = boxedFieldColors(),
         modifier = modifier.padding(horizontal = Spacing.xxs),
     )
 }
@@ -338,15 +383,23 @@ private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, modifier: Modifi
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
+        shape = RoundedCornerShape(Radius.sm),
+        colors = boxedFieldColors(),
         modifier = modifier.padding(horizontal = Spacing.xxs),
     )
 }
 
 private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
 
+/** M18: KG/+KG/−KG flip to LBS/+LBS/−LBS when the display unit is pounds. */
 @Composable
-private fun weightHeaderLabel(exerciseType: ExerciseType): String = when (exerciseType) {
-    ExerciseType.BODYWEIGHT_WEIGHTED -> stringResource(R.string.routine_builder_col_weight_added)
-    ExerciseType.BODYWEIGHT_ASSISTED -> stringResource(R.string.routine_builder_col_weight_assisted)
-    else -> stringResource(R.string.routine_builder_col_weight)
+private fun weightHeaderLabel(exerciseType: ExerciseType, unit: WeightUnit): String {
+    val lb = unit == WeightUnit.LB
+    return when (exerciseType) {
+        ExerciseType.BODYWEIGHT_WEIGHTED ->
+            stringResource(if (lb) R.string.routine_builder_col_weight_added_lbs else R.string.routine_builder_col_weight_added)
+        ExerciseType.BODYWEIGHT_ASSISTED ->
+            stringResource(if (lb) R.string.routine_builder_col_weight_assisted_lbs else R.string.routine_builder_col_weight_assisted)
+        else -> stringResource(if (lb) R.string.routine_builder_col_weight_lbs else R.string.routine_builder_col_weight)
+    }
 }

@@ -270,9 +270,12 @@ class WorkoutLoggerViewModel @Inject constructor(
             // Batch: fetch all exercise metadata once, all sets once, all previous values once.
             val exerciseIds = workoutExercises.map { it.exerciseId }.distinct()
             val exerciseMap = exerciseIds.mapNotNull { id -> exerciseRepository.getById(id)?.let { id to it } }.toMap()
-            val setsByExercise = (workoutRepository as? com.enil.logez.core.data.repository.WorkoutRepositoryImpl)
-                ?.getAllSetsForWorkoutGroupedByExercise(workoutId)
-                ?: workoutExercises.associate { we -> we.exerciseId to workoutRepository.getSetsForWorkoutExercise(we.id) }
+            // Keyed by workout-exercise INSTANCE id (we.id), never exercise id: the same exercise
+            // can be added twice to one workout, and an exercise-id key would hand both cards the
+            // merged set list (double counts, shifted PREVIOUS pairing, corrupted orderIndex).
+            val setsByWorkoutExercise = (workoutRepository as? com.enil.logez.core.data.repository.WorkoutRepositoryImpl)
+                ?.getAllSetsForWorkoutGroupedByWorkoutExercise(workoutId)
+                ?: workoutExercises.associate { we -> we.id to workoutRepository.getSetsForWorkoutExercise(we.id) }
             val previousByExercise = workoutRepository.getPreviousWorkoutSetsBulk(
                 exerciseIds,
                 currentSettings.previousValuesMode,
@@ -282,7 +285,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             exercises.value = workoutExercises.map { we ->
                 val exercise = exerciseMap[we.exerciseId]
                 val previousRows = previousByExercise[we.exerciseId].orEmpty().sortedBy { it.orderIndex }
-                val sets = setsByExercise[we.exerciseId].orEmpty().sortedBy { it.orderIndex }
+                val sets = setsByWorkoutExercise[we.id].orEmpty().sortedBy { it.orderIndex }
                 WorkoutExerciseUiModel(
                     id = we.id,
                     exerciseId = we.exerciseId,
@@ -625,6 +628,9 @@ class WorkoutLoggerViewModel @Inject constructor(
             val settings = settingsRepository.settings.first()
             if (!settings.warmupCalculatorEnabled) return@launch
             val exercise = exercises.value.find { it.id == exerciseId } ?: return@launch
+            // BODYWEIGHT_ASSISTED: weightKg is assistance, so a %-of-working ladder would be
+            // HARDER than the working set — excluded here and in the card's menu gate.
+            if (exercise.exerciseType == ExerciseType.BODYWEIGHT_ASSISTED) return@launch
             val workingWeight = exercise.sets.firstOrNull { it.setType != SetType.WARMUP }?.weightKg ?: return@launch
             val plan = WarmupCalculator.generate(
                 workingWeightKg = workingWeight,

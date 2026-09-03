@@ -4,7 +4,9 @@ import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.VolumeLevel
+import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.defaultWarmupMethod
 import com.enil.logez.fakes.FakeSettingsRepository
 import java.time.DayOfWeek
 import kotlinx.coroutines.Dispatchers
@@ -163,6 +165,69 @@ class SettingsViewModelTest {
         assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0, 25.0), repository.settings.value.plateEquipment.platesKg)
         viewModel.removePlate(25.0)
         assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0), repository.settings.value.plateEquipment.platesKg)
+    }
+
+    // --- M18 Warm-up Sets editor (persisted whole through setWarmupMethod) ---
+
+    @Test
+    fun `updateWarmupStep replaces exactly that row`() = runTest {
+        viewModel.updateWarmupStep(1, WarmupStep(percent = 0.50, reps = 8))
+        assertEquals(
+            listOf(WarmupStep(0.40, 5), WarmupStep(0.50, 8), WarmupStep(0.80, 3)),
+            repository.settings.value.warmupMethod,
+        )
+    }
+
+    @Test
+    fun `updateWarmupStep with a stale index is a no-op`() = runTest {
+        viewModel.updateWarmupStep(9, WarmupStep(percent = 0.50, reps = 8))
+        assertEquals(defaultWarmupMethod, repository.settings.value.warmupMethod)
+    }
+
+    @Test
+    fun `addWarmupStep appends to the persisted ladder`() = runTest {
+        viewModel.addWarmupStep(WarmupStep(percent = 0.90, reps = 1))
+        assertEquals(defaultWarmupMethod + WarmupStep(0.90, 1), repository.settings.value.warmupMethod)
+    }
+
+    @Test
+    fun `removeWarmupStep drops that row and can empty the ladder entirely`() = runTest {
+        viewModel.removeWarmupStep(0)
+        assertEquals(listOf(WarmupStep(0.60, 5), WarmupStep(0.80, 3)), repository.settings.value.warmupMethod)
+        viewModel.removeWarmupStep(0)
+        viewModel.removeWarmupStep(0)
+        assertEquals(emptyList<WarmupStep>(), repository.settings.value.warmupMethod)
+    }
+
+    @Test
+    fun `moveWarmupStep swaps with its neighbor and ignores out-of-range moves`() = runTest {
+        viewModel.moveWarmupStep(2, -1) // 80% up
+        assertEquals(
+            listOf(WarmupStep(0.40, 5), WarmupStep(0.80, 3), WarmupStep(0.60, 5)),
+            repository.settings.value.warmupMethod,
+        )
+        viewModel.moveWarmupStep(0, -1) // no neighbor above — no-op
+        viewModel.moveWarmupStep(2, +1) // no neighbor below — no-op
+        assertEquals(
+            listOf(WarmupStep(0.40, 5), WarmupStep(0.80, 3), WarmupStep(0.60, 5)),
+            repository.settings.value.warmupMethod,
+        )
+    }
+
+    @Test
+    fun `resetWarmupMethod restores the 40-60-80 default after edits`() = runTest {
+        viewModel.removeWarmupStep(0)
+        viewModel.addWarmupStep(WarmupStep(percent = 0.95, reps = 1))
+        viewModel.resetWarmupMethod()
+        assertEquals(defaultWarmupMethod, repository.settings.value.warmupMethod)
+    }
+
+    @Test
+    fun `sequential warm-up edits compose instead of clobbering`() = runTest {
+        // The read-current-inside-the-coroutine pattern: each edit re-reads the just-written value.
+        viewModel.addWarmupStep(WarmupStep(percent = 0.90, reps = 2))
+        viewModel.updateWarmupStep(3, WarmupStep(percent = 0.95, reps = 1))
+        assertEquals(defaultWarmupMethod + WarmupStep(0.95, 1), repository.settings.value.warmupMethod)
     }
 
     // --- Sounds ---

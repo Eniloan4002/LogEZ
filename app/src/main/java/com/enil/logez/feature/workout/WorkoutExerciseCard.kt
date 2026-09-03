@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +43,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,6 +65,8 @@ import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.SetTable
@@ -105,6 +111,10 @@ internal fun WorkoutExerciseCard(
     onStopInlineTimer: (setId: String) -> Unit = {},
     isEditMode: Boolean = false,
     plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
+    /** M18 §5.1.6: gates the "Add warm-up sets" overflow item. Already force-false in circuits (ViewModel invariant). */
+    warmupCalculatorEnabled: Boolean = false,
+    /** M18: the unit weight cells display and accept — storage stays canonical kg. */
+    weightUnit: WeightUnit = WeightUnit.KG,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -158,6 +168,25 @@ internal fun WorkoutExerciseCard(
                         } else {
                             DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_from_superset)) }, onClick = { menuExpanded = false; callbacks.onRemoveFromSuperset(exercise.id) })
                         }
+                        // M18 §5.1.6 "Add Warm Up Sets": only for WEIGHT-field exercises with the
+                        // setting on (the gate arrives force-false for circuits — M11 invariant).
+                        // Disabled — not hidden — when no working (non-WARMUP) set has a weight
+                        // yet: the item teaches the feature exists, the disable teaches why it
+                        // can't run. Mirrors the ViewModel's own working-weight guard.
+                        // BODYWEIGHT_ASSISTED is excluded even though it carries WEIGHT: there
+                        // weightKg means assistance, so the 40/60/80% ladder would generate
+                        // warm-ups HARDER than the working set (inverted ramp).
+                        if (warmupCalculatorEnabled &&
+                            exercise.exerciseType != ExerciseType.BODYWEIGHT_ASSISTED &&
+                            TargetField.WEIGHT in exercise.exerciseType.targetFields()
+                        ) {
+                            val hasWorkingWeight = exercise.sets.firstOrNull { it.setType != SetType.WARMUP }?.weightKg != null
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workout_add_warmup_sets)) },
+                                enabled = hasWorkingWeight,
+                                onClick = { menuExpanded = false; callbacks.onAddWarmupSets(exercise.id) },
+                            )
+                        }
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; callbacks.onRemoveExercise(exercise.id) })
                     }
                 }
@@ -188,6 +217,7 @@ internal fun WorkoutExerciseCard(
                 rpeTrackingEnabled = rpeTrackingEnabled,
                 onRpeChange = onRpeChange,
                 plateCalculator = plateCalculator,
+                weightUnit = weightUnit,
             )
 
             TextButton(onClick = { callbacks.onAddSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
@@ -235,6 +265,7 @@ private fun SetTable(
     rpeTrackingEnabled: Boolean,
     onRpeChange: (setId: String, rpe: Double?) -> Unit,
     plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
+    weightUnit: WeightUnit = WeightUnit.KG,
 ) {
     val fields = exercise.exerciseType.targetFields()
     val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
@@ -251,7 +282,7 @@ private fun SetTable(
             HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
             HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
             if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(R.string.routine_builder_col_weight), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             // Mirrors the row's trailing calculator button so the KG header stays over its cell.
             if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
             if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
@@ -285,6 +316,7 @@ private fun SetTable(
                     onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
                     showPlateCalculator = showPlateCalculator,
                     plateCalculatorConfig = plateCalculator,
+                    weightUnit = weightUnit,
                 )
                 if (set.failureError) {
                     Text(
@@ -343,6 +375,8 @@ internal fun SetRow(
     /** M17 §5.1.5: true only for BARBELL rows with the setting on; the caller's header row adds a matching spacer. */
     showPlateCalculator: Boolean = false,
     plateCalculatorConfig: PlateCalculatorConfig = PlateCalculatorConfig(),
+    /** M18: display unit for the weight cell only — every other field is unit-less. */
+    weightUnit: WeightUnit = WeightUnit.KG,
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var showRpeSheet by remember { mutableStateOf(false) }
@@ -352,16 +386,19 @@ internal fun SetRow(
     // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
     // exactly as in live logging") impossible — every field would be read-only.
     val fieldsEnabled = isEditMode || !set.isCompleted
-    val rowBackground = if (set.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
+    // M18 (Owner directive): a completed row gets a VISIBLE full-width primary-green band — the
+    // old primaryContainer @ 25% was indistinguishable from the plain surface on the dark theme.
+    val rowBackground = if (set.isCompleted) MaterialTheme.colorScheme.primary.copy(alpha = COMPLETED_ROW_BAND_ALPHA) else Color.Transparent
 
     Row(
         modifier = Modifier.fillMaxWidth().background(rowBackground).padding(vertical = Spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Same width as the header's ROUND/SET cell — a 36-vs-48 mismatch here shifted every
-        // value cell 12dp off its header. Badge centered so the number sits under the label.
-        Box(modifier = Modifier.width(SetTable.setCell), contentAlignment = Alignment.Center) {
-            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true })
+        // value cell 12dp off its header. The badge box fills the cell minus the same xxs gutter
+        // the text fields carry, so the M18 uniform-box grid lines up across every column.
+        Box(modifier = Modifier.width(SetTable.setCell).padding(horizontal = Spacing.xxs), contentAlignment = Alignment.Center) {
+            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth())
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
                 if (allowWarmup) {
@@ -374,18 +411,30 @@ internal fun SetRow(
                 }
             }
         }
-        Text(
-            set.previousLabel,
-            style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(SetTable.previousCell),
-        )
+        // M18 uniform boxed cells (Owner): PREVIOUS is plain text, but it sits in the same
+        // hairline box the editable fields render so the row reads as one grid. No tap behavior
+        // existed on this cell and none is added.
+        Box(
+            modifier = Modifier
+                .width(SetTable.previousCell)
+                .padding(horizontal = Spacing.xxs)
+                .height(SetTable.cellHeight)
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(Radius.sm)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                set.previousLabel,
+                style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = Spacing.xxs),
+            )
+        }
         if (showCustomMetric) {
             NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (TargetField.WEIGHT in fields) {
-            NumberCell(value = set.weightKg, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            WeightCell(valueKg = set.weightKg, unit = weightUnit, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
             if (showPlateCalculator) {
                 // Trails the KG cell inside the same fixed width the header row spaces over, so
                 // the M15 column alignment holds with or without the button.
@@ -428,7 +477,12 @@ internal fun SetRow(
             NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (showRpe) {
-            RpeCell(value = set.rpe, enabled = fieldsEnabled, onClick = { showRpeSheet = true }, modifier = Modifier.width(SetTable.rpeCell))
+            RpeCell(
+                value = set.rpe,
+                enabled = fieldsEnabled,
+                onClick = { showRpeSheet = true },
+                modifier = Modifier.width(SetTable.rpeCell).padding(horizontal = Spacing.xxs),
+            )
         }
         IconButton(onClick = onToggleCheck, modifier = Modifier.width(SetTable.checkCell)) {
             Icon(
@@ -460,8 +514,14 @@ internal fun SetRow(
     }
 }
 
+/**
+ * M18 uniform boxed cells (Owner): the badge fills the SET/ROUND column as a field-height hairline
+ * box — same outlineVariant border, Radius token, and [SetTable.cellHeight] as the value fields —
+ * instead of the old free-floating 32dp pill. The set-type tint (W/F/D at 0.15 alpha) and the
+ * whole-cell tap target (opens the type menu) are unchanged.
+ */
 @Composable
-internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
+internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val (label, color) = when (setType) {
         SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
         SetType.WARMUP -> "W" to Warning500
@@ -469,54 +529,161 @@ internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit) {
         SetType.DROPSET -> "D" to SupersetPalette[4]
     }
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(Radius.sm),
         color = if (setType == SetType.NORMAL) Color.Transparent else color.copy(alpha = 0.15f),
-        modifier = Modifier.clickable(onClick = onClick),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.clickable(onClick = onClick),
     ) {
-        Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
             Text(label, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
 
+/**
+ * M18 (Owner directive): the completed-row band. `primary.copy(alpha = 0.15f)` over the dark
+ * surface reads as an unmistakable green wash while keeping onSurface text and the outlineVariant
+ * cell hairlines comfortably legible (0.12–0.18 was the acceptable range; 0.15 is the midpoint).
+ */
+internal const val COMPLETED_ROW_BAND_ALPHA = 0.15f
+
+/** M18: KG header flips to LBS when the display unit is pounds (shared by regular + circuit tables). */
+internal fun weightHeaderRes(unit: WeightUnit): Int =
+    if (unit == WeightUnit.LB) R.string.routine_builder_col_weight_lbs else R.string.routine_builder_col_weight
+
+/** M18 uniform boxed cells: the value fields' chrome — outlineVariant hairline at rest (and when
+ * disabled, i.e. completed-locked rows) with the Radius token, so the text fields and the fixed
+ * boxed cells (SET/PREVIOUS/RPE) render as one grid. Focus keeps the default primary outline. */
+@Composable
+internal fun boxedFieldColors() = OutlinedTextFieldDefaults.colors(
+    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+    disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+)
+
 @Composable
 internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
     var text by remember(value) { mutableStateOf(value?.let { formatTargetNumber(it) }.orEmpty()) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { new -> text = new; onValueChange(new.toDoubleOrNull()) },
+    CompactBoxedTextField(
+        text = text,
+        onTextChange = { new -> text = new; onValueChange(new.toDoubleOrNull()) },
         enabled = enabled,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        singleLine = true,
-        modifier = modifier.padding(horizontal = Spacing.xxs),
+        keyboardType = KeyboardType.Decimal,
+        modifier = modifier,
+    )
+}
+
+/**
+ * M18: the weight input cell — the ONE place the logger converts between canonical kg storage and
+ * the user's display unit, in both directions ([WeightDisplay]). `valueKg` and `onValueChange`
+ * both speak kg, so every caller (write-through updates, the plate sheet's apply, edit mode) stays
+ * unit-blind; only the text shown/parsed here is unit-aware. The plate-calculator sheet converts
+ * internally too, but its apply path hands back canonical kg directly (never through this parse),
+ * so the two conversions cannot stack.
+ */
+@Composable
+internal fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+    val displayText = valueKg?.let { WeightDisplay.format(WeightDisplay.toDisplay(it, unit)) }.orEmpty()
+    // Same remember(value) idiom as NumberCell: the typed string is kept until the derived display
+    // text actually changes underneath it (a stored-kg or unit change), so conversion never fights
+    // active typing.
+    var text by remember(displayText) { mutableStateOf(displayText) }
+    CompactBoxedTextField(
+        text = text,
+        onTextChange = { new -> text = new; onValueChange(new.toDoubleOrNull()?.let { WeightDisplay.toKg(it, unit) }) },
+        enabled = enabled,
+        keyboardType = KeyboardType.Decimal,
+        modifier = modifier,
     )
 }
 
 @Composable
 internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
     var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { new -> text = new; onValueChange(new.toIntOrNull()) },
+    CompactBoxedTextField(
+        text = text,
+        onTextChange = { new -> text = new; onValueChange(new.toIntOrNull()) },
         enabled = enabled,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        modifier = modifier.padding(horizontal = Spacing.xxs),
+        keyboardType = KeyboardType.Number,
+        modifier = modifier,
     )
+}
+
+/**
+ * The uniform boxed input all three value cells share. A plain OutlinedTextField reserves ~16dp
+ * of horizontal content padding per side — at the set table's cell widths that leaves room for
+ * barely two characters ("32.5" rendering as "3"), so this drops down to BasicTextField +
+ * DecorationBox with compact padding and centered text at the shared [SetTable.cellHeight].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CompactBoxedTextField(
+    text: String,
+    onTextChange: (String) -> Unit,
+    enabled: Boolean,
+    keyboardType: KeyboardType,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val colors = boxedFieldColors()
+    BasicTextField(
+        value = text,
+        onValueChange = onTextChange,
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        // bodyMedium, not bodyLarge: at these cell widths the difference is "102.5" fitting whole
+        // versus clipping to a sliver.
+        //
+        // NOT centered: singleLine BasicTextField auto-scrolls its content horizontally to keep
+        // the cursor in view, and that scroll math is built around start-aligned text. Center
+        // alignment fights it once a value is wider than the box can show unfocused — a 4-5 char
+        // value like an LB-converted "71.7"/"154.3" rendered as a single clipped-looking digit
+        // ("7", "1") instead of the whole string (found live: switching units to lb on an
+        // auto-filled row). Start alignment (the default) has no such interaction and is also the
+        // normal convention for a numeric input field.
+        textStyle = MaterialTheme.typography.bodyMedium.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+        ),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        interactionSource = interactionSource,
+        modifier = modifier.padding(horizontal = 2.dp).height(SetTable.cellHeight),
+    ) { innerTextField ->
+        OutlinedTextFieldDefaults.DecorationBox(
+            value = text,
+            innerTextField = innerTextField,
+            enabled = enabled,
+            singleLine = true,
+            visualTransformation = VisualTransformation.None,
+            interactionSource = interactionSource,
+            colors = colors,
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+            container = {
+                OutlinedTextFieldDefaults.Container(
+                    enabled = enabled,
+                    isError = false,
+                    interactionSource = interactionSource,
+                    colors = colors,
+                    shape = RoundedCornerShape(Radius.sm),
+                )
+            },
+        )
+    }
 }
 
 private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
 
-/** §5.1.7 entry point: "tap the RPE cell". A small tappable pill, not a text field — RPE is never free text. */
+/** §5.1.7 entry point: "tap the RPE cell". A tappable box, not a text field — RPE is never free
+ * text. M18 uniform boxed cells: field-height hairline box like every other cell; the filled
+ * primaryContainer state (an RPE is logged) keeps its tint inside the same chrome. */
 @Composable
 private fun RpeCell(value: Double?, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(Radius.sm),
         color = if (value != null) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        border = if (value == null) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.clickable(enabled = enabled, onClick = onClick),
     ) {
-        Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
             Text(
                 value?.let { RpeScale.format(it) } ?: "—",
                 style = LogEzMono.dataSmall.copy(

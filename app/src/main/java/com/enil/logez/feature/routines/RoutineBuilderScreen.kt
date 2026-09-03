@@ -160,6 +160,7 @@ fun RoutineBuilderScreen(
                             exercise = exercise,
                             isCircuit = uiState.structure == WorkoutStructure.CIRCUIT,
                             defaultRestTimerSeconds = uiState.defaultRestTimerSeconds,
+                            weightUnit = uiState.weightUnit,
                             reorderModeActive = uiState.reorderModeActive,
                             canMoveUp = index > 0,
                             canMoveDown = index < uiState.exercises.lastIndex,
