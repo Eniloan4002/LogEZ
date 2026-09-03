@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.PaddingValues
@@ -106,10 +108,6 @@ internal fun WorkoutExerciseCard(
     onOpenReplacePicker: () -> Unit,
     rpeTrackingEnabled: Boolean = false,
     onRpeChange: (setId: String, rpe: Double?) -> Unit = { _, _ -> },
-    showRestTimer: Boolean = false,
-    restRemainingMillisFlow: Flow<Long?> = emptyFlow(),
-    onRestAdjust: (Int) -> Unit = {},
-    onRestSkip: () -> Unit = {},
     inlineTimerEnabled: Boolean = true,
     inlineTimerSetId: String? = null,
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
@@ -206,10 +204,6 @@ internal fun WorkoutExerciseCard(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
             )
-
-            if (showRestTimer) {
-                RestTimerBar(remainingMillisFlow = restRemainingMillisFlow, onMinus15 = { onRestAdjust(-15) }, onPlus15 = { onRestAdjust(15) }, onSkip = onRestSkip)
-            }
 
             SetTable(
                 exercise = exercise,
@@ -381,6 +375,9 @@ internal fun SetRow(
     allowWarmup: Boolean = true,
     /** ... and so does per-row Delete (rounds are removed whole via the round header). */
     allowDelete: Boolean = true,
+    /** Circuit rows (Owner, 2026-09-03): false hides the redundant round number — the badge stays
+     * the Failure/Dropset tap target, it just renders blank for a NORMAL set. */
+    showRoundNumber: Boolean = true,
     /** M17 §5.1.5: true only for BARBELL rows with the setting on; the caller's header row adds a matching spacer. */
     showPlateCalculator: Boolean = false,
     plateCalculatorConfig: PlateCalculatorConfig = PlateCalculatorConfig(),
@@ -400,14 +397,16 @@ internal fun SetRow(
     val rowBackground = if (set.isCompleted) MaterialTheme.colorScheme.primary.copy(alpha = COMPLETED_ROW_BAND_ALPHA) else Color.Transparent
 
     Row(
-        modifier = Modifier.fillMaxWidth().background(rowBackground).padding(vertical = Spacing.xxs),
+        // Owner, 2026-09-03: the completed-row band's edges are now softly rounded (clip before
+        // background so the fill itself respects the shape, not just the border).
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.sm)).background(rowBackground).padding(vertical = Spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Same width as the header's ROUND/SET cell — a 36-vs-48 mismatch here shifted every
         // value cell 12dp off its header. The badge box fills the cell minus the same xxs gutter
         // the text fields carry, so the M18 uniform-box grid lines up across every column.
         Box(modifier = Modifier.width(SetTable.setCell).padding(horizontal = Spacing.xxs), contentAlignment = Alignment.Center) {
-            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth())
+            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), showPosition = showRoundNumber)
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
                 if (allowWarmup) {
@@ -423,21 +422,38 @@ internal fun SetRow(
         // M18 uniform boxed cells (Owner): PREVIOUS is plain text, but it sits in the same
         // hairline box the editable fields render so the row reads as one grid. No tap behavior
         // existed on this cell and none is added.
+        // Owner, 2026-09-03: the value line and the RPE line stack (weight/reps above, RPE below)
+        // instead of one "@"-joined line. heightIn(min=...), not a fixed height, so a two-line
+        // previous value grows this one cell — the Row has no height of its own, so it naturally
+        // grows to match (default Row sizing), and every fixed-height sibling cell in the row still
+        // centers within that taller row via the Row's own verticalAlignment, unchanged.
         Box(
             modifier = Modifier
                 .width(SetTable.previousCell)
                 .padding(horizontal = Spacing.xxs)
-                .height(SetTable.cellHeight)
+                .heightIn(min = SetTable.cellHeight)
                 .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(Radius.sm)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                set.previousLabel,
-                style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = Spacing.xxs),
-            )
+            Column(
+                modifier = Modifier.padding(horizontal = Spacing.xxs, vertical = Spacing.xxs),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    set.previousLabel,
+                    style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                set.previousRpeLabel?.let { rpeLine ->
+                    Text(
+                        rpeLine,
+                        style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
         if (showCustomMetric) {
             NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
@@ -537,9 +553,13 @@ internal fun SetRow(
  * whole-cell tap target (opens the type menu) are unchanged.
  */
 @Composable
-internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modifier: Modifier = Modifier, showPosition: Boolean = true) {
     val (label, color) = when (setType) {
-        SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
+        // Circuit rows (Owner, 2026-09-03): the round number is redundant — each round already has
+        // its own "ROUND N" section header — so it's blank here, but the cell stays the tap target
+        // for Failure/Dropset, which a circuit row can still be marked as (WARMUP is the only type
+        // excluded in a circuit, per the M11 invariant).
+        SetType.NORMAL -> (if (showPosition) position.toString() else "") to MaterialTheme.colorScheme.onSurface
         SetType.WARMUP -> "W" to Warning500
         SetType.FAILURE -> "F" to Danger500
         SetType.DROPSET -> "D" to SupersetPalette[4]

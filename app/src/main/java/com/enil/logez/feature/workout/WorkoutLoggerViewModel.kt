@@ -309,6 +309,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             previousLabel = previous?.let {
                                 PreviousValueFormatter.format(it, exercise?.exerciseType ?: ExerciseType.WEIGHT_REPS, currentSettings.weightUnit, currentSettings.distanceUnit)
                             } ?: "—",
+                            previousRpeLabel = previous?.let { PreviousValueFormatter.formatRpeLine(it) },
                         )
                     },
                 )
@@ -379,7 +380,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      */
     private suspend fun refreshPreviousLabels(settings: UserSettings) {
         val w = workout.value
-        val labelsBySetId = mutableMapOf<String, String>()
+        val labelsBySetId = mutableMapOf<String, Pair<String, String?>>()
         for (ex in exercises.value) {
             val previousRows = workoutRepository.getPreviousWorkoutSets(
                 ex.exerciseId,
@@ -396,15 +397,19 @@ class WorkoutLoggerViewModel @Inject constructor(
                 } else {
                     previousRows.getOrNull(index)
                 }
-                labelsBySetId[s.id] = previous?.let {
+                labelsBySetId[s.id] = (previous?.let {
                     PreviousValueFormatter.format(it, ex.exerciseType, settings.weightUnit, settings.distanceUnit)
-                } ?: "—"
+                } ?: "—") to previous?.let { PreviousValueFormatter.formatRpeLine(it) }
             }
         }
         // Applied by set id onto whatever the list holds NOW — user edits that landed while the
         // queries above ran are preserved, and a set added meanwhile just keeps its default "—".
         updateExercises { list ->
-            list.map { ex -> ex.copy(sets = ex.sets.map { s -> labelsBySetId[s.id]?.let { s.copy(previousLabel = it) } ?: s }) }
+            list.map { ex ->
+                ex.copy(sets = ex.sets.map { s ->
+                    labelsBySetId[s.id]?.let { (label, rpeLabel) -> s.copy(previousLabel = label, previousRpeLabel = rpeLabel) } ?: s
+                })
+            }
         }
     }
 
@@ -793,6 +798,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             weightKg = p?.weightKg, reps = p?.reps, durationSeconds = p?.durationSeconds,
                             distanceMeters = p?.distanceMeters, customMetric = p?.customMetric,
                             previousLabel = p?.let { PreviousValueFormatter.format(it, exercise.exerciseType, settings.weightUnit, settings.distanceUnit) } ?: "—",
+                            previousRpeLabel = p?.let { PreviousValueFormatter.formatRpeLine(it) },
                         )
                     }
                 } else if (previous.isNotEmpty()) {
@@ -802,6 +808,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             weightKg = p.weightKg, reps = p.reps, durationSeconds = p.durationSeconds,
                             distanceMeters = p.distanceMeters, customMetric = p.customMetric,
                             previousLabel = PreviousValueFormatter.format(p, exercise.exerciseType, settings.weightUnit, settings.distanceUnit),
+                            previousRpeLabel = PreviousValueFormatter.formatRpeLine(p),
                         )
                     }
                 } else {
@@ -1068,10 +1075,10 @@ data class WorkoutLoggerUiState(
     val warmupCalculatorEnabled: Boolean = false,
 )
 
-private fun WorkoutSetEntity.toUiModel(previousLabel: String) = WorkoutSetUiModel(
+private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpeLabel: String? = null) = WorkoutSetUiModel(
     id = id, setType = setType, weightKg = weightKg, reps = reps, durationSeconds = durationSeconds,
     distanceMeters = distanceMeters, customMetric = customMetric, rpe = rpe, isCompleted = isCompleted,
-    completedAt = completedAt, previousLabel = previousLabel,
+    completedAt = completedAt, previousLabel = previousLabel, previousRpeLabel = previousRpeLabel,
 )
 
 private fun WorkoutSetUiModel.toEntity(workoutExerciseId: String) = WorkoutSetEntity(

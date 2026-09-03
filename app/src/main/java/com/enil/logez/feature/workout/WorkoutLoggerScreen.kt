@@ -325,20 +325,6 @@ fun WorkoutLoggerScreen(
 
                 val isCircuit = uiState.structure == WorkoutStructure.CIRCUIT
 
-                // M11: in circuit mode the per-exercise cards' rest bar has no single home (a
-                // round card holds every exercise), so the countdown + controls dock here instead,
-                // pinned above the round list. Same engine, same flow, same controls.
-                if (isCircuit && uiState.restExerciseId != null && !uiState.isEditMode) {
-                    Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
-                        RestTimerBar(
-                            remainingMillisFlow = viewModel.restRemainingMillisFlow,
-                            onMinus15 = { viewModel.adjustRestTimer(-15) },
-                            onPlus15 = { viewModel.adjustRestTimer(15) },
-                            onSkip = viewModel::skipRestTimer,
-                        )
-                    }
-                }
-
                 if (isCircuit) {
                     // M11: round-grouped rendering — one card per round, exercises in sequence
                     // order inside it. Grouping is pure (buildCircuitRounds) and never repairs
@@ -374,6 +360,21 @@ fun WorkoutLoggerScreen(
                                 isEditMode = uiState.isEditMode,
                                 plateCalculator = uiState.plateCalculator,
                                 weightUnit = uiState.weightUnit,
+                            )
+                        }
+                    }
+
+                    // M11: in circuit mode the per-exercise cards' rest bar has no single home (a
+                    // round card holds every exercise), so the countdown + controls dock here
+                    // instead. Owner, 2026-09-03: moved from above the round list to just above
+                    // the Add Round/Add Exercise row, matching the regular table's own global bar.
+                    if (uiState.restExerciseId != null && !uiState.isEditMode) {
+                        Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+                            RestTimerBar(
+                                remainingMillisFlow = viewModel.restRemainingMillisFlow,
+                                onMinus15 = { viewModel.adjustRestTimer(-15) },
+                                onPlus15 = { viewModel.adjustRestTimer(15) },
+                                onSkip = viewModel::skipRestTimer,
                             )
                         }
                     }
@@ -415,10 +416,6 @@ fun WorkoutLoggerScreen(
                             onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
                             rpeTrackingEnabled = uiState.rpeTrackingEnabled,
                             onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
-                            showRestTimer = uiState.restExerciseId == exercise.id,
-                            restRemainingMillisFlow = viewModel.restRemainingMillisFlow,
-                            onRestAdjust = viewModel::adjustRestTimer,
-                            onRestSkip = viewModel::skipRestTimer,
                             inlineTimerEnabled = uiState.inlineTimerEnabled,
                             inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
                             inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
@@ -428,6 +425,20 @@ fun WorkoutLoggerScreen(
                             plateCalculator = uiState.plateCalculator,
                             warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
                             weightUnit = uiState.weightUnit,
+                        )
+                    }
+                }
+
+                // Owner, 2026-09-03: rest timer moved out of the resting exercise's own card into
+                // one persistent bar here, just above Add Exercise — same engine/controls as the
+                // circuit bar above, just for the regular (non-circuit) table.
+                if (uiState.restExerciseId != null && !uiState.isEditMode) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+                        RestTimerBar(
+                            remainingMillisFlow = viewModel.restRemainingMillisFlow,
+                            onMinus15 = { viewModel.adjustRestTimer(-15) },
+                            onPlus15 = { viewModel.adjustRestTimer(15) },
+                            onSkip = viewModel::skipRestTimer,
                         )
                     }
                 }

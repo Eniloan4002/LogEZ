@@ -4,7 +4,12 @@ import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.WeightUnit
 
-/** PHASE2_PLAN.md §8.10 — formats the live logger's PREVIOUS column. Purely a display formatter. */
+/**
+ * PHASE2_PLAN.md §8.10 — formats the live logger's PREVIOUS column. Purely a display formatter.
+ * [format] returns the value line ("50 kg x 10"); [formatRpeLine] returns a second, optional line
+ * (Owner, 2026-09-03: RPE renders on its own line under the value, not appended inline) so the two
+ * can render as separate `Text`s in the PREVIOUS cell without any string-splitting in the UI layer.
+ */
 object PreviousValueFormatter {
     fun format(set: StatSet, type: ExerciseType, weightUnit: WeightUnit, distanceUnit: DistanceUnit): String {
         val base = when (type) {
@@ -32,10 +37,11 @@ object PreviousValueFormatter {
                 if (w != null && dist != null) "${formatNumber(w)} ${weightUnit.label()} x ${formatNumber(dist)} ${distanceUnit.label()}" else "—"
             }
         }
-        if (base == "—") return base
-        val rpe = set.rpe ?: return base
-        return "$base @ ${formatNumber(rpe)}"
+        return base
     }
+
+    /** The PREVIOUS cell's second line, e.g. "RPE 8.5" — null when the previous set has no RPE. */
+    fun formatRpeLine(set: StatSet): String? = set.rpe?.let { "RPE ${formatNumber(it)}" }
 
     private fun convertWeight(kg: Double, unit: WeightUnit) = WeightDisplay.toDisplay(kg, unit)
     private fun convertDistance(m: Double, unit: DistanceUnit) = if (unit == DistanceUnit.MILES) m / 1609.344 else m / 1000.0

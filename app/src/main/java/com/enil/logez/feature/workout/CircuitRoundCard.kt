@@ -228,6 +228,7 @@ private fun CircuitEntry(
             onRpeChange = { rpe -> callbacks.onUpdateRpe(exercise.id, set.id, rpe) },
             allowWarmup = false,
             allowDelete = false,
+            showRoundNumber = false,
             showPlateCalculator = showPlateCalculator,
             plateCalculatorConfig = plateCalculator,
             weightUnit = weightUnit,
@@ -268,7 +269,10 @@ private fun CircuitColumnsHeader(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        HeaderCell(stringResource(R.string.routine_builder_col_round), width = SetTable.setCell, textAlign = TextAlign.Center)
+        // Owner, 2026-09-03: "ROUND" is dropped — each round already has its own "ROUND N" section
+        // header above this table — but the Spacer keeps the column width so the row's badge cell
+        // (still a Failure/Dropset tap target, see SetBadge's showPosition) stays in register.
+        Spacer(modifier = Modifier.width(SetTable.setCell))
         HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
         if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)

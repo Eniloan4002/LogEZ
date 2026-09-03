@@ -47,6 +47,8 @@ data class WorkoutSetUiModel(
     val completedAt: Long? = null,
     /** Formatted via `PreviousValueFormatter`, resolved once per exercise at load (§8.10). "—" when none. */
     val previousLabel: String = "—",
+    /** PREVIOUS cell's second line ("RPE 8.5"), via `PreviousValueFormatter.formatRpeLine`. Null when the previous set has no RPE. */
+    val previousRpeLabel: String? = null,
     /** §5.1.3 check-off validation: a FAILURE set checked with 0/blank reps is rejected, not silently accepted. */
     val failureError: Boolean = false,
 )
