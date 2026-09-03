@@ -280,7 +280,7 @@ private fun SetTable(
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
-            HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
+            HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell, textAlign = TextAlign.Center)
             if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             // Mirrors the row's trailing calculator button so the KG header stays over its cell.

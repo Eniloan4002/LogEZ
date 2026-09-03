@@ -273,7 +273,7 @@ private fun CircuitColumnsHeader(
         // header above this table — but the Spacer keeps the column width so the row's badge cell
         // (still a Failure/Dropset tap target, see SetBadge's showPosition) stays in register.
         Spacer(modifier = Modifier.width(SetTable.setCell))
-        HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell)
+        HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell, textAlign = TextAlign.Center)
         if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // Mirrors the row's trailing calculator button (same width) so KG stays over its cell.
