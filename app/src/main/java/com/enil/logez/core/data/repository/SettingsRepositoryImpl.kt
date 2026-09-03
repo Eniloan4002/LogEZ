@@ -4,13 +4,13 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
-import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.defaultPlateEquipment
@@ -35,9 +35,18 @@ class SettingsRepositoryImpl @Inject constructor(
 
         val DEFAULT_REST_TIMER_SECONDS = intPreferencesKey("defaultRestTimerSeconds")
         val TIMER_SOUND = intPreferencesKey("timerSound")
-        val TIMER_VOLUME = stringPreferencesKey("timerVolume")
-        val SET_COMPLETE_VOLUME = stringPreferencesKey("setCompleteVolume")
-        val PR_VOLUME = stringPreferencesKey("prVolume")
+        // Owner, 2026-09-03: volumes became continuous sliders (Float, 0f-1f), not the old
+        // Off/Quiet/Normal/Loud enum. New key NAMES on purpose — reusing "timerVolume" etc. under a
+        // floatPreferencesKey would try to read a previously-stored String through a Float-typed
+        // key and crash (Preferences.Key lookup is name-keyed with the type erased). The old string
+        // keys stay declared, read-only, purely so LEGACY_VOLUME below can backfill a returning
+        // user's prior choice on first read.
+        val TIMER_VOLUME = floatPreferencesKey("timerVolumeF")
+        val SET_COMPLETE_VOLUME = floatPreferencesKey("setCompleteVolumeF")
+        val PR_VOLUME = floatPreferencesKey("prVolumeF")
+        val TIMER_VOLUME_LEGACY = stringPreferencesKey("timerVolume")
+        val SET_COMPLETE_VOLUME_LEGACY = stringPreferencesKey("setCompleteVolume")
+        val PR_VOLUME_LEGACY = stringPreferencesKey("prVolume")
         val PREVIOUS_VALUES_MODE = stringPreferencesKey("previousValuesMode")
         val WARMUP_CALCULATOR_ENABLED = booleanPreferencesKey("warmupCalculatorEnabled")
         val WARMUP_METHOD = stringPreferencesKey("warmupMethod")
@@ -49,9 +58,21 @@ class SettingsRepositoryImpl @Inject constructor(
         val SMART_SUPERSET_SCROLLING = booleanPreferencesKey("smartSupersetScrolling")
         val INLINE_TIMER_ENABLED = booleanPreferencesKey("inlineTimerEnabled")
         val LIVE_PR_NOTIFICATION_ENABLED = booleanPreferencesKey("livePrNotificationEnabled")
+        val SHOW_HEATMAP = booleanPreferencesKey("showHeatmap")
+        val SHOW_GOALS = booleanPreferencesKey("showGoals")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** The old OFF/LOW/NORMAL/HIGH enum's float mapping, reimplemented here only to backfill a
+     * returning user's prior volume choice the first time it's read under the new float key. */
+    private fun legacyVolumeLevelToFloat(name: String?): Float? = when (name) {
+        "OFF" -> 0f
+        "LOW" -> 0.33f
+        "NORMAL" -> 0.66f
+        "HIGH" -> 1f
+        else -> null
+    }
 
     override val settings: Flow<UserSettings> = dataStore.data.map { prefs ->
         val defaults = UserSettings()
@@ -64,9 +85,9 @@ class SettingsRepositoryImpl @Inject constructor(
             } ?: defaults.perExerciseUnitOverrides,
             defaultRestTimerSeconds = prefs[Keys.DEFAULT_REST_TIMER_SECONDS] ?: defaults.defaultRestTimerSeconds,
             timerSound = prefs[Keys.TIMER_SOUND] ?: defaults.timerSound,
-            timerVolume = prefs[Keys.TIMER_VOLUME]?.let { VolumeLevel.valueOf(it) } ?: defaults.timerVolume,
-            setCompleteVolume = prefs[Keys.SET_COMPLETE_VOLUME]?.let { VolumeLevel.valueOf(it) } ?: defaults.setCompleteVolume,
-            prVolume = prefs[Keys.PR_VOLUME]?.let { VolumeLevel.valueOf(it) } ?: defaults.prVolume,
+            timerVolume = prefs[Keys.TIMER_VOLUME] ?: legacyVolumeLevelToFloat(prefs[Keys.TIMER_VOLUME_LEGACY]) ?: defaults.timerVolume,
+            setCompleteVolume = prefs[Keys.SET_COMPLETE_VOLUME] ?: legacyVolumeLevelToFloat(prefs[Keys.SET_COMPLETE_VOLUME_LEGACY]) ?: defaults.setCompleteVolume,
+            prVolume = prefs[Keys.PR_VOLUME] ?: legacyVolumeLevelToFloat(prefs[Keys.PR_VOLUME_LEGACY]) ?: defaults.prVolume,
             previousValuesMode = prefs[Keys.PREVIOUS_VALUES_MODE]?.let { PreviousValuesMode.valueOf(it) } ?: defaults.previousValuesMode,
             warmupCalculatorEnabled = prefs[Keys.WARMUP_CALCULATOR_ENABLED] ?: defaults.warmupCalculatorEnabled,
             warmupMethod = prefs[Keys.WARMUP_METHOD]?.let { json.decodeFromString<List<WarmupStep>>(it) } ?: defaultWarmupMethod,
@@ -78,6 +99,8 @@ class SettingsRepositoryImpl @Inject constructor(
             smartSupersetScrolling = prefs[Keys.SMART_SUPERSET_SCROLLING] ?: defaults.smartSupersetScrolling,
             inlineTimerEnabled = prefs[Keys.INLINE_TIMER_ENABLED] ?: defaults.inlineTimerEnabled,
             livePrNotificationEnabled = prefs[Keys.LIVE_PR_NOTIFICATION_ENABLED] ?: defaults.livePrNotificationEnabled,
+            showHeatmap = prefs[Keys.SHOW_HEATMAP] ?: defaults.showHeatmap,
+            showGoals = prefs[Keys.SHOW_GOALS] ?: defaults.showGoals,
         )
     }
 
@@ -95,9 +118,9 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setDefaultRestTimerSeconds(value: Int) = edit { it[Keys.DEFAULT_REST_TIMER_SECONDS] = value }
     override suspend fun setTimerSound(value: Int) = edit { it[Keys.TIMER_SOUND] = value }
-    override suspend fun setTimerVolume(value: VolumeLevel) = edit { it[Keys.TIMER_VOLUME] = value.name }
-    override suspend fun setSetCompleteVolume(value: VolumeLevel) = edit { it[Keys.SET_COMPLETE_VOLUME] = value.name }
-    override suspend fun setPrVolume(value: VolumeLevel) = edit { it[Keys.PR_VOLUME] = value.name }
+    override suspend fun setTimerVolume(value: Float) = edit { it[Keys.TIMER_VOLUME] = value }
+    override suspend fun setSetCompleteVolume(value: Float) = edit { it[Keys.SET_COMPLETE_VOLUME] = value }
+    override suspend fun setPrVolume(value: Float) = edit { it[Keys.PR_VOLUME] = value }
     override suspend fun setPreviousValuesMode(value: PreviousValuesMode) = edit { it[Keys.PREVIOUS_VALUES_MODE] = value.name }
     override suspend fun setWarmupCalculatorEnabled(value: Boolean) = edit { it[Keys.WARMUP_CALCULATOR_ENABLED] = value }
     override suspend fun setWarmupMethod(value: List<WarmupStep>) = edit { it[Keys.WARMUP_METHOD] = json.encodeToString(value) }
@@ -109,6 +132,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setSmartSupersetScrolling(value: Boolean) = edit { it[Keys.SMART_SUPERSET_SCROLLING] = value }
     override suspend fun setInlineTimerEnabled(value: Boolean) = edit { it[Keys.INLINE_TIMER_ENABLED] = value }
     override suspend fun setLivePrNotificationEnabled(value: Boolean) = edit { it[Keys.LIVE_PR_NOTIFICATION_ENABLED] = value }
+    override suspend fun setShowHeatmap(value: Boolean) = edit { it[Keys.SHOW_HEATMAP] = value }
+    override suspend fun setShowGoals(value: Boolean) = edit { it[Keys.SHOW_GOALS] = value }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)

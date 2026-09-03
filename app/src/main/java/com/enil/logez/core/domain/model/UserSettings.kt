@@ -13,9 +13,11 @@ data class UserSettings(
     // Workouts
     val defaultRestTimerSeconds: Int = 90,
     val timerSound: Int = 1,
-    val timerVolume: VolumeLevel = VolumeLevel.NORMAL,
-    val setCompleteVolume: VolumeLevel = VolumeLevel.NORMAL,
-    val prVolume: VolumeLevel = VolumeLevel.NORMAL,
+    // Owner, 2026-09-03: every audio setting is a continuous 0f-1f slider now, not a discrete
+    // Off/Quiet/Normal/Loud step — 0f means silent (the same "off" the old enum's OFF meant).
+    val timerVolume: Float = 0.66f,
+    val setCompleteVolume: Float = 0.66f,
+    val prVolume: Float = 0.66f,
     val previousValuesMode: PreviousValuesMode = PreviousValuesMode.ANY_WORKOUT,
     val warmupCalculatorEnabled: Boolean = true,
     val warmupMethod: List<WarmupStep> = defaultWarmupMethod,
@@ -27,4 +29,8 @@ data class UserSettings(
     val smartSupersetScrolling: Boolean = true,
     val inlineTimerEnabled: Boolean = true,
     val livePrNotificationEnabled: Boolean = true,
+    /** Owner, 2026-09-03: hides the Workout tab's Progress heatmap when off. Default on — nothing is hidden today. */
+    val showHeatmap: Boolean = true,
+    /** Owner, 2026-09-03: hides the Workout tab's Goals card when off. Default on — nothing is hidden today. */
+    val showGoals: Boolean = true,
 )

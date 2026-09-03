@@ -430,6 +430,10 @@
     <string name="settings_live_pr_subtitle">Calls out a personal record the moment a completed set beats one.</string>
     <string name="settings_rpe">RPE tracking</string>
     <string name="settings_rpe_subtitle">Adds an RPE picker to each set so you can log how hard it felt.</string>
+    <string name="settings_show_heatmap">Show progress heatmap</string>
+    <string name="settings_show_heatmap_subtitle">Displays the Progress heatmap at the top of the Workout tab.</string>
+    <string name="settings_show_goals">Show goals</string>
+    <string name="settings_show_goals_subtitle">Displays your Goals card on the Workout tab.</string>
     <string name="settings_include_warmups">Include warm-ups in stats</string>
     <string name="settings_include_warmups_subtitle">Counts warm-up sets in volume and muscle statistics.</string>
     <string name="settings_plate_calculator">Plate calculator</string>
@@ -461,9 +465,6 @@
     <string name="settings_set_complete_volume">Set complete volume</string>
     <string name="settings_pr_volume">PR volume</string>
     <string name="settings_volume_off">Off</string>
-    <string name="settings_volume_low">Low</string>
-    <string name="settings_volume_normal">Normal</string>
-    <string name="settings_volume_high">High</string>
 
     <!-- M17 Plate calculator -->
     <string name="settings_plate_equipment_row">Plate equipment</string>

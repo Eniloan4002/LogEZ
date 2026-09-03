@@ -12,7 +12,7 @@ import javax.inject.Singleton
 /**
  * PHASE2_PLAN.md §9.7: `VIBRATE` is a normal (non-runtime) permission. "Vibration fires
  * regardless of sound volume settings (silent-gym mode)" — deliberately not gated by any
- * [com.enil.logez.core.domain.model.VolumeLevel], unlike [WorkoutAudioPlayer].
+ * volume setting, unlike [WorkoutAudioPlayer].
  */
 interface WorkoutHapticsPlayer {
     /** Distinct double-buzz for rest-timer completion. */

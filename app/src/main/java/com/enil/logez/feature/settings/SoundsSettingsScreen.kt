@@ -22,7 +22,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
-import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.feature.workout.audio.WorkoutAudioPlayer
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -41,16 +40,20 @@ internal interface SettingsAudioEntryPoint {
     fun workoutAudioPlayer(): WorkoutAudioPlayer
 }
 
-/** Which selection dialog is open, if any. */
-private enum class SoundsDialog { TIMER_SOUND, TIMER_VOLUME, SET_COMPLETE_VOLUME, PR_VOLUME }
+/** Only the timer-tone picker is still a dialog — the three volumes are inline sliders now. */
+private enum class SoundsDialog { TIMER_SOUND }
 
 /** The audio layer ships exactly five timer tones (SoundPoolWorkoutAudioPlayer ids 1..5). */
 private val TIMER_SOUND_IDS = (1..5).toList()
 
+/** Owner, 2026-09-03: a volume slider dragged to silent still needs an audible preview when
+ * picking a timer tone, or the pick would read as broken rather than as "silenced on purpose". */
+private const val FALLBACK_PREVIEW_VOLUME = 0.66f
+
 /**
- * M16 Sounds sub-page: timer tone selection plus the three volume rows. Selecting a tone or a
- * volume level plays a preview through the same player the live session uses, so what you hear
- * here is exactly what the logger will play.
+ * M16 Sounds sub-page: timer tone selection plus the three volume rows. Selecting a tone plays a
+ * preview through the same player the live session uses; each volume slider fires its own preview
+ * on release, so what you hear here is exactly what the logger will play.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,24 +92,33 @@ fun SoundsSettingsScreen(
                 )
             }
             item(key = "timer_volume") {
-                SettingsValueRow(
+                SettingsSliderRow(
                     title = stringResource(R.string.settings_timer_volume),
-                    value = volumeLabel(settings.timerVolume),
-                    onClick = { openDialog = SoundsDialog.TIMER_VOLUME },
+                    value = settings.timerVolume,
+                    onValueChangeFinished = { volume ->
+                        viewModel.setTimerVolume(volume)
+                        audioPlayer.playTimerSound(settings.timerSound, if (volume <= 0f) FALLBACK_PREVIEW_VOLUME else volume)
+                    },
                 )
             }
             item(key = "set_complete_volume") {
-                SettingsValueRow(
+                SettingsSliderRow(
                     title = stringResource(R.string.settings_set_complete_volume),
-                    value = volumeLabel(settings.setCompleteVolume),
-                    onClick = { openDialog = SoundsDialog.SET_COMPLETE_VOLUME },
+                    value = settings.setCompleteVolume,
+                    onValueChangeFinished = { volume ->
+                        viewModel.setSetCompleteVolume(volume)
+                        audioPlayer.playSetCompleteSound(if (volume <= 0f) FALLBACK_PREVIEW_VOLUME else volume)
+                    },
                 )
             }
             item(key = "pr_volume") {
-                SettingsValueRow(
+                SettingsSliderRow(
                     title = stringResource(R.string.settings_pr_volume),
-                    value = volumeLabel(settings.prVolume),
-                    onClick = { openDialog = SoundsDialog.PR_VOLUME },
+                    value = settings.prVolume,
+                    onValueChangeFinished = { volume ->
+                        viewModel.setPrVolume(volume)
+                        audioPlayer.playPrFanfare(if (volume <= 0f) FALLBACK_PREVIEW_VOLUME else volume)
+                    },
                 )
             }
         }
@@ -120,54 +132,13 @@ fun SoundsSettingsScreen(
             optionLabel = { stringResource(R.string.settings_timer_sound_option, it) },
             onSelect = { soundId ->
                 viewModel.setTimerSound(soundId)
-                // Preview at the configured timer volume; if that is Off, preview at Normal so
-                // the pick is still audible — the honest alternative (silence) reads as broken.
-                val previewVolume = if (settings.timerVolume == VolumeLevel.OFF) VolumeLevel.NORMAL else settings.timerVolume
+                // Preview at the configured timer volume; if that's silenced, preview at the
+                // fallback so the pick is still audible — true silence would read as broken.
+                val previewVolume = if (settings.timerVolume <= 0f) FALLBACK_PREVIEW_VOLUME else settings.timerVolume
                 audioPlayer.playTimerSound(soundId, previewVolume)
-            },
-            onDismiss = { openDialog = null },
-        )
-        SoundsDialog.TIMER_VOLUME -> SettingsRadioDialog(
-            title = stringResource(R.string.settings_timer_volume),
-            options = VolumeLevel.entries,
-            selected = settings.timerVolume,
-            optionLabel = { volumeLabel(it) },
-            onSelect = { volume ->
-                viewModel.setTimerVolume(volume)
-                audioPlayer.playTimerSound(settings.timerSound, volume)
-            },
-            onDismiss = { openDialog = null },
-        )
-        SoundsDialog.SET_COMPLETE_VOLUME -> SettingsRadioDialog(
-            title = stringResource(R.string.settings_set_complete_volume),
-            options = VolumeLevel.entries,
-            selected = settings.setCompleteVolume,
-            optionLabel = { volumeLabel(it) },
-            onSelect = { volume ->
-                viewModel.setSetCompleteVolume(volume)
-                audioPlayer.playSetCompleteSound(volume)
-            },
-            onDismiss = { openDialog = null },
-        )
-        SoundsDialog.PR_VOLUME -> SettingsRadioDialog(
-            title = stringResource(R.string.settings_pr_volume),
-            options = VolumeLevel.entries,
-            selected = settings.prVolume,
-            optionLabel = { volumeLabel(it) },
-            onSelect = { volume ->
-                viewModel.setPrVolume(volume)
-                audioPlayer.playPrFanfare(volume)
             },
             onDismiss = { openDialog = null },
         )
         null -> Unit
     }
-}
-
-@Composable
-private fun volumeLabel(volume: VolumeLevel): String = when (volume) {
-    VolumeLevel.OFF -> stringResource(R.string.settings_volume_off)
-    VolumeLevel.LOW -> stringResource(R.string.settings_volume_low)
-    VolumeLevel.NORMAL -> stringResource(R.string.settings_volume_normal)
-    VolumeLevel.HIGH -> stringResource(R.string.settings_volume_high)
 }

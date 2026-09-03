@@ -3,7 +3,6 @@ package com.enil.logez.feature.settings
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
-import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.defaultWarmupMethod
@@ -239,20 +238,32 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `setTimerVolume persists HIGH`() = runTest {
-        viewModel.setTimerVolume(VolumeLevel.HIGH)
-        assertEquals(VolumeLevel.HIGH, repository.settings.value.timerVolume)
+    fun `setTimerVolume persists 1_0`() = runTest {
+        viewModel.setTimerVolume(1.0f)
+        assertEquals(1.0f, repository.settings.value.timerVolume)
     }
 
     @Test
-    fun `setSetCompleteVolume persists OFF`() = runTest {
-        viewModel.setSetCompleteVolume(VolumeLevel.OFF)
-        assertEquals(VolumeLevel.OFF, repository.settings.value.setCompleteVolume)
+    fun `setSetCompleteVolume persists 0_0`() = runTest {
+        viewModel.setSetCompleteVolume(0.0f)
+        assertEquals(0.0f, repository.settings.value.setCompleteVolume)
     }
 
     @Test
-    fun `setPrVolume persists LOW`() = runTest {
-        viewModel.setPrVolume(VolumeLevel.LOW)
-        assertEquals(VolumeLevel.LOW, repository.settings.value.prVolume)
+    fun `setPrVolume persists 0_33`() = runTest {
+        viewModel.setPrVolume(0.33f)
+        assertEquals(0.33f, repository.settings.value.prVolume)
+    }
+
+    @Test
+    fun `setShowHeatmap persists false`() = runTest {
+        viewModel.setShowHeatmap(false)
+        assertEquals(false, repository.settings.value.showHeatmap)
+    }
+
+    @Test
+    fun `setShowGoals persists false`() = runTest {
+        viewModel.setShowGoals(false)
+        assertEquals(false, repository.settings.value.showGoals)
     }
 }

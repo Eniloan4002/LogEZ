@@ -16,10 +16,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -27,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Shared row/dialog vocabulary for the M16 Settings tree — the same ListItem idiom as
@@ -60,6 +66,38 @@ internal fun SettingsToggleRow(
         supportingContent = { Text(subtitle) },
         trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
     )
+    HorizontalDivider()
+}
+
+/**
+ * Continuous 0f-1f slider row (Owner, 2026-09-03: replaces the old discrete Off/Quiet/Normal/Loud
+ * picker for every audio setting). Dragging updates only local state — smooth, no DataStore writes
+ * mid-drag — and [onValueChangeFinished] fires once on release with the local value, for both
+ * persisting and a live preview sound, mirroring the old radio dialog's onSelect-does-both pattern.
+ */
+@Composable
+internal fun SettingsSliderRow(
+    title: String,
+    value: Float,
+    onValueChangeFinished: (Float) -> Unit,
+) {
+    var localValue by remember(value) { mutableStateOf(value) }
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.xs)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                if (localValue <= 0f) stringResource(R.string.settings_volume_off) else "${(localValue * 100).roundToInt()}%",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = localValue,
+            onValueChange = { localValue = it },
+            onValueChangeFinished = { onValueChangeFinished(localValue) },
+            valueRange = 0f..1f,
+        )
+    }
     HorizontalDivider()
 }
 

@@ -4,7 +4,6 @@ import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
-import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -26,9 +25,9 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     }
     override suspend fun setDefaultRestTimerSeconds(value: Int) { state.value = state.value.copy(defaultRestTimerSeconds = value) }
     override suspend fun setTimerSound(value: Int) { state.value = state.value.copy(timerSound = value) }
-    override suspend fun setTimerVolume(value: VolumeLevel) { state.value = state.value.copy(timerVolume = value) }
-    override suspend fun setSetCompleteVolume(value: VolumeLevel) { state.value = state.value.copy(setCompleteVolume = value) }
-    override suspend fun setPrVolume(value: VolumeLevel) { state.value = state.value.copy(prVolume = value) }
+    override suspend fun setTimerVolume(value: Float) { state.value = state.value.copy(timerVolume = value) }
+    override suspend fun setSetCompleteVolume(value: Float) { state.value = state.value.copy(setCompleteVolume = value) }
+    override suspend fun setPrVolume(value: Float) { state.value = state.value.copy(prVolume = value) }
     override suspend fun setPreviousValuesMode(value: PreviousValuesMode) { state.value = state.value.copy(previousValuesMode = value) }
     override suspend fun setWarmupCalculatorEnabled(value: Boolean) { state.value = state.value.copy(warmupCalculatorEnabled = value) }
     override suspend fun setWarmupMethod(value: List<WarmupStep>) { state.value = state.value.copy(warmupMethod = value) }
@@ -40,4 +39,6 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     override suspend fun setSmartSupersetScrolling(value: Boolean) { state.value = state.value.copy(smartSupersetScrolling = value) }
     override suspend fun setInlineTimerEnabled(value: Boolean) { state.value = state.value.copy(inlineTimerEnabled = value) }
     override suspend fun setLivePrNotificationEnabled(value: Boolean) { state.value = state.value.copy(livePrNotificationEnabled = value) }
+    override suspend fun setShowHeatmap(value: Boolean) { state.value = state.value.copy(showHeatmap = value) }
+    override suspend fun setShowGoals(value: Boolean) { state.value = state.value.copy(showGoals = value) }
 }

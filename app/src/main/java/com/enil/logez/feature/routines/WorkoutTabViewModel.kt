@@ -50,7 +50,7 @@ class WorkoutTabViewModel @Inject constructor(
         // `getCompletedWorkoutTimestamps()`, so the heatmap stays reactive with no separate
         // refresh-on-resume load of its own.
         combine(workoutRepository.observeCompleted(), settingsRepository.settings) { completed, settings ->
-            settings.firstDayOfWeek to completed
+            completed to settings
         },
     ) { folders, routines, previewInput, inProgress, heatmapInput ->
         val (previewRows, roundCountRows) = previewInput
@@ -71,7 +71,8 @@ class WorkoutTabViewModel @Inject constructor(
         // tab), not on a lifecycle timer — a passive progress widget, not date-critical business
         // logic like StreakCalculator's other consumers (Calendar/Profile), which resolve it on
         // RESUME specifically to survive a real midnight/timezone change mid-visit.
-        val (firstDayOfWeek, completed) = heatmapInput
+        val (completed, settings) = heatmapInput
+        val firstDayOfWeek = settings.firstDayOfWeek
         val zone = ZoneId.systemDefault()
         val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
         val heatmapCounts = StreakCalculator.countsByDate(completed.map { DashboardAggregator.localDate(it.startedAt, zone) })
@@ -87,6 +88,8 @@ class WorkoutTabViewModel @Inject constructor(
             heatmapCounts = heatmapCounts,
             heatmapToday = today,
             heatmapFirstDayOfWeek = firstDayOfWeek,
+            showHeatmap = settings.showHeatmap,
+            showGoals = settings.showGoals,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, WorkoutTabUiState())
 
@@ -185,6 +188,9 @@ data class WorkoutTabUiState(
     val heatmapCounts: Map<LocalDate, Int> = emptyMap(),
     val heatmapToday: LocalDate = LocalDate.EPOCH,
     val heatmapFirstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
+    /** Owner, 2026-09-03: Settings toggles hiding the heatmap/Goals sections below. Default on. */
+    val showHeatmap: Boolean = true,
+    val showGoals: Boolean = true,
 )
 
 data class FolderSection(val folder: RoutineFolderEntity, val routines: List<RoutineCardModel>)

@@ -45,9 +45,10 @@ class WorkoutTabViewModelTest {
         routineRepo: FakeRoutineRepository,
         clock: FakeClock = FakeClock(),
         workoutRepo: FakeWorkoutRepository = FakeWorkoutRepository(),
+        settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
     ): WorkoutTabViewModel {
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
-        return WorkoutTabViewModel(routineRepo, workoutRepo, FakeSettingsRepository(), WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, clock)
+        return WorkoutTabViewModel(routineRepo, workoutRepo, settingsRepo, WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, clock)
     }
 
     @Test
@@ -72,6 +73,23 @@ class WorkoutTabViewModelTest {
     fun `M8c heatmap has no counts when there are no completed workouts`() = runTest {
         val vm = newViewModel(FakeRoutineRepository())
         assertEquals(emptyMap<java.time.LocalDate, Int>(), vm.uiState.value.heatmapCounts)
+    }
+
+    @Test
+    fun `showHeatmap and showGoals default true`() = runTest {
+        val vm = newViewModel(FakeRoutineRepository())
+        assertEquals(true, vm.uiState.value.showHeatmap)
+        assertEquals(true, vm.uiState.value.showGoals)
+    }
+
+    @Test
+    fun `showHeatmap and showGoals false in Settings hide via uiState`() = runTest {
+        val settingsRepo = FakeSettingsRepository(
+            com.enil.logez.core.domain.model.UserSettings(showHeatmap = false, showGoals = false),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), settingsRepo = settingsRepo)
+        assertEquals(false, vm.uiState.value.showHeatmap)
+        assertEquals(false, vm.uiState.value.showGoals)
     }
 
     @Test

@@ -153,6 +153,22 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setIncludeWarmupsInStats,
                 )
             }
+            item(key = "show_heatmap") {
+                SettingsToggleRow(
+                    title = stringResource(R.string.settings_show_heatmap),
+                    subtitle = stringResource(R.string.settings_show_heatmap_subtitle),
+                    checked = settings.showHeatmap,
+                    onCheckedChange = viewModel::setShowHeatmap,
+                )
+            }
+            item(key = "show_goals") {
+                SettingsToggleRow(
+                    title = stringResource(R.string.settings_show_goals),
+                    subtitle = stringResource(R.string.settings_show_goals_subtitle),
+                    checked = settings.showGoals,
+                    onCheckedChange = viewModel::setShowGoals,
+                )
+            }
 
             // --- CALCULATORS (persist today; the visible affordances land in M17/M18) ---
             item(key = "section_calculators") { SettingsSectionHeader(stringResource(R.string.settings_section_calculators)) }

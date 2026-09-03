@@ -10,7 +10,6 @@ import com.enil.logez.core.domain.model.withBarAdded
 import com.enil.logez.core.domain.model.withBarRemoved
 import com.enil.logez.core.domain.model.withPlateAdded
 import com.enil.logez.core.domain.model.withPlateRemoved
-import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.defaultWarmupMethod
@@ -51,6 +50,8 @@ class SettingsViewModel @Inject constructor(
     fun setLivePrNotificationEnabled(value: Boolean) = write { setLivePrNotificationEnabled(value) }
     fun setRpeTrackingEnabled(value: Boolean) = write { setRpeTrackingEnabled(value) }
     fun setIncludeWarmupsInStats(value: Boolean) = write { setIncludeWarmupsInStats(value) }
+    fun setShowHeatmap(value: Boolean) = write { setShowHeatmap(value) }
+    fun setShowGoals(value: Boolean) = write { setShowGoals(value) }
 
     // Calculators
     fun setPlateCalculatorEnabled(value: Boolean) = write { setPlateCalculatorEnabled(value) }
@@ -110,9 +111,9 @@ class SettingsViewModel @Inject constructor(
 
     // Sounds
     fun setTimerSound(value: Int) = write { setTimerSound(value) }
-    fun setTimerVolume(value: VolumeLevel) = write { setTimerVolume(value) }
-    fun setSetCompleteVolume(value: VolumeLevel) = write { setSetCompleteVolume(value) }
-    fun setPrVolume(value: VolumeLevel) = write { setPrVolume(value) }
+    fun setTimerVolume(value: Float) = write { setTimerVolume(value) }
+    fun setSetCompleteVolume(value: Float) = write { setSetCompleteVolume(value) }
+    fun setPrVolume(value: Float) = write { setPrVolume(value) }
 
     private fun write(block: suspend SettingsRepository.() -> Unit) {
         viewModelScope.launch { settingsRepository.block() }

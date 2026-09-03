@@ -4,7 +4,6 @@ import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
-import com.enil.logez.core.domain.model.VolumeLevel
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import java.time.DayOfWeek
@@ -25,9 +24,9 @@ interface SettingsRepository {
 
     suspend fun setDefaultRestTimerSeconds(value: Int)
     suspend fun setTimerSound(value: Int)
-    suspend fun setTimerVolume(value: VolumeLevel)
-    suspend fun setSetCompleteVolume(value: VolumeLevel)
-    suspend fun setPrVolume(value: VolumeLevel)
+    suspend fun setTimerVolume(value: Float)
+    suspend fun setSetCompleteVolume(value: Float)
+    suspend fun setPrVolume(value: Float)
     suspend fun setPreviousValuesMode(value: PreviousValuesMode)
     suspend fun setWarmupCalculatorEnabled(value: Boolean)
     suspend fun setWarmupMethod(value: List<WarmupStep>)
@@ -39,4 +38,6 @@ interface SettingsRepository {
     suspend fun setSmartSupersetScrolling(value: Boolean)
     suspend fun setInlineTimerEnabled(value: Boolean)
     suspend fun setLivePrNotificationEnabled(value: Boolean)
+    suspend fun setShowHeatmap(value: Boolean)
+    suspend fun setShowGoals(value: Boolean)
 }

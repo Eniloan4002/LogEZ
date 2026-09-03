@@ -174,34 +174,40 @@ fun WorkoutTabScreen(
             // last routine card can scroll clear of it instead of sitting behind it forever.
             contentPadding = PaddingValues(bottom = padding.calculateBottomPadding()),
         ) {
-            item {
-                // M8c: progress heatmap at the very top, before any workout feature — a passive
-                // overview, not something the user acts on, so it never competes with
-                // Start/routines for the first tap.
-                LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                    Column(modifier = Modifier.padding(Spacing.md)) {
-                        Text(
-                            stringResource(R.string.workout_heatmap_title),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        HeatmapGrid(
-                            countsByDate = uiState.heatmapCounts,
-                            today = uiState.heatmapToday,
-                            firstDayOfWeek = uiState.heatmapFirstDayOfWeek,
-                            modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
-                        )
+            // Owner, 2026-09-03: both are now Settings-toggleable (default on, so this changes
+            // nothing until a user actually turns one off).
+            if (uiState.showHeatmap) {
+                item {
+                    // M8c: progress heatmap at the very top, before any workout feature — a passive
+                    // overview, not something the user acts on, so it never competes with
+                    // Start/routines for the first tap.
+                    LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+                        Column(modifier = Modifier.padding(Spacing.md)) {
+                            Text(
+                                stringResource(R.string.workout_heatmap_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            HeatmapGrid(
+                                countsByDate = uiState.heatmapCounts,
+                                today = uiState.heatmapToday,
+                                firstDayOfWeek = uiState.heatmapFirstDayOfWeek,
+                                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+                            )
+                        }
                     }
                 }
             }
 
-            item {
-                // M8d: Goals card, right below the heatmap — both are "progress" widgets, kept
-                // together above the actionable Start/routines content.
-                GoalsSection(
-                    uiState = goalsUiState,
-                    onCreateGoal = goalsViewModel::createGoal,
-                    onDeleteGoal = goalsViewModel::deleteGoal,
-                )
+            if (uiState.showGoals) {
+                item {
+                    // M8d: Goals card, right below the heatmap — both are "progress" widgets, kept
+                    // together above the actionable Start/routines content.
+                    GoalsSection(
+                        uiState = goalsUiState,
+                        onCreateGoal = goalsViewModel::createGoal,
+                        onDeleteGoal = goalsViewModel::deleteGoal,
+                    )
+                }
             }
 
             if (uiState.isLoading) return@LazyColumn
