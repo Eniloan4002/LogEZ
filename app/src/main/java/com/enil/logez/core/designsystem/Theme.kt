@@ -9,7 +9,7 @@ private val DarkColors = darkColorScheme(
     onPrimary = Neutral950,
     primaryContainer = Neutral900,
     onPrimaryContainer = NeonGreen,
-    // Dark text on every green fill: light-on-DeepGreen measures 3.02:1 (fails), dark-on 5.65:1.
+    // Dark text on every green fill: light-on-DeepGreen measures 3.30:1 (fails), dark-on 5.17:1.
     secondary = DeepGreen,
     onSecondary = Neutral950,
     secondaryContainer = DeepGreen,
