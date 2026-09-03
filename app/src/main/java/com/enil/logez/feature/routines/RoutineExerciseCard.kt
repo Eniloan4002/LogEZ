@@ -289,10 +289,20 @@ private fun SetRow(
             }
         }
         if (TargetField.DURATION in fields) {
-            IntCell(value = set.targetDurationSeconds, onValueChange = onDurationChange, modifier = Modifier.weight(1f))
+            IntCell(
+                value = set.targetDurationSeconds,
+                onValueChange = onDurationChange,
+                modifier = Modifier.weight(1f),
+                suffix = stringResource(R.string.workout_unit_suffix_seconds),
+            )
         }
         if (TargetField.DISTANCE in fields) {
-            NumberCell(value = set.targetDistanceMeters, onValueChange = onDistanceChange, modifier = Modifier.weight(1f))
+            NumberCell(
+                value = set.targetDistanceMeters,
+                onValueChange = onDistanceChange,
+                modifier = Modifier.weight(1f),
+                suffix = stringResource(R.string.workout_unit_suffix_meters),
+            )
         }
         if (isCircuit) {
             // Keep the column grid aligned with the regular layout's trailing delete slot.
@@ -336,7 +346,7 @@ private fun boxedFieldColors() = OutlinedTextFieldDefaults.colors(
 )
 
 @Composable
-private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifier: Modifier = Modifier) {
+private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifier: Modifier = Modifier, suffix: String? = null) {
     var text by remember(value) { mutableStateOf(value?.let { formatTargetNumber(it) }.orEmpty()) }
     OutlinedTextField(
         value = text,
@@ -348,6 +358,7 @@ private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifie
         singleLine = true,
         shape = RoundedCornerShape(Radius.sm),
         colors = boxedFieldColors(),
+        suffix = suffix?.let { s -> { Text(s) } },
         modifier = modifier.padding(horizontal = Spacing.xxs),
     )
 }
@@ -373,7 +384,7 @@ private fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Doubl
 }
 
 @Composable
-private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, modifier: Modifier = Modifier) {
+private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, modifier: Modifier = Modifier, suffix: String? = null) {
     var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
     OutlinedTextField(
         value = text,
@@ -385,6 +396,7 @@ private fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, modifier: Modifi
         singleLine = true,
         shape = RoundedCornerShape(Radius.sm),
         colors = boxedFieldColors(),
+        suffix = suffix?.let { s -> { Text(s) } },
         modifier = modifier.padding(horizontal = Spacing.xxs),
     )
 }

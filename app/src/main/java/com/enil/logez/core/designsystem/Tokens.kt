@@ -41,10 +41,12 @@ object SetTable {
     /** SET/ROUND number cell — "ROUND" is the widest label sharing this slot. */
     val setCell: Dp = 48.dp
 
-    /** PREVIOUS column — sized against the boxed-cell era's tighter row budget: the header fits
-     whole and typical values ("50 kg × 10") render un-broken; the longest values ellipsize inside
-     their box so the weight inputs keep room for five characters ("102.5"). */
-    val previousCell: Dp = 84.dp
+    /** PREVIOUS column (Owner, 2026-09-03: widened from 84dp — "10 reps @…" was cutting off before
+     the RPE suffix). Wide enough for typical values with an RPE suffix ("10 reps @ 8.5", "50 kg ×
+     10 @ 8") to render un-broken; the reclaimed width comes out of the weighted value cells
+     (REPS/KG/TIME/DISTANCE), which is fine at typical digit counts. Only pathological cases
+     (fractional weight + RPE, e.g. "102.5 kg × 10 @ 8.5") still ellipsize inside the box. */
+    val previousCell: Dp = 112.dp
 
     val rpeCell: Dp = 44.dp
 

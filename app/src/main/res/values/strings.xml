@@ -290,6 +290,8 @@
     <string name="workout_rpe_none">No RPE set</string>
     <string name="workout_rpe_clear">Clear</string>
     <string name="workout_col_custom_metric">COUNT</string>
+    <string name="workout_unit_suffix_seconds">s</string>
+    <string name="workout_unit_suffix_meters">m</string>
     <string name="workout_check_set">Complete set</string>
     <string name="workout_failure_error">Log the last completed rep before checking off a failure set.</string>
     <string name="workout_resume_title">Resume workout in progress?</string>

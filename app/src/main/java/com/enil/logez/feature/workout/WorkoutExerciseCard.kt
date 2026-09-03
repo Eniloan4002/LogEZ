@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.BasicTextField
@@ -83,6 +84,11 @@ import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.targetFields
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+
+/** REPS never needs more than 1-2 digits, so it's the weighted column that shrinks to fund the
+ * wider PREVIOUS cell (Owner, 2026-09-03) — KG/TIME/DISTANCE keep the full share so 5-char values
+ * like "154.3" stay whole. Shared by the header row and [SetRow] so the grid stays aligned. */
+private const val REPS_COLUMN_WEIGHT = 0.7f
 
 /** One `workout_exercises` card (PHASE2_PLAN.md §5.1.3): header, notes, PREVIOUS-aware set table with check-off. */
 @Composable
@@ -285,7 +291,10 @@ private fun SetTable(
             if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             // Mirrors the row's trailing calculator button so the KG header stays over its cell.
             if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
-            if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            // REPS gets a smaller weight than KG/TIME/DISTANCE (Owner, 2026-09-03): it only ever
+            // needs 1-2 digits, so it's the column that gives up width to the widened PREVIOUS
+            // cell, leaving KG room for 5-char values like "154.3" (must stay whole — M18 history).
+            if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(REPS_COLUMN_WEIGHT), textAlign = TextAlign.Center)
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell, textAlign = TextAlign.Center)
@@ -453,7 +462,7 @@ internal fun SetRow(
             }
         }
         if (TargetField.REPS in fields) {
-            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(REPS_COLUMN_WEIGHT))
         }
         if (TargetField.DURATION in fields) {
             // Leaf-scoped (spine rule): only collected/ticking while this exact row is the running inline timer.
@@ -463,6 +472,7 @@ internal fun SetRow(
                 onValueChange = onDurationChange,
                 enabled = fieldsEnabled && !inlineTimerRunning,
                 modifier = Modifier.weight(1f),
+                suffix = stringResource(R.string.workout_unit_suffix_seconds),
             )
             if (showInlineTimer && !set.isCompleted) {
                 IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(32.dp)) {
@@ -474,7 +484,13 @@ internal fun SetRow(
             }
         }
         if (TargetField.DISTANCE in fields) {
-            NumberCell(value = set.distanceMeters, onValueChange = onDistanceChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            NumberCell(
+                value = set.distanceMeters,
+                onValueChange = onDistanceChange,
+                enabled = fieldsEnabled,
+                modifier = Modifier.weight(1f),
+                suffix = stringResource(R.string.workout_unit_suffix_meters),
+            )
         }
         if (showRpe) {
             RpeCell(
@@ -561,7 +577,7 @@ internal fun boxedFieldColors() = OutlinedTextFieldDefaults.colors(
 )
 
 @Composable
-internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null) {
     var text by remember(value) { mutableStateOf(value?.let { formatTargetNumber(it) }.orEmpty()) }
     CompactBoxedTextField(
         text = text,
@@ -569,6 +585,7 @@ internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enable
         enabled = enabled,
         keyboardType = KeyboardType.Decimal,
         modifier = modifier,
+        suffix = suffix,
     )
 }
 
@@ -597,7 +614,7 @@ internal fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Doub
 }
 
 @Composable
-internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null) {
     var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
     CompactBoxedTextField(
         text = text,
@@ -605,6 +622,7 @@ internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolea
         enabled = enabled,
         keyboardType = KeyboardType.Number,
         modifier = modifier,
+        suffix = suffix,
     )
 }
 
@@ -612,7 +630,19 @@ internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolea
  * The uniform boxed input all three value cells share. A plain OutlinedTextField reserves ~16dp
  * of horizontal content padding per side — at the set table's cell widths that leaves room for
  * barely two characters ("32.5" rendering as "3"), so this drops down to BasicTextField +
- * DecorationBox with compact padding and centered text at the shared [SetTable.cellHeight].
+ * DecorationBox with compact padding at the shared [SetTable.cellHeight].
+ *
+ * Owner (2026-09-03): center the displayed value. The real, editable [BasicTextField] stays
+ * start-aligned and its own text is made transparent while unfocused — start alignment is kept
+ * because singleLine BasicTextField auto-scrolls its content to keep the cursor in view, and that
+ * scroll math is built around start-aligned text: TextAlign.Center fought it once a value was
+ * wider than the box could show unfocused, rendering a 4-5 char value like an LB-converted
+ * "71.7"/"154.3" as a single clipped-looking digit (found live, M18). A separate plain [Text] —
+ * which has no such scroll behavior — renders on top, centered, whenever the field isn't focused;
+ * the moment the user taps in to edit, the overlay disappears and the real field (start-aligned,
+ * the already-verified behavior) takes over until they move on. `suffix` (e.g. "s"/"m") is
+ * decoration-only chrome from [OutlinedTextFieldDefaults.DecorationBox] and isn't part of the
+ * editable text, so it can't interfere with parsing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -622,51 +652,63 @@ private fun CompactBoxedTextField(
     enabled: Boolean,
     keyboardType: KeyboardType,
     modifier: Modifier = Modifier,
+    suffix: String? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
     val colors = boxedFieldColors()
-    BasicTextField(
-        value = text,
-        onValueChange = onTextChange,
-        enabled = enabled,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        singleLine = true,
-        // bodyMedium, not bodyLarge: at these cell widths the difference is "102.5" fitting whole
-        // versus clipping to a sliver.
-        //
-        // NOT centered: singleLine BasicTextField auto-scrolls its content horizontally to keep
-        // the cursor in view, and that scroll math is built around start-aligned text. Center
-        // alignment fights it once a value is wider than the box can show unfocused — a 4-5 char
-        // value like an LB-converted "71.7"/"154.3" rendered as a single clipped-looking digit
-        // ("7", "1") instead of the whole string (found live: switching units to lb on an
-        // auto-filled row). Start alignment (the default) has no such interaction and is also the
-        // normal convention for a numeric input field.
-        textStyle = MaterialTheme.typography.bodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-        ),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-        interactionSource = interactionSource,
-        modifier = modifier.padding(horizontal = 2.dp).height(SetTable.cellHeight),
-    ) { innerTextField ->
-        OutlinedTextFieldDefaults.DecorationBox(
+    val textColor = MaterialTheme.colorScheme.onSurface
+
+    Box(modifier = modifier.padding(horizontal = 2.dp).height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
+        BasicTextField(
             value = text,
-            innerTextField = innerTextField,
+            onValueChange = onTextChange,
             enabled = enabled,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             singleLine = true,
-            visualTransformation = VisualTransformation.None,
+            // bodyMedium, not bodyLarge: at these cell widths the difference is "102.5" fitting
+            // whole versus clipping to a sliver. Transparent while unfocused — see class doc: the
+            // centered overlay Text below is what's actually visible at rest.
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = if (isFocused) textColor else Color.Transparent,
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             interactionSource = interactionSource,
-            colors = colors,
-            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-            container = {
-                OutlinedTextFieldDefaults.Container(
-                    enabled = enabled,
-                    isError = false,
-                    interactionSource = interactionSource,
-                    colors = colors,
-                    shape = RoundedCornerShape(Radius.sm),
-                )
-            },
-        )
+            modifier = Modifier.fillMaxSize(),
+        ) { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = text,
+                innerTextField = innerTextField,
+                enabled = enabled,
+                singleLine = true,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interactionSource,
+                colors = colors,
+                suffix = suffix?.let { s -> { Text(s, style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) } },
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                container = {
+                    OutlinedTextFieldDefaults.Container(
+                        enabled = enabled,
+                        isError = false,
+                        interactionSource = interactionSource,
+                        colors = colors,
+                        shape = RoundedCornerShape(Radius.sm),
+                    )
+                },
+            )
+        }
+        if (!isFocused && text.isNotEmpty()) {
+            // Nudged off dead-center when a suffix docks at the box's trailing edge (DecorationBox
+            // shares the same row), so the value centers in the space actually left for it rather
+            // than under the suffix.
+            Text(
+                text,
+                style = MaterialTheme.typography.bodyMedium.copy(color = textColor),
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                modifier = if (suffix != null) Modifier.padding(end = 14.dp) else Modifier,
+            )
+        }
     }
 }
 
