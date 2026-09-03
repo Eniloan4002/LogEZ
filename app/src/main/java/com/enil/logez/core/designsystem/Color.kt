@@ -3,11 +3,15 @@ package com.enil.logez.core.designsystem
 import androidx.compose.ui.graphics.Color
 
 /**
- * logEZ palette v4.0 "Neon Lab, mono-green" — dark-only (Owner directive, unchanged since launch).
- * Narrows v3.x's three-hue accent set (green + amber + blue) to **black, white and green only**
- * (Owner directive 2026-08-27). Hierarchy is now carried by *vibrancy and lightness within green*
- * rather than by hue: the more vibrant/lighter a green, the more primary the thing wearing it.
- * See docs/adr/0003-neon-lab-rebrand.md for the full rationale and every contrast number.
+ * logEZ palette v5.0 "Neon Lab, root #CAFF00" — dark-only (Owner directive, unchanged since launch).
+ * v4.0 narrowed the palette to black, white and green only; v5.0 (Owner directive, 2026-09-03)
+ * re-roots that green on [NeonGreen] = `#CAFF00` and rebuilds every other green in the file — the
+ * two derived accents, the muted warm-up tone, and the nine-step superset ramp — as lightness/
+ * saturation variants of that same hue (H≈72.5°) instead of the old independently-hand-picked
+ * values, so "every green in the app" now traces back to one root. Hierarchy is still carried by
+ * vibrancy and lightness within green: the more vibrant/lighter, the more primary the thing
+ * wearing it. See docs/adr/0006-root-green-caff00.md for the full rationale and every contrast
+ * number (computed via WCAG relative-luminance contrast and CIE76 deltaE, not picked by eye).
  */
 
 // Neutrals — the "black and white" half of the palette. Unchanged from v3.x.
@@ -19,44 +23,45 @@ val Neutral800 = Color(0xFF1C2225) // surfaceVariant — chip fills, subtly rais
 val Neutral900 = Color(0xFF12161A) // surface — cards
 val Neutral950 = Color(0xFF0A0D0F) // background
 
-// Brand greens, ordered by vibrancy = ordered by prominence. Every value below was verified against
-// computed WCAG contrast on Neutral950, and against CIE deltaE separation from its siblings, rather
-// than picked by eye (see the ADR's v4.0 table).
-val NeonGreen = Color(0xFF39FF6E) // primary — the hero: CTAs, active states, chart fills (14.58:1)
-val SpringGreen = Color(0xFFB8FF5C) // tertiary — selection/highlight, a lighter yellow-green (16.24:1)
-val DeepGreen = Color(0xFF12A65A) // secondary — filled banners; recedes on purpose (6.15:1)
+// Brand greens, ordered by vibrancy = ordered by prominence. Every value below is [NeonGreen]'s own
+// hue (H≈72.5°) at a different lightness/saturation, verified against computed WCAG contrast on
+// Neutral950 rather than picked by eye (see the ADR's v5.0 table).
+val NeonGreen = Color(0xFFCAFF00) // primary — the root: CTAs, active states, chart fills (16.54:1)
+val SpringGreen = Color(0xFFE1FF70) // tertiary — selection/highlight, a paler tint of the root (17.40:1)
+val DeepGreen = Color(0xFF779504) // secondary — filled banners; recedes on purpose (5.66:1)
 
 // Semantic — deliberately NOT part of the brand palette.
 /** Destructive actions only. Stays red on purpose: "delete is red" is a safety convention, not branding. */
 val Danger500 = Color(0xFFFF5A50)
 
 /**
- * Warm-up set badges. Was a hazard-amber in v3.x; with yellow removed it becomes a *muted, low-vibrancy*
- * green, which fits the new hierarchy rule better than the amber ever did — a warm-up set is a lesser
- * set, and now it literally reads as a lesser green (5.04:1).
+ * Warm-up set badges. A muted, low-vibrancy tint of the root hue — deliberately less vibrant than
+ * [DeepGreen] so the hierarchy rule holds: a warm-up set is a lesser set, and now it literally
+ * reads as a lesser green (5.16:1).
  */
-val Warning500 = Color(0xFF5E8C6A)
+val Warning500 = Color(0xFF7D894D)
 
 /**
  * Superset group colors (PHASE2_PLAN.md §5.1.2) — indexed by `supersetGroup % SupersetPalette.size`.
  *
- * v4.0 rebuilds these as a green-only ramp (Owner directive: no blue/amber/coral/plum anywhere).
- * These have one hard functional requirement — group A must be tellable from group B at badge size —
- * so the nine steps were derived by optimizing for *maximum minimum pairwise CIE deltaE* within a
- * green-only hue band (100°-158°, i.e. yellow-green through spring-green, deliberately stopping short
- * of anything that reads as cyan), subject to every step clearing 4.5:1 on [Neutral950]. Result:
- * worst pair deltaE 30.4 (a naive lightness-only ramp scored 12.9, well into "these two look the
- * same" territory). Ordered lightest-first so lower group indices — the ones a typical routine
- * actually uses — are the most vibrant, matching the palette's own hierarchy rule.
+ * v5.0 rebuilds these as tints/shades of the [NeonGreen] root hue (Owner directive, 2026-09-03:
+ * every green in the app "falls under" the root). These have one hard functional requirement —
+ * group A must be tellable from group B at badge size — so the nine steps were derived by
+ * optimizing for *maximum minimum pairwise CIE deltaE* within a narrow band around the root hue
+ * (68°-142°, yellow-green through spring-green, staying clear of both true yellow and anything
+ * that reads as cyan), subject to every step clearing 4.5:1 on [Neutral950] and every step reading
+ * as visibly distinct from the root itself (deltaE > 8 from `#CAFF00`). Result: worst pair deltaE
+ * 28.77 (comparable to v4.0's 30.4). Ordered lightest-first so lower group indices — the ones a
+ * typical routine actually uses — are the most vibrant, matching the palette's own hierarchy rule.
  */
 val SupersetPalette = listOf(
-    Color(0xFFADFF83), // yellow-green
-    Color(0xFF06FF8C), // spring green
-    Color(0xFFBCE6D7), // pale sage
-    Color(0xFF0AFF05), // pure green
-    Color(0xFF4FF1B6), // mint
-    Color(0xFFA5D48E), // sage
-    Color(0xFF38C412), // grass
-    Color(0xFF47A33E), // forest
-    Color(0xFF3B9B78), // deep emerald
+    Color(0xFFF0FF8F), // pale yellow-green
+    Color(0xFFE0FF14), // vivid yellow-green
+    Color(0xFF66FF99), // mint
+    Color(0xFF04FF00), // pure green
+    Color(0xFF90F04C), // yellow-green
+    Color(0xFFA8E6BD), // pale sage
+    Color(0xFF8DB30F), // olive-green
+    Color(0xFF009914), // forest
+    Color(0xFF7A8627), // deep olive
 )
