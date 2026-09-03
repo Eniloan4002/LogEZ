@@ -125,8 +125,12 @@ fun WorkoutTabScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            // Tab roots live inside LogEzApp's Scaffold, whose innerPadding already pushes this
+            // whole NavHost below the status bar — TopAppBar's default windowInsets would re-apply
+            // the status-bar inset and double the empty space above the header, so it is zeroed.
             TopAppBar(
                 title = { ScreenTitle(stringResource(R.string.workout_tab_title)) },
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
                     IconButton(onClick = { showCreateFolder = true }) {
                         Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.workout_new_folder))

@@ -86,10 +86,16 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
-    /** Returns all sets for a workout grouped by exercise ID — replaces N per-exercise queries with one. */
-    suspend fun getAllSetsForWorkoutGroupedByExercise(workoutId: String): Map<String, List<WorkoutSetEntity>> {
-        val rows = dao.getAllSetsForWorkoutGroupedByExercise(workoutId)
-        return rows.groupBy({ it.exerciseId }, { row ->
+    /**
+     * Returns all sets for a workout grouped by `workout_exercise_id` — replaces N per-instance
+     * queries with one. Keyed by the workout-exercise instance id (NOT the exercise id): the same
+     * exercise can appear twice in one workout (nothing dedups the picker or addExercises), and
+     * grouping by exercise id would merge both instances' sets into every card sharing the
+     * exercise, corrupting counts, PREVIOUS pairing, and persisted orderIndex on addSet.
+     */
+    suspend fun getAllSetsForWorkoutGroupedByWorkoutExercise(workoutId: String): Map<String, List<WorkoutSetEntity>> {
+        val rows = dao.getAllSetsForWorkout(workoutId)
+        return rows.groupBy({ it.workoutExerciseId }, { row ->
             WorkoutSetEntity(
                 id = row.id,
                 workoutExerciseId = row.workoutExerciseId,

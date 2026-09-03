@@ -64,7 +64,10 @@ fun HistoryScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_history)) }) },
+        // Tab roots live inside LogEzApp's Scaffold, whose innerPadding already pushes this whole
+        // NavHost below the status bar — TopAppBar's default windowInsets would re-apply the
+        // status-bar inset and double the empty space above the header, so it is zeroed too.
+        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_history)) }, windowInsets = WindowInsets(0, 0, 0, 0)) },
     ) { padding ->
         if (uiState.isLoading) return@Scaffold
 

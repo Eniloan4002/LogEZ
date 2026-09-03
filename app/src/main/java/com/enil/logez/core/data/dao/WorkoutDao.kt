@@ -176,8 +176,10 @@ interface WorkoutDao {
     suspend fun getStatRowsForExercises(exerciseIds: List<String>): List<ExerciseStatRowWithExerciseId>
 
     /**
-     * Returns all sets for a workout grouped by exercise — replaces N per-exercise queries
-     * with a single query. Used by WorkoutLoggerViewModel.init.
+     * Returns all sets for a workout in one query — replaces N per-workout-exercise queries.
+     * The repository groups the rows by `workout_exercise_id` (the instance id, never the
+     * exercise id — one exercise can appear twice in a workout). Used by
+     * WorkoutLoggerViewModel.init.
      */
     @Query(
         """
@@ -188,7 +190,7 @@ interface WorkoutDao {
         ORDER BY we.order_index ASC, ws.order_index ASC
         """,
     )
-    suspend fun getAllSetsForWorkoutGroupedByExercise(workoutId: String): List<WorkoutSetWithExerciseIdRow>
+    suspend fun getAllSetsForWorkout(workoutId: String): List<WorkoutSetWithExerciseIdRow>
 
     /**
      * Most recent `completed_at` per exercise, across all COMPLETED-workout sets — backs the
@@ -411,7 +413,7 @@ data class ExerciseStatRowWithExerciseId(
     @androidx.room.ColumnInfo(name = "exerciseId") val exerciseId: String,
 )
 
-/** Flat projection backing [WorkoutDao.getAllSetsForWorkoutGroupedByExercise]. */
+/** Flat projection backing [WorkoutDao.getAllSetsForWorkout]. */
 data class WorkoutSetWithExerciseIdRow(
     val id: String,
     @androidx.room.ColumnInfo(name = "workout_exercise_id") val workoutExerciseId: String,
