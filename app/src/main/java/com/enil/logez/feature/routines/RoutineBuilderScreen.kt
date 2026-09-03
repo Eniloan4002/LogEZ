@@ -132,10 +132,40 @@ fun RoutineBuilderScreen(
                 }
             }
 
-            if (!uiState.isLoading) {
+            // Owner, 2026-09-03: while the structure choice is still live (a brand-new routine,
+            // nothing added yet), it renders centered on screen instead of as the LazyColumn's
+            // first item — there's nothing to scroll yet, so a plain centered Box reads better
+            // than a top-anchored list row. The moment an exercise exists, or when editing a saved
+            // routine (structure is immutable after creation — StructureRow's own `enabled` and
+            // the ViewModel's setStructure() both already enforce that), it falls back to the
+            // original top-of-list placement, unchanged.
+            val structureIsLive = !uiState.isEditMode && uiState.exercises.isEmpty()
+            if (!uiState.isLoading && structureIsLive) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        StructureRow(
+                            structure = uiState.structure,
+                            enabled = true,
+                            onSelect = viewModel::setStructure,
+                        )
+                        if (uiState.structure == WorkoutStructure.CIRCUIT) {
+                            RoundsStepperCard(
+                                rounds = uiState.rounds,
+                                onAddRound = viewModel::addRound,
+                                onRemoveRound = {
+                                    if (viewModel.lastRoundHasTargets()) showRemoveRoundConfirm = true else viewModel.removeLastRound()
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            if (!uiState.isLoading && !structureIsLive) {
                 LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
                     // M11: structure choice near the title — pickable at create, greyed with a
                     // hint when editing (immutable after creation, like an exercise's type).
+                    // Rendered centered above instead, once (structureIsLive gates this whole
+                    // LazyColumn out until an exercise exists or the routine is being edited).
                     item {
                         StructureRow(
                             structure = uiState.structure,
@@ -183,7 +213,10 @@ fun RoutineBuilderScreen(
                         )
                     }
                 }
-
+            }
+            // Always rendered when not loading, regardless of structureIsLive — the centered
+            // empty-state branch above has nothing else on screen to add the first exercise from.
+            if (!uiState.isLoading) {
                 Button(
                     onClick = { pickerMode = ExercisePickerMode.ADD },
                     modifier = Modifier.fillMaxWidth().padding(Spacing.md),
