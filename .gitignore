@@ -31,8 +31,3 @@ generated-images/
 /.idea/
 *.local-bak
 *.disabled-by-claude
-
-# Stale nested clone of this repo (pre-share-feature history), left over from the
-# 2026-08-27 history unification; this outer repo is the canonical GitHub-connected
-# one. Ignored until the Owner deletes the folder.
-/LogEZ/
