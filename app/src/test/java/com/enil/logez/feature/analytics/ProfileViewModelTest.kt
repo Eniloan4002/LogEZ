@@ -1,18 +1,12 @@
 package com.enil.logez.feature.analytics
 
 import com.enil.logez.core.data.entity.WorkoutEntity
-import com.enil.logez.core.data.seed.DemoDataSeeder
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
-import com.enil.logez.fakes.FakeMeasurementRepository
-import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
-import com.enil.logez.fakes.FakeTransactionRunner
 import com.enil.logez.fakes.FakeWorkoutRepository
-import com.enil.logez.feature.history.WorkoutDeleter
-import com.enil.logez.feature.workout.finish.PersonalRecordsUpdater
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -55,15 +49,7 @@ class ProfileViewModelTest {
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
     ): ProfileViewModel {
-        val personalRecordsUpdater = PersonalRecordsUpdater(
-            workoutRepo, exerciseRepo, FakePersonalRecordsRepository(), FakeMeasurementRepository(), settingsRepo,
-        )
-        val demoDataSeeder = DemoDataSeeder(
-            exerciseRepo, workoutRepo, personalRecordsUpdater,
-            WorkoutDeleter(workoutRepo, personalRecordsUpdater, FakeTransactionRunner()),
-            FakeClock(currentMillis = nowMillis),
-        )
-        return ProfileViewModel(workoutRepo, exerciseRepo, settingsRepo, demoDataSeeder, FakeClock(currentMillis = nowMillis))
+        return ProfileViewModel(workoutRepo, exerciseRepo, settingsRepo, FakeClock(currentMillis = nowMillis))
             // The screen's RefreshOnResume drives the first load (no init load) — mirror it here.
             .also { it.refresh() }
     }

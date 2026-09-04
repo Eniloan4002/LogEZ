@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -16,7 +15,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,7 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.enil.logez.BuildConfig
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.BarChartEntry
@@ -67,7 +64,6 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isSeedingDemoData by viewModel.isSeedingDemoData.collectAsStateWithLifecycle()
 
     RefreshOnResume(viewModel::refresh)
 
@@ -84,9 +80,6 @@ fun ProfileScreen(
                 onCalendarClick = onCalendarClick,
                 onStatisticsClick = onStatisticsClick,
                 onSettingsClick = onSettingsClick,
-                isSeedingDemoData = isSeedingDemoData,
-                onSeedDemoData = viewModel::seedDemoData,
-                onClearDemoData = viewModel::clearDemoData,
             )
             profileStatsItems(uiState, onStatisticsClick)
         }
@@ -203,9 +196,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
     onCalendarClick: () -> Unit,
     onStatisticsClick: (TrainingMetric?) -> Unit,
     onSettingsClick: () -> Unit,
-    isSeedingDemoData: Boolean,
-    onSeedDemoData: () -> Unit,
-    onClearDemoData: () -> Unit,
 ) {
         item(key = "nav_statistics") {
             ListItem(
@@ -242,27 +232,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
-        }
-        // Dev-only tooling (seeding/clearing sample data) must never reach a release build — a real
-        // tester tapping "Clear demo data" would wipe their own logged workouts by mistake.
-        if (BuildConfig.DEBUG) {
-            item(key = "seed_demo_data") {
-                ListItem(
-                    modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onSeedDemoData),
-                    headlineContent = { Text(stringResource(R.string.profile_seed_demo_data_title)) },
-                    supportingContent = { Text(stringResource(R.string.profile_seed_demo_data_subtitle)) },
-                    trailingContent = { if (isSeedingDemoData) CircularProgressIndicator(modifier = Modifier.size(20.dp)) },
-                )
-                HorizontalDivider()
-            }
-            item(key = "clear_demo_data") {
-                ListItem(
-                    modifier = Modifier.fillMaxWidth().clickable(enabled = !isSeedingDemoData, onClick = onClearDemoData),
-                    headlineContent = { Text(stringResource(R.string.profile_clear_demo_data_title)) },
-                    supportingContent = { Text(stringResource(R.string.profile_clear_demo_data_subtitle)) },
-                )
-                HorizontalDivider()
-            }
         }
 }
 

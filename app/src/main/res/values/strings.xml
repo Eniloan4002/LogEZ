@@ -42,10 +42,6 @@
     <string name="profile_empty_title">No stats yet</string>
     <string name="profile_empty_subtitle">Log a session to begin tracking streaks, charts, and records.</string>
     <string name="profile_nav_exercises">Exercises</string>
-    <string name="profile_seed_demo_data_title">Seed demo data (dev tool)</string>
-    <string name="profile_seed_demo_data_subtitle">Adds 2 years of sample workouts so the dashboard and stats have something to show. Temporary — remove once a real Settings/dev tools screen exists.</string>
-    <string name="profile_clear_demo_data_title">Clear demo data</string>
-    <string name="profile_clear_demo_data_subtitle">Removes only the sample workouts added above — never your real logged history.</string>
     <string name="profile_nav_statistics">Statistics</string>
     <string name="profile_stat_workouts">Workouts</string>
     <string name="profile_stat_streak">Streak</string>
