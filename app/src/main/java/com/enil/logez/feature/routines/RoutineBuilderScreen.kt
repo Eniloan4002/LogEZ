@@ -2,6 +2,7 @@ package com.enil.logez.feature.routines
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,7 +43,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,6 +64,8 @@ import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -285,66 +295,169 @@ fun RoutineBuilderScreen(
 }
 
 /**
- * M11 structure choice — pill/mono-caps selection chips in the v4.0 chip vocabulary
- * (ShareSummaryDialog's FormatChip). Greyed with the immutable hint when editing.
+ * M11 structure choice — square icon cards (Owner, 2026-09-04: replaced the v4.0 pill chips with
+ * a hand-drawn mockup's label-plus-diagram cards; label at top, a small original line drawing
+ * below — straight lines with a down arrow for Standard, the same lines with a loop arrow for
+ * Circuit). Greyed with the immutable hint when editing, same as the chips before them.
  */
 @Composable
 private fun StructureRow(structure: WorkoutStructure, enabled: Boolean, onSelect: (WorkoutStructure) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(
-                stringResource(R.string.routine_structure_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = Spacing.xs),
+        Text(
+            stringResource(R.string.routine_structure_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = Spacing.xs),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            StructureCard(
+                labelRes = R.string.routine_structure_regular,
+                selected = structure == WorkoutStructure.REGULAR,
+                enabled = enabled,
+                onClick = { onSelect(WorkoutStructure.REGULAR) },
+                modifier = Modifier.weight(1f),
+                icon = { tint -> StandardFlowIcon(tint, Modifier.fillMaxSize()) },
             )
-            StructureChip(R.string.routine_structure_regular, selected = structure == WorkoutStructure.REGULAR, enabled = enabled) {
-                onSelect(WorkoutStructure.REGULAR)
-            }
-            StructureChip(R.string.routine_structure_circuit, selected = structure == WorkoutStructure.CIRCUIT, enabled = enabled) {
-                onSelect(WorkoutStructure.CIRCUIT)
-            }
+            StructureCard(
+                labelRes = R.string.routine_structure_circuit,
+                selected = structure == WorkoutStructure.CIRCUIT,
+                enabled = enabled,
+                onClick = { onSelect(WorkoutStructure.CIRCUIT) },
+                modifier = Modifier.weight(1f),
+                icon = { tint -> CircuitLoopIcon(tint, Modifier.fillMaxSize()) },
+            )
         }
         if (!enabled) {
             Text(
                 stringResource(R.string.routine_structure_immutable_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = Spacing.xxs),
+                modifier = Modifier.padding(top = Spacing.xs),
             )
         }
     }
 }
 
-/** Pill/mono-caps selection chip (v4.0 vocabulary — mirrors ShareSummaryDialog's FormatChip, plus a disabled state). */
+/** One structure option card: bold caps label top-left, an original line-diagram icon filling the
+ * rest. Selection/disabled fill and border language carried over unchanged from the old chip. */
 @Composable
-private fun StructureChip(@StringRes labelRes: Int, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(Radius.pill)
+private fun StructureCard(
+    @StringRes labelRes: Int,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    icon: @Composable (tint: Color) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(Radius.md)
     val primary = MaterialTheme.colorScheme.primary
-    val fill = when {
+    val borderColor = when {
         selected && enabled -> primary
         selected -> primary.copy(alpha = 0.38f)
-        else -> Color.Transparent
+        else -> MaterialTheme.colorScheme.outline
     }
-    Box(
-        modifier = Modifier
+    val contentColor = if (selected) primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier = modifier
+            .aspectRatio(0.95f)
             .clip(shape)
-            .background(fill)
-            .let { if (selected) it else it.border(1.dp, MaterialTheme.colorScheme.outline, shape) }
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(if (selected) 2.dp else 1.dp, borderColor, shape)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+            .padding(Spacing.md),
     ) {
         Text(
             stringResource(labelRes).uppercase(Locale.getDefault()),
-            style = LogEzMono.dataSmall.copy(
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.08.em,
-                color = when {
-                    selected -> MaterialTheme.colorScheme.onPrimary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            ),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.02.em),
+            color = contentColor,
         )
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxWidth(0.8f).aspectRatio(1f)) {
+                icon(contentColor)
+            }
+        }
+    }
+}
+
+/** Standard: a straight stack of set rows with a single downward arrow — logged top to bottom, once. */
+@Composable
+private fun StandardFlowIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val strokeW = w * 0.09f
+        val lineLeft = w * 0.06f
+        val lineRight = w * 0.62f
+        val rowCount = 5
+        val topPad = h * 0.06f
+        val bottomPad = h * 0.06f
+        val rowGap = (h - topPad - bottomPad) / (rowCount - 1)
+        for (i in 0 until rowCount) {
+            val y = topPad + rowGap * i
+            drawLine(color = tint, start = Offset(lineLeft, y), end = Offset(lineRight, y), strokeWidth = strokeW, cap = StrokeCap.Round)
+        }
+        val arrowX = w * 0.84f
+        val arrowBottom = h - bottomPad
+        drawLine(
+            color = tint,
+            start = Offset(arrowX, topPad),
+            end = Offset(arrowX, arrowBottom - w * 0.08f),
+            strokeWidth = strokeW,
+            cap = StrokeCap.Round,
+        )
+        val headHalf = w * 0.11f
+        val headPath = Path().apply {
+            moveTo(arrowX - headHalf, arrowBottom - w * 0.16f)
+            lineTo(arrowX + headHalf, arrowBottom - w * 0.16f)
+            lineTo(arrowX, arrowBottom)
+            close()
+        }
+        drawPath(headPath, color = tint)
+    }
+}
+
+/** Circuit: the same set rows, but the arrow loops back around — the same rows repeat for N rounds. */
+@Composable
+private fun CircuitLoopIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val strokeW = w * 0.09f
+        val lineLeft = w * 0.08f
+        val lineRight = w * 0.58f
+        val rowCount = 4
+        val topPad = h * 0.20f
+        val bottomPad = h * 0.20f
+        val rowGap = (h - topPad - bottomPad) / (rowCount - 1)
+        for (i in 0 until rowCount) {
+            val y = topPad + rowGap * i
+            drawLine(color = tint, start = Offset(lineLeft, y), end = Offset(lineRight, y), strokeWidth = strokeW, cap = StrokeCap.Round)
+        }
+        val loopR = w * 0.20f
+        val loopCx = w * 0.78f
+        val loopCy = h * 0.5f
+        val startAngle = -60f
+        val sweepAngle = 280f
+        drawArc(
+            color = tint,
+            startAngle = startAngle,
+            sweepAngle = sweepAngle,
+            useCenter = false,
+            topLeft = Offset(loopCx - loopR, loopCy - loopR),
+            size = Size(loopR * 2, loopR * 2),
+            style = Stroke(width = strokeW, cap = StrokeCap.Round),
+        )
+        val endAngleRad = Math.toRadians((startAngle + sweepAngle).toDouble())
+        val endX = loopCx + loopR * cos(endAngleRad).toFloat()
+        val endY = loopCy + loopR * sin(endAngleRad).toFloat()
+        val headSize = w * 0.10f
+        val headPath = Path().apply {
+            moveTo(endX - headSize, endY - headSize * 0.4f)
+            lineTo(endX + headSize * 0.3f, endY - headSize)
+            lineTo(endX + headSize * 0.5f, endY + headSize * 0.5f)
+            close()
+        }
+        drawPath(headPath, color = tint)
     }
 }
 
