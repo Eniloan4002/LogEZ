@@ -158,7 +158,7 @@ class CustomExerciseEditorViewModelTest {
     }
 
     @Test
-    fun `editing preserves instructions and bodyweight eligibility, which this screen has no fields for`() = runTest {
+    fun `editing an unrelated field preserves instructions and bodyweight eligibility untouched`() = runTest {
         val seed = seedExercise(id = "seed-1").copy(
             isCustom = false,
             instructions = "Grip the bar slightly wider than shoulder width.",
@@ -178,6 +178,27 @@ class CustomExerciseEditorViewModelTest {
         val stored = repo.getById("seed-1")!!
         assertEquals("Grip the bar slightly wider than shoulder width.", stored.instructions)
         assertTrue(stored.isBodyweightVolumeEligible)
+    }
+
+    @Test
+    fun `instructions load into UI state and an edit is saved, trimmed, on any exercise including a seed one`() = runTest {
+        val seed = seedExercise(id = "seed-1").copy(isCustom = false, instructions = "Old step 1.")
+        val repo = FakeExerciseRepository(listOf(seed))
+        val vm = CustomExerciseEditorViewModel(
+            SavedStateHandle(mapOf("exerciseId" to "seed-1")),
+            repo,
+            FakeExerciseMediaStore(),
+            FakeClock(),
+        )
+
+        assertEquals("Old step 1.", vm.uiState.value.instructions)
+
+        vm.onInstructionsChange("  Step 1: grip the bar.\nStep 2: brace and lift.  ")
+        vm.save {}
+
+        val stored = repo.getById("seed-1")!!
+        assertEquals("Step 1: grip the bar.\nStep 2: brace and lift.", stored.instructions)
+        assertTrue(stored.isCustom)
     }
 
     @Test

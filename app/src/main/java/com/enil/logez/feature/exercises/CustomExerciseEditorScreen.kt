@@ -224,6 +224,15 @@ fun CustomExerciseEditorScreen(
                 }
             }
 
+            OutlinedTextField(
+                value = uiState.instructions,
+                onValueChange = viewModel::onInstructionsChange,
+                label = { Text(stringResource(R.string.exercise_editor_instructions)) },
+                supportingText = { Text(stringResource(R.string.exercise_editor_instructions_hint)) },
+                minLines = 4,
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg),
+            )
+
             Spacer(modifier = Modifier.height(Spacing.xxl))
         }
     }

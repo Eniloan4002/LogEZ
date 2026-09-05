@@ -27,14 +27,15 @@ import kotlinx.coroutines.launch
  * null) = create mode; present = edit mode, where [ExerciseType] becomes immutable — "greyed with
  * a 'Type can't be changed' hint" (§5.2, library-analytics.md §1).
  *
- * Edit mode works on any exercise, seed or custom (Owner directive 2026-08-26) — this screen has
- * no fields for `instructions` or `isBodyweightVolumeEligible`, so [save] must carry both forward
- * from the loaded row rather than the old create-mode defaults it used to hardcode; a seeded
- * bodyweight movement (Pull-Up, Dip, ...) saving with `isBodyweightVolumeEligible` silently reset
- * to `false` would corrupt that exercise's volume math on every workout logged against it from
- * then on. [save] always writes `isCustom = true`, regardless of what was loaded — this is what
- * permanently exempts an edited seed row from a future seed-file sync (see `ExerciseDao.kt`'s
- * `updateSeedFields`/`pruneRetiredSeeds` KDoc), so an edit is never silently reverted later.
+ * Edit mode works on any exercise, seed or custom (Owner directive 2026-08-26). `instructions` is
+ * a real editable field (any exercise's how-to can be added/changed from the editor); this screen
+ * still has no field for `isBodyweightVolumeEligible`, so [save] must carry that one forward from
+ * the loaded row rather than the old create-mode default it used to hardcode — a seeded bodyweight
+ * movement (Pull-Up, Dip, ...) saving with it silently reset to `false` would corrupt that
+ * exercise's volume math on every workout logged against it from then on. [save] always writes
+ * `isCustom = true`, regardless of what was loaded — this is what permanently exempts an edited
+ * seed row from a future seed-file sync (see `ExerciseDao.kt`'s `updateSeedFields`/
+ * `pruneRetiredSeeds` KDoc), so an edit (instructions included) is never silently reverted later.
  */
 @HiltViewModel
 class CustomExerciseEditorViewModel @Inject constructor(
@@ -47,7 +48,6 @@ class CustomExerciseEditorViewModel @Inject constructor(
     val isEditMode: Boolean = editingId != null
 
     private var loadedCreatedAt: Long = clock.now().toEpochMilliseconds()
-    private var loadedInstructions: String = ""
     private var loadedIsBodyweightVolumeEligible: Boolean = false
 
     private val _uiState = MutableStateFlow(
@@ -66,7 +66,6 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 val existing = exerciseRepository.getById(id)
                 if (existing != null) {
                     loadedCreatedAt = existing.createdAt
-                    loadedInstructions = existing.instructions
                     loadedIsBodyweightVolumeEligible = existing.isBodyweightVolumeEligible
                     _uiState.update {
                         it.copy(
@@ -78,6 +77,7 @@ class CustomExerciseEditorViewModel @Inject constructor(
                             exerciseType = existing.exerciseType,
                             mediaPath = existing.mediaPath,
                             muscleHeads = existing.muscleHeads.toSet(),
+                            instructions = existing.instructions,
                         )
                     }
                 } else {
@@ -120,6 +120,8 @@ class CustomExerciseEditorViewModel @Inject constructor(
         _uiState.update { it.copy(exerciseType = type) }
     }
 
+    fun onInstructionsChange(value: String) = _uiState.update { it.copy(instructions = value) }
+
     fun onImagePicked(uri: Uri) {
         viewModelScope.launch {
             val path = mediaStore.copyToAppStorage(uri)
@@ -141,7 +143,7 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 primaryMuscleGroup = state.primaryMuscleGroup,
                 secondaryMuscleGroups = state.secondaryMuscleGroups.toList(),
                 equipment = state.equipment,
-                instructions = loadedInstructions,
+                instructions = state.instructions.trim(),
                 mediaPath = state.mediaPath,
                 isCustom = true,
                 isBodyweightVolumeEligible = loadedIsBodyweightVolumeEligible,
@@ -175,4 +177,5 @@ data class CustomExerciseEditorUiState(
     val exerciseType: ExerciseType = ExerciseType.WEIGHT_REPS,
     val mediaPath: String? = null,
     val muscleHeads: Set<MuscleHead> = emptySet(),
+    val instructions: String = "",
 )

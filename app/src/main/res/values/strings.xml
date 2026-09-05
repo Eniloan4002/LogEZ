@@ -129,6 +129,8 @@
     <string name="exercise_editor_secondary_muscles">Secondary muscles</string>
     <string name="exercise_editor_type">Exercise type</string>
     <string name="exercise_editor_type_immutable_hint">Type can\'t be changed after creation.</string>
+    <string name="exercise_editor_instructions">How-to</string>
+    <string name="exercise_editor_instructions_hint">One step per line</string>
 
     <string name="exercise_detail_tab_summary">Summary</string>
     <string name="exercise_detail_tab_history">History</string>
@@ -160,7 +162,7 @@
     <string name="exercise_detail_history_empty_title">No sessions logged yet</string>
     <string name="exercise_detail_history_empty_subtitle">Log this exercise in a workout to see it here.</string>
     <string name="exercise_detail_how_to_empty_title">No instructions for this exercise</string>
-    <string name="exercise_detail_how_to_empty_subtitle">Custom exercises can have instructions added when edited.</string>
+    <string name="exercise_detail_how_to_empty_subtitle">Add instructions by editing this exercise.</string>
     <string name="exercise_delete_confirm_title">Delete this exercise?</string>
     <string name="exercise_delete_confirm_body">Past workouts that used it are kept, but you won\'t be able to log it again.</string>
 
