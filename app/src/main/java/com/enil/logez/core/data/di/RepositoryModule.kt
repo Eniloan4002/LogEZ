@@ -3,6 +3,7 @@ package com.enil.logez.core.data.di
 import com.enil.logez.core.data.media.ExerciseMediaStore
 import com.enil.logez.core.data.media.ExerciseMediaStoreImpl
 import com.enil.logez.core.data.repository.ActiveSessionRepositoryImpl
+import com.enil.logez.core.data.repository.EntitlementRepositoryImpl
 import com.enil.logez.core.data.repository.ExerciseRepositoryImpl
 import com.enil.logez.core.data.repository.GoalRepositoryImpl
 import com.enil.logez.core.data.repository.MeasurementRepositoryImpl
@@ -12,6 +13,7 @@ import com.enil.logez.core.data.repository.RoutineRepositoryImpl
 import com.enil.logez.core.data.repository.SettingsRepositoryImpl
 import com.enil.logez.core.data.repository.WorkoutRepositoryImpl
 import com.enil.logez.core.domain.repository.ActiveSessionRepository
+import com.enil.logez.core.domain.repository.EntitlementRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.GoalRepository
 import com.enil.logez.core.domain.repository.MeasurementRepository
@@ -68,4 +70,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindGoalRepository(impl: GoalRepositoryImpl): GoalRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEntitlementRepository(impl: EntitlementRepositoryImpl): EntitlementRepository
 }

@@ -20,6 +20,7 @@ datastorePreferences = "1.1.7"
 kotlinxCoroutines = "1.9.0"
 kotlinxSerializationJson = "1.9.0"
 kotlinxDatetime = "0.7.1"
+billing = "9.1.0" # ADR-0008 — verify against https://developer.android.com/google/play/billing/release-notes before bumping
 
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -62,6 +63,8 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
+
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

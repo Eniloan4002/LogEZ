@@ -15,6 +15,7 @@ import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
 import com.enil.logez.core.data.dao.WorkoutDao
 import com.enil.logez.core.di.ActiveSessionDataStore
+import com.enil.logez.core.di.EntitlementDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -67,5 +68,14 @@ object DataModule {
     fun provideActiveSessionDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("logez_active_session") },
+        )
+
+    /** ADR-0008 — the offline-grace entitlement cache's own store, deliberately separate from settings. */
+    @Provides
+    @Singleton
+    @EntitlementDataStore
+    fun provideEntitlementDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.preferencesDataStoreFile("logez_entitlement") },
         )
 }

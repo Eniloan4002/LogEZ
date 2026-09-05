@@ -6,3 +6,10 @@ import javax.inject.Qualifier
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class ActiveSessionDataStore
+
+/** ADR-0008: the offline-grace entitlement cache's own `DataStore<Preferences>` — a separate store
+ * from settings, deliberately: entitlement state is Billing-verified and Owner-facing, not a user
+ * preference. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class EntitlementDataStore

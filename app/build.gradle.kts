@@ -109,6 +109,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 
+    // ADR-0008: entitlement checks only — no other network calls anywhere in the app.
+    implementation(libs.billing.ktx)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
