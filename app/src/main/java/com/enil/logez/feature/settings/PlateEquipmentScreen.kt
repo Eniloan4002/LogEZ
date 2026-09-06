@@ -1,5 +1,6 @@
 package com.enil.logez.feature.settings
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -58,6 +59,7 @@ fun PlateEquipmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { ScreenTitle(stringResource(R.string.settings_plate_equipment_row)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
