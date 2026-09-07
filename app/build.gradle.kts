@@ -112,6 +112,10 @@ dependencies {
     // ADR-0008: entitlement checks only — no other network calls anywhere in the app.
     implementation(libs.billing.ktx)
 
+    // M20a: long-press drag reorder for routine/exercise lists — replaces the arrow-button
+    // reorder mode. Re-attempt of the M3 library (removed then for blocking scroll — lessons 2026-08-23).
+    implementation(libs.reorderable)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

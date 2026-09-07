@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -37,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,6 +71,8 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,18 +137,6 @@ fun RoutineBuilderScreen(
                     }
                 }
             }
-            if (uiState.reorderModeActive) {
-                Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(Spacing.sm),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(stringResource(R.string.routine_builder_reorder_banner), modifier = Modifier.weight(1f))
-                        TextButton(onClick = viewModel::toggleReorderMode) { Text(stringResource(R.string.routine_builder_reorder_done)) }
-                    }
-                }
-            }
-
             // Owner, 2026-09-03: while the structure choice is still live (a brand-new routine,
             // nothing added yet), it renders centered on screen instead of as the LazyColumn's
             // first item — there's nothing to scroll yet, so a plain centered Box reads better
@@ -173,7 +166,24 @@ fun RoutineBuilderScreen(
                 }
             }
             if (!uiState.isLoading && !structureIsLive) {
-                LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
+                // M20a drag reorder. Reorderable's onMove fires on every hover swap and expects the
+                // list to already reflect the move when it returns, but the draft round-trips through
+                // MutableStateFlow -> combine -> stateIn -- so a screen-level optimistic copy absorbs
+                // the swaps synchronously and the ViewModel gets exactly one reorderExercises() on
+                // drop. remember(uiState.exercises) re-seeds it whenever the ViewModel emits.
+                val lazyListState = rememberLazyListState()
+                val localExercises = remember(uiState.exercises) {
+                    mutableStateListOf<RoutineExerciseDraft>().apply { addAll(uiState.exercises) }
+                }
+                val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+                    // Header items (structure row, rounds stepper) are unkeyed -> null -> ignored.
+                    val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
+                    val toKey = to.key as? String ?: return@rememberReorderableLazyListState
+                    val fromIndex = localExercises.indexOfFirst { it.id == fromKey }
+                    val toIndex = localExercises.indexOfFirst { it.id == toKey }
+                    if (fromIndex >= 0 && toIndex >= 0) localExercises.add(toIndex, localExercises.removeAt(fromIndex))
+                }
+                LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
                     // M11: structure choice near the title — pickable at create, greyed with a
                     // hint when editing (immutable after creation, like an exercise's type).
                     // Rendered centered above instead, once (structureIsLive gates this whole
@@ -196,33 +206,37 @@ fun RoutineBuilderScreen(
                             )
                         }
                     }
-                    items(items = uiState.exercises, key = { it.id }) { exercise ->
-                        val index = uiState.exercises.indexOf(exercise)
-                        RoutineExerciseCard(
-                            exercise = exercise,
-                            isCircuit = uiState.structure == WorkoutStructure.CIRCUIT,
-                            defaultRestTimerSeconds = uiState.defaultRestTimerSeconds,
-                            weightUnit = uiState.weightUnit,
-                            reorderModeActive = uiState.reorderModeActive,
-                            canMoveUp = index > 0,
-                            canMoveDown = index < uiState.exercises.lastIndex,
-                            onMoveUp = {
-                                val ids = uiState.exercises.map { it.id }.toMutableList()
-                                ids[index] = ids[index - 1].also { ids[index - 1] = ids[index] }
-                                viewModel.reorderExercises(ids)
-                            },
-                            onMoveDown = {
-                                val ids = uiState.exercises.map { it.id }.toMutableList()
-                                ids[index] = ids[index + 1].also { ids[index + 1] = ids[index] }
-                                viewModel.reorderExercises(ids)
-                            },
-                            supersetSelectionActive = uiState.supersetSelectionActive,
-                            isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
-                            viewModel = viewModel,
-                            onExerciseClick = { onExerciseClick(exercise.exerciseId) },
-                            onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
-                            onRestTimerClick = { restTimerTargetId = exercise.id },
-                        )
+                    items(items = localExercises, key = { it.id }) { exercise ->
+                        // animateItemModifier = Modifier: no sibling-slide animation -- the app's
+                        // near-zero-motion baseline (BRAND_IDENTITY §7); the Owner decides at the
+                        // M20a checkpoint whether to enable it.
+                        ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
+                            RoutineExerciseCard(
+                                exercise = exercise,
+                                isCircuit = uiState.structure == WorkoutStructure.CIRCUIT,
+                                defaultRestTimerSeconds = uiState.defaultRestTimerSeconds,
+                                weightUnit = uiState.weightUnit,
+                                dragHandle = {
+                                    Icon(
+                                        Icons.Filled.DragHandle,
+                                        contentDescription = stringResource(R.string.drag_handle_content_description),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .longPressDraggableHandle(
+                                                onDragStopped = { viewModel.reorderExercises(localExercises.map { it.id }) },
+                                            )
+                                            .padding(end = Spacing.sm),
+                                    )
+                                },
+                                isDragging = isDragging,
+                                supersetSelectionActive = uiState.supersetSelectionActive,
+                                isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
+                                viewModel = viewModel,
+                                onExerciseClick = { onExerciseClick(exercise.exerciseId) },
+                                onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
+                                onRestTimerClick = { restTimerTargetId = exercise.id },
+                            )
+                        }
                     }
                 }
             }

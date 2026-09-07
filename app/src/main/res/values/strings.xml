@@ -223,6 +223,7 @@
     <string name="routine_builder_superset_banner">Tap an exercise to group it into a superset</string>
     <string name="routine_builder_reorder">Reorder</string>
     <string name="routine_builder_reorder_banner">Drag exercises to reorder</string>
+    <string name="drag_handle_content_description">Drag to reorder</string>
     <string name="routine_builder_reorder_done">Done</string>
     <string name="routine_builder_menu_reorder">Reorder</string>
     <string name="routine_builder_menu_replace">Replace Exercise</string>

@@ -45,7 +45,6 @@ class RoutineBuilderViewModel @Inject constructor(
     private val draft = MutableStateFlow(RoutineDraft(id = "", folderId = null, createdAt = 0))
     private val isLoading = MutableStateFlow(true)
     private val supersetSource = MutableStateFlow<String?>(null)
-    private val reorderModeActive = MutableStateFlow(false)
     private var loadedSnapshot: RoutineDraft? = null
 
     val uiState: StateFlow<RoutineBuilderUiState> = combine(
@@ -53,8 +52,7 @@ class RoutineBuilderViewModel @Inject constructor(
         isLoading,
         settingsRepository.settings,
         supersetSource,
-        reorderModeActive,
-    ) { d, loading, settings, supersetSourceId, reorderMode ->
+    ) { d, loading, settings, supersetSourceId ->
         RoutineBuilderUiState(
             isLoading = loading,
             isEditMode = isEditMode,
@@ -68,7 +66,6 @@ class RoutineBuilderViewModel @Inject constructor(
             canSave = d.title.isNotBlank() && d.exercises.isNotEmpty(),
             supersetSelectionActive = supersetSourceId != null,
             supersetSourceExerciseId = supersetSourceId,
-            reorderModeActive = reorderMode,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, RoutineBuilderUiState())
 
@@ -226,8 +223,6 @@ class RoutineBuilderViewModel @Inject constructor(
         val byId = d.exercises.associateBy { it.id }
         d.copy(exercises = orderedIds.mapNotNull { byId[it] })
     }
-
-    fun toggleReorderMode() = reorderModeActive.update { !it }
 
     fun replaceExercise(exerciseDraftId: String, newExercise: Exercise) = updateDraft { d ->
         d.copy(
@@ -434,7 +429,6 @@ data class RoutineBuilderUiState(
     val canSave: Boolean = false,
     val supersetSelectionActive: Boolean = false,
     val supersetSourceExerciseId: String? = null,
-    val reorderModeActive: Boolean = false,
 )
 
 /** Appends copies of the last row's targets (fresh ids, NORMAL-safe) until the list is [rounds] long. */

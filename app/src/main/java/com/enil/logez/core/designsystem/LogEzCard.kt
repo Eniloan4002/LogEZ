@@ -8,6 +8,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -21,13 +22,15 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun LogEzCard(
     modifier: Modifier = Modifier,
+    /** M20a: `Elevation.dragging` while a reorderable card is being dragged; the default otherwise. */
+    elevation: Dp = Elevation.card,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(Radius.md),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = Elevation.card),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         content = content,
     )
