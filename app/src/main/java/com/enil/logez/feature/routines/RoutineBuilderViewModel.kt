@@ -7,6 +7,7 @@ import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
+import com.enil.logez.core.domain.reorderedBy
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.TargetField
@@ -219,9 +220,13 @@ class RoutineBuilderViewModel @Inject constructor(
         d.copy(exercises = cleanupOrphanSupersets(d.exercises.filterNot { it.id == exerciseId }))
     }
 
+    /**
+     * Applies a drag-reorder drop. Ids the caller does not name keep their relative order after the
+     * named ones (M20a): the id list comes from a screen-side optimistic copy, so a stale or partial
+     * list must degrade to a lost move, never to a dropped exercise.
+     */
     fun reorderExercises(orderedIds: List<String>) = updateDraft { d ->
-        val byId = d.exercises.associateBy { it.id }
-        d.copy(exercises = orderedIds.mapNotNull { byId[it] })
+        d.copy(exercises = d.exercises.reorderedBy(orderedIds) { it.id })
     }
 
     fun replaceExercise(exerciseDraftId: String, newExercise: Exercise) = updateDraft { d ->

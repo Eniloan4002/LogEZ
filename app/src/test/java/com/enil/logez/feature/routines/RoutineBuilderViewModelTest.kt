@@ -109,6 +109,42 @@ class RoutineBuilderViewModelTest {
     }
 
     @Test
+    fun `reorderExercises reorders the draft and save stamps orderIndex from the new position`() = runTest {
+        val repo = FakeRoutineRepository()
+        val vm = newViewModel(routineRepo = repo)
+        vm.onTitleChange("Push Day")
+        vm.addExercises(listOf(exercise("ex-a", "A"), exercise("ex-b", "B"), exercise("ex-c", "C")))
+        val draftIds = vm.uiState.value.exercises.map { it.id } // [a, b, c] as draft row ids
+
+        // M20a: the drag handle commits the full permuted id list exactly once on drop.
+        vm.reorderExercises(listOf(draftIds[2], draftIds[0], draftIds[1]))
+
+        assertEquals(listOf("ex-c", "ex-a", "ex-b"), vm.uiState.value.exercises.map { it.exerciseId })
+        val savedId = vm.save()!!
+        val persisted = repo.getExercisesForRoutine(savedId).sortedBy { it.orderIndex }
+        assertEquals(listOf("ex-c", "ex-a", "ex-b"), persisted.map { it.exerciseId })
+        assertEquals(listOf(0, 1, 2), persisted.map { it.orderIndex })
+    }
+
+    @Test
+    fun `reorderExercises appends any exercise the caller's id list omits, rather than dropping it`() = runTest {
+        // M20a: the screen sources the id list from an optimistic copy that can be a stale or
+        // partial snapshot (e.g. taken before an exercise was added mid-drag) -- an omitted id must
+        // never vanish from the draft.
+        val repo = FakeRoutineRepository()
+        val vm = newViewModel(routineRepo = repo)
+        vm.onTitleChange("Push Day")
+        vm.addExercises(listOf(exercise("ex-a", "A"), exercise("ex-b", "B"), exercise("ex-c", "C")))
+        val draftIds = vm.uiState.value.exercises.map { it.id } // [a, b, c]
+
+        vm.reorderExercises(listOf(draftIds[2], draftIds[0])) // b omitted
+
+        assertEquals(listOf("ex-c", "ex-a", "ex-b"), vm.uiState.value.exercises.map { it.exerciseId })
+        val savedId = vm.save()!!
+        assertEquals(3, repo.getExercisesForRoutine(savedId).size)
+    }
+
+    @Test
     fun `edit mode loads existing structure and save replaces it in place without moving position`() = runTest {
         val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
         val routineRepo = FakeRoutineRepository(

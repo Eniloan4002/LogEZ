@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,10 +59,12 @@ import androidx.compose.ui.unit.em
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.DragHandle
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.SyncOptimisticList
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
@@ -170,11 +171,9 @@ fun RoutineBuilderScreen(
                 // list to already reflect the move when it returns, but the draft round-trips through
                 // MutableStateFlow -> combine -> stateIn -- so a screen-level optimistic copy absorbs
                 // the swaps synchronously and the ViewModel gets exactly one reorderExercises() on
-                // drop. remember(uiState.exercises) re-seeds it whenever the ViewModel emits.
+                // drop. One list instance for the screen's life (see SyncOptimisticList for why).
                 val lazyListState = rememberLazyListState()
-                val localExercises = remember(uiState.exercises) {
-                    mutableStateListOf<RoutineExerciseDraft>().apply { addAll(uiState.exercises) }
-                }
+                val localExercises = remember { mutableStateListOf<RoutineExerciseDraft>().apply { addAll(uiState.exercises) } }
                 val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
                     // Header items (structure row, rounds stepper) are unkeyed -> null -> ignored.
                     val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
@@ -182,6 +181,16 @@ fun RoutineBuilderScreen(
                     val fromIndex = localExercises.indexOfFirst { it.id == fromKey }
                     val toIndex = localExercises.indexOfFirst { it.id == toKey }
                     if (fromIndex >= 0 && toIndex >= 0) localExercises.add(toIndex, localExercises.removeAt(fromIndex))
+                }
+                SyncOptimisticList(localExercises, uiState.exercises, reorderState.isAnyItemDragging)
+                val commitOrder = { viewModel.reorderExercises(localExercises.map { it.id }) }
+                // Accessibility "Move up/down" (DragHandle custom actions): one slot, then commit.
+                fun nudge(id: String, delta: Int) {
+                    val from = localExercises.indexOfFirst { it.id == id }
+                    val to = from + delta
+                    if (from < 0 || to !in localExercises.indices) return
+                    localExercises.add(to, localExercises.removeAt(from))
+                    commitOrder()
                 }
                 LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
                     // M11: structure choice near the title — pickable at create, greyed with a
@@ -217,15 +226,11 @@ fun RoutineBuilderScreen(
                                 defaultRestTimerSeconds = uiState.defaultRestTimerSeconds,
                                 weightUnit = uiState.weightUnit,
                                 dragHandle = {
-                                    Icon(
-                                        Icons.Filled.DragHandle,
-                                        contentDescription = stringResource(R.string.drag_handle_content_description),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .longPressDraggableHandle(
-                                                onDragStopped = { viewModel.reorderExercises(localExercises.map { it.id }) },
-                                            )
-                                            .padding(end = Spacing.sm),
+                                    val index = localExercises.indexOfFirst { it.id == exercise.id }
+                                    DragHandle(
+                                        modifier = Modifier.longPressDraggableHandle(onDragStopped = commitOrder),
+                                        onMoveUp = if (index > 0) ({ nudge(exercise.id, -1) }) else null,
+                                        onMoveDown = if (index in 0 until localExercises.lastIndex) ({ nudge(exercise.id, +1) }) else null,
                                     )
                                 },
                                 isDragging = isDragging,

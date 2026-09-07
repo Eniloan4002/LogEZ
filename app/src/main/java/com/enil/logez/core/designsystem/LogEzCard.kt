@@ -1,11 +1,13 @@
 package com.enil.logez.core.designsystem
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -26,14 +28,22 @@ fun LogEzCard(
     elevation: Dp = Elevation.card,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
+    // Deliberately Surface, not Card. Material3 1.4.0's non-clickable Card is exactly
+    // `Surface(shadowElevation = elevation.shadowElevation(enabled, interactionSource = null).value)
+    // { Column(content) }`, and that helper is `remember { mutableStateOf(defaultElevation) }` with
+    // no keys — the first elevation a card is composed with is latched for its whole life, so a
+    // later `elevation` change (the M20a drag lift) never reached the screen. Surface takes the
+    // Dp directly and re-draws on change; colors/shape/border are Card's defaults spelled out.
+    Surface(
         modifier = modifier,
         shape = RoundedCornerShape(Radius.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shadowElevation = elevation,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        content = content,
-    )
+    ) {
+        Column(content = content)
+    }
 }
 
 @Composable
