@@ -189,7 +189,6 @@
     <string name="workout_move_up">Move up</string>
     <string name="workout_move_down">Move down</string>
     <string name="workout_add_routine_to_folder">Add new routine</string>
-    <string name="workout_reorder">Reorder</string>
     <string name="workout_rename_folder">Rename folder</string>
     <string name="workout_delete_folder_title">Delete this folder?</string>
     <string name="workout_delete_folder_body">Its routines move to My Routines — nothing is deleted.</string>
@@ -221,11 +220,7 @@
     <string name="routine_builder_rest_timer_label">Rest Timer: %1$s</string>
     <string name="routine_builder_superset_chip">Superset</string>
     <string name="routine_builder_superset_banner">Tap an exercise to group it into a superset</string>
-    <string name="routine_builder_reorder">Reorder</string>
-    <string name="routine_builder_reorder_banner">Drag exercises to reorder</string>
     <string name="drag_handle_content_description">Drag to reorder</string>
-    <string name="routine_builder_reorder_done">Done</string>
-    <string name="routine_builder_menu_reorder">Reorder</string>
     <string name="routine_builder_menu_replace">Replace Exercise</string>
     <string name="routine_builder_menu_add_to_superset">Add to Superset</string>
     <string name="routine_builder_menu_remove_from_superset">Remove From Superset</string>

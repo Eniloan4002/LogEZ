@@ -124,6 +124,29 @@ class WorkoutTabViewModelTest {
     }
 
     @Test
+    fun `reorderRoutines within a folder only re-indexes that folder's routines`() = runTest {
+        val repo = FakeRoutineRepository(
+            folders = listOf(RoutineFolderEntity(id = "f1", name = "Push Pull", orderIndex = 0, createdAt = 0, updatedAt = 0)),
+            routines = listOf(
+                RoutineEntity(id = "p1", folderId = "f1", name = "Push", notes = null, orderIndex = 0, createdAt = 0, updatedAt = 0),
+                RoutineEntity(id = "p2", folderId = "f1", name = "Pull", notes = null, orderIndex = 1, createdAt = 0, updatedAt = 0),
+                RoutineEntity(id = "root", folderId = null, name = "Full Body", notes = null, orderIndex = 0, createdAt = 0, updatedAt = 0),
+            ),
+        )
+        val vm = newViewModel(repo)
+
+        // M20a: a drag inside folder f1 commits that folder's full id list, and nothing else.
+        vm.reorderRoutines(listOf("p2", "p1"))
+
+        val state = vm.uiState.value
+        assertEquals(listOf("p2", "p1"), state.folders.single().routines.map { it.routine.id })
+        assertEquals(0, repo.getRoutineById("p2")!!.orderIndex)
+        assertEquals(1, repo.getRoutineById("p1")!!.orderIndex)
+        assertEquals(0, repo.getRoutineById("root")!!.orderIndex) // untouched bucket
+        assertEquals("root", state.rootRoutines.single().routine.id)
+    }
+
+    @Test
     fun `creating a folder inserts it at the top and shifts existing folders down`() = runTest {
         val repo = FakeRoutineRepository(folders = listOf(RoutineFolderEntity(id = "f1", name = "Existing", orderIndex = 0, createdAt = 0, updatedAt = 0)))
         val vm = newViewModel(repo)

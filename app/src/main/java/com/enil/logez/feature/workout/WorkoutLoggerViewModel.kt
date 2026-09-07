@@ -9,6 +9,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.PreviousValueFormatter
 import com.enil.logez.core.domain.calc.WarmupCalculator
+import com.enil.logez.core.domain.reorderedBy
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
@@ -59,7 +60,6 @@ private data class ExercisesState(
 private data class WorkoutMeta(
     val workout: WorkoutEntity? = null,
     val supersetSourceId: String? = null,
-    val reorderModeActive: Boolean = false,
     val keepAwakeEnabled: Boolean = true,
     val inlineTimerEnabled: Boolean = true,
 )
@@ -122,7 +122,6 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val _editSaveState = MutableStateFlow<EditSaveState>(EditSaveState.Idle)
     val editSaveState: StateFlow<EditSaveState> = _editSaveState
     private val supersetSource = MutableStateFlow<String?>(null)
-    private val reorderModeActive = MutableStateFlow(false)
     private val keepAwakeEnabled = MutableStateFlow(true)
     private val inlineTimerEnabled = MutableStateFlow(true)
     /** §5.1.7: the RPE column and picker exist only when this setting is on. Like keepAwake/
@@ -185,8 +184,8 @@ class WorkoutLoggerViewModel @Inject constructor(
             ExercisesState(exercises = ex, isLoading = loading)
         },
         // Group 2: workout + UI flags
-        combine(workout, supersetSource, reorderModeActive, keepAwakeEnabled, inlineTimerEnabled) { w, src, reordering, keepAwake, inlineTimer ->
-            WorkoutMeta(workout = w, supersetSourceId = src, reorderModeActive = reordering,
+        combine(workout, supersetSource, keepAwakeEnabled, inlineTimerEnabled) { w, src, keepAwake, inlineTimer ->
+            WorkoutMeta(workout = w, supersetSourceId = src,
                 keepAwakeEnabled = keepAwake && !isEditMode, inlineTimerEnabled = inlineTimer && !isEditMode)
         },
         // Group 3: session state
@@ -228,7 +227,6 @@ class WorkoutLoggerViewModel @Inject constructor(
             exercises = exState.exercises,
             supersetSelectionActive = meta.supersetSourceId != null,
             supersetSourceExerciseId = meta.supersetSourceId,
-            reorderModeActive = meta.reorderModeActive,
             isPaused = session.isPaused,
             restExerciseId = session.restExerciseId,
             keepAwakeEnabled = meta.keepAwakeEnabled,
@@ -861,15 +859,17 @@ class WorkoutLoggerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Applies a drag-reorder drop. Ids the caller does not name keep their relative order after the
+     * named ones (M20a): the list comes from a screen-side optimistic copy, so a stale or partial id
+     * list must degrade to a lost move, never to a vanished exercise. Live mode writes the resulting
+     * full order through in one transaction; edit mode stamps it from list position on Save.
+     */
     fun reorderExercises(orderedIds: List<String>) {
-        updateExercises { list ->
-            val byId = list.associateBy { it.id }
-            orderedIds.mapNotNull { byId[it] }
-        }
-        persist { orderedIds.forEachIndexed { index, id -> workoutRepository.updateWorkoutExerciseOrderIndex(id, index) } }
+        updateExercises { list -> list.reorderedBy(orderedIds) { it.id } }
+        val fullOrder = exercises.value.map { it.id }
+        persist { workoutRepository.reorderWorkoutExercises(fullOrder) }
     }
-
-    fun toggleReorderMode() = reorderModeActive.update { !it }
 
     fun startSupersetSelection(sourceExerciseId: String) {
         // M11: no supersets inside a circuit — the circuit IS the sequence (UI hides the item too).
@@ -1051,7 +1051,6 @@ data class WorkoutLoggerUiState(
     val exercises: List<WorkoutExerciseUiModel> = emptyList(),
     val supersetSelectionActive: Boolean = false,
     val supersetSourceExerciseId: String? = null,
-    val reorderModeActive: Boolean = false,
     val isPaused: Boolean = false,
     /** Which exercise's card should show the rest-timer bar — the numeric countdown itself is a separate leaf-collected Flow (see [WorkoutLoggerViewModel.restRemainingMillisFlow]). */
     val restExerciseId: String? = null,

@@ -27,8 +27,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -65,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
+import com.enil.logez.core.designsystem.Elevation
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,11 +95,9 @@ private const val REPS_COLUMN_WEIGHT = 0.7f
 @Composable
 internal fun WorkoutExerciseCard(
     exercise: WorkoutExerciseUiModel,
-    reorderModeActive: Boolean,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    /** M20a: the long-press drag handle, built by the caller inside its `ReorderableItem` scope. */
+    dragHandle: @Composable () -> Unit,
+    isDragging: Boolean,
     supersetSelectionActive: Boolean,
     isSupersetSource: Boolean,
     callbacks: WorkoutCallbacks,
@@ -129,6 +126,7 @@ internal fun WorkoutExerciseCard(
             .fillMaxWidth()
             .padding(bottom = Spacing.sm)
             .let { m -> if (supersetSelectionActive && !isSupersetSource) m.clickable { callbacks.onConfirmSupersetTarget(exercise.id) } else m },
+        elevation = if (isDragging) Elevation.dragging else Elevation.card,
     ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             if (supersetColor != null) {
@@ -144,14 +142,7 @@ internal fun WorkoutExerciseCard(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (reorderModeActive) {
-                    IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                        Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.workout_move_up))
-                    }
-                    IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                        Icon(Icons.Filled.ArrowDownward, contentDescription = stringResource(R.string.workout_move_down))
-                    }
-                }
+                dragHandle()
                 Text(
                     exercise.exerciseName,
                     style = MaterialTheme.typography.titleMedium,
@@ -165,7 +156,6 @@ internal fun WorkoutExerciseCard(
                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_reorder)) }, onClick = { menuExpanded = false; callbacks.onToggleReorderMode() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
                         if (exercise.supersetGroup == null) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_add_to_superset)) }, onClick = { menuExpanded = false; callbacks.onStartSupersetSelection(exercise.id) })

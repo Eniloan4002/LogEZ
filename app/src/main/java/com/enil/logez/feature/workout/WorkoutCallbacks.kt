@@ -15,7 +15,6 @@ import com.enil.logez.core.domain.model.SetType
  */
 data class WorkoutCallbacks(
     // --- Exercise-level operations (used by WorkoutExerciseCard header/menu) ---
-    val onToggleReorderMode: () -> Unit,
     val onStartSupersetSelection: (exerciseId: String) -> Unit,
     val onConfirmSupersetTarget: (exerciseId: String) -> Unit,
     val onRemoveFromSuperset: (exerciseId: String) -> Unit,

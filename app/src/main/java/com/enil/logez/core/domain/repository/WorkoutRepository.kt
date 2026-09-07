@@ -47,6 +47,9 @@ interface WorkoutRepository {
     suspend fun deleteWorkoutSet(id: String)
     suspend fun deleteWorkoutExercise(id: String)
     suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int)
+
+    /** M20a: stamps `orderIndex` 0..n-1 over [orderedIds] in one transaction (a drag-reorder drop). */
+    suspend fun reorderWorkoutExercises(orderedIds: List<String>)
     suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?)
     suspend fun updateWorkoutExerciseNotes(id: String, notes: String?)
     suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?)

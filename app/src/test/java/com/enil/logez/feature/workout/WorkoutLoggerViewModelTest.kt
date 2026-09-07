@@ -713,6 +713,60 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
+    fun `reorderExercises appends any exercise the caller's id list omits, rather than dropping it`() = runTest {
+        // M20a: the screen sources the id list from an optimistic copy that can be a stale or
+        // partial snapshot (e.g. taken before an exercise was added mid-drag) -- an omitted id must
+        // never vanish from the workout.
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Incline Press"), exercise("ex-3", "Row")))
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we3", workoutId = "w1", exerciseId = "ex-3", orderIndex = 2, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo)
+
+        vm.reorderExercises(listOf("we3", "we1")) // we2 omitted
+
+        assertEquals(listOf("we3", "we1", "we2"), vm.uiState.value.exercises.map { it.id })
+        assertEquals(3, workoutRepo.getExercisesForWorkout("w1").size)
+        assertEquals(2, workoutRepo.getExercisesForWorkout("w1").first { it.id == "we2" }.orderIndex)
+    }
+
+    @Test
+    fun `reorderExercises in edit mode holds the new order in memory and writes nothing until save, which stamps it from list position`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(aCompletedWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 100.0, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+                WorkoutSetEntity(id = "s2", workoutExerciseId = "we2", orderIndex = 0, setType = SetType.NORMAL, weightKg = 50.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Incline Press"))),
+            isEditMode = true,
+        )
+
+        vm.reorderExercises(listOf("we2", "we1"))
+
+        assertEquals(listOf("we2", "we1"), vm.uiState.value.exercises.map { it.id })
+        assertEquals("nothing may reach Room before Save", 0, workoutRepo.getExercisesForWorkout("w1").first { it.id == "we1" }.orderIndex)
+        assertEquals(1, workoutRepo.getExercisesForWorkout("w1").first { it.id == "we2" }.orderIndex)
+
+        vm.saveEdit()
+
+        assertEquals(0, workoutRepo.getExercisesForWorkout("w1").first { it.id == "we2" }.orderIndex)
+        assertEquals(1, workoutRepo.getExercisesForWorkout("w1").first { it.id == "we1" }.orderIndex)
+    }
+
+    @Test
     fun `prepareForFinish freezes the duration but leaves the workout IN_PROGRESS for the Save screen`() = runTest {
         val clock = FakeClock(currentMillis = 10_000L)
         val workoutRepo = FakeWorkoutRepository(workouts = listOf(anInProgressWorkout("w1", startedAt = 10_000L)))

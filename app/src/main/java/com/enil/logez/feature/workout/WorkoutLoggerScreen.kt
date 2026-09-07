@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,9 +62,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.DragHandle
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.SyncOptimisticList
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
@@ -75,6 +78,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,7 +115,6 @@ fun WorkoutLoggerScreen(
     // exercise/set IDs are bound at the call site inside the lambda body.
     val workoutCallbacks = remember {
         WorkoutCallbacks(
-            onToggleReorderMode = viewModel::toggleReorderMode,
             onStartSupersetSelection = viewModel::startSupersetSelection,
             onConfirmSupersetTarget = viewModel::confirmSupersetTarget,
             onRemoveFromSuperset = viewModel::removeFromSuperset,
@@ -304,15 +308,6 @@ fun WorkoutLoggerScreen(
                     }
                 }
             }
-            if (uiState.reorderModeActive) {
-                Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.routine_builder_reorder_banner), modifier = Modifier.weight(1f))
-                        TextButton(onClick = viewModel::toggleReorderMode) { Text(stringResource(R.string.routine_builder_reorder_done)) }
-                    }
-                }
-            }
-
             if (!uiState.isLoading) {
                 // §5.1.10: "In place of the stopwatch, editable Date & time and Duration rows
                 // (same pickers as 5.1.8a)."
@@ -393,24 +388,44 @@ fun WorkoutLoggerScreen(
                     return@Column
                 }
 
+                // M20a drag reorder: the ViewModel's reorderExercises() is write-through (one
+                // persist{} batch per call) and Reorderable's onMove fires on every hover swap, so
+                // a screen-level optimistic copy absorbs the swaps and the ViewModel gets exactly
+                // one call on drop. One list instance for the screen's life (see SyncOptimisticList).
+                val localExercises = remember { mutableStateListOf<WorkoutExerciseUiModel>().apply { addAll(uiState.exercises) } }
+                val reorderState = rememberReorderableLazyListState(listState) { from, to ->
+                    val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
+                    val toKey = to.key as? String ?: return@rememberReorderableLazyListState
+                    val fromIndex = localExercises.indexOfFirst { it.id == fromKey }
+                    val toIndex = localExercises.indexOfFirst { it.id == toKey }
+                    if (fromIndex >= 0 && toIndex >= 0) localExercises.add(toIndex, localExercises.removeAt(fromIndex))
+                }
+                SyncOptimisticList(localExercises, uiState.exercises, reorderState.isAnyItemDragging)
+                val commitOrder = { viewModel.reorderExercises(localExercises.map { it.id }) }
+                // Accessibility "Move up/down" (DragHandle custom actions): one slot, then commit.
+                fun nudge(id: String, delta: Int) {
+                    val from = localExercises.indexOfFirst { it.id == id }
+                    val to = from + delta
+                    if (from < 0 || to !in localExercises.indices) return
+                    localExercises.add(to, localExercises.removeAt(from))
+                    commitOrder()
+                }
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
-                    items(items = uiState.exercises, key = { it.id }) { exercise ->
-                        val index = uiState.exercises.indexOf(exercise)
+                    items(items = localExercises, key = { it.id }) { exercise ->
+                        // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule;
+                        // Owner decides at the M20a checkpoint).
+                        ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
                         WorkoutExerciseCard(
                             exercise = exercise,
-                            reorderModeActive = uiState.reorderModeActive,
-                            canMoveUp = index > 0,
-                            canMoveDown = index < uiState.exercises.lastIndex,
-                            onMoveUp = {
-                                val ids = uiState.exercises.map { it.id }.toMutableList()
-                                ids[index] = ids[index - 1].also { ids[index - 1] = ids[index] }
-                                viewModel.reorderExercises(ids)
+                            dragHandle = {
+                                val index = localExercises.indexOfFirst { it.id == exercise.id }
+                                DragHandle(
+                                    modifier = Modifier.longPressDraggableHandle(onDragStopped = commitOrder),
+                                    onMoveUp = if (index > 0) ({ nudge(exercise.id, -1) }) else null,
+                                    onMoveDown = if (index in 0 until localExercises.lastIndex) ({ nudge(exercise.id, +1) }) else null,
+                                )
                             },
-                            onMoveDown = {
-                                val ids = uiState.exercises.map { it.id }.toMutableList()
-                                ids[index] = ids[index + 1].also { ids[index + 1] = ids[index] }
-                                viewModel.reorderExercises(ids)
-                            },
+                            isDragging = isDragging,
                             supersetSelectionActive = uiState.supersetSelectionActive,
                             isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
                             callbacks = workoutCallbacks,
@@ -428,6 +443,7 @@ fun WorkoutLoggerScreen(
                             warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
                             weightUnit = uiState.weightUnit,
                         )
+                        }
                     }
                 }
 

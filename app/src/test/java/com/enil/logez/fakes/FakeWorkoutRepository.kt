@@ -97,6 +97,9 @@ class FakeWorkoutRepository(
     override suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int) =
         mutateExercise(id) { it.copy(orderIndex = orderIndex) }
 
+    override suspend fun reorderWorkoutExercises(orderedIds: List<String>) =
+        orderedIds.forEachIndexed { index, id -> mutateExercise(id) { it.copy(orderIndex = index) } }
+
     override suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?) =
         mutateExercise(id) { it.copy(supersetGroup = supersetGroup) }
 

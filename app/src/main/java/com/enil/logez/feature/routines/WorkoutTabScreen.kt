@@ -12,11 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -40,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,6 +57,9 @@ import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.HeatmapGrid
+import com.enil.logez.core.designsystem.DragHandle
+import com.enil.logez.core.designsystem.SyncOptimisticList
+import com.enil.logez.core.designsystem.Elevation
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.Radius
@@ -67,11 +70,8 @@ import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
-
-private sealed class ReorderTarget {
-    object Folders : ReorderTarget()
-    data class Routines(val folderId: String?) : ReorderTarget()
-}
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /** What "Discard & start new" should start, once the in-progress conflict is resolved (§5.1.1 edge case). */
 private sealed class PendingStart {
@@ -97,7 +97,6 @@ fun WorkoutTabScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var collapsedFolders by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var reorderTarget by remember { mutableStateOf<ReorderTarget?>(null) }
     var showCreateFolder by remember { mutableStateOf(false) }
     var renamingFolder by remember { mutableStateOf<RoutineFolderEntity?>(null) }
     var deletingFolder by remember { mutableStateOf<RoutineFolderEntity?>(null) }
@@ -168,7 +167,44 @@ fun WorkoutTabScreen(
         // the routines left them permanently on screen, eating vertical space). Every section is
         // a LazyColumn item, so the tab scrolls as one; the Start button is the one deliberate
         // exception, pinned in bottomBar above.
+        // M20a drag reorder. reorderFolders/reorderRoutines are fire-and-forget Room writes and
+        // Reorderable's onMove fires on every hover swap expecting the list to already reflect the
+        // move, so the tab keeps optimistic copies of each bucket (folders, each folder's routines,
+        // root routines) that absorb swaps synchronously; the ViewModel gets exactly one call per
+        // drop, from the handle's onDragStopped. One instance each for the screen's life, kept in
+        // step by SyncOptimisticList (see it for why identity matters).
+        val lazyListState = rememberLazyListState()
+        val localFolders = remember { mutableStateListOf<FolderSection>().apply { addAll(uiState.folders) } }
+        val localRootRoutines = remember { mutableStateListOf<RoutineCardModel>().apply { addAll(uiState.rootRoutines) } }
+        val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+            val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
+            val toKey = to.key as? String ?: return@rememberReorderableLazyListState
+            reorderTabRows(localFolders, localRootRoutines, fromKey, toKey)
+        }
+        SyncOptimisticList(localFolders, uiState.folders, reorderState.isAnyItemDragging)
+        SyncOptimisticList(localRootRoutines, uiState.rootRoutines, reorderState.isAnyItemDragging)
+        // While a folder header is being dragged every folder's routines are hidden, so the only
+        // hover targets are other headers (and the root rows, which reorderTabRows refuses). Left
+        // visible, the header's own routines sit right under it and each refused hover stalls the
+        // library ~1s (it waits for a layout change that never comes), and a header crossing a
+        // neighbour's routines would leapfrog that folder on every card centre it passes.
+        var draggingFolderId by remember { mutableStateOf<String?>(null) }
+        val commitFolders = { viewModel.reorderFolders(localFolders.map { it.folder.id }) }
+        val commitFolderRoutines = { routineId: String ->
+            // Re-resolve the owner: the optimistic list may have replaced the section.
+            val owner = localFolders.firstOrNull { f -> f.routines.any { it.routine.id == routineId } }
+            if (owner != null) viewModel.reorderRoutines(owner.routines.map { it.routine.id })
+        }
+        val commitRoot = { viewModel.reorderRoutines(localRootRoutines.map { it.routine.id }) }
+        // Accessibility "Move up/down" (DragHandle custom actions): one slot within the row's own
+        // bucket via the same swap step the drag uses, then the matching commit.
+        fun nudge(key: String, neighbourKey: String?, commit: () -> Unit) {
+            if (neighbourKey == null) return
+            reorderTabRows(localFolders, localRootRoutines, key, neighbourKey)
+            commit()
+        }
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
             // The pinned bar's height rides in contentPadding rather than the modifier, so the
             // last routine card can scroll clear of it instead of sitting behind it forever.
@@ -225,95 +261,109 @@ fun WorkoutTabScreen(
                 return@LazyColumn
             }
 
-            items(items = uiState.folders, key = { it.folder.id }) { section ->
-                FolderHeaderRow(
-                    folder = section.folder,
-                    isCollapsed = section.folder.id in collapsedFolders,
-                    isReordering = reorderTarget == ReorderTarget.Folders,
-                    onToggleCollapse = {
-                        collapsedFolders = if (section.folder.id in collapsedFolders) collapsedFolders - section.folder.id else collapsedFolders + section.folder.id
-                    },
-                    onRename = { renamingFolder = section.folder },
-                    onAddRoutine = { onCreateRoutine(section.folder.id) },
-                    onReorder = { reorderTarget = ReorderTarget.Folders },
-                    onDelete = { deletingFolder = section.folder },
-                    onMoveUp = {
-                        val ids = uiState.folders.map { it.folder.id }.toMutableList()
-                        val i = ids.indexOf(section.folder.id)
-                        if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderFolders(ids) }
-                    },
-                    onMoveDown = {
-                        val ids = uiState.folders.map { it.folder.id }.toMutableList()
-                        val i = ids.indexOf(section.folder.id)
-                        if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderFolders(ids) }
-                    },
-                )
-                if (section.folder.id !in collapsedFolders) {
-                    section.routines.forEach { card ->
-                        RoutineCard(
-                            card = card,
-                            isReordering = reorderTarget == ReorderTarget.Routines(section.folder.id),
-                            onClick = { onRoutineClick(card.routine.id) },
-                            onStart = { startRoutine(card.routine.id) },
-                            onEdit = { onEditRoutine(card.routine.id) },
-                            onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
-                            onMove = { movingRoutineId = card.routine.id },
-                            onReorder = { reorderTarget = ReorderTarget.Routines(section.folder.id) },
-                            onDelete = { deletingRoutineId = card.routine.id },
-                            onMoveUp = {
-                                val ids = section.routines.map { it.routine.id }.toMutableList()
-                                val i = ids.indexOf(card.routine.id)
-                                if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderRoutines(ids) }
+            // Every draggable row is its own keyed item with a bucket prefix ("folder:", "routine:"
+            // for a folder's routines, "root:") so onMove can tell buckets apart and refuse
+            // cross-bucket drops -- routines used to render inside their folder's single item slot.
+            // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule; Owner's call
+            // at the M20a checkpoint).
+            localFolders.forEach { section ->
+                item(key = "folder:${section.folder.id}") {
+                    ReorderableItem(reorderState, key = "folder:${section.folder.id}", animateItemModifier = Modifier) { isDragging ->
+                        FolderHeaderRow(
+                            folder = section.folder,
+                            isCollapsed = section.folder.id in collapsedFolders,
+                            isDragging = isDragging,
+                            dragHandle = {
+                                val index = localFolders.indexOfFirst { it.folder.id == section.folder.id }
+                                val key = "folder:${section.folder.id}"
+                                DragHandle(
+                                    modifier = Modifier.longPressDraggableHandle(
+                                        onDragStarted = { draggingFolderId = section.folder.id },
+                                        onDragStopped = { commitFolders(); draggingFolderId = null },
+                                    ),
+                                    onMoveUp = if (index > 0) ({ nudge(key, "folder:${localFolders[index - 1].folder.id}", commitFolders) }) else null,
+                                    onMoveDown = if (index in 0 until localFolders.lastIndex) ({ nudge(key, "folder:${localFolders[index + 1].folder.id}", commitFolders) }) else null,
+                                )
                             },
-                            onMoveDown = {
-                                val ids = section.routines.map { it.routine.id }.toMutableList()
-                                val i = ids.indexOf(card.routine.id)
-                                if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderRoutines(ids) }
+                            onToggleCollapse = {
+                                collapsedFolders = if (section.folder.id in collapsedFolders) collapsedFolders - section.folder.id else collapsedFolders + section.folder.id
                             },
-                            modifier = Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.sm),
+                            onRename = { renamingFolder = section.folder },
+                            onAddRoutine = { onCreateRoutine(section.folder.id) },
+                            onDelete = { deletingFolder = section.folder },
                         )
+                    }
+                }
+                // Hidden for the duration of ANY folder drag (not just this section's own), not only
+                // when collapsed: a folder header dragging past a visible routine card would target
+                // that routine's owner folder mid-drag (a hover the swap step refuses as cross-bucket
+                // or as a folder-over-own-routine no-op), and Reorderable blocks ~1s waiting for a
+                // layout change that a refused swap never produces -- worse, the header's own slot
+                // then jumps by the hidden block's height on every accepted swap while a routine
+                // card's centre stays under the still-tracked drag rect, which can re-trigger the
+                // swap and ping-pong the two folders. Hiding routines during a folder drag leaves
+                // only other folder headers as hover targets, which reorderTabRows resolves cleanly.
+                if (section.folder.id !in collapsedFolders && draggingFolderId == null) {
+                    items(items = section.routines, key = { "routine:${it.routine.id}" }) { card ->
+                        ReorderableItem(reorderState, key = "routine:${card.routine.id}", animateItemModifier = Modifier) { isDragging ->
+                            RoutineCard(
+                                card = card,
+                                isDragging = isDragging,
+                                dragHandle = {
+                                    val owner = localFolders.firstOrNull { f -> f.routines.any { it.routine.id == card.routine.id } }
+                                    val siblings = owner?.routines.orEmpty()
+                                    val index = siblings.indexOfFirst { it.routine.id == card.routine.id }
+                                    val key = "routine:${card.routine.id}"
+                                    val commit = { commitFolderRoutines(card.routine.id) }
+                                    DragHandle(
+                                        modifier = Modifier.longPressDraggableHandle(onDragStopped = commit),
+                                        onMoveUp = if (index > 0) ({ nudge(key, "routine:${siblings[index - 1].routine.id}", commit) }) else null,
+                                        onMoveDown = if (index in 0 until siblings.lastIndex) ({ nudge(key, "routine:${siblings[index + 1].routine.id}", commit) }) else null,
+                                    )
+                                },
+                                onClick = { onRoutineClick(card.routine.id) },
+                                onStart = { startRoutine(card.routine.id) },
+                                onEdit = { onEditRoutine(card.routine.id) },
+                                onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
+                                onMove = { movingRoutineId = card.routine.id },
+                                onDelete = { deletingRoutineId = card.routine.id },
+                                modifier = Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.sm),
+                            )
+                        }
                     }
                 }
             }
 
-            if (uiState.rootRoutines.isNotEmpty()) {
-                item {
+            if (localRootRoutines.isNotEmpty()) {
+                item(key = "root-header") {
                     Text(
                         stringResource(R.string.workout_my_routines_header),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                     )
                 }
-                items(items = uiState.rootRoutines, key = { it.routine.id }) { card ->
-                    RoutineCard(
-                        card = card,
-                        isReordering = reorderTarget == ReorderTarget.Routines(null),
-                        onClick = { onRoutineClick(card.routine.id) },
-                        onStart = { startRoutine(card.routine.id) },
-                        onEdit = { onEditRoutine(card.routine.id) },
-                        onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
-                        onMove = { movingRoutineId = card.routine.id },
-                        onReorder = { reorderTarget = ReorderTarget.Routines(null) },
-                        onDelete = { deletingRoutineId = card.routine.id },
-                        onMoveUp = {
-                            val ids = uiState.rootRoutines.map { it.routine.id }.toMutableList()
-                            val i = ids.indexOf(card.routine.id)
-                            if (i > 0) { ids[i] = ids[i - 1].also { ids[i - 1] = ids[i] }; viewModel.reorderRoutines(ids) }
-                        },
-                        onMoveDown = {
-                            val ids = uiState.rootRoutines.map { it.routine.id }.toMutableList()
-                            val i = ids.indexOf(card.routine.id)
-                            if (i < ids.lastIndex) { ids[i] = ids[i + 1].also { ids[i + 1] = ids[i] }; viewModel.reorderRoutines(ids) }
-                        },
-                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
-                    )
-                }
-            }
-
-            if (reorderTarget != null) {
-                item {
-                    TextButton(onClick = { reorderTarget = null }, modifier = Modifier.padding(Spacing.md)) {
-                        Text(stringResource(R.string.routine_builder_reorder_done))
+                items(items = localRootRoutines, key = { "root:${it.routine.id}" }) { card ->
+                    ReorderableItem(reorderState, key = "root:${card.routine.id}", animateItemModifier = Modifier) { isDragging ->
+                        RoutineCard(
+                            card = card,
+                            isDragging = isDragging,
+                            dragHandle = {
+                                val index = localRootRoutines.indexOfFirst { it.routine.id == card.routine.id }
+                                val key = "root:${card.routine.id}"
+                                DragHandle(
+                                    modifier = Modifier.longPressDraggableHandle(onDragStopped = commitRoot),
+                                    onMoveUp = if (index > 0) ({ nudge(key, "root:${localRootRoutines[index - 1].routine.id}", commitRoot) }) else null,
+                                    onMoveDown = if (index in 0 until localRootRoutines.lastIndex) ({ nudge(key, "root:${localRootRoutines[index + 1].routine.id}", commitRoot) }) else null,
+                                )
+                            },
+                            onClick = { onRoutineClick(card.routine.id) },
+                            onStart = { startRoutine(card.routine.id) },
+                            onEdit = { onEditRoutine(card.routine.id) },
+                            onDuplicate = { scope.launch { viewModel.duplicateRoutine(card.routine.id) } },
+                            onMove = { movingRoutineId = card.routine.id },
+                            onDelete = { deletingRoutineId = card.routine.id },
+                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                        )
                     }
                 }
             }
@@ -399,32 +449,27 @@ fun WorkoutTabScreen(
 private fun FolderHeaderRow(
     folder: RoutineFolderEntity,
     isCollapsed: Boolean,
-    isReordering: Boolean,
+    isDragging: Boolean,
+    dragHandle: @Composable () -> Unit,
     onToggleCollapse: () -> Unit,
     onRename: () -> Unit,
     onAddRoutine: () -> Unit,
-    onReorder: () -> Unit,
     onDelete: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = !isReordering, onClick = onToggleCollapse).padding(horizontal = Spacing.md, vertical = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(if (isCollapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess, contentDescription = null)
-        Text(folder.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = Spacing.xs))
-        if (isReordering) {
-            IconButton(onClick = onMoveUp) { Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.workout_move_up)) }
-            IconButton(onClick = onMoveDown) { Icon(Icons.Filled.ArrowDownward, contentDescription = stringResource(R.string.workout_move_down)) }
-        } else {
+    Surface(color = if (isDragging) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.background) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onToggleCollapse).padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            dragHandle()
+            Icon(if (isCollapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess, contentDescription = null)
+            Text(folder.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = Spacing.xs))
             Box {
                 IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_rename)) }, onClick = { menuExpanded = false; onRename() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.workout_add_routine_to_folder)) }, onClick = { menuExpanded = false; onAddRoutine() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.workout_reorder)) }, onClick = { menuExpanded = false; onReorder() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { menuExpanded = false; onDelete() })
                 }
             }
@@ -432,25 +477,76 @@ private fun FolderHeaderRow(
     }
 }
 
+
+/**
+ * M20a: applies one hover-swap from Reorderable's `onMove` to the tab's optimistic lists. Keys are
+ * bucket-prefixed (`folder:`, `routine:` for a folder's routines, `root:`); a move whose two keys
+ * belong to different buckets (or to different folders) is refused, because the DAO writers stamp
+ * `orderIndex` for exactly the ids they are handed and cross-folder moves need
+ * `moveRoutineToFolder` semantics instead. Dragging a folder over another folder's routine targets
+ * that folder's position, so a folder can be dragged past an expanded neighbour.
+ */
+internal fun reorderTabRows(
+    folders: MutableList<FolderSection>,
+    rootRoutines: MutableList<RoutineCardModel>,
+    fromKey: String,
+    toKey: String,
+) {
+    val (fromKind, fromId) = fromKey.split(":", limit = 2).takeIf { it.size == 2 } ?: return
+    val (toKind, toId) = toKey.split(":", limit = 2).takeIf { it.size == 2 } ?: return
+    fun ownerFolderId(routineId: String): String? = folders.firstOrNull { f -> f.routines.any { it.routine.id == routineId } }?.folder?.id
+    when (fromKind) {
+        "folder" -> {
+            val targetFolderId = when (toKind) {
+                "folder" -> toId
+                "routine" -> ownerFolderId(toId)
+                else -> null
+            } ?: return
+            val fromIndex = folders.indexOfFirst { it.folder.id == fromId }
+            val toIndex = folders.indexOfFirst { it.folder.id == targetFolderId }
+            if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) folders.add(toIndex, folders.removeAt(fromIndex))
+        }
+        "routine" -> {
+            if (toKind != "routine") return
+            val ownerIndex = folders.indexOfFirst { f -> f.routines.any { it.routine.id == fromId } }
+            if (ownerIndex < 0) return
+            val owner = folders[ownerIndex]
+            val fromIndex = owner.routines.indexOfFirst { it.routine.id == fromId }
+            val toIndex = owner.routines.indexOfFirst { it.routine.id == toId }
+            if (fromIndex < 0 || toIndex < 0) return // toId lives in another folder -> refuse
+            val reordered = owner.routines.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+            folders[ownerIndex] = owner.copy(routines = reordered)
+        }
+        "root" -> {
+            if (toKind != "root") return
+            val fromIndex = rootRoutines.indexOfFirst { it.routine.id == fromId }
+            val toIndex = rootRoutines.indexOfFirst { it.routine.id == toId }
+            if (fromIndex >= 0 && toIndex >= 0) rootRoutines.add(toIndex, rootRoutines.removeAt(fromIndex))
+        }
+    }
+}
+
 @Composable
 private fun RoutineCard(
     card: RoutineCardModel,
-    isReordering: Boolean,
+    isDragging: Boolean,
+    dragHandle: @Composable () -> Unit,
     onClick: () -> Unit,
     onStart: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
-    onReorder: () -> Unit,
     onDelete: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    LogEzCard(modifier = modifier.fillMaxWidth().clickable(enabled = !isReordering, onClick = onClick)) {
+    LogEzCard(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        elevation = if (isDragging) Elevation.dragging else Elevation.card,
+    ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                dragHandle()
                 Text(card.routine.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (card.routine.structure == WorkoutStructure.CIRCUIT) {
                     CircuitChip(modifier = Modifier.padding(start = Spacing.xs))
@@ -473,18 +569,12 @@ private fun RoutineCard(
             Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = onStart) { Text(stringResource(R.string.workout_start_routine)) }
                 Box(modifier = Modifier.weight(1f))
-                if (isReordering) {
-                    IconButton(onClick = onMoveUp) { Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.workout_move_up)) }
-                    IconButton(onClick = onMoveDown) { Icon(Icons.Filled.ArrowDownward, contentDescription = stringResource(R.string.workout_move_down)) }
-                } else {
-                    IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.action_edit)) }, onClick = { menuExpanded = false; onEdit() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.action_duplicate)) }, onClick = { menuExpanded = false; onDuplicate() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.workout_move_to_folder)) }, onClick = { menuExpanded = false; onMove() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.workout_reorder)) }, onClick = { menuExpanded = false; onReorder() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { menuExpanded = false; onDelete() })
-                    }
+                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_edit)) }, onClick = { menuExpanded = false; onEdit() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_duplicate)) }, onClick = { menuExpanded = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.workout_move_to_folder)) }, onClick = { menuExpanded = false; onMove() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { menuExpanded = false; onDelete() })
                 }
             }
         }

@@ -104,6 +104,16 @@ interface WorkoutDao {
     @Query("UPDATE workout_exercises SET order_index = :orderIndex WHERE id = :id")
     suspend fun updateWorkoutExerciseOrderIndex(id: String, orderIndex: Int)
 
+    /**
+     * M20a: one transaction for a whole permutation, mirroring [RoutineDao.reorderRoutines] — the
+     * live logger writes every drop through, and N separate UPDATEs could leave duplicate
+     * `order_index` values behind a process death mid-loop or two overlapping drops.
+     */
+    @Transaction
+    suspend fun reorderWorkoutExercises(orderedIds: List<String>) {
+        orderedIds.forEachIndexed { index, id -> updateWorkoutExerciseOrderIndex(id, index) }
+    }
+
     @Query("UPDATE workout_exercises SET superset_group = :supersetGroup WHERE id = :id")
     suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?)
 
