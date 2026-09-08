@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +58,17 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.ChartRange
+import io.github.koalaplot.core.polar.PolarGraph
+import io.github.koalaplot.core.polar.PolarGraphDefaults
+import io.github.koalaplot.core.polar.PolarPlotSeries
+import io.github.koalaplot.core.polar.PolarPoint
+import io.github.koalaplot.core.polar.RadialGridType
+import io.github.koalaplot.core.polar.rememberCategoryAngularAxisModel
+import io.github.koalaplot.core.polar.rememberFloatRadialAxisModel
+import io.github.koalaplot.core.style.AreaStyle
+import io.github.koalaplot.core.style.LineStyle
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.StatBucket
@@ -119,6 +130,7 @@ fun AnalyticsScreen(
         ) {
             item(key = "training") { TrainingCard(uiState, viewModel) }
             item(key = "distribution") { DistributionCard(uiState, viewModel, onMuscleClick) }
+            item(key = "muscle_balance") { MuscleBalanceCard(uiState, viewModel) }
             item(key = "body") { BodyCard(uiState, viewModel) }
             item(key = "set_counts") { SetCountCard(uiState, viewModel, onMuscleClick) }
             item(key = "main_exercises") { MainExercisesCard(uiState, viewModel, onExerciseClick) }
@@ -402,6 +414,73 @@ internal fun Tile(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(value, style = LogEzMono.dataMedium)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+// --- card 2b: muscle balance radar (M20c, ADR-0009) ---
+
+@Composable
+private fun bodyRegionLabel(region: BodyRegion): String = when (region) {
+    BodyRegion.CHEST -> stringResource(R.string.muscle_region_chest)
+    BodyRegion.BACK -> stringResource(R.string.muscle_region_back)
+    BodyRegion.SHOULDERS -> stringResource(R.string.muscle_region_shoulders)
+    BodyRegion.ARMS -> stringResource(R.string.muscle_region_arms)
+    BodyRegion.CORE -> stringResource(R.string.muscle_region_core)
+    BodyRegion.QUADS -> stringResource(R.string.muscle_region_quads)
+    BodyRegion.HAMSTRINGS_GLUTES -> stringResource(R.string.muscle_region_hamstrings_glutes)
+    BodyRegion.LOWER_LEG -> stringResource(R.string.muscle_region_lower_leg)
+}
+
+/**
+ * M20c (ADR-0009): a radar/spider plot of set share per [BodyRegion], sitting beside the existing
+ * numeric distribution list above it -- same [DistributionCardState.range] (the range chips here
+ * are the same selection, shown again so the wheel reads standalone while scrolling). Cardio/full
+ * body/other/neck sets are counted in the list above but never appear on the wheel (see
+ * [balanceAxes]'s KDoc); the footnote below says so. No previous-period overlay (Owner default,
+ * 2026-09-08 structured question: off).
+ */
+@OptIn(io.github.koalaplot.core.util.ExperimentalKoalaPlotApi::class)
+@Composable
+private fun MuscleBalanceCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
+    val card = uiState.distribution
+    LogEzCard {
+        Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            CardTitle(stringResource(R.string.analytics_balance_title))
+            RangeChips(card.range, viewModel::selectDistributionRange)
+            if (card.balance.all { it.setCount == 0 }) {
+                Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
+            } else {
+                val regionLabels = BodyRegion.entries.associateWith { bodyRegionLabel(it) }
+                val angularAxisModel = rememberCategoryAngularAxisModel(BodyRegion.entries.toList())
+                val radialAxisModel = rememberFloatRadialAxisModel(listOf(0f, 25f, 50f, 75f, 100f))
+                val primary = MaterialTheme.colorScheme.primary
+                val outlineVariant = MaterialTheme.colorScheme.outlineVariant
+                val axisLineStyle = LineStyle(brush = SolidColor(outlineVariant), strokeWidth = 1.dp)
+                PolarGraph(
+                    radialAxisModel = radialAxisModel,
+                    angularAxisModel = angularAxisModel,
+                    modifier = Modifier.fillMaxWidth().height(240.dp),
+                    radialAxisLabels = { "${it.toInt()}%" },
+                    angularAxisLabels = { regionLabels.getValue(it) },
+                    polarGraphProperties = PolarGraphDefaults.polarGraphPropertyDefaults().copy(
+                        radialGridType = RadialGridType.LINES,
+                        radialAxisGridLineStyle = axisLineStyle,
+                        angularAxisGridLineStyle = axisLineStyle,
+                    ),
+                ) {
+                    PolarPlotSeries(
+                        data = card.balance.map { PolarPoint(it.sharePercent.toFloat(), it.region) },
+                        lineStyle = LineStyle(brush = SolidColor(primary), strokeWidth = 2.dp),
+                        areaStyle = AreaStyle(brush = SolidColor(primary), alpha = 0.2f),
+                    )
+                }
+                Text(
+                    stringResource(R.string.analytics_balance_footnote),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

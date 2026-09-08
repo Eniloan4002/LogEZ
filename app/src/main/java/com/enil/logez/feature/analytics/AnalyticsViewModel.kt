@@ -4,12 +4,15 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
+import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.ChartAggregator
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
+import com.enil.logez.core.domain.calc.RegionShare
 import com.enil.logez.core.domain.calc.StatBucket
+import com.enil.logez.core.domain.calc.balanceAxes
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.ExerciseRepository
@@ -213,6 +216,9 @@ class AnalyticsViewModel @Inject constructor(
                 current = distribution.current.sortedByDescending { it.setCount },
                 previous = distribution.previous?.sortedByDescending { it.setCount },
                 totals = totals,
+                // M20c: the muscle-balance wheel's 8 fixed axes, computed from the same
+                // (unsorted -- order doesn't matter here) distribution the list above already has.
+                balance = balanceAxes(distribution.current),
             ),
             body = BodyCardState(
                 weeks = bodyWeeks,
@@ -258,6 +264,8 @@ data class DistributionCardState(
     val current: List<MuscleStatsCalculator.GroupShare> = emptyList(),
     val previous: List<MuscleStatsCalculator.GroupShare>? = null,
     val totals: DashboardAggregator.PeriodTotals = DashboardAggregator.PeriodTotals(0, 0, 0.0, 0),
+    /** M20c (ADR-0009): always all 8 [BodyRegion]s, zero-filled — see [balanceAxes]. */
+    val balance: List<RegionShare> = BodyRegion.entries.map { RegionShare(it, 0, 0) },
 )
 
 data class BodyCardState(

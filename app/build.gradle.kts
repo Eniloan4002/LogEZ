@@ -121,6 +121,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.core)
 
+    // M20c (ADR-0009): radar plot for the muscle-balance card only; BarChart/LineChart stay
+    // hand-drawn.
+    implementation(libs.koalaplot.core)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

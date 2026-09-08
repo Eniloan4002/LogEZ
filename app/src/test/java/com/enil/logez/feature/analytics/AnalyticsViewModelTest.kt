@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.model.Equipment
@@ -146,6 +147,14 @@ class AnalyticsViewModelTest {
         assertEquals(3000L, card.totals.durationSeconds)
         assertEquals(1600.0, card.totals.volumeKg, 1e-9)
         assertEquals(3, card.totals.sets)
+        // M20c: the muscle-balance wheel's 8 fixed axes for the same fixture (Chest 2, Back 1 via
+        // UPPER_BACK, six regions at zero) -- percentages recomputed over the region-only total (3).
+        assertEquals(
+            listOf(BodyRegion.CHEST to (2 to 67), BodyRegion.BACK to (1 to 33)),
+            card.balance.filter { it.setCount > 0 }.map { it.region to (it.setCount to it.sharePercent) },
+        )
+        assertEquals(8, card.balance.size)
+        assertEquals(BodyRegion.entries.toList(), card.balance.map { it.region })
     }
 
     @Test

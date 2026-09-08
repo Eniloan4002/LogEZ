@@ -67,6 +67,17 @@
     <string name="analytics_empty_period">No workouts in this period</string>
     <string name="analytics_distribution_title">Muscle distribution</string>
     <string name="analytics_distribution_previous">Previous period</string>
+    <!-- M20c (ADR-0009): the muscle-balance radar wheel. -->
+    <string name="analytics_balance_title">Muscle balance</string>
+    <string name="analytics_balance_footnote">Cardio, full-body and other sets are counted in the list above, not on the wheel.</string>
+    <string name="muscle_region_chest">Chest</string>
+    <string name="muscle_region_back">Back</string>
+    <string name="muscle_region_shoulders">Shoulders</string>
+    <string name="muscle_region_arms">Arms</string>
+    <string name="muscle_region_core">Core</string>
+    <string name="muscle_region_quads">Quads</string>
+    <string name="muscle_region_hamstrings_glutes">Hamstrings &amp; Glutes</string>
+    <string name="muscle_region_lower_leg">Lower Leg</string>
     <string name="analytics_tile_workouts">Workouts</string>
     <string name="analytics_tile_duration">Duration</string>
     <string name="analytics_tile_volume">Volume</string>

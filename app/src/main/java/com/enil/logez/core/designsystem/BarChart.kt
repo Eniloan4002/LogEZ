@@ -27,7 +27,9 @@ data class BarChartEntry(val label: String, val value: Double)
 /**
  * Dependency-free Compose Canvas bar chart — LineChart's sibling for the §5.2 dashboard's
  * weekly-bucketed training charts and the Monthly Report's 6-month comparison (M6a decision:
- * no third-party chart library). Y-axis renders max/mid/zero gridline labels via [yLabel]; the
+ * no third-party chart library — M20c/ADR-0009 carves out a narrow, radar-plot-only exception
+ * via KoalaPlot for the Statistics screen's muscle-balance wheel; this chart is unaffected).
+ * Y-axis renders max/mid/zero gridline labels via [yLabel]; the
  * x-axis labels the first and last bar. Tapping selects the nearest bar by x.
  */
 @Composable
