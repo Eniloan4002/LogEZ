@@ -25,13 +25,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.DialogPanel
 import com.composeunstyled.DialogProperties
+import com.composeunstyled.Scrim
 import com.composeunstyled.UnstyledDialog
 import com.composeunstyled.UnstyledSlider
 import com.enil.logez.R
@@ -90,6 +92,18 @@ internal fun SettingsToggleRow(
  * picker for every audio setting). Dragging updates only local state — smooth, no DataStore writes
  * mid-drag — and [onValueChangeFinished] fires once on release with the local value, for both
  * persisting and a live preview sound, mirroring the old radio dialog's onSelect-does-both pattern.
+ *
+ * The local state's OBJECT identity has to be stable for this row's whole lifetime, not re-created
+ * per external [value]: compose-unstyled 2.9.0's tap gesture captures `onValueChangeFinished`
+ * inside a `pointerInput` that is not keyed on it, so a `remember(value) { ... }` that swaps in a
+ * new `MutableState` on every persisted-value change leaves that captured tap handler reading a
+ * cell nobody else writes to any more. Repro: tap the track once (drags fine, persists correctly);
+ * the ViewModel's fresh value re-keys `remember(value)`; tap the track again — the drag path writes
+ * the NEW cell (label/track fill both update), but the stale tap closure still reads the OLD one and
+ * persists that instead, silently diverging the screen from DataStore until the row leaves
+ * composition (found in the M20a-h code audit, 2026-09-08). Fixed by keeping one `MutableState` for
+ * the row's life and syncing it from [value] synchronously during composition (not in a
+ * `LaunchedEffect`, which would land a frame late and visibly flash the old percentage on open).
  */
 @Composable
 internal fun SettingsSliderRow(
@@ -97,12 +111,17 @@ internal fun SettingsSliderRow(
     value: Float,
     onValueChangeFinished: (Float) -> Unit,
 ) {
-    var localValue by remember(value) { mutableStateOf(value) }
+    val localValue = remember { mutableFloatStateOf(value) }
+    var lastExternalValue by remember { mutableFloatStateOf(value) }
+    if (lastExternalValue != value) {
+        lastExternalValue = value
+        localValue.floatValue = value
+    }
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.xs)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                if (localValue <= 0f) stringResource(R.string.settings_volume_off) else "${(localValue * 100).roundToInt()}%",
+                if (localValue.floatValue <= 0f) stringResource(R.string.settings_volume_off) else "${(localValue.floatValue * 100).roundToInt()}%",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -110,12 +129,17 @@ internal fun SettingsSliderRow(
         // M20e: on-brand renderless slider (compose-unstyled) — a flat outlineVariant track with a
         // primary fill to the current fraction, a plain primary thumb circle. No shadow, no halo,
         // matching the app's flat-chrome taste (§2.6 reference: ShareSummaryDialog's own tokens).
+        // compose-unstyled's Slider.kt does no touch-target sizing of its own (unlike Material3's
+        // own Slider, which is 48dp tall regardless of thumb size), so the visual 20dp thumb would
+        // otherwise BE the tappable area -- minimumInteractiveComponentSize() is the same modifier
+        // Material3's Checkbox/Switch/RadioButton use for the same purpose, centering the thin
+        // visual track+thumb inside a guaranteed-48dp hit region without changing how it looks.
         UnstyledSlider(
-            value = localValue,
-            onValueChange = { localValue = it },
-            onValueChangeFinished = { onValueChangeFinished(localValue) },
+            value = localValue.floatValue,
+            onValueChange = { localValue.floatValue = it },
+            onValueChangeFinished = { onValueChangeFinished(localValue.floatValue) },
             valueRange = 0f..1f,
-            modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+            modifier = Modifier.minimumInteractiveComponentSize().fillMaxWidth().padding(top = Spacing.xs),
             track = { state ->
                 Box(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.outlineVariant)) {
                     val fraction = (state.value - state.valueRange.start) / (state.valueRange.endInclusive - state.valueRange.start)
@@ -158,13 +182,13 @@ internal fun SettingsValueRow(
  * Radio-list selection dialog for a value-preview row. Selecting an option persists instantly
  * (via [onSelect]) and dismisses — there is no confirm step, matching the screen's
  * no-Save-button contract.
- */
-/**
+ *
  * M20e: rebuilt on compose-unstyled's renderless `UnstyledDialog`/`DialogPanel` — the panel is the
  * app's own "on-brand dialog chrome" reference tokens (§2.6: `ShareSummaryDialog.kt` —
  * `Radius.md` + `colorScheme.surface` + a 1.dp `outlineVariant` border), not Material3's default
- * dialog shape/elevation. Behaviour unchanged: selecting an option persists instantly and
- * dismisses (no confirm step); outside-tap or back dismisses via [onDismiss], same as before.
+ * dialog shape/elevation. Dismiss behaviour: outside-tap and [onDismiss] both work; the system back
+ * gesture does not (see the KNOWN LIMITATION comment below) — that is a change from the AlertDialog
+ * this replaced, not "unchanged" as an earlier version of this doc claimed.
  */
 @Composable
 internal fun <T> SettingsRadioDialog(
@@ -186,6 +210,12 @@ internal fun <T> SettingsRadioDialog(
         visible = true,
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
+        // UnstyledDialog draws no scrim on its own -- dimming lives entirely in this optional
+        // slot (compose-unstyled 2.9.0), so leaving it out (as this call did before the M20a-h
+        // code audit, 2026-09-08) rendered the picker floating over a fully lit screen with
+        // nothing to separate it from the content behind. MaterialTheme.colorScheme.scrim is the
+        // same role Material3's own AlertDialog/ModalBottomSheet scrims use elsewhere in the app.
+        overlay = { Scrim(scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)) },
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(Spacing.lg), contentAlignment = Alignment.Center) {
         DialogPanel(
