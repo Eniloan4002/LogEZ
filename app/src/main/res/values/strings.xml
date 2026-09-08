@@ -70,6 +70,7 @@
     <!-- M20c (ADR-0009): the muscle-balance radar wheel. -->
     <string name="analytics_balance_title">Muscle balance</string>
     <string name="analytics_balance_footnote">Cardio, full-body and other sets are counted in the list above, not on the wheel.</string>
+    <string name="analytics_balance_no_regions">Nothing this period maps to a body region — see the list above.</string>
     <string name="muscle_region_chest">Chest</string>
     <string name="muscle_region_back">Back</string>
     <string name="muscle_region_shoulders">Shoulders</string>

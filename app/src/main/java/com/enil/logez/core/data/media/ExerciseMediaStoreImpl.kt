@@ -3,6 +3,8 @@ package com.enil.logez.core.data.media
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -27,7 +29,13 @@ class ExerciseMediaStoreImpl @Inject constructor(
         val relativePath = "exercise_media/${UUID.randomUUID()}.jpg"
         val destination = File(context.filesDir, relativePath)
         runCatching {
-            val bitmap = decodeDownsampled(uri) ?: return@withContext null
+            val decoded = decodeDownsampled(uri) ?: return@withContext null
+            // M20b re-encodes into a fresh JPEG with no EXIF block of its own, so the source's
+            // orientation tag has to be baked into the pixels here or it is lost for good -- the
+            // picked-file grant is transient, so there is no second chance to read it once this
+            // call returns. android.media.ExifInterface is the platform class (API 24+); minSdk 26
+            // is already above that floor, so this needs no new dependency.
+            val upright = decoded.withExifOrientation(readExifOrientation(uri))
             try {
                 var encoded = false
                 destination.outputStream().use { output ->
@@ -36,21 +44,19 @@ class ExerciseMediaStoreImpl @Inject constructor(
                     // standard "visually lossless, meaningfully smaller" compromise. compress()
                     // returns false (rather than throwing) on encoder failure -- checked below so
                     // a bad encode doesn't get treated as a saved photo.
-                    // NOT handled: EXIF orientation. The bitmap is stored unrotated; Coil's
-                    // AsyncImage reads EXIF on *decode* of the original picked bytes only, so this
-                    // step -- which re-encodes into a fresh file with no EXIF block -- would show a
-                    // rotated portrait photo sideways. androidx.exifinterface is not on this
-                    // project's classpath, and adding it is a second new dependency this milestone
-                    // didn't get sign-off for; a future pass should either add it or rotate the
-                    // Bitmap in memory using the source's EXIF orientation before compressing.
-                    encoded = bitmap.compress(Bitmap.CompressFormat.JPEG, STORED_JPEG_QUALITY, output)
+                    encoded = upright.compress(Bitmap.CompressFormat.JPEG, STORED_JPEG_QUALITY, output)
                 }
                 if (!encoded) {
                     destination.delete()
                     return@withContext null
                 }
             } finally {
-                bitmap.recycle()
+                // withExifOrientation returns the SAME bitmap for the common (already-upright)
+                // case rather than an identity-transformed copy, so recycle each object exactly
+                // once -- recycling `decoded` a second time when it and `upright` are identical
+                // would double-free.
+                if (upright !== decoded) decoded.recycle()
+                upright.recycle()
             }
         }.onFailure {
             destination.delete()
@@ -72,4 +78,33 @@ class ExerciseMediaStoreImpl @Inject constructor(
         val decodeStream = context.contentResolver.openInputStream(uri) ?: return null
         return decodeStream.use { BitmapFactory.decodeStream(it, null, options) }
     }
+
+    private fun readExifOrientation(uri: Uri): Int {
+        val stream = context.contentResolver.openInputStream(uri) ?: return ExifInterface.ORIENTATION_NORMAL
+        return stream.use { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+    }
+}
+
+/**
+ * Bakes an EXIF orientation tag into the pixels themselves, since [ExerciseMediaStoreImpl] discards
+ * EXIF when it re-encodes. Returns `this` unrotated for `ORIENTATION_NORMAL`/`ORIENTATION_UNDEFINED`
+ * (the common case) instead of allocating a redundant identity-transformed copy; every other branch
+ * always returns a genuinely new [Bitmap] ([Bitmap.createBitmap] with a non-identity matrix cannot
+ * take AOSP's early-return-the-source path), which is what lets the caller recycle both bitmaps
+ * safely with a single `!==` check.
+ */
+private fun Bitmap.withExifOrientation(orientation: Int): Bitmap {
+    if (orientation == ExifInterface.ORIENTATION_NORMAL || orientation == ExifInterface.ORIENTATION_UNDEFINED) return this
+    val matrix = Matrix().apply {
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> postRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> postScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> { postRotate(90f); postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_ROTATE_90 -> postRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> { postRotate(-90f); postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_ROTATE_270 -> postRotate(-90f)
+        }
+    }
+    return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
 }

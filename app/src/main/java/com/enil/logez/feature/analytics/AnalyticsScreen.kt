@@ -469,8 +469,15 @@ private fun MuscleBalanceCard(uiState: AnalyticsUiState, viewModel: AnalyticsVie
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             CardTitle(stringResource(R.string.analytics_balance_title))
             RangeChips(card.range, viewModel::selectDistributionRange)
-            if (card.balance.all { it.setCount == 0 }) {
+            // Two distinct empty states, not one: card.balance excludes Cardio/Full-body/Other/
+            // Neck (balanceAxes' contract), so a period logged entirely in those groups has a
+            // non-empty distribution list above but an all-zero balance -- "No workouts in this
+            // period" under a populated list contradicted itself (found in the M20a-h code audit,
+            // 2026-09-08).
+            if (card.current.isEmpty()) {
                 Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
+            } else if (card.balance.all { it.setCount == 0 }) {
+                Text(stringResource(R.string.analytics_balance_no_regions), style = MaterialTheme.typography.bodyMedium)
             } else {
                 val axisLabels = BodyRegion.entries.associateWith { bodyRegionAxisLabel(it) }
                 val angularAxisModel = rememberCategoryAngularAxisModel(BodyRegion.entries.toList())
