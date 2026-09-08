@@ -116,6 +116,11 @@ dependencies {
     // reorder mode. Re-attempt of the M3 library (removed then for blocking scroll — lessons 2026-08-23).
     implementation(libs.reorderable)
 
+    // M20b: local-file image loading with downsampling + memory/disk cache for custom-exercise
+    // photos. NO coil-network-* anywhere — the app has no INTERNET permission (ADR-0008 posture).
+    implementation(libs.coil.compose)
+    implementation(libs.coil.core)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
