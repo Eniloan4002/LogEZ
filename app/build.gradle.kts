@@ -137,6 +137,9 @@ dependencies {
     implementation(libs.composeunstyled.slider)
     implementation(libs.composeunstyled.dialog)
 
+    // M20f: swipeable month calendar; java.time artifact — the calendar code is java.time end to end.
+    implementation(libs.calendar.compose)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

@@ -26,6 +26,7 @@ coil = "3.5.0" # M20b — https://github.com/coil-kt/coil/releases; the plan's 3
 koalaplot = "0.12.1" # M20c (ADR-0009) — https://github.com/KoalaPlot/koalaplot-core/releases; built with Kotlin 2.4.10 — spike on our pinned 2.3.0
 flexibleBottomSheet = "0.3.0" # M20d — https://github.com/skydoves/FlexibleBottomSheet/releases; non-modal (interact-behind) plate calculator sheet
 composeUnstyled = "2.9.0" # M20e — https://github.com/composablehorizons/compose-unstyled/releases; needs jvmTarget 17; 2.9.2+ is built on CMP 1.12 (ahead of our 1.11.3) — stay on 2.9.0
+calendar = "2.10.1" # M20f — https://github.com/kizitonwose/Calendar/releases; java.time artifact; compat table maps Compose UI 1.11.x -> Calendar 2.10.x (our resolved 1.11.3 is in-table)
 
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -82,6 +83,8 @@ flexible-bottomsheet = { group = "com.github.skydoves", name = "flexible-bottoms
 
 composeunstyled-slider = { group = "com.composables", name = "composeunstyled-slider", version.ref = "composeUnstyled" }
 composeunstyled-dialog = { group = "com.composables", name = "composeunstyled-dialog", version.ref = "composeUnstyled" }
+
+calendar-compose = { group = "com.kizitonwose.calendar", name = "compose", version.ref = "calendar" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
