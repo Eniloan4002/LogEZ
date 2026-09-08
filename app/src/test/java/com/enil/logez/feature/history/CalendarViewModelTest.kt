@@ -179,6 +179,37 @@ class CalendarViewModelTest {
     }
 
     @Test
+    fun `setDisplayedMonth updates displayedMonth`() = runTest {
+        // M20f: this is how a swipe on the library's calendar feeds back into the same
+        // displayedMonth the chevrons and header label already read.
+        val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
+
+        vm.setDisplayedMonth(YearMonth.of(2026, 11))
+
+        assertEquals(YearMonth.of(2026, 11), vm.uiState.value.displayedMonth)
+    }
+
+    @Test
+    fun `earliestWorkoutMonth is null with no workouts`() = runTest {
+        val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
+
+        assertEquals(null, vm.uiState.value.earliestWorkoutMonth)
+    }
+
+    @Test
+    fun `earliestWorkoutMonth is the month of the oldest workout`() = runTest {
+        val vm = viewModel(
+            workouts = listOf(
+                completed("w1", millis("2026-08-11T07:30")),
+                completed("w2", millis("2026-08-18T07:30")),
+            ),
+            now = millis("2026-08-19T12:00"),
+        )
+
+        assertEquals(YearMonth.of(2026, 8), vm.uiState.value.earliestWorkoutMonth)
+    }
+
+    @Test
     fun `tapping a day returns exactly that day's workouts, not the next day's`() = runTest {
         val vm = viewModel(
             workouts = listOf(

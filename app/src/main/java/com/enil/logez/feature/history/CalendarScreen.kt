@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -52,8 +54,13 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.kizitonwose.calendar.compose.HorizontalCalendar
+import com.kizitonwose.calendar.compose.rememberCalendarState
+import com.kizitonwose.calendar.core.DayPosition
+import com.kizitonwose.calendar.core.daysOfWeek
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -80,6 +87,39 @@ fun CalendarScreen(
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
     var dayWorkouts by remember { mutableStateOf<List<CalendarDayWorkout>>(emptyList()) }
     var firstDayMenuExpanded by remember { mutableStateOf(false) }
+
+    // M20f: the library needs a finite swipe range (decisions.md 2026-09-08 -- earliest workout
+    // month minus a year, through one month past the current month).
+    val currentMonth = YearMonth.from(uiState.today)
+    val startMonth = (uiState.earliestWorkoutMonth ?: currentMonth).minusYears(1)
+    val endMonth = currentMonth.plusMonths(1)
+    // rememberCalendarState re-keys on every one of its arguments (including firstVisibleMonth),
+    // so feeding it uiState.displayedMonth directly would discard-and-rebuild the whole scrollable
+    // state on every chevron tap and every swipe. Re-derive the seed only when a real rebuild
+    // trigger (bounds or first-day-of-week) changes; ordinary month navigation flows through the
+    // LaunchedEffects below instead.
+    val initialVisibleMonth = remember(startMonth, endMonth, uiState.firstDayOfWeek) { uiState.displayedMonth }
+    val calendarState = rememberCalendarState(
+        startMonth = startMonth,
+        endMonth = endMonth,
+        firstVisibleMonth = initialVisibleMonth,
+        firstDayOfWeek = uiState.firstDayOfWeek,
+    )
+    val weekDayLabels = remember(uiState.firstDayOfWeek) { daysOfWeek(uiState.firstDayOfWeek) }
+
+    // Chevron taps change displayedMonth in the VM; drive the calendar to match. Near-zero-motion
+    // default (LogEzNavHost.kt:50-55 disables nav transitions) -- scrollToMonth is instant.
+    LaunchedEffect(uiState.displayedMonth, calendarState) {
+        if (calendarState.firstVisibleMonth.yearMonth != uiState.displayedMonth) {
+            calendarState.scrollToMonth(uiState.displayedMonth)
+        }
+    }
+    // A user swipe moves the calendar directly; feed it back so the VM stays the source of truth
+    // the stepper label and header row both read.
+    LaunchedEffect(calendarState) {
+        snapshotFlow { calendarState.firstVisibleMonth.yearMonth }
+            .collect { visibleMonth -> if (visibleMonth != uiState.displayedMonth) viewModel.setDisplayedMonth(visibleMonth) }
+    }
 
     // A workout deleted or edited elsewhere changes which days are highlighted.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -154,9 +194,33 @@ fun CalendarScreen(
                 }
             }
 
-            MonthGrid(
-                state = uiState,
-                onDayClick = { date -> if (uiState.countsByDate.containsKey(date)) selectedDay = date },
+            HorizontalCalendar(
+                modifier = Modifier.padding(top = Spacing.sm),
+                state = calendarState,
+                dayContent = { day ->
+                    if (day.position == DayPosition.MonthDate) {
+                        DayCell(
+                            date = day.date,
+                            hasWorkout = uiState.countsByDate.containsKey(day.date),
+                            isToday = day.date == uiState.today,
+                            onClick = { if (uiState.countsByDate.containsKey(day.date)) selectedDay = day.date },
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.aspectRatio(1f))
+                    }
+                },
+                monthHeader = {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        weekDayLabels.forEach { day ->
+                            Text(
+                                day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f).padding(bottom = Spacing.xs),
+                            )
+                        }
+                    }
+                },
             )
         }
     }
@@ -187,50 +251,6 @@ fun CalendarScreen(
                 }
                 TextButton(onClick = { selectedDay = null }, modifier = Modifier.padding(top = Spacing.sm)) {
                     Text(stringResource(R.string.action_cancel))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MonthGrid(state: CalendarUiState, onDayClick: (LocalDate) -> Unit) {
-    val firstOfMonth = state.displayedMonth.atDay(1)
-    // How many blank cells precede the 1st, given where the user's week starts.
-    val leadingBlanks = ((firstOfMonth.dayOfWeek.value - state.firstDayOfWeek.value) + 7) % 7
-    val dayLabels = (0 until 7).map { state.firstDayOfWeek.plus(it.toLong()) }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            dayLabels.forEach { d ->
-                Text(
-                    d.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f).padding(bottom = Spacing.xs),
-                )
-            }
-        }
-
-        val cells = leadingBlanks + state.displayedMonth.lengthOfMonth()
-        val rows = (cells + 6) / 7
-        repeat(rows) { row ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                repeat(7) { col ->
-                    val cellIndex = row * 7 + col
-                    val dayOfMonth = cellIndex - leadingBlanks + 1
-                    if (dayOfMonth < 1 || dayOfMonth > state.displayedMonth.lengthOfMonth()) {
-                        Box(modifier = Modifier.weight(1f).aspectRatio(1f))
-                    } else {
-                        val date = state.displayedMonth.atDay(dayOfMonth)
-                        DayCell(
-                            date = date,
-                            hasWorkout = state.countsByDate.containsKey(date),
-                            isToday = date == state.today,
-                            onClick = { onDayClick(date) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
                 }
             }
         }

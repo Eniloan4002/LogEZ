@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -79,11 +78,16 @@ class CalendarViewModel @Inject constructor(
             countsByDate = StreakCalculator.countsByDate(dates),
             weeklyStreak = StreakCalculator.weeklyStreak(dates, now, firstDay),
             today = now,
+            // M20f: the swipeable calendar needs a finite start bound (decisions.md 2026-09-08).
+            earliestWorkoutMonth = dates.minOrNull()?.let { YearMonth.from(it) },
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, CalendarUiState(today = initialToday))
 
     fun showPreviousMonth() { displayedMonth.value = displayedMonth.value.minusMonths(1) }
     fun showNextMonth() { displayedMonth.value = displayedMonth.value.plusMonths(1) }
+
+    /** M20f: feeds a swipe on the library's calendar back into the same source of truth the chevrons use. */
+    fun setDisplayedMonth(month: YearMonth) { displayedMonth.value = month }
 
     /** §5.2: the first-day-of-week picker lives on this screen's top bar and writes the shared setting. */
     fun setFirstDayOfWeek(day: DayOfWeek) {
@@ -114,9 +118,6 @@ class CalendarViewModel @Inject constructor(
                 .map { Instant.ofEpochMilli(it).atZone(z).toLocalDate() }
         }
     }
-
-    /** §5.2's "Log a workout for this date" needs the day's local midnight as the pre-dated start. */
-    suspend fun firstDayOfWeek(): DayOfWeek = settingsRepository.settings.first().firstDayOfWeek
 }
 
 data class CalendarUiState(
@@ -126,6 +127,7 @@ data class CalendarUiState(
     val countsByDate: Map<LocalDate, Int> = emptyMap(),
     val weeklyStreak: Int = 0,
     val today: LocalDate = LocalDate.now(),
+    val earliestWorkoutMonth: YearMonth? = null,
 )
 
 data class CalendarDayWorkout(val workoutId: String, val title: String, val durationSeconds: Int)
