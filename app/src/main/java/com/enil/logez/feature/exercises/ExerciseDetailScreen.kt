@@ -62,6 +62,9 @@ import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.feature.workout.finish.labelRes
+import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.material3.RichText
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -427,6 +430,7 @@ private fun formatHistorySet(entry: ExerciseHistoryEntry): String {
     return if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 }
 
+@OptIn(ExperimentalRichTextApi::class)
 @Composable
 private fun HowToTab(instructions: String) {
     if (instructions.isBlank()) {
@@ -439,11 +443,20 @@ private fun HowToTab(instructions: String) {
     }
     Column(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
         instructions.split("\n").filter { it.isNotBlank() }.forEachIndexed { index, step ->
-            Text(
-                "${index + 1}. $step",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(bottom = Spacing.sm),
-            )
+            // M20g: the step's own text is parsed as Markdown for inline **bold**/*italic* --
+            // the "N." number stays a plain Text outside that parse so a step starting with a
+            // digit (e.g. "12 reps...") is never misread as CommonMark ordered-list syntax.
+            Row(modifier = Modifier.padding(bottom = Spacing.sm)) {
+                Text(
+                    "${index + 1}.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = Spacing.xs),
+                )
+                RichText(
+                    state = rememberRichTextState().apply { setMarkdown(step) },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
         }
     }
 }
