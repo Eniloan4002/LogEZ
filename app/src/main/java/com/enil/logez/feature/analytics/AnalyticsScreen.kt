@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -556,20 +557,29 @@ private fun MuscleBalanceCard(uiState: AnalyticsUiState, viewModel: AnalyticsVie
  */
 @Composable
 private fun BalanceLegend(shares: List<RegionShare>) {
-    val (left, right) = shares.withIndex().partition { it.index < (shares.size + 1) / 2 }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        listOf(left, right).forEach { column ->
-            Column(modifier = Modifier.weight(1f)) {
-                column.forEach { (_, share) -> BalanceLegendRow(share) }
+    // Paired by ROW, not by column. Two independent columns would each size their own rows, so as
+    // soon as one name wraps -- "Hamstrings & Glutes" does, at a 1.3 font scale -- the two columns
+    // drift out of alignment. Putting both entries in the same Row makes them share its height.
+    val rows = (shares.size + 1) / 2
+    Column(modifier = Modifier.fillMaxWidth()) {
+        repeat(rows) { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                BalanceLegendEntry(shares[row], Modifier.weight(1f))
+                shares.getOrNull(row + rows)
+                    ?.let { BalanceLegendEntry(it, Modifier.weight(1f)) }
+                    ?: Spacer(Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun BalanceLegendRow(share: RegionShare) {
+private fun BalanceLegendEntry(share: RegionShare, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs),
+        modifier = modifier.padding(vertical = Spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
