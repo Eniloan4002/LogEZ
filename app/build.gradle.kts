@@ -140,6 +140,10 @@ dependencies {
     // M20f: swipeable month calendar; java.time artifact — the calendar code is java.time end to end.
     implementation(libs.calendar.compose)
 
+    // M20g: inline bold/lists in exercise How-to. Storage stays plain 'one step per line';
+    // Markdown only at the UI boundary.
+    implementation(libs.richeditor.compose)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
