@@ -177,18 +177,20 @@ fun WorkoutLoggerScreen(
         onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
 
-    // §5.1.3 step 7: Smart Superset Scrolling.
+    // §5.1.3 step 7: Smart Superset Scrolling. M20h: animated, not instant — the app's only
+    // approved motion (Owner, decisions.md 2026-09-08). An instant jump gives no sense of which
+    // way the list moved, so you lose your place mid-set; this is wayfinding, not decoration.
     LaunchedEffect(Unit) {
         viewModel.scrollToExercise.collect { exerciseId ->
             val index = uiState.exercises.indexOfFirst { it.id == exerciseId }
-            if (index >= 0) listState.scrollToItem(index)
+            if (index >= 0) listState.animateScrollToItem(index)
         }
     }
 
     // M11: the circuit analog — round-card indices map 1:1 onto the circuit list's items.
     LaunchedEffect(Unit) {
         viewModel.scrollToRound.collect { roundIndex ->
-            if (roundIndex >= 0) listState.scrollToItem(roundIndex)
+            if (roundIndex >= 0) listState.animateScrollToItem(roundIndex)
         }
     }
 

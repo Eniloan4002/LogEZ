@@ -11,8 +11,8 @@ import java.util.Locale
 /**
  * v4.0's shared TopAppBar title (Owner: every tab root's header should read the same way) —
  * uppercase, bold, letterspaced Chakra Petch (`titleLarge` already carries the display font from
- * Type.kt). No glow here: that's scoped to genuinely dashboard-flavored content (a live readout, a
- * CTA), not chrome every screen repeats.
+ * Type.kt). Plain type, no decoration: the glow primitives this comment used to point at were
+ * deleted with `Glow.kt` in `ef2230f` (2026-08-27) and the app has none anywhere now.
  */
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
