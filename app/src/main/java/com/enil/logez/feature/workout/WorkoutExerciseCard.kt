@@ -308,7 +308,7 @@ private fun SetTable(
                     showRpe = showRpe,
                     onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
                     showPlateCalculator = showPlateCalculator,
-                    plateCalculatorConfig = plateCalculator,
+                    onOpenPlateCalculator = { callbacks.onOpenPlateCalculator(exercise.id, set.id, set.weightKg) },
                     weightUnit = weightUnit,
                 )
                 if (set.failureError) {
@@ -370,13 +370,14 @@ internal fun SetRow(
     showRoundNumber: Boolean = true,
     /** M17 §5.1.5: true only for BARBELL rows with the setting on; the caller's header row adds a matching spacer. */
     showPlateCalculator: Boolean = false,
-    plateCalculatorConfig: PlateCalculatorConfig = PlateCalculatorConfig(),
+    /** M20d: opens the screen-hoisted (non-modal) plate calculator sheet for this exact set. Only
+     *  called when [showPlateCalculator] is true, so the no-op default is never actually reached. */
+    onOpenPlateCalculator: () -> Unit = {},
     /** M18: display unit for the weight cell only — every other field is unit-less. */
     weightUnit: WeightUnit = WeightUnit.KG,
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var showRpeSheet by remember { mutableStateOf(false) }
-    var showPlateSheet by remember { mutableStateOf(false) }
     // Live logging locks a set's values once it is checked off — the check is the commit. Editing a
     // PAST workout inverts that: every set in a COMPLETED workout is checked, so the same rule
     // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
@@ -454,7 +455,7 @@ internal fun SetRow(
                 // Trails the KG cell inside the same fixed width the header row spaces over, so
                 // the M15 column alignment holds with or without the button.
                 IconButton(
-                    onClick = { showPlateSheet = true },
+                    onClick = onOpenPlateCalculator,
                     enabled = fieldsEnabled,
                     modifier = Modifier.size(SetTable.plateCalcCell),
                 ) {
@@ -523,17 +524,6 @@ internal fun SetRow(
         )
     }
 
-    if (showPlateSheet) {
-        PlateCalculatorSheet(
-            initialWeightKg = set.weightKg,
-            weightUnit = plateCalculatorConfig.weightUnit,
-            equipment = plateCalculatorConfig.equipment,
-            // "Use X kg" writes the closest ACHIEVED total into the set — same canonical-kg path
-            // as typing into the cell, so it behaves identically in live and edit modes.
-            onApply = onWeightChange,
-            onDismiss = { showPlateSheet = false },
-        )
-    }
 }
 
 /**

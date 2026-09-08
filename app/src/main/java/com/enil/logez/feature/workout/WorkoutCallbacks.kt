@@ -36,4 +36,6 @@ data class WorkoutCallbacks(
     val onUpdateRpe: (exerciseId: String, setId: String, rpe: Double?) -> Unit,
     val onStartInlineTimer: (exerciseId: String, setId: String) -> Unit,
     val onStopInlineTimer: (exerciseId: String, setId: String) -> Unit,
+    /** M20d: opens the screen-hoisted plate calculator sheet targeting this exact set. */
+    val onOpenPlateCalculator: (exerciseId: String, setId: String, currentWeightKg: Double?) -> Unit,
 )

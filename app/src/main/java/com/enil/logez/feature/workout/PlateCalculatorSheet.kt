@@ -11,7 +11,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +28,9 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.PlateCalculator
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.WeightUnit
+import com.skydoves.flexible.bottomsheet.material3.FlexibleBottomSheet
+import com.skydoves.flexible.core.FlexibleSheetSize
+import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
 
 /**
  * §5.1.5 Plate Calculator sheet (M17). Deliberately thin — every solve goes through the tested
@@ -38,6 +40,21 @@ import com.enil.logez.core.domain.model.WeightUnit
  *
  * §5.1.5's Canvas bar-loading diagram is deliberately not built (M17 keeps the text list + totals;
  * the diagram is pure decoration over the same numbers and can land later without data changes).
+ *
+ * M20d: rebuilt on FlexibleBottomSheet, hoisted to screen level ([WorkoutLoggerScreen]'s
+ * `plateTarget`) so there is exactly one sheet instance shared by every row, in both the regular
+ * and circuit tables — replacing the old per-row `ModalBottomSheet`. Non-modal (`isModal = false`,
+ * the milestone's actual goal): the set list stays interactive behind the sheet, verified
+ * on-device — completing a set behind the open sheet registered correctly, and the sheet reopened
+ * pre-filled from the newly-applied weight.
+ *
+ * A suspected IME rendering bug ("field focuses, `mInputShown=true`, but no on-screen keyboard
+ * ever renders") led to a brief detour to `isModal = true` mid-milestone -- a follow-up control
+ * test then reproduced the *identical* symptom on the app's own, unrelated, pre-existing
+ * `ExercisePickerSheet` (a plain Material3 `ModalBottomSheet`, `feature/exercises/
+ * ExercisePickerSheet.kt`) under the same host-load-starved emulator session (`uptime` load
+ * average 12-14 on an 8-core host), and force-stopping/restarting the Gboard IME process did not
+ * clear it either. That rules out FlexibleBottomSheet specifically -- reverted back to non-modal.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +73,15 @@ internal fun PlateCalculatorSheet(
         mutableStateOf(initialWeightKg?.let { formatWeightNumber(toDisplay(it, weightUnit)) }.orEmpty())
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    FlexibleBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlexibleBottomSheetState(
+            isModal = false,
+            skipSlightlyExpanded = false,
+            flexibleSheetSize = FlexibleSheetSize(fullyExpanded = 0.85f, intermediatelyExpanded = 0.45f, slightlyExpanded = 0.15f),
+        ),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.md).padding(bottom = Spacing.lg)) {
             Text(
                 stringResource(R.string.workout_plate_sheet_title),

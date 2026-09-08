@@ -230,7 +230,7 @@ private fun CircuitEntry(
             allowDelete = false,
             showRoundNumber = false,
             showPlateCalculator = showPlateCalculator,
-            plateCalculatorConfig = plateCalculator,
+            onOpenPlateCalculator = { callbacks.onOpenPlateCalculator(exercise.id, set.id, set.weightKg) },
             weightUnit = weightUnit,
         )
         if (set.failureError) {

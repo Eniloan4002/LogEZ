@@ -81,6 +81,9 @@ import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
+/** M20d: which set the screen-hoisted plate calculator sheet is open for. */
+private data class PlateTarget(val exerciseId: String, val setId: String, val initialWeightKg: Double?)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutLoggerScreen(
@@ -106,6 +109,10 @@ fun WorkoutLoggerScreen(
     var showEditDatePicker by remember { mutableStateOf(false) }
     // M11: which round's "Remove Round" is awaiting confirmation (0-based), if any.
     var pendingRemoveRoundIndex by remember { mutableStateOf<Int?>(null) }
+    // M20d: the set the screen-hoisted (non-modal) plate calculator sheet currently targets, if
+    // any — hoisted out of SetRow so the sheet is a single screen-level instance instead of one
+    // per row (both the regular and circuit branches share this one sheet host below).
+    var plateTarget by remember { mutableStateOf<PlateTarget?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val editSaveState by viewModel.editSaveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -133,6 +140,9 @@ fun WorkoutLoggerScreen(
             onUpdateRpe = viewModel::updateRpe,
             onStartInlineTimer = viewModel::startInlineTimer,
             onStopInlineTimer = viewModel::stopInlineTimer,
+            onOpenPlateCalculator = { exerciseId, setId, currentWeightKg ->
+                plateTarget = PlateTarget(exerciseId, setId, currentWeightKg)
+            },
         )
     }
 
@@ -478,6 +488,20 @@ fun WorkoutLoggerScreen(
             onAddCommitted = { exercises -> viewModel.addExercises(exercises) },
             onExercisePicked = { exercise -> replaceTargetId?.let { viewModel.replaceExercise(it, exercise) } },
             onCreateExercise = onCreateExercise,
+        )
+    }
+
+    // M20d: one screen-level sheet instance for both the regular and circuit tables (SetRow calls
+    // callbacks.onOpenPlateCalculator instead of hosting its own). "Use X" writes the closest
+    // ACHIEVED total into the set via the same canonical-kg onUpdateWeight path typing into the
+    // cell uses, so it behaves identically in live and edit modes.
+    plateTarget?.let { target ->
+        PlateCalculatorSheet(
+            initialWeightKg = target.initialWeightKg,
+            weightUnit = uiState.plateCalculator.weightUnit,
+            equipment = uiState.plateCalculator.equipment,
+            onApply = { kg -> workoutCallbacks.onUpdateWeight(target.exerciseId, target.setId, kg) },
+            onDismiss = { plateTarget = null },
         )
     }
 

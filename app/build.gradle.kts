@@ -125,6 +125,9 @@ dependencies {
     // hand-drawn.
     implementation(libs.koalaplot.core)
 
+    // M20d: non-modal (interact-behind) sheet for the live-workout plate calculator.
+    implementation(libs.flexible.bottomsheet)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
