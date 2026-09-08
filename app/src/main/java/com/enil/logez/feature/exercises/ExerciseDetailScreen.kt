@@ -63,7 +63,7 @@ import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.feature.workout.finish.labelRes
 import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
-import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.model.RichTextState
 import com.mohamedrejeb.richeditor.ui.material3.RichText
 import java.time.Instant
 import java.time.ZoneId
@@ -452,10 +452,16 @@ private fun HowToTab(instructions: String) {
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(end = Spacing.xs),
                 )
-                RichText(
-                    state = rememberRichTextState().apply { setMarkdown(step) },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                // Keyed on `step`, not rememberRichTextState()'s bare (unkeyed) form: that variant
+                // allocates the state once but re-runs .apply { setMarkdown(step) } on EVERY
+                // recomposition of this tab -- including ones caused by something else entirely on
+                // the exercise detail screen (the Summary/History tabs share this ViewModel) -- so
+                // a static list of steps was being re-parsed and its snapshot state rewritten for
+                // no reason on every unrelated recomposition. RichTextState's own public
+                // constructor (used here, not the @Composable factory) needs no Composition to
+                // create, so remember(step) is enough to parse exactly once per distinct step text.
+                val stepState = remember(step) { RichTextState().apply { setMarkdown(step) } }
+                RichText(state = stepState, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

@@ -32,6 +32,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -49,6 +50,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -90,12 +92,14 @@ fun CustomExerciseEditorScreen(
         if (uri != null) viewModel.onImagePicked(uri)
     }
 
-    // M20g: storage stays plain "one step per line" text; Markdown only at this UI boundary.
-    // In edit mode the ViewModel loads the exercise asynchronously (isLoading starts true), so
-    // this waits for that load rather than seeding from whatever uiState.instructions holds at
-    // first composition (empty) -- then loads exactly once. Re-keying on every subsequent
-    // uiState.instructions change would fight the user's cursor position on every keystroke,
-    // since our own edits write back into that same field.
+    // M20g: storage stays "one step per line" -- but NOT plain text. This editor writes
+    // instructionsState.toMarkdown() straight into the persisted field below, so a step can carry
+    // inline **bold**/*italic* markers on disk; ExerciseDetailScreen's HowToTab is what parses them
+    // back out on render. In edit mode the ViewModel loads the exercise asynchronously (isLoading
+    // starts true), so this waits for that load rather than seeding from whatever
+    // uiState.instructions holds at first composition (empty) -- then loads exactly once.
+    // Re-keying on every subsequent uiState.instructions change would fight the user's cursor
+    // position on every keystroke, since our own edits write back into that same field.
     val instructionsState = rememberRichTextState()
     LaunchedEffect(instructionsState) {
         snapshotFlow { uiState.isLoading }.first { !it }
@@ -253,12 +257,18 @@ fun CustomExerciseEditorScreen(
             }
 
             Row(modifier = Modifier.padding(top = Spacing.lg)) {
-                IconButton(onClick = { instructionsState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }) {
-                    Icon(Icons.Filled.FormatBold, contentDescription = stringResource(R.string.exercise_editor_bold))
-                }
-                IconButton(onClick = { instructionsState.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }) {
-                    Icon(Icons.Filled.FormatItalic, contentDescription = stringResource(R.string.exercise_editor_italic))
-                }
+                StyleToggle(
+                    checked = { instructionsState.currentSpanStyle.fontWeight == FontWeight.Bold },
+                    onToggle = { instructionsState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) },
+                    icon = Icons.Filled.FormatBold,
+                    contentDescription = stringResource(R.string.exercise_editor_bold),
+                )
+                StyleToggle(
+                    checked = { instructionsState.currentSpanStyle.fontStyle == FontStyle.Italic },
+                    onToggle = { instructionsState.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) },
+                    icon = Icons.Filled.FormatItalic,
+                    contentDescription = stringResource(R.string.exercise_editor_italic),
+                )
             }
             OutlinedRichTextEditor(
                 state = instructionsState,
@@ -270,6 +280,30 @@ fun CustomExerciseEditorScreen(
 
             Spacer(modifier = Modifier.height(Spacing.xxl))
         }
+    }
+}
+
+/**
+ * A Bold/Italic toolbar button, its pressed state showing whether that style is armed for the
+ * caret's current position. `IconButton` carried no such indicator: `toggleSpanStyle` (RichTextState.kt)
+ * REMOVES the style when it's already active and ADDS it otherwise, so tapping Bold with the caret
+ * inside already-bold text un-bolds it -- with an `IconButton`, silently, since the icon looks
+ * identical before and after and TalkBack announces "Bold, button" in both states, missing the
+ * value half of name/role/value. `IconToggleButton` fixes both: a visibly different content colour
+ * per state (Material3's own default `IconButtonDefaults.defaultIconToggleButtonColors`, not a
+ * hand-picked tint) and a `Role.Checkbox` semantics node TalkBack reads as "checked"/"not checked".
+ *
+ * [checked] is a lambda, not a `Boolean`, specifically so the `currentSpanStyle` read it wraps
+ * happens inside THIS composable's own recomposition scope. `currentSpanStyle` is backed by
+ * `mutableStateOf` and changes on every caret move; reading it as a plain value at the call site
+ * would register that read against the *caller's* scope instead -- here, the editor screen's single
+ * non-lazy `Column` holding both dropdowns, all ~15 muscle-group checkboxes and the photo picker --
+ * so every caret move would recompose the whole screen instead of just these two buttons.
+ */
+@Composable
+private fun StyleToggle(checked: () -> Boolean, onToggle: () -> Unit, icon: ImageVector, contentDescription: String) {
+    IconToggleButton(checked = checked(), onCheckedChange = { onToggle() }) {
+        Icon(icon, contentDescription = contentDescription)
     }
 }
 
