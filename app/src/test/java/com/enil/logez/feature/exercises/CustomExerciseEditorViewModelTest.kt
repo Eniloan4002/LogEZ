@@ -202,6 +202,25 @@ class CustomExerciseEditorViewModelTest {
     }
 
     @Test
+    fun `instructions carrying Markdown emphasis are stored verbatim`() = runTest {
+        // M20g: the editor writes RichTextState.toMarkdown() into this same field, so the
+        // storage path must stay format-agnostic -- no escaping, no stripping of asterisks.
+        val seed = seedExercise(id = "seed-1").copy(isCustom = false)
+        val repo = FakeExerciseRepository(listOf(seed))
+        val vm = CustomExerciseEditorViewModel(
+            SavedStateHandle(mapOf("exerciseId" to "seed-1")),
+            repo,
+            FakeExerciseMediaStore(),
+            FakeClock(),
+        )
+
+        vm.onInstructionsChange("Grip the **bar** wide.\nLower with *control*.")
+        vm.save {}
+
+        assertEquals("Grip the **bar** wide.\nLower with *control*.", repo.getById("seed-1")!!.instructions)
+    }
+
+    @Test
     fun `a muscle head can be picked for a group that has heads and is saved`() = runTest {
         val repo = FakeExerciseRepository()
         val vm = CustomExerciseEditorViewModel(SavedStateHandle(), repo, FakeExerciseMediaStore(), FakeClock())

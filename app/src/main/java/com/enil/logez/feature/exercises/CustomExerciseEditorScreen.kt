@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -38,15 +40,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,7 +70,11 @@ import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.availableHeads
 import com.enil.logez.core.domain.model.userSelectable
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.material3.OutlinedRichTextEditor
 import java.io.File
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +88,21 @@ fun CustomExerciseEditorScreen(
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewModel.onImagePicked(uri)
+    }
+
+    // M20g: storage stays plain "one step per line" text; Markdown only at this UI boundary.
+    // In edit mode the ViewModel loads the exercise asynchronously (isLoading starts true), so
+    // this waits for that load rather than seeding from whatever uiState.instructions holds at
+    // first composition (empty) -- then loads exactly once. Re-keying on every subsequent
+    // uiState.instructions change would fight the user's cursor position on every keystroke,
+    // since our own edits write back into that same field.
+    val instructionsState = rememberRichTextState()
+    LaunchedEffect(instructionsState) {
+        snapshotFlow { uiState.isLoading }.first { !it }
+        instructionsState.setMarkdown(uiState.instructions)
+        snapshotFlow { instructionsState.annotatedString }
+            .drop(1) // the emission the setMarkdown call above just produced
+            .collect { viewModel.onInstructionsChange(instructionsState.toMarkdown()) }
     }
 
     Scaffold(
@@ -226,13 +252,20 @@ fun CustomExerciseEditorScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = uiState.instructions,
-                onValueChange = viewModel::onInstructionsChange,
+            Row(modifier = Modifier.padding(top = Spacing.lg)) {
+                IconButton(onClick = { instructionsState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }) {
+                    Icon(Icons.Filled.FormatBold, contentDescription = stringResource(R.string.exercise_editor_bold))
+                }
+                IconButton(onClick = { instructionsState.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }) {
+                    Icon(Icons.Filled.FormatItalic, contentDescription = stringResource(R.string.exercise_editor_italic))
+                }
+            }
+            OutlinedRichTextEditor(
+                state = instructionsState,
                 label = { Text(stringResource(R.string.exercise_editor_instructions)) },
                 supportingText = { Text(stringResource(R.string.exercise_editor_instructions_hint)) },
                 minLines = 4,
-                modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg),
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(modifier = Modifier.height(Spacing.xxl))

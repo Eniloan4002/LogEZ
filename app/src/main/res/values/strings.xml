@@ -142,6 +142,8 @@
     <string name="exercise_editor_type_immutable_hint">Type can\'t be changed after creation.</string>
     <string name="exercise_editor_instructions">How-to</string>
     <string name="exercise_editor_instructions_hint">One step per line</string>
+    <string name="exercise_editor_bold">Bold</string>
+    <string name="exercise_editor_italic">Italic</string>
 
     <string name="exercise_detail_tab_summary">Summary</string>
     <string name="exercise_detail_tab_history">History</string>
