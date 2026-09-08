@@ -217,8 +217,9 @@ fun RoutineBuilderScreen(
                     }
                     items(items = localExercises, key = { it.id }) { exercise ->
                         // animateItemModifier = Modifier: no sibling-slide animation -- the app's
-                        // near-zero-motion baseline (BRAND_IDENTITY §7); the Owner decides at the
-                        // M20a checkpoint whether to enable it.
+                        // near-zero-motion baseline (BRAND_IDENTITY §7). Declined at the M20a
+                        // checkpoint (decisions.md 2026-09-07) -- a settled decision, not an open
+                        // question; re-opening it means asking the Owner again, not flipping this.
                         ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
                             RoutineExerciseCard(
                                 exercise = exercise,

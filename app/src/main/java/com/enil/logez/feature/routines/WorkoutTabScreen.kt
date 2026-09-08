@@ -276,8 +276,9 @@ fun WorkoutTabScreen(
             // Every draggable row is its own keyed item with a bucket prefix ("folder:", "routine:"
             // for a folder's routines, "root:") so onMove can tell buckets apart and refuse
             // cross-bucket drops -- routines used to render inside their folder's single item slot.
-            // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule; Owner's call
-            // at the M20a checkpoint).
+            // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule). Declined at
+            // the M20a checkpoint (decisions.md 2026-09-07) -- a settled decision, not an open
+            // question.
             localFolders.forEach { section ->
                 item(key = "folder:${section.folder.id}") {
                     ReorderableItem(

@@ -428,8 +428,9 @@ fun WorkoutLoggerScreen(
                 }
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
                     items(items = localExercises, key = { it.id }) { exercise ->
-                        // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule;
-                        // Owner decides at the M20a checkpoint).
+                        // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule).
+                        // Declined at the M20a checkpoint (decisions.md 2026-09-07) -- a settled
+                        // decision, not an open question.
                         ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
                         WorkoutExerciseCard(
                             exercise = exercise,
