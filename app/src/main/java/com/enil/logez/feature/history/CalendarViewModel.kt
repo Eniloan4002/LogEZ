@@ -71,6 +71,8 @@ class CalendarViewModel @Inject constructor(
         settingsRepository.settings.map { it.firstDayOfWeek },
         today,
     ) { month, dates, loading, firstDay, now ->
+        val earliestWorkoutMonth = dates.minOrNull()?.let { YearMonth.from(it) }
+        val currentMonth = YearMonth.from(now)
         CalendarUiState(
             isLoading = loading,
             displayedMonth = month,
@@ -78,16 +80,34 @@ class CalendarViewModel @Inject constructor(
             countsByDate = StreakCalculator.countsByDate(dates),
             weeklyStreak = StreakCalculator.weeklyStreak(dates, now, firstDay),
             today = now,
-            // M20f: the swipeable calendar needs a finite start bound (decisions.md 2026-09-08).
-            earliestWorkoutMonth = dates.minOrNull()?.let { YearMonth.from(it) },
+            // M20f: the swipeable calendar needs a finite range (decisions.md 2026-09-08). This is
+            // also now the one source of truth the chevrons/setDisplayedMonth clamp against below —
+            // before this, the stepper could walk displayedMonth outside [monthRangeStart,
+            // monthRangeEnd] and kizitonwose's scrollToMonth silently no-ops out of range, leaving
+            // the header label and the rendered grid permanently disagreeing (found in the M20a-h
+            // code audit, 2026-09-08).
+            earliestWorkoutMonth = earliestWorkoutMonth,
+            monthRangeStart = (earliestWorkoutMonth ?: currentMonth).minusYears(1),
+            monthRangeEnd = currentMonth.plusMonths(1),
         )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, CalendarUiState(today = initialToday))
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        CalendarUiState(
+            today = initialToday,
+            monthRangeStart = YearMonth.from(initialToday).minusYears(1),
+            monthRangeEnd = YearMonth.from(initialToday).plusMonths(1),
+        ),
+    )
 
-    fun showPreviousMonth() { displayedMonth.value = displayedMonth.value.minusMonths(1) }
-    fun showNextMonth() { displayedMonth.value = displayedMonth.value.plusMonths(1) }
+    private fun YearMonth.coerceToMonthRange(): YearMonth =
+        coerceIn(uiState.value.monthRangeStart, uiState.value.monthRangeEnd)
+
+    fun showPreviousMonth() { displayedMonth.value = displayedMonth.value.minusMonths(1).coerceToMonthRange() }
+    fun showNextMonth() { displayedMonth.value = displayedMonth.value.plusMonths(1).coerceToMonthRange() }
 
     /** M20f: feeds a swipe on the library's calendar back into the same source of truth the chevrons use. */
-    fun setDisplayedMonth(month: YearMonth) { displayedMonth.value = month }
+    fun setDisplayedMonth(month: YearMonth) { displayedMonth.value = month.coerceToMonthRange() }
 
     /** §5.2: the first-day-of-week picker lives on this screen's top bar and writes the shared setting. */
     fun setFirstDayOfWeek(day: DayOfWeek) {
@@ -128,6 +148,9 @@ data class CalendarUiState(
     val weeklyStreak: Int = 0,
     val today: LocalDate = LocalDate.now(),
     val earliestWorkoutMonth: YearMonth? = null,
+    /** M20f's swipe range, and the bound every month-navigation entry point clamps against. */
+    val monthRangeStart: YearMonth = YearMonth.now().minusYears(1),
+    val monthRangeEnd: YearMonth = YearMonth.now().plusMonths(1),
 )
 
 data class CalendarDayWorkout(val workoutId: String, val title: String, val durationSeconds: Int)

@@ -89,10 +89,15 @@ fun CalendarScreen(
     var firstDayMenuExpanded by remember { mutableStateOf(false) }
 
     // M20f: the library needs a finite swipe range (decisions.md 2026-09-08 -- earliest workout
-    // month minus a year, through one month past the current month).
-    val currentMonth = YearMonth.from(uiState.today)
-    val startMonth = (uiState.earliestWorkoutMonth ?: currentMonth).minusYears(1)
-    val endMonth = currentMonth.plusMonths(1)
+    // month minus a year, through one month past the current month). The ViewModel is the one
+    // source of truth for these bounds -- showPreviousMonth/showNextMonth/setDisplayedMonth all
+    // clamp against the same monthRangeStart/monthRangeEnd, so displayedMonth can never leave the
+    // range the calendar below is built with. Before that clamp existed, the chevrons could step
+    // displayedMonth outside this range, where kizitonwose's scrollToMonth silently no-ops (it
+    // just logs) and the header label and the rendered grid would drift apart permanently (found
+    // in the M20a-h code audit, 2026-09-08).
+    val startMonth = uiState.monthRangeStart
+    val endMonth = uiState.monthRangeEnd
     // rememberCalendarState re-keys on every one of its arguments (including firstVisibleMonth),
     // so feeding it uiState.displayedMonth directly would discard-and-rebuild the whole scrollable
     // state on every chevron tap and every swipe. Re-derive the seed only when a real rebuild
@@ -181,7 +186,10 @@ fun CalendarScreen(
             )
 
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = viewModel::showPreviousMonth) {
+                IconButton(
+                    onClick = viewModel::showPreviousMonth,
+                    enabled = uiState.displayedMonth > uiState.monthRangeStart,
+                ) {
                     Icon(Icons.Filled.ChevronLeft, contentDescription = stringResource(R.string.calendar_previous_month))
                 }
                 Text(
@@ -189,7 +197,10 @@ fun CalendarScreen(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = viewModel::showNextMonth) {
+                IconButton(
+                    onClick = viewModel::showNextMonth,
+                    enabled = uiState.displayedMonth < uiState.monthRangeEnd,
+                ) {
                     Icon(Icons.Filled.ChevronRight, contentDescription = stringResource(R.string.calendar_next_month))
                 }
             }

@@ -81,22 +81,45 @@ class CalendarViewModelTest {
     }
 
     @Test
-    fun `the month can be paged backwards without limit`() = runTest {
+    fun `paging back stops at the start of the calendar window, not before`() = runTest {
+        // M20f bounded the calendar to a finite [monthRangeStart, monthRangeEnd] window (the
+        // library's swipe range needs one); a prior version of this test pinned the OLD unbounded
+        // contract (20 taps -> Dec 2024) and stayed green after the bound landed, because nothing
+        // in showPreviousMonth clamped against it -- the chevron could walk displayedMonth outside
+        // the range the calendar was actually built with, where the library's scrollToMonth
+        // silently no-ops and the header label and the rendered grid permanently disagree (found in
+        // the M20a-h code audit, 2026-09-08). This asserts the bound is real, not just declared.
         val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
         assertEquals(YearMonth.of(2026, 8), vm.uiState.value.displayedMonth)
+        assertEquals(YearMonth.of(2025, 8), vm.uiState.value.monthRangeStart)
 
         repeat(20) { vm.showPreviousMonth() }
 
-        assertEquals(YearMonth.of(2024, 12), vm.uiState.value.displayedMonth)
+        assertEquals(YearMonth.of(2025, 8), vm.uiState.value.displayedMonth)
+    }
+
+    @Test
+    fun `paging forward stops at the end of the calendar window`() = runTest {
+        val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
+        assertEquals(YearMonth.of(2026, 9), vm.uiState.value.monthRangeEnd)
+
+        repeat(5) { vm.showNextMonth() }
+
+        assertEquals(YearMonth.of(2026, 9), vm.uiState.value.displayedMonth)
     }
 
     @Test
     fun `paging forward and back returns to the starting month`() = runTest {
         val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
+        // Step off the current-month edge first -- from the current month itself, two forward taps
+        // would hit monthRangeEnd (current + 1) and the second tap would clip, breaking the
+        // round-trip this test is actually about.
+        vm.showPreviousMonth()
+        val start = vm.uiState.value.displayedMonth
 
         vm.showNextMonth(); vm.showNextMonth(); vm.showPreviousMonth(); vm.showPreviousMonth()
 
-        assertEquals(YearMonth.of(2026, 8), vm.uiState.value.displayedMonth)
+        assertEquals(start, vm.uiState.value.displayedMonth)
     }
 
     @Test
@@ -184,9 +207,21 @@ class CalendarViewModelTest {
         // displayedMonth the chevrons and header label already read.
         val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
 
-        vm.setDisplayedMonth(YearMonth.of(2026, 11))
+        vm.setDisplayedMonth(YearMonth.of(2026, 9)) // in range: exactly monthRangeEnd
 
-        assertEquals(YearMonth.of(2026, 11), vm.uiState.value.displayedMonth)
+        assertEquals(YearMonth.of(2026, 9), vm.uiState.value.displayedMonth)
+    }
+
+    @Test
+    fun `setDisplayedMonth clamps a month outside the calendar window`() = runTest {
+        // The library itself can never hand back an out-of-range month (it clamps its own swipe
+        // range), but this is a public VM method with no other caller enforcing that -- clamp here
+        // too, so it can never disagree with the chevrons' own bound.
+        val vm = viewModel(workouts = emptyList(), now = millis("2026-08-14T12:00"))
+
+        vm.setDisplayedMonth(YearMonth.of(2026, 11)) // beyond monthRangeEnd (2026-09)
+
+        assertEquals(YearMonth.of(2026, 9), vm.uiState.value.displayedMonth)
     }
 
     @Test
