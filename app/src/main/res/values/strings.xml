@@ -78,6 +78,21 @@
     <string name="muscle_region_quads">Quads</string>
     <string name="muscle_region_hamstrings_glutes">Hamstrings &amp; Glutes</string>
     <string name="muscle_region_lower_leg">Lower Leg</string>
+    <!--
+      Radar spoke labels. KoalaPlot shrinks the wheel until the widest label fits, so every
+      character here is paid for in chart diameter — keep these to ~6 characters. The labels on the
+      horizontal spokes (shoulders at 3 o'clock, hamstrings/glutes at 9) cost the most, which is why
+      only those two differ from the full names above. The legend under the wheel repeats each
+      region's full name, so a short spoke label is a pointer, not the definition.
+    -->
+    <string name="muscle_region_chest_axis">Chest</string>
+    <string name="muscle_region_back_axis">Back</string>
+    <string name="muscle_region_shoulders_axis">Delts</string>
+    <string name="muscle_region_arms_axis">Arms</string>
+    <string name="muscle_region_core_axis">Core</string>
+    <string name="muscle_region_quads_axis">Quads</string>
+    <string name="muscle_region_hamstrings_glutes_axis">Hams</string>
+    <string name="muscle_region_lower_leg_axis">Lower leg</string>
     <string name="analytics_tile_workouts">Workouts</string>
     <string name="analytics_tile_duration">Duration</string>
     <string name="analytics_tile_volume">Volume</string>
