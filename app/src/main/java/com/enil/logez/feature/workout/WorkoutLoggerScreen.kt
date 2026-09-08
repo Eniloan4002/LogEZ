@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,6 +77,9 @@ import com.enil.logez.feature.workout.finish.toDatePickerMillis
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -183,14 +187,14 @@ fun WorkoutLoggerScreen(
     LaunchedEffect(Unit) {
         viewModel.scrollToExercise.collect { exerciseId ->
             val index = uiState.exercises.indexOfFirst { it.id == exerciseId }
-            if (index >= 0) listState.animateScrollToItem(index)
+            if (index >= 0) listState.animateScrollToItemInterruptible(index)
         }
     }
 
     // M11: the circuit analog — round-card indices map 1:1 onto the circuit list's items.
     LaunchedEffect(Unit) {
         viewModel.scrollToRound.collect { roundIndex ->
-            if (roundIndex >= 0) listState.animateScrollToItem(roundIndex)
+            if (roundIndex >= 0) listState.animateScrollToItemInterruptible(roundIndex)
         }
     }
 
@@ -499,6 +503,7 @@ fun WorkoutLoggerScreen(
     // cell uses, so it behaves identically in live and edit modes.
     plateTarget?.let { target ->
         PlateCalculatorSheet(
+            setId = target.setId,
             initialWeightKg = target.initialWeightKg,
             weightUnit = uiState.plateCalculator.weightUnit,
             equipment = uiState.plateCalculator.equipment,
@@ -600,6 +605,24 @@ fun WorkoutLoggerScreen(
             },
             dismissButton = { TextButton(onClick = { showDiscardConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
+    }
+}
+
+/**
+ * M20h: `animateScrollToItem` holds the scroll list's `MutatorMutex` at `MutatePriority.Default`
+ * for the whole ~300ms animation. Any Default-or-higher mutation that starts while it's running —
+ * the user flicking the list themselves (`UserInput`, which outranks `Default`), or Reorderable's
+ * own drag-scroll — cancels it with an internal `MutationInterruptedException`. Left uncaught, that
+ * exception is a `CancellationException`, so it propagates out of the collecting `LaunchedEffect`
+ * and ends it for good: every later superset/circuit auto-scroll for the rest of this screen's life
+ * would silently do nothing. `ensureActive()` tells the two cancellation causes apart — rethrow only
+ * if this coroutine's own job was the one cancelled, not the mutex's.
+ */
+private suspend fun LazyListState.animateScrollToItemInterruptible(index: Int) {
+    try {
+        animateScrollToItem(index)
+    } catch (e: CancellationException) {
+        currentCoroutineContext().ensureActive()
     }
 }
 

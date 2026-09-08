@@ -55,10 +55,20 @@ import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
  * ExercisePickerSheet.kt`) under the same host-load-starved emulator session (`uptime` load
  * average 12-14 on an 8-core host), and force-stopping/restarting the Gboard IME process did not
  * clear it either. That rules out FlexibleBottomSheet specifically -- reverted back to non-modal.
+ *
+ * Non-modal cuts both ways: because the set list behind the sheet stays tappable, a user can
+ * retarget it to a *different* set's calculator icon without dismissing the open one first. The
+ * sheet stays mounted across that (`WorkoutLoggerScreen`'s `plateTarget?.let { ... }` recomposes
+ * the same call site rather than tearing it down), so [targetText] is keyed on [setId] to reseed
+ * from the new set's weight — found retargeting without dismissing during the M20a-h code audit
+ * (2026-09-08); before this it kept the previous set's prefilled number and "Use X" would have
+ * applied it to the newly-targeted set. [selectedBarKg] stays unkeyed on purpose: which bar you're
+ * loading plates onto is a per-session choice, not a per-set one, so it should carry over.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlateCalculatorSheet(
+    setId: String,
     initialWeightKg: Double?,
     weightUnit: WeightUnit,
     equipment: PlateEquipment,
@@ -69,7 +79,7 @@ internal fun PlateCalculatorSheet(
     // every solve meaningless — fall back to the standard 20 kg bar.
     val bars = equipment.barsKg.ifEmpty { listOf(20.0) }
     var selectedBarKg by remember { mutableStateOf(bars.first()) }
-    var targetText by remember {
+    var targetText by remember(setId) {
         mutableStateOf(initialWeightKg?.let { formatWeightNumber(toDisplay(it, weightUnit)) }.orEmpty())
     }
 
