@@ -60,8 +60,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // M20e: raised 11 -> 17 (Owner, 2026-09-08 structured question), required by
+        // compose-unstyled's install docs. Below the JBR 21 Gradle-daemon pin
+        // (gradle.properties); does not touch the pinned AGP/Kotlin/KSP/Compose-BOM quadruple.
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         compose = true
