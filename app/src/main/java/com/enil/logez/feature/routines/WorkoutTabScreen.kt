@@ -188,7 +188,19 @@ fun WorkoutTabScreen(
         // visible, the header's own routines sit right under it and each refused hover stalls the
         // library ~1s (it waits for a layout change that never comes), and a header crossing a
         // neighbour's routines would leapfrog that folder on every card centre it passes.
-        var draggingFolderId by remember { mutableStateOf<String?>(null) }
+        //
+        // The same ~1s stall reaches the OTHER two drag directions too, just without a visibility
+        // fix available: reorderTabRows refuses a "routine" drop onto anything but a same-folder
+        // sibling, and a "root" drop onto anything but another root row (see reorderTabRows below),
+        // so hovering a routine card over a different folder, a folder header, or a root row -- or
+        // a root row over a folder header or any routine card -- refuses and stalls the same way.
+        // draggingBucket names which bucket is currently being dragged ("folder", "routine:<folder
+        // id>", or "root") so every OTHER bucket's rows can be marked enabled = false for the
+        // drag's duration: Reorderable's own hover/collision detection then skips them as swap
+        // candidates entirely, instead of registering the hover and having reorderTabRows refuse it
+        // a frame later (found in the M20a-h code audit, 2026-09-08 -- the folder-drag case above
+        // was already mitigated; the routine and root directions were not).
+        var draggingBucket by remember { mutableStateOf<String?>(null) }
         val commitFolders = { viewModel.reorderFolders(localFolders.map { it.folder.id }) }
         val commitFolderRoutines = { routineId: String ->
             // Re-resolve the owner: the optimistic list may have replaced the section.
@@ -268,7 +280,12 @@ fun WorkoutTabScreen(
             // at the M20a checkpoint).
             localFolders.forEach { section ->
                 item(key = "folder:${section.folder.id}") {
-                    ReorderableItem(reorderState, key = "folder:${section.folder.id}", animateItemModifier = Modifier) { isDragging ->
+                    ReorderableItem(
+                        reorderState,
+                        key = "folder:${section.folder.id}",
+                        enabled = draggingBucket == null || draggingBucket == "folder",
+                        animateItemModifier = Modifier,
+                    ) { isDragging ->
                         FolderHeaderRow(
                             folder = section.folder,
                             isCollapsed = section.folder.id in collapsedFolders,
@@ -278,8 +295,8 @@ fun WorkoutTabScreen(
                                 val key = "folder:${section.folder.id}"
                                 DragHandle(
                                     modifier = Modifier.longPressDraggableHandle(
-                                        onDragStarted = { draggingFolderId = section.folder.id },
-                                        onDragStopped = { commitFolders(); draggingFolderId = null },
+                                        onDragStarted = { draggingBucket = "folder" },
+                                        onDragStopped = { commitFolders(); draggingBucket = null },
                                     ),
                                     onMoveUp = if (index > 0) ({ nudge(key, "folder:${localFolders[index - 1].folder.id}", commitFolders) }) else null,
                                     onMoveDown = if (index in 0 until localFolders.lastIndex) ({ nudge(key, "folder:${localFolders[index + 1].folder.id}", commitFolders) }) else null,
@@ -303,9 +320,14 @@ fun WorkoutTabScreen(
                 // card's centre stays under the still-tracked drag rect, which can re-trigger the
                 // swap and ping-pong the two folders. Hiding routines during a folder drag leaves
                 // only other folder headers as hover targets, which reorderTabRows resolves cleanly.
-                if (section.folder.id !in collapsedFolders && draggingFolderId == null) {
+                if (section.folder.id !in collapsedFolders && draggingBucket != "folder") {
                     items(items = section.routines, key = { "routine:${it.routine.id}" }) { card ->
-                        ReorderableItem(reorderState, key = "routine:${card.routine.id}", animateItemModifier = Modifier) { isDragging ->
+                        ReorderableItem(
+                            reorderState,
+                            key = "routine:${card.routine.id}",
+                            enabled = draggingBucket == null || draggingBucket == "routine:${section.folder.id}",
+                            animateItemModifier = Modifier,
+                        ) { isDragging ->
                             RoutineCard(
                                 card = card,
                                 isDragging = isDragging,
@@ -316,7 +338,10 @@ fun WorkoutTabScreen(
                                     val key = "routine:${card.routine.id}"
                                     val commit = { commitFolderRoutines(card.routine.id) }
                                     DragHandle(
-                                        modifier = Modifier.longPressDraggableHandle(onDragStopped = commit),
+                                        modifier = Modifier.longPressDraggableHandle(
+                                            onDragStarted = { draggingBucket = "routine:${owner?.folder?.id}" },
+                                            onDragStopped = { commit(); draggingBucket = null },
+                                        ),
                                         onMoveUp = if (index > 0) ({ nudge(key, "routine:${siblings[index - 1].routine.id}", commit) }) else null,
                                         onMoveDown = if (index in 0 until siblings.lastIndex) ({ nudge(key, "routine:${siblings[index + 1].routine.id}", commit) }) else null,
                                     )
@@ -343,7 +368,12 @@ fun WorkoutTabScreen(
                     )
                 }
                 items(items = localRootRoutines, key = { "root:${it.routine.id}" }) { card ->
-                    ReorderableItem(reorderState, key = "root:${card.routine.id}", animateItemModifier = Modifier) { isDragging ->
+                    ReorderableItem(
+                        reorderState,
+                        key = "root:${card.routine.id}",
+                        enabled = draggingBucket == null || draggingBucket == "root",
+                        animateItemModifier = Modifier,
+                    ) { isDragging ->
                         RoutineCard(
                             card = card,
                             isDragging = isDragging,
@@ -351,7 +381,10 @@ fun WorkoutTabScreen(
                                 val index = localRootRoutines.indexOfFirst { it.routine.id == card.routine.id }
                                 val key = "root:${card.routine.id}"
                                 DragHandle(
-                                    modifier = Modifier.longPressDraggableHandle(onDragStopped = commitRoot),
+                                    modifier = Modifier.longPressDraggableHandle(
+                                        onDragStarted = { draggingBucket = "root" },
+                                        onDragStopped = { commitRoot(); draggingBucket = null },
+                                    ),
                                     onMoveUp = if (index > 0) ({ nudge(key, "root:${localRootRoutines[index - 1].routine.id}", commitRoot) }) else null,
                                     onMoveDown = if (index in 0 until localRootRoutines.lastIndex) ({ nudge(key, "root:${localRootRoutines[index + 1].routine.id}", commitRoot) }) else null,
                                 )
