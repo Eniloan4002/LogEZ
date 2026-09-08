@@ -131,6 +131,12 @@ dependencies {
     // M20d: non-modal (interact-behind) sheet for the live-workout plate calculator.
     implementation(libs.flexible.bottomsheet)
 
+    // M20e: renderless primitives styled with our own tokens where M3 chrome fights the Neon Lab
+    // look (Settings sliders + radio dialogs). No sheet artifact -- M20e kept FlexibleBottomSheet
+    // (decisions.md 2026-09-08).
+    implementation(libs.composeunstyled.slider)
+    implementation(libs.composeunstyled.dialog)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
