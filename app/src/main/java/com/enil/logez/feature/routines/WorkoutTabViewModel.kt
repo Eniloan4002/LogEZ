@@ -7,8 +7,6 @@ import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.StreakCalculator
-import com.enil.logez.core.domain.repository.Exercise
-import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -22,10 +20,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,33 +32,10 @@ class WorkoutTabViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
     private val workoutRepository: WorkoutRepository,
     private val settingsRepository: SettingsRepository,
-    private val exerciseRepository: ExerciseRepository,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
     private val clock: Clock,
 ) : ViewModel() {
-    private val _quickTrackExercises = MutableStateFlow<QuickTrackExercises?>(null)
-
-    /**
-     * M21a "Track a walk/run": the two seed exercises the quick-track card offers, looked up by
-     * their exact frozen seed names (`exercises_seed.json`, PHASE2_PLAN §7.9) rather than a
-     * hardcoded id, so a user who has edited/deleted either one degrades to the card simply not
-     * showing instead of pointing at a stale id. A one-shot lookup, kept out of [uiState]'s own
-     * `combine` (already at kotlinx.coroutines' 5-flow typed-overload ceiling per the heatmap/
-     * preview nesting comments below) since these two rows aren't expected to change mid-session.
-     */
-    val quickTrackExercises: StateFlow<QuickTrackExercises?> = _quickTrackExercises.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            val active = exerciseRepository.getAllActive()
-            val running = active.firstOrNull { it.name == QUICK_TRACK_RUNNING_NAME }
-            val walking = active.firstOrNull { it.name == QUICK_TRACK_WALKING_NAME }
-            if (running != null && walking != null) {
-                _quickTrackExercises.value = QuickTrackExercises(running, walking)
-            }
-        }
-    }
     val uiState: StateFlow<WorkoutTabUiState> = combine(
         routineRepository.observeFolders(),
         routineRepository.observeAllRoutines(),
@@ -202,27 +175,7 @@ class WorkoutTabViewModel @Inject constructor(
         sessionController.startSession(id)
         return id
     }
-
-    suspend fun startQuickTrack(exerciseId: String, title: String): StartResult {
-        val result = workoutStarter.startQuickTrackOrConflict(exerciseId, title)
-        if (result is StartResult.Started) sessionController.startSession(result.workoutId)
-        return result
-    }
-
-    suspend fun discardInProgressAndStartQuickTrack(exerciseId: String, title: String): String {
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
-        val id = workoutStarter.startQuickTrack(exerciseId, title)
-        sessionController.startSession(id)
-        return id
-    }
 }
-
-/** M21a: the two seed rows the quick-track card offers — exact names from `exercises_seed.json`. */
-private const val QUICK_TRACK_RUNNING_NAME = "Running (Outdoor)"
-private const val QUICK_TRACK_WALKING_NAME = "Walking (Outdoor)"
-
-data class QuickTrackExercises(val running: Exercise, val walking: Exercise)
 
 data class WorkoutTabUiState(
     val isLoading: Boolean = true,

@@ -162,44 +162,6 @@ class WorkoutStarterTest {
         assertEquals(StartResult.AlreadyInProgress(firstId), result)
     }
 
-    // --- M21a "Track a walk/run" ---
-
-    @Test
-    fun `startQuickTrack creates an IN_PROGRESS workout with one exercise and a blank set`() = runTest {
-        val workoutRepo = FakeWorkoutRepository()
-        val starter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock(currentMillis = 3_000L))
-
-        val id = starter.startQuickTrack("ex-running", "Running (Outdoor)")
-
-        val workout = workoutRepo.getById(id)!!
-        assertEquals("Running (Outdoor)", workout.title) // shows the exercise name, not a generic "New Workout"
-        assertEquals(WorkoutStatus.IN_PROGRESS, workout.status)
-        assertNull(workout.routineId)
-        assertEquals(3_000L, workout.startedAt)
-
-        val exercises = workoutRepo.getExercisesForWorkout(id)
-        assertEquals(1, exercises.size)
-        assertEquals("ex-running", exercises[0].exerciseId)
-        assertEquals(0, exercises[0].orderIndex)
-
-        val sets = workoutRepo.getSetsForWorkoutExercise(exercises[0].id)
-        assertEquals(1, sets.size)
-        assertNull(sets[0].distanceMeters) // typed in the Logger, not collected up front
-        assertNull(sets[0].durationSeconds)
-        assertEquals(false, sets[0].isCompleted)
-    }
-
-    @Test
-    fun `startQuickTrackOrConflict surfaces the existing workout instead of creating a second one`() = runTest {
-        val workoutRepo = FakeWorkoutRepository()
-        val starter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock())
-        val firstId = starter.startEmpty()
-
-        val result = starter.startQuickTrackOrConflict("ex-running", "Running (Outdoor)")
-
-        assertEquals(StartResult.AlreadyInProgress(firstId), result)
-    }
-
     // --- M11 circuits ---
 
     @Test

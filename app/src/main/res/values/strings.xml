@@ -212,10 +212,6 @@
     <string name="workout_new_routine">New routine</string>
     <string name="workout_start_empty">Start Empty Workout</string>
     <string name="workout_start_routine">Start Routine</string>
-    <!-- M21a "Track a walk/run" quick-track card -->
-    <string name="workout_track_walk_run_title">Track a walk/run</string>
-    <string name="workout_track_walk_run_running">Running</string>
-    <string name="workout_track_walk_run_walking">Walking</string>
     <string name="workout_create_first_routine">Create your first routine</string>
     <string name="workout_live_logging_coming_soon">Live workout logging lands in M4</string>
     <string name="workout_my_routines_header">My Routines</string>
