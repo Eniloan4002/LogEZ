@@ -4,6 +4,7 @@ import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -131,6 +132,39 @@ class WorkoutStarter @Inject constructor(
         return workoutId
     }
 
+    /**
+     * M21a "Track a walk/run": a one-exercise ad-hoc workout, exactly [startEmpty]'s shape plus a
+     * single pre-added [WorkoutExerciseEntity]/[WorkoutSetEntity] pair so the user lands straight in
+     * the Logger with Running/Walking already on the board — distance and duration are typed there
+     * through the exact same `DISTANCE_DURATION` cells every other exercise uses, so they start
+     * blank here rather than being collected in a separate dialog.
+     */
+    suspend fun startQuickTrack(exerciseId: String, title: String): String {
+        val now = clock.now().toEpochMilliseconds()
+        val workoutId = UUID.randomUUID().toString()
+        val workoutExerciseId = UUID.randomUUID().toString()
+        workoutRepository.insertFullWorkout(
+            WorkoutEntity(
+                id = workoutId, routineId = null, title = title, notes = null, status = WorkoutStatus.IN_PROGRESS,
+                startedAt = now, endedAt = null, durationSeconds = 0, createdAt = now, updatedAt = now,
+            ),
+            listOf(
+                WorkoutExerciseEntity(
+                    id = workoutExerciseId, workoutId = workoutId, exerciseId = exerciseId, orderIndex = 0,
+                    supersetGroup = null, restTimerSeconds = null, notes = null,
+                ),
+            ),
+            listOf(
+                WorkoutSetEntity(
+                    id = UUID.randomUUID().toString(), workoutExerciseId = workoutExerciseId, orderIndex = 0,
+                    setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null,
+                    distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null,
+                ),
+            ),
+        )
+        return workoutId
+    }
+
     /** §5.1.1 spine: one IN_PROGRESS workout at a time — surfaces the conflict instead of silently creating a second one. */
     suspend fun startEmptyOrConflict(): StartResult {
         val existing = getInProgressId()
@@ -145,6 +179,11 @@ class WorkoutStarter @Inject constructor(
     suspend fun startFromWorkoutOrConflict(sourceWorkoutId: String): StartResult {
         val existing = getInProgressId()
         return if (existing != null) StartResult.AlreadyInProgress(existing) else StartResult.Started(startFromWorkout(sourceWorkoutId))
+    }
+
+    suspend fun startQuickTrackOrConflict(exerciseId: String, title: String): StartResult {
+        val existing = getInProgressId()
+        return if (existing != null) StartResult.AlreadyInProgress(existing) else StartResult.Started(startQuickTrack(exerciseId, title))
     }
 }
 
