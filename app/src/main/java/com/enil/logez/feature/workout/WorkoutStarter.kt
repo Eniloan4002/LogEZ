@@ -4,9 +4,11 @@ import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -145,6 +147,45 @@ class WorkoutStarter @Inject constructor(
     suspend fun startFromWorkoutOrConflict(sourceWorkoutId: String): StartResult {
         val existing = getInProgressId()
         return if (existing != null) StartResult.AlreadyInProgress(existing) else StartResult.Started(startFromWorkout(sourceWorkoutId))
+    }
+
+    /**
+     * M21a "Track a walk/run": the GPS-driven twin of [startEmpty] — one ad-hoc workout, one
+     * exercise, one set — except the set starts blank on purpose: `ActivityTrackingController`
+     * writes distance/duration onto it at tracking finish, rather than the user typing them.
+     */
+    suspend fun startActivityTracking(exerciseId: String, title: String): Pair<String, String> {
+        val now = clock.now().toEpochMilliseconds()
+        val workoutId = UUID.randomUUID().toString()
+        val workoutExerciseId = UUID.randomUUID().toString()
+        val workoutSetId = UUID.randomUUID().toString()
+        workoutRepository.insertFullWorkout(
+            WorkoutEntity(
+                id = workoutId, routineId = null, title = title, notes = null, status = WorkoutStatus.IN_PROGRESS,
+                startedAt = now, endedAt = null, durationSeconds = 0, createdAt = now, updatedAt = now,
+            ),
+            listOf(
+                WorkoutExerciseEntity(
+                    id = workoutExerciseId, workoutId = workoutId, exerciseId = exerciseId, orderIndex = 0,
+                    supersetGroup = null, restTimerSeconds = null, notes = null,
+                ),
+            ),
+            listOf(
+                WorkoutSetEntity(
+                    id = workoutSetId, workoutExerciseId = workoutExerciseId, orderIndex = 0,
+                    setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null,
+                    distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null,
+                ),
+            ),
+        )
+        return workoutId to workoutSetId
+    }
+
+    suspend fun startActivityTrackingOrConflict(exerciseId: String, title: String): ActivityTrackingStartResult {
+        val existing = getInProgressId()
+        if (existing != null) return ActivityTrackingStartResult.AlreadyInProgress(existing)
+        val (workoutId, workoutSetId) = startActivityTracking(exerciseId, title)
+        return ActivityTrackingStartResult.Started(workoutId, workoutSetId)
     }
 }
 

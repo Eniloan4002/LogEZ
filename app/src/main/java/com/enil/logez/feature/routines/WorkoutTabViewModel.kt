@@ -7,9 +7,13 @@ import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.StreakCalculator
+import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.activity.ActivityTrackingController
+import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -20,8 +24,10 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -32,10 +38,35 @@ class WorkoutTabViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
     private val workoutRepository: WorkoutRepository,
     private val settingsRepository: SettingsRepository,
+    private val exerciseRepository: ExerciseRepository,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
+    private val activityTrackingController: ActivityTrackingController,
     private val clock: Clock,
 ) : ViewModel() {
+    private val _quickTrackExercises = MutableStateFlow<QuickTrackExercises?>(null)
+
+    /**
+     * M21a "Track a walk/run": the two seed exercises the card offers, looked up by their exact
+     * frozen seed names (`exercises_seed.json`, PHASE2_PLAN §7.9) rather than a hardcoded id, so a
+     * user who has edited/deleted either one degrades to the card simply not showing instead of
+     * pointing at a stale id. A one-shot lookup, kept out of [uiState]'s own `combine` (already at
+     * kotlinx.coroutines' 5-flow typed-overload ceiling) since these two rows aren't expected to
+     * change mid-session.
+     */
+    val quickTrackExercises: StateFlow<QuickTrackExercises?> = _quickTrackExercises.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val active = exerciseRepository.getAllActive()
+            val running = active.firstOrNull { it.name == QUICK_TRACK_RUNNING_NAME }
+            val walking = active.firstOrNull { it.name == QUICK_TRACK_WALKING_NAME }
+            if (running != null && walking != null) {
+                _quickTrackExercises.value = QuickTrackExercises(running, walking)
+            }
+        }
+    }
+
     val uiState: StateFlow<WorkoutTabUiState> = combine(
         routineRepository.observeFolders(),
         routineRepository.observeAllRoutines(),
@@ -175,7 +206,46 @@ class WorkoutTabViewModel @Inject constructor(
         sessionController.startSession(id)
         return id
     }
+
+    /**
+     * M21a: whether the current IN_PROGRESS workout is a GPS-tracked one — the resume dialog reads
+     * this to send "Resume" to the live-tracking screen instead of the Logger. Known v1 gap, not
+     * fixed here: the tab-root mini-bar's own "tap to resume" still always goes to the Logger.
+     */
+    fun isActivityTrackingInProgress(): Boolean = activityTrackingController.state.value.isTracking
+
+    /**
+     * M21a: starts the ad-hoc workout, the GPS controller, AND `WorkoutSessionController`'s shared
+     * elapsed-time state (so the true run-start time is what the Logger's own duration display
+     * reflects once tracking finishes and hands off there — see `ActivityTrackingScreen`'s Finish
+     * path, which starts `WorkoutSessionService` itself at that point, not here: only one
+     * foreground service runs at a time, `ActivityTrackingService` during tracking). The caller
+     * (Composable) starts `ActivityTrackingService` and navigates to the live-tracking screen.
+     */
+    suspend fun startActivityTracking(exerciseId: String, title: String): ActivityTrackingStartResult {
+        val result = workoutStarter.startActivityTrackingOrConflict(exerciseId, title)
+        if (result is ActivityTrackingStartResult.Started) {
+            activityTrackingController.startTracking(result.workoutId, result.workoutSetId)
+            sessionController.startSession(result.workoutId)
+        }
+        return result
+    }
+
+    suspend fun discardInProgressAndStartActivityTracking(exerciseId: String, title: String): ActivityTrackingStartResult.Started {
+        workoutStarter.discardInProgress()
+        sessionController.endSession()
+        val (workoutId, workoutSetId) = workoutStarter.startActivityTracking(exerciseId, title)
+        activityTrackingController.startTracking(workoutId, workoutSetId)
+        sessionController.startSession(workoutId)
+        return ActivityTrackingStartResult.Started(workoutId, workoutSetId)
+    }
 }
+
+/** M21a: the two seed rows the quick-track card offers — exact names from `exercises_seed.json`. */
+private const val QUICK_TRACK_RUNNING_NAME = "Running (Outdoor)"
+private const val QUICK_TRACK_WALKING_NAME = "Walking (Outdoor)"
+
+data class QuickTrackExercises(val running: Exercise, val walking: Exercise)
 
 data class WorkoutTabUiState(
     val isLoading: Boolean = true,

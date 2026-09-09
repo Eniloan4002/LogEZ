@@ -28,6 +28,7 @@ flexibleBottomSheet = "0.3.0" # M20d — https://github.com/skydoves/FlexibleBot
 composeUnstyled = "2.9.0" # M20e — https://github.com/composablehorizons/compose-unstyled/releases; needs jvmTarget 17; 2.9.2+ is built on CMP 1.12 (ahead of our 1.11.3) — stay on 2.9.0
 calendar = "2.10.1" # M20f — https://github.com/kizitonwose/Calendar/releases; java.time artifact; compat table maps Compose UI 1.11.x -> Calendar 2.10.x (our resolved 1.11.3 is in-table)
 richeditor = "1.0.0-rc14" # M20g — https://github.com/MohamedRejeb/compose-rich-editor/releases; the only Kotlin-2.3 row (2.3.21) in the compat table, one Compose minor behind ours (1.10.3) -- spike on our pinned 2.3.0
+playServicesLocation = "21.4.0" # M21a — https://developers.google.com/android/guides/releases; verified by direct AAR manifest inspection (2026-09-09) to declare zero permissions, including no INTERNET -- see decisions.md
 
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -88,6 +89,8 @@ composeunstyled-dialog = { group = "com.composables", name = "composeunstyled-di
 calendar-compose = { group = "com.kizitonwose.calendar", name = "compose", version.ref = "calendar" }
 
 richeditor-compose = { group = "com.mohamedrejeb.richeditor", name = "richeditor-compose", version.ref = "richeditor" }
+
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

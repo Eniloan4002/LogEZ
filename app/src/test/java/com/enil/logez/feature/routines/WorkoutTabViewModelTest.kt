@@ -6,14 +6,24 @@ import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
+import com.enil.logez.core.domain.model.Equipment
+import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
+import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeElapsedRealtimeClock
+import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeLocationSource
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.activity.ActivityTrackingController
+import com.enil.logez.feature.activity.ActivityTrackingStartResult
+import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import kotlinx.coroutines.CoroutineScope
@@ -25,9 +35,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -46,10 +58,24 @@ class WorkoutTabViewModelTest {
         clock: FakeClock = FakeClock(),
         workoutRepo: FakeWorkoutRepository = FakeWorkoutRepository(),
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
+        exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
+        activityTrackingController: ActivityTrackingController = ActivityTrackingController(
+            workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()),
+        ),
     ): WorkoutTabViewModel {
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
-        return WorkoutTabViewModel(routineRepo, workoutRepo, settingsRepo, WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, clock)
+        return WorkoutTabViewModel(
+            routineRepo, workoutRepo, settingsRepo, exerciseRepo,
+            WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, activityTrackingController, clock,
+        )
     }
+
+    /** M21a: matches the real `exercises_seed.json` shape closely enough for these tests. */
+    private fun cardioExercise(id: String, name: String) = Exercise(
+        id = id, name = name, exerciseType = ExerciseType.DISTANCE_DURATION, primaryMuscleGroup = MuscleGroup.CARDIO,
+        secondaryMuscleGroups = emptyList(), equipment = Equipment.NONE, instructions = "", mediaPath = null,
+        isCustom = false, isBodyweightVolumeEligible = false, isDeleted = false, createdAt = 0, updatedAt = 0,
+    )
 
     @Test
     fun `M8c heatmap counts a completed workout on its own local date`() = runTest {
@@ -202,5 +228,70 @@ class WorkoutTabViewModelTest {
 
         assertNull(repo.getFolderById("f1"))
         assertNull(repo.getRoutineById("r1")!!.folderId) // survives, moved to root
+    }
+
+    // --- M21a "Track a walk/run" (GPS) ---
+
+    @Test
+    fun `quickTrackExercises resolves once both Running (Outdoor) and Walking (Outdoor) exist`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(
+            listOf(cardioExercise("ex-run", "Running (Outdoor)"), cardioExercise("ex-walk", "Walking (Outdoor)")),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), exerciseRepo = exerciseRepo)
+
+        val exercises = vm.quickTrackExercises.value
+        assertNotNull(exercises)
+        assertEquals("ex-run", exercises!!.running.id)
+        assertEquals("ex-walk", exercises.walking.id)
+    }
+
+    @Test
+    fun `quickTrackExercises stays null when a seed exercise is missing`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(listOf(cardioExercise("ex-run", "Running (Outdoor)")))
+        val vm = newViewModel(FakeRoutineRepository(), exerciseRepo = exerciseRepo)
+
+        assertNull(vm.quickTrackExercises.value)
+    }
+
+    @Test
+    fun `startActivityTracking starts both the workout and the GPS controller`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val clock = FakeClock(currentMillis = 2_000L)
+        val controller = ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()))
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo, activityTrackingController = controller)
+
+        val result = vm.startActivityTracking("ex-run", "Running (Outdoor)")
+
+        val started = result as ActivityTrackingStartResult.Started
+        assertEquals("Running (Outdoor)", workoutRepo.getById(started.workoutId)!!.title)
+        assertTrue(controller.state.value.isTracking)
+        assertEquals(started.workoutId, controller.state.value.workoutId)
+    }
+
+    @Test
+    fun `isActivityTrackingInProgress reflects the shared GPS controller's state`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val clock = FakeClock()
+        val controller = ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()))
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo, activityTrackingController = controller)
+
+        assertFalse(vm.isActivityTrackingInProgress())
+        vm.startActivityTracking("ex-run", "Running (Outdoor)")
+        assertTrue(vm.isActivityTrackingInProgress())
+    }
+
+    @Test
+    fun `discardInProgressAndStartActivityTracking replaces the in-progress workout with a GPS-tracked one`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val clock = FakeClock()
+        val controller = ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()))
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo, activityTrackingController = controller)
+        val oldId = (vm.startEmptyWorkout() as StartResult.Started).workoutId
+
+        val started = vm.discardInProgressAndStartActivityTracking("ex-walk", "Walking (Outdoor)")
+
+        assertNull(workoutRepo.getById(oldId)) // discarded, not left dangling
+        assertEquals("Walking (Outdoor)", workoutRepo.getById(started.workoutId)!!.title)
+        assertTrue(controller.state.value.isTracking)
     }
 }

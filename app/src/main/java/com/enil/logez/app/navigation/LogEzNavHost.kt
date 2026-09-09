@@ -9,6 +9,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.enil.logez.feature.activity.ActivityTrackingRoutes
+import com.enil.logez.feature.activity.ActivityTrackingScreen
 import com.enil.logez.feature.analytics.AnalyticsRoutes
 import com.enil.logez.feature.analytics.AnalyticsScreen
 import com.enil.logez.feature.analytics.AnalyticsViewModel
@@ -90,6 +92,17 @@ fun LogEzNavHost(
                 onCreateRoutine = { folderId -> navController.navigate(RoutineRoutes.builder(folderId = folderId)) },
                 onEditRoutine = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
+                onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+            )
+        }
+        composable(ActivityTrackingRoutes.LIVE_TRACKING) {
+            ActivityTrackingScreen(
+                onFinished = { workoutId ->
+                    navController.navigate(WorkoutRoutes.logger(workoutId)) {
+                        popUpTo(ActivityTrackingRoutes.LIVE_TRACKING) { inclusive = true }
+                    }
+                },
+                onCancelled = { navController.popBackStack() },
             )
         }
         composable(LogEzDestination.Profile.route) {

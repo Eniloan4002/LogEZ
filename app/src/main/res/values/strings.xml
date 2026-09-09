@@ -212,6 +212,23 @@
     <string name="workout_new_routine">New routine</string>
     <string name="workout_start_empty">Start Empty Workout</string>
     <string name="workout_start_routine">Start Routine</string>
+    <!-- M21a "Track a walk/run" (GPS) -->
+    <string name="workout_track_walk_run_title">Track a walk/run</string>
+    <string name="workout_track_walk_run_running">Running</string>
+    <string name="workout_track_walk_run_walking">Walking</string>
+    <string name="activity_tracking_location_rationale_title">Allow location access?</string>
+    <string name="activity_tracking_location_rationale_body">logEZ needs your location to track this run/walk\'s distance and route. Used only while you\'re tracking — nothing is sent anywhere.</string>
+    <string name="activity_tracking_location_rationale_allow">Allow</string>
+    <string name="activity_tracking_location_denied">Location permission is needed to track a run or walk.</string>
+    <string name="activity_tracking_screen_title">Tracking</string>
+    <string name="activity_tracking_distance_label">Distance</string>
+    <string name="activity_tracking_distance_value">%1$s km</string>
+    <string name="activity_tracking_elapsed_label">Time</string>
+    <string name="activity_tracking_finish">Finish</string>
+    <string name="activity_tracking_cancel">Cancel</string>
+    <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
+    <string name="activity_tracking_cancel_confirm_body">Your tracked distance and route won\'t be saved.</string>
+    <string name="activity_tracking_cancel_confirm_action">Discard</string>
     <string name="workout_create_first_routine">Create your first routine</string>
     <string name="workout_live_logging_coming_soon">Live workout logging lands in M4</string>
     <string name="workout_my_routines_header">My Routines</string>
@@ -353,6 +370,10 @@
     <string name="notification_action_rest_plus_15">+15s</string>
     <string name="notification_action_rest_skip">Skip</string>
     <string name="notification_workout_fallback_title">Workout in progress</string>
+
+    <!-- M21a: GPS run/walk tracking notification -->
+    <string name="activity_tracking_notification_title">Tracking your run/walk</string>
+    <string name="activity_tracking_notification_text">%1$s km so far</string>
     <string name="notification_workout_fgs_subtype">Ongoing live workout session: rest-timer countdown and set-logging notification actions</string>
 
     <!-- M4c: finish flow, live PRs, summary -->

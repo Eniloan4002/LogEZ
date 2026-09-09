@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.enil.logez.core.data.dao.ActivityTrackDao
 import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseDao
 import com.enil.logez.core.data.dao.GoalDao
@@ -12,6 +13,7 @@ import com.enil.logez.core.data.dao.MeasurementDao
 import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
 import com.enil.logez.core.data.dao.WorkoutDao
+import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.BodyMeasurementEntity
 import com.enil.logez.core.data.entity.ExerciseEntity
 import com.enil.logez.core.data.entity.GoalDefinitionEntity
@@ -29,7 +31,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
  * Schema v1 (PHASE2_PLAN.md §3.2, §10.4), v2 adds `goal_definitions` (M8d), v3 adds
  * `exercises.primary_muscle_head` (M8e), v4 replaces that with `exercises.muscle_heads` (M8e
  * revision — a checklist, not a single pick), v5 adds `routines.structure` and
- * `workouts.structure` (M11 circuits — a discriminator only, no new tables). `exportSchema = true`
+ * `workouts.structure` (M11 circuits — a discriminator only, no new tables), v6 adds
+ * `activity_tracks` (M21a — GPS-tracked run/walk route data, one row per tracked `workout_sets`
+ * row). `exportSchema = true`
  * from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
  * app (project-rules.md testing expectations): this app's entire value is the historical log, so
@@ -49,8 +53,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         BodyMeasurementEntity::class,
         ProgressPhotoEntity::class,
         GoalDefinitionEntity::class,
+        ActivityTrackEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -62,6 +67,7 @@ abstract class LogEzDatabase : RoomDatabase() {
     abstract fun measurementDao(): MeasurementDao
     abstract fun analyticsDao(): AnalyticsDao
     abstract fun goalDao(): GoalDao
+    abstract fun activityTrackDao(): ActivityTrackDao
 
     companion object {
         const val DATABASE_NAME = "logez.db"
@@ -131,6 +137,31 @@ abstract class LogEzDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `routines` ADD COLUMN `structure` TEXT NOT NULL DEFAULT 'REGULAR'")
                 db.execSQL("ALTER TABLE `workouts` ADD COLUMN `structure` TEXT NOT NULL DEFAULT 'REGULAR'")
+            }
+        }
+
+        /** v5 -> v6 (M21a): a brand-new table only, nothing existing changes shape. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // FOREIGN KEY clause required verbatim -- ActivityTrackEntity declares one, and
+                // Room's post-migration TableInfo comparison rejects a table missing it exactly
+                // like a genuinely wrong column would (the debug13.9 failure mode).
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `activity_tracks` (
+                        `id` TEXT NOT NULL,
+                        `workout_set_id` TEXT NOT NULL,
+                        `route_polyline` TEXT,
+                        `point_count` INTEGER NOT NULL,
+                        `avg_accuracy_m` REAL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`workout_set_id`) REFERENCES `workout_sets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_activity_tracks_workout_set_id` ON `activity_tracks` (`workout_set_id`)",
+                )
             }
         }
     }

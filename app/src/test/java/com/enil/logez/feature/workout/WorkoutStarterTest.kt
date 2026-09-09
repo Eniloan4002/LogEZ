@@ -12,6 +12,7 @@ import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -160,6 +161,43 @@ class WorkoutStarterTest {
         val result = starter.startFromWorkoutOrConflict("w-source")
 
         assertEquals(StartResult.AlreadyInProgress(firstId), result)
+    }
+
+    // --- M21a "Track a walk/run" (GPS) ---
+
+    @Test
+    fun `startActivityTracking creates an IN_PROGRESS workout with one exercise and a blank set`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val starter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock(currentMillis = 4_000L))
+
+        val (workoutId, workoutSetId) = starter.startActivityTracking("ex-running", "Running (Outdoor)")
+
+        val workout = workoutRepo.getById(workoutId)!!
+        assertEquals("Running (Outdoor)", workout.title)
+        assertEquals(WorkoutStatus.IN_PROGRESS, workout.status)
+        assertNull(workout.routineId)
+        assertEquals(4_000L, workout.startedAt)
+
+        val exercises = workoutRepo.getExercisesForWorkout(workoutId)
+        assertEquals(1, exercises.size)
+        assertEquals("ex-running", exercises[0].exerciseId)
+
+        val sets = workoutRepo.getSetsForWorkoutExercise(exercises[0].id)
+        assertEquals(1, sets.size)
+        assertEquals(workoutSetId, sets[0].id)
+        assertNull(sets[0].distanceMeters) // GPS tracking fills this in at finish, not at start
+        assertNull(sets[0].durationSeconds)
+    }
+
+    @Test
+    fun `startActivityTrackingOrConflict surfaces the existing workout instead of creating a second one`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val starter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock())
+        val firstId = starter.startEmpty()
+
+        val result = starter.startActivityTrackingOrConflict("ex-running", "Running (Outdoor)")
+
+        assertEquals(ActivityTrackingStartResult.AlreadyInProgress(firstId), result)
     }
 
     // --- M11 circuits ---

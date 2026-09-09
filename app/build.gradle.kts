@@ -144,6 +144,12 @@ dependencies {
     // Markdown only at the UI boundary.
     implementation(libs.richeditor.compose)
 
+    // M21a: FusedLocationProviderClient for GPS run/walk tracking. Verified by direct AAR
+    // manifest inspection to declare zero permissions of its own, including no INTERNET
+    // (decisions.md 2026-09-09) -- it talks to the already-networked Play services process over
+    // local Binder IPC, never opening a socket from this app's own process.
+    implementation(libs.play.services.location)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

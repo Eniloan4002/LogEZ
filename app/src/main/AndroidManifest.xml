@@ -18,6 +18,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- M21a: GPS-tracked walk/run (rev. 3 plan §0.1/§2). Foreground-only — no
+         ACCESS_BACKGROUND_LOCATION anywhere; a location foreground-service tracking session is
+         only ever started while the app is in the foreground, which keeps GPS updates flowing
+         through a locked screen with no background grant needed (§2.2). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <!-- Solely for the pre-Q "Save image" path (WorkoutShareController.saveToPictures): on
          API 26–28 writing the summary PNG into the shared Pictures library still requires this
          legacy permission. API 29+ saves through scoped MediaStore inserts and requests nothing,
@@ -57,6 +65,14 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="@string/notification_workout_fgs_subtype" />
         </service>
+
+        <!-- M21a: the purpose-built `location` FGS type, not `specialUse` — distinct from
+             WorkoutSessionService above; this one's whole job is to hold the location permission
+             grant for the FGS's duration. -->
+        <service
+            android:name=".feature.activity.service.ActivityTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- Summary-card share (WorkoutShareController): grants the user's chosen ACTION_SEND
              target one-off read access to PNGs under cacheDir/shared_images/ — the only exposed

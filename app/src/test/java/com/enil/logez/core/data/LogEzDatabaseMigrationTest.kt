@@ -441,6 +441,84 @@ class LogEzDatabaseMigrationTest {
     }
 
     /**
+     * A "v5" stand-in with just the one table MIGRATION_5_6 references (`workout_sets`, the FK
+     * target `activity_tracks.workout_set_id` points at) -- matching [openV2]/[openV4]'s same
+     * "sufficient for what this migration does" scope.
+     */
+    private fun openV5(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(5) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE `workout_sets` (
+                        `id` TEXT NOT NULL, `workout_exercise_id` TEXT NOT NULL, `order_index` INTEGER NOT NULL,
+                        `set_type` TEXT NOT NULL, `weight_kg` REAL, `reps` INTEGER, `duration_seconds` INTEGER,
+                        `distance_meters` REAL, `rpe` REAL, `custom_metric` REAL, `is_completed` INTEGER NOT NULL,
+                        `completed_at` INTEGER, PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_5_6 creates activity_tracks with the entity's exact columns`() {
+        val helper = openV5()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_5_6.migrate(db)
+
+        val cursor = db.query("PRAGMA table_info(`activity_tracks`)")
+        val columns = mutableMapOf<String, Pair<String, Boolean>>() // name -> (type, notNull)
+        cursor.use {
+            val nameIdx = it.getColumnIndexOrThrow("name")
+            val typeIdx = it.getColumnIndexOrThrow("type")
+            val notNullIdx = it.getColumnIndexOrThrow("notnull")
+            while (it.moveToNext()) {
+                columns[it.getString(nameIdx)] = it.getString(typeIdx) to (it.getInt(notNullIdx) == 1)
+            }
+        }
+
+        assertEquals(setOf("id", "workout_set_id", "route_polyline", "point_count", "avg_accuracy_m"), columns.keys)
+        assertEquals("TEXT" to true, columns["id"])
+        assertEquals("TEXT" to true, columns["workout_set_id"])
+        assertEquals("TEXT" to false, columns["route_polyline"])
+        assertEquals("INTEGER" to true, columns["point_count"])
+        assertEquals("REAL" to false, columns["avg_accuracy_m"])
+
+        db.close()
+    }
+
+    @Test
+    fun `MIGRATION_5_6 can read back a row it just accepted, and is safe to run twice`() {
+        val helper = openV5()
+        val db = helper.writableDatabase
+        db.execSQL(
+            "INSERT INTO workout_sets (id, workout_exercise_id, order_index, set_type, is_completed) " +
+                "VALUES ('set1', 'we1', 0, 'NORMAL', 0)",
+        )
+        LogEzDatabase.MIGRATION_5_6.migrate(db)
+        LogEzDatabase.MIGRATION_5_6.migrate(db) // CREATE TABLE IF NOT EXISTS must not throw on a second run
+
+        db.execSQL(
+            "INSERT INTO activity_tracks (id, workout_set_id, route_polyline, point_count, avg_accuracy_m) " +
+                "VALUES ('t1', 'set1', 'abc123', 42, 5.5)",
+        )
+        val cursor = db.query("SELECT workout_set_id, point_count FROM activity_tracks WHERE id = 't1'")
+        cursor.moveToFirst()
+        assertEquals("set1", cursor.getString(0))
+        assertEquals(42, cursor.getInt(1))
+        cursor.close()
+        db.close()
+    }
+
+    /**
      * Same real-open technique as the historical-chain tests below: a database physically built to
      * the real v4 schema (`4.json`'s createSql), opened through [LogEzDatabase]'s own
      * `Room.databaseBuilder(...).addMigrations(...)` path — so Room's post-migration validation
@@ -466,7 +544,10 @@ class LogEzDatabaseMigrationTest {
             FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
 
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
-                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
+                .addMigrations(
+                    LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                )
                 .build()
 
             db.openHelper.writableDatabase // forces Room to actually open + migrate + validate
@@ -506,7 +587,10 @@ class LogEzDatabaseMigrationTest {
             FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
 
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
-                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
+                .addMigrations(
+                    LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                )
                 .build()
 
             db.openHelper.writableDatabase // forces Room to actually open + migrate + validate
@@ -545,7 +629,10 @@ class LogEzDatabaseMigrationTest {
             FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
 
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
-                .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
+                .addMigrations(
+                    LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                )
                 .build()
 
             db.openHelper.writableDatabase // forces Room to actually open + migrate (1->2->3->4->5) + validate

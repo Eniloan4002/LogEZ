@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -47,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,6 +69,10 @@ import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.feature.activity.ActivityTrackingStartResult
+import com.enil.logez.feature.activity.rememberRequestLocationForTracking
+import com.enil.logez.feature.activity.startActivityTrackingService
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
@@ -77,6 +83,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 private sealed class PendingStart {
     object Empty : PendingStart()
     data class Routine(val routineId: String) : PendingStart()
+    data class ActivityTracking(val exerciseId: String, val title: String) : PendingStart()
 }
 
 /** PHASE2_PLAN.md §5.1.1 — folders + routines home. */
@@ -87,12 +94,15 @@ fun WorkoutTabScreen(
     onCreateRoutine: (folderId: String?) -> Unit,
     onEditRoutine: (routineId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
+    onNavigateToActivityTracking: () -> Unit,
     viewModel: WorkoutTabViewModel = hiltViewModel(),
     goalsViewModel: GoalsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val goalsUiState by goalsViewModel.uiState.collectAsStateWithLifecycle()
+    val quickTrackExercises by viewModel.quickTrackExercises.collectAsStateWithLifecycle()
     RefreshOnResume(goalsViewModel::refresh)
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -104,6 +114,7 @@ fun WorkoutTabScreen(
     var movingRoutineId by remember { mutableStateOf<String?>(null) }
     var pendingStart by remember { mutableStateOf<PendingStart?>(null) }
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
+    var pendingTrackExercise by remember { mutableStateOf<Exercise?>(null) }
     val startSession = rememberStartWorkoutSession(onNavigateToLogger)
 
     fun startEmpty() = scope.launch {
@@ -118,6 +129,36 @@ fun WorkoutTabScreen(
             is StartResult.Started -> startSession(result.workoutId)
             is StartResult.AlreadyInProgress -> { pendingStart = PendingStart.Routine(routineId); inProgressWorkoutId = result.workoutId }
         }
+    }
+
+    val requestLocation = rememberRequestLocationForTracking(
+        onGranted = {
+            val exercise = pendingTrackExercise
+            pendingTrackExercise = null
+            if (exercise != null) {
+                scope.launch {
+                    when (val result = viewModel.startActivityTracking(exercise.id, exercise.name)) {
+                        is ActivityTrackingStartResult.Started -> {
+                            startActivityTrackingService(context)
+                            onNavigateToActivityTracking()
+                        }
+                        is ActivityTrackingStartResult.AlreadyInProgress -> {
+                            pendingStart = PendingStart.ActivityTracking(exercise.id, exercise.name)
+                            inProgressWorkoutId = result.workoutId
+                        }
+                    }
+                }
+            }
+        },
+        onDenied = {
+            pendingTrackExercise = null
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.activity_tracking_location_denied)) }
+        },
+    )
+
+    fun startActivityTracking(exercise: Exercise) {
+        pendingTrackExercise = exercise
+        requestLocation()
     }
 
     Scaffold(
@@ -255,6 +296,16 @@ fun WorkoutTabScreen(
                         onCreateGoal = goalsViewModel::createGoal,
                         onDeleteGoal = goalsViewModel::deleteGoal,
                     )
+                }
+            }
+
+            // M21a: only rendered once the two seed rows it needs actually resolve (see
+            // WorkoutTabViewModel.quickTrackExercises) -- if a user has renamed/deleted "Running
+            // (Outdoor)"/"Walking (Outdoor)" the card degrades to simply not appearing, rather than
+            // pointing "Track a walk/run" at a stale id.
+            quickTrackExercises?.let { exercises ->
+                item {
+                    QuickTrackCard(exercises = exercises, onTrack = ::startActivityTracking)
                 }
             }
 
@@ -457,7 +508,12 @@ fun WorkoutTabScreen(
             title = { Text(stringResource(R.string.workout_resume_title)) },
             text = { Text(stringResource(R.string.workout_resume_body)) },
             confirmButton = {
-                TextButton(onClick = { pendingStart = null; existingId?.let(startSession) }) {
+                TextButton(onClick = {
+                    pendingStart = null
+                    // M21a: an in-progress GPS track resumes into the live-tracking screen, not
+                    // the Logger -- ActivityTrackingService is still running it in the background.
+                    if (viewModel.isActivityTrackingInProgress()) onNavigateToActivityTracking() else existingId?.let(startSession)
+                }) {
                     Text(stringResource(R.string.workout_resume_action))
                 }
             },
@@ -465,11 +521,15 @@ fun WorkoutTabScreen(
                 TextButton(onClick = {
                     pendingStart = null
                     scope.launch {
-                        val newId = when (pending) {
-                            is PendingStart.Empty -> viewModel.discardInProgressAndStartEmpty()
-                            is PendingStart.Routine -> viewModel.discardInProgressAndStartRoutine(pending.routineId)
+                        when (pending) {
+                            is PendingStart.Empty -> startSession(viewModel.discardInProgressAndStartEmpty())
+                            is PendingStart.Routine -> startSession(viewModel.discardInProgressAndStartRoutine(pending.routineId))
+                            is PendingStart.ActivityTracking -> {
+                                viewModel.discardInProgressAndStartActivityTracking(pending.exerciseId, pending.title)
+                                startActivityTrackingService(context)
+                                onNavigateToActivityTracking()
+                            }
                         }
-                        startSession(newId)
                     }
                 }) {
                     Text(stringResource(R.string.workout_resume_discard_action))
@@ -609,6 +669,27 @@ private fun RoutineCard(
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_duplicate)) }, onClick = { menuExpanded = false; onDuplicate() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.workout_move_to_folder)) }, onClick = { menuExpanded = false; onMove() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_delete)) }, onClick = { menuExpanded = false; onDelete() })
+                }
+            }
+        }
+    }
+}
+
+/** M21a "Track a walk/run": Running/Walking is a single tap; GPS tracking + distance/duration capture happen on the live-tracking screen. */
+@Composable
+private fun QuickTrackCard(exercises: QuickTrackExercises, onTrack: (Exercise) -> Unit) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Text(stringResource(R.string.workout_track_walk_run_title), style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                OutlinedButton(onClick = { onTrack(exercises.running) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.workout_track_walk_run_running))
+                }
+                OutlinedButton(onClick = { onTrack(exercises.walking) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.workout_track_walk_run_walking))
                 }
             }
         }

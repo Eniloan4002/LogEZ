@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.enil.logez.core.data.LogEzDatabase
+import com.enil.logez.core.data.dao.ActivityTrackDao
 import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseDao
 import com.enil.logez.core.data.dao.GoalDao
@@ -30,11 +31,17 @@ object DataModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LogEzDatabase =
         Room.databaseBuilder(context, LogEzDatabase::class.java, LogEzDatabase.DATABASE_NAME)
-            .addMigrations(LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4, LogEzDatabase.MIGRATION_4_5)
+            .addMigrations(
+                LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
+                LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+            )
             .build()
 
     @Provides
     fun provideExerciseDao(db: LogEzDatabase): ExerciseDao = db.exerciseDao()
+
+    @Provides
+    fun provideActivityTrackDao(db: LogEzDatabase): ActivityTrackDao = db.activityTrackDao()
 
     @Provides
     fun provideGoalDao(db: LogEzDatabase): GoalDao = db.goalDao()
