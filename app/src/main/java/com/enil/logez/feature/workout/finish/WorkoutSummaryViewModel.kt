@@ -107,7 +107,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                     )
                 }
 
-            // M21c spike: scans the unfiltered `sets`, not `included` -- a recorded GPS track is a
+            // M21c: scans the unfiltered `sets`, not `included` -- a recorded GPS track is a
             // fact about what happened, not a stats-inclusion choice, so re-tagging this set as a
             // warm-up (excluding it from `included`) must not also hide the route it recorded.
             // WorkoutDetailViewModel's hasRoute check makes the identical choice for the identical

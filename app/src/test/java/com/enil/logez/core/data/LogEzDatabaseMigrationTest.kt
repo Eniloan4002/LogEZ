@@ -518,6 +518,64 @@ class LogEzDatabaseMigrationTest {
         db.close()
     }
 
+    /** v6 is an empty stand-in — MIGRATION_6_7 only ever CREATEs a brand-new table, no existing one is read. */
+    private fun openV6(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(6) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_6_7 creates daily_wellness_totals with the entity's exact columns`() {
+        val helper = openV6()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_6_7.migrate(db)
+
+        val cursor = db.query("PRAGMA table_info(`daily_wellness_totals`)")
+        val columns = mutableMapOf<String, Pair<String, Boolean>>() // name -> (type, notNull)
+        cursor.use {
+            val nameIdx = it.getColumnIndexOrThrow("name")
+            val typeIdx = it.getColumnIndexOrThrow("type")
+            val notNullIdx = it.getColumnIndexOrThrow("notnull")
+            while (it.moveToNext()) {
+                columns[it.getString(nameIdx)] = it.getString(typeIdx) to (it.getInt(notNullIdx) == 1)
+            }
+        }
+
+        assertEquals(setOf("date", "steps", "calories_burned", "updated_at"), columns.keys)
+        assertEquals("TEXT" to true, columns["date"])
+        assertEquals("INTEGER" to true, columns["steps"])
+        assertEquals("REAL" to false, columns["calories_burned"])
+        assertEquals("INTEGER" to true, columns["updated_at"])
+
+        db.close()
+    }
+
+    @Test
+    fun `MIGRATION_6_7 can read back a row it just accepted, and is safe to run twice`() {
+        val helper = openV6()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_6_7.migrate(db)
+        LogEzDatabase.MIGRATION_6_7.migrate(db) // CREATE TABLE IF NOT EXISTS must not throw on a second run
+
+        db.execSQL(
+            "INSERT INTO daily_wellness_totals (date, steps, calories_burned, updated_at) " +
+                "VALUES ('2026-09-10', 8432, NULL, 1000)",
+        )
+        val cursor = db.query("SELECT steps, calories_burned FROM daily_wellness_totals WHERE date = '2026-09-10'")
+        cursor.moveToFirst()
+        assertEquals(8432, cursor.getInt(0))
+        assertTrue(cursor.isNull(1))
+        cursor.close()
+        db.close()
+    }
+
     /**
      * Same real-open technique as the historical-chain tests below: a database physically built to
      * the real v4 schema (`4.json`'s createSql), opened through [LogEzDatabase]'s own
@@ -546,7 +604,7 @@ class LogEzDatabaseMigrationTest {
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
-                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
                 )
                 .build()
 
@@ -589,7 +647,7 @@ class LogEzDatabaseMigrationTest {
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
-                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
                 )
                 .build()
 
@@ -631,7 +689,7 @@ class LogEzDatabaseMigrationTest {
             val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
-                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
                 )
                 .build()
 

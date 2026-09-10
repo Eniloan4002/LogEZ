@@ -200,11 +200,11 @@ fun WorkoutDetailScreen(
                 }
             }
 
-            // M21b: only the map itself so far -- no route line overlay yet (that's M21c), and
-            // only rendered for a GPS-tracked workout (uiState.hasRoute), never for a strength one.
+            // M21b/c: the offline map with the recorded GPS route drawn on it, fit to the route's
+            // bounds -- only rendered for a GPS-tracked workout (uiState.hasRoute), never a strength one.
             if (uiState.hasRoute) {
                 item {
-                    RouteCard()
+                    RouteCard(routePoints = uiState.routePoints)
                 }
             }
 
@@ -322,13 +322,15 @@ private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Uni
     }
 }
 
-/** M21b: the offline Metro Manila map, fixed-centered for now -- M21c adds the actual GPS route line and frames the camera to it. */
+/** M21b/c: the offline Metro Manila map with the recorded GPS route drawn on it, camera fit to the route's bounds. */
 @Composable
-private fun RouteCard() {
+private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Text(stringResource(R.string.workout_detail_route_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             OfflineMapView(
+                routePoints = routePoints,
+                followLatest = false,
                 modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.sm).clip(RoundedCornerShape(Radius.sm)),
             )
         }

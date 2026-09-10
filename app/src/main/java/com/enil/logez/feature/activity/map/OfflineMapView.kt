@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -28,12 +29,22 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.enil.logez.R
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.net.ConnectivityReceiver
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 
-/** Metro Manila's approximate centroid — the default camera position until M21c adds a real GPS route to frame. */
+/** Metro Manila's approximate centroid — the default camera position when no route is passed. */
 private val METRO_MANILA_CENTER = LatLng(14.5995, 120.9842)
 
 /**
@@ -44,6 +55,45 @@ private val METRO_MANILA_CENTER = LatLng(14.5995, 120.9842)
  */
 private const val FINAL_ZOOM = 12.0
 
+/** M21c: street-level zoom used while actively following a live GPS fix. */
+private const val FOLLOW_ZOOM = 16.0
+
+/** Screen-pixel padding around a fitted route's bounding box -- untuned, revisit on-device if a route ever renders edge-to-edge. */
+private const val ROUTE_BOUNDS_PADDING_PX = 96
+
+private const val ROUTE_SOURCE_ID = "route-source"
+private const val ROUTE_LAYER_ID = "route-layer"
+
+private fun routeFeature(points: List<Pair<Double, Double>>): Feature =
+    Feature.fromGeometry(LineString.fromLngLats(points.map { (lat, lng) -> Point.fromLngLat(lng, lat) }))
+
+private fun routeBounds(points: List<Pair<Double, Double>>): LatLngBounds {
+    val builder = LatLngBounds.Builder()
+    points.forEach { (lat, lng) -> builder.include(LatLng(lat, lng)) }
+    return builder.build()
+}
+
+/**
+ * A route with (near-)zero real movement -- a workout where GPS never produced a usable fix (the
+ * `adb emu geo fix` AVD limitation makes this the common on-device-testing case, not just a
+ * theoretical edge case) -- has a degenerate bounding box. Confirmed on-device: fitting the camera
+ * to that near-zero box via `newLatLngBounds` zooms in far past this app's z10-14 tileset's actual
+ * data, rendering a flat, blank-looking tile with no visible roads/labels. Below this span, fall
+ * back to a fixed reasonable zoom centered on the route instead of bounds-fitting.
+ */
+private const val MIN_BOUNDS_SPAN_DEGREES = 0.002
+
+private fun isDegenerateRoute(points: List<Pair<Double, Double>>): Boolean {
+    val lats = points.map { it.first }
+    val lngs = points.map { it.second }
+    val latSpan = (lats.max() - lats.min())
+    val lngSpan = (lngs.max() - lngs.min())
+    return latSpan < MIN_BOUNDS_SPAN_DEGREES && lngSpan < MIN_BOUNDS_SPAN_DEGREES
+}
+
+private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
+    LatLng(points.sumOf { it.first } / points.size, points.sumOf { it.second } / points.size)
+
 /**
  * M21b. A classic `MapView` wrapped in `AndroidView`, not `maplibre-compose` (that wrapper needs
  * Kotlin 2.4.10, ahead of this project's 2.3.0 pin — decisions.md/gradle/libs.versions.toml).
@@ -53,12 +103,27 @@ private const val FINAL_ZOOM = 12.0
  * The persistent, always-visible attribution text is deliberate, not decorative: MapLibre's own
  * default tap-to-reveal "(i)" control does not, on its own, satisfy OpenStreetMap's requirement
  * that attribution be visible without requiring a tap (M21b research, a real open MapLibre issue).
+ *
+ * M21c: [routePoints] draws the GPS track as a line layer once 2+ points exist. [followLatest]
+ * chooses how the camera reacts to it -- `true` (live tracking) keeps centering on the newest
+ * point at street level as fixes arrive; `false` (a finished workout's recap) fits the camera to
+ * the whole route's bounding box once. The route source/layer are always created empty during the
+ * initial style load and populated afterward by a separate effect (never during the load callback
+ * itself) so the already-proven-working first-paint zoom sequence below is never touched by
+ * route-specific logic -- see that sequence's own comment for why it's this fragile.
  */
 @Composable
-fun OfflineMapView(modifier: Modifier = Modifier) {
+fun OfflineMapView(
+    modifier: Modifier = Modifier,
+    routePoints: List<Pair<Double, Double>> = emptyList(),
+    followLatest: Boolean = false,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var styleJson by remember { mutableStateOf<String?>(null) }
+    var maplibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
+    var styleReady by remember { mutableStateOf(false) }
+    val routeLineColor = MaterialTheme.colorScheme.primary.toArgb()
 
     LaunchedEffect(Unit) {
         MapLibre.getInstance(context)
@@ -104,7 +169,19 @@ fun OfflineMapView(modifier: Modifier = Modifier) {
 
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize()) { mv ->
             mv.getMapAsync { map ->
-                map.setStyle(Style.Builder().fromJson(json)) {
+                if (maplibreMap != null) return@getMapAsync
+                maplibreMap = map
+                map.setStyle(Style.Builder().fromJson(json)) { style ->
+                    style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
+                    style.addLayer(
+                        LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
+                            PropertyFactory.lineColor(routeLineColor),
+                            PropertyFactory.lineWidth(4f),
+                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                        ),
+                    )
+
                     // A camera position set here, on the very first frame, leaves every line/symbol
                     // layer unrendered (roads, place labels) -- only fill/background layers show --
                     // confirmed on-device against this exact mbtiles+style (MapLibre 13.6.1). Only a
@@ -116,7 +193,12 @@ fun OfflineMapView(modifier: Modifier = Modifier) {
                     // even reproduce the water fill reliably -- it's a one-shot lifecycle event, not
                     // guaranteed to still be pending by the time a listener attaches to it here), so
                     // this uses an explicit delay instead: land one zoom level out first, then step
-                    // to FINAL_ZOOM once that first load has clearly had time to settle.
+                    // to FINAL_ZOOM once that first load has clearly had time to settle. Deliberately
+                    // always targets the fixed Metro Manila center here, never the route -- the route
+                    // line is still empty at this point (added just above with no data yet), and this
+                    // exact sequence is the one confirmed to unblock rendering, so nothing route-aware
+                    // touches it. The route's own camera framing happens afterward, once styleReady
+                    // flips true below, in the separate effect that reacts to routePoints.
                     map.cameraPosition = CameraPosition.Builder()
                         .target(METRO_MANILA_CENTER)
                         .zoom(FINAL_ZOOM - 1.0)
@@ -126,6 +208,7 @@ fun OfflineMapView(modifier: Modifier = Modifier) {
                             .target(METRO_MANILA_CENTER)
                             .zoom(FINAL_ZOOM)
                             .build()
+                        styleReady = true
                     }, 1500)
                 }
             }
@@ -140,5 +223,29 @@ fun OfflineMapView(modifier: Modifier = Modifier) {
                 .background(Color.White.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp),
         )
+    }
+
+    // Owns every route-specific update: the initial population once styleReady flips true, and
+    // every subsequent growth during live tracking. Never touches the style-load callback above.
+    LaunchedEffect(routePoints, styleReady) {
+        if (!styleReady) return@LaunchedEffect
+        val map = maplibreMap ?: return@LaunchedEffect
+        val style = map.style ?: return@LaunchedEffect
+        val source = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID) ?: return@LaunchedEffect
+
+        if (routePoints.size >= 2) source.setGeoJson(routeFeature(routePoints))
+
+        if (followLatest) {
+            if (routePoints.isNotEmpty()) {
+                val (lat, lng) = routePoints.last()
+                map.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), FOLLOW_ZOOM))
+            }
+        } else if (routePoints.size >= 2) {
+            if (isDegenerateRoute(routePoints)) {
+                map.easeCamera(CameraUpdateFactory.newLatLngZoom(routeCentroid(routePoints), FOLLOW_ZOOM))
+            } else {
+                map.easeCamera(CameraUpdateFactory.newLatLngBounds(routeBounds(routePoints), ROUTE_BOUNDS_PADDING_PX))
+            }
+        }
     }
 }

@@ -30,6 +30,7 @@ calendar = "2.10.1" # M20f — https://github.com/kizitonwose/Calendar/releases;
 richeditor = "1.0.0-rc14" # M20g — https://github.com/MohamedRejeb/compose-rich-editor/releases; the only Kotlin-2.3 row (2.3.21) in the compat table, one Compose minor behind ours (1.10.3) -- spike on our pinned 2.3.0
 playServicesLocation = "21.4.0" # M21a — https://developers.google.com/android/guides/releases; verified by direct AAR manifest inspection (2026-09-09) to declare zero permissions, including no INTERNET -- see decisions.md
 maplibre = "13.6.1" # M21b — https://github.com/maplibre/maplibre-native/releases; classic AndroidView-wrapped MapView, not maplibre-compose (that wrapper needs Kotlin 2.4.10, ahead of our 2.3.0 pin)
+healthConnect = "1.1.0" # M21e — https://developer.android.com/jetpack/androidx/releases/health-connect; latest STABLE (not the 1.2.0-alpha06 available at the time) per this project's never-alpha/beta/rc rule. Compat spike (2026-09-10): minCompileSdk=36 (exact match), minSdk 26 (exact match), minAndroidGradlePluginVersion=8.9.1 (well under our 9.2.0), kotlin-stdlib dep floor 2.0.21 (well under our 2.3.0) -- all clean, no fallback needed, direct AAR/POM inspection per this project's own dependency-vetting discipline.
 
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -94,6 +95,7 @@ richeditor-compose = { group = "com.mohamedrejeb.richeditor", name = "richeditor
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 maplibre-android-sdk = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
+androidx-health-connect-client = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

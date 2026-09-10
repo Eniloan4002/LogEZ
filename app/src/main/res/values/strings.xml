@@ -58,6 +58,14 @@
     <string name="profile_last7_empty">Train this week to see your 7-day summary</string>
     <string name="profile_quick_charts_title">Quick charts</string>
 
+    <!-- M21e: read-only Health Connect steps/calories, Profile tab. -->
+    <string name="wellness_today_title">Today</string>
+    <string name="wellness_steps_label">Steps</string>
+    <string name="wellness_calories_label">Calories</string>
+    <string name="wellness_connect_title">Connect Health Connect</string>
+    <string name="wellness_connect_body">See today\'s steps and calories burned, sourced from Health Connect — the same data your phone\'s own health app already tracks.</string>
+    <string name="wellness_connect_action">Connect</string>
+
     <string name="analytics_title">Statistics</string>
     <string name="analytics_training_title">Training</string>
     <string name="analytics_metric_volume">Volume</string>
@@ -229,7 +237,6 @@
     <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
     <string name="activity_tracking_cancel_confirm_body">Your tracked distance and route won\'t be saved.</string>
     <string name="activity_tracking_cancel_confirm_action">Discard</string>
-    <string name="route_sketch_waiting">Waiting for GPS…</string>
     <!-- M21b: our tiles are generated via Planetiler's OpenMapTiles schema, whose license requires
          crediting OpenMapTiles alongside OSM's own ODbL attribution requirement — both must stay
          visible without a tap (research finding, not stylistic). -->

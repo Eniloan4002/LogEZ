@@ -162,6 +162,7 @@ dependencies {
     // Its own SDK manifest declares INTERNET/ACCESS_NETWORK_STATE/ACCESS_WIFI_STATE -- stripped
     // via tools:node="remove" in AndroidManifest.xml, same as every other dependency here.
     implementation(libs.maplibre.android.sdk)
+    implementation(libs.androidx.health.connect.client)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

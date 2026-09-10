@@ -3,6 +3,7 @@ package com.enil.logez.feature.analytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
+import com.enil.logez.core.data.entity.DailyWellnessTotalEntity
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
@@ -12,10 +13,14 @@ import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
+import com.enil.logez.core.domain.repository.WellnessRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.HealthMetricsSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +43,8 @@ class ProfileViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val settingsRepository: SettingsRepository,
+    val healthMetricsSource: HealthMetricsSource,
+    private val wellnessRepository: WellnessRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -75,6 +82,27 @@ class ProfileViewModel @Inject constructor(
                 .current
             val heatMax = heatCounts.maxOfOrNull { it.setCount } ?: 0
 
+            // M21e: read-only, graceful degrade -- a device with no Health Connect (or a user who
+            // hasn't granted the permission yet) simply doesn't get this section, never a nag.
+            val wellnessAvailability = healthMetricsSource.availability()
+            val hasWellnessPermissions = wellnessAvailability == HealthConnectAvailability.Available &&
+                healthMetricsSource.hasAllPermissions()
+            var todaySteps: Long? = null
+            var todayCalories: Double? = null
+            if (hasWellnessPermissions) {
+                val totals = healthMetricsSource.readTodayTotals()
+                todaySteps = totals.steps
+                todayCalories = totals.caloriesBurned
+                wellnessRepository.upsert(
+                    DailyWellnessTotalEntity(
+                        date = today.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                        steps = totals.steps,
+                        caloriesBurned = totals.caloriesBurned,
+                        updatedAt = clock.now().toEpochMilliseconds(),
+                    ),
+                )
+            }
+
             _uiState.value = ProfileUiState(
                 isLoading = false,
                 workoutCount = workouts.size,
@@ -92,10 +120,18 @@ class ProfileViewModel @Inject constructor(
                     )
                 },
                 weightUnit = settings.weightUnit,
+                wellnessAvailability = wellnessAvailability,
+                hasWellnessPermissions = hasWellnessPermissions,
+                todaySteps = todaySteps,
+                todayCaloriesBurned = todayCalories,
             )
         }
     }
 
+    /** Called after the Compose permission launcher resolves — re-runs the one load path rather than duplicating it. */
+    fun onWellnessPermissionResult(granted: Boolean) {
+        if (granted) refresh()
+    }
 }
 
 data class ProfileUiState(
@@ -106,4 +142,9 @@ data class ProfileUiState(
     val last7Heat: Map<MuscleGroup, Float> = emptyMap(),
     val quickCharts: Map<TrainingMetric, List<DashboardAggregator.WeeklyBar>> = emptyMap(),
     val weightUnit: WeightUnit = WeightUnit.KG,
+    /** M21e: whether Health Connect is even usable on this device -- gates whether the wellness card shows at all. */
+    val wellnessAvailability: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
+    val hasWellnessPermissions: Boolean = false,
+    val todaySteps: Long? = null,
+    val todayCaloriesBurned: Double? = null,
 )

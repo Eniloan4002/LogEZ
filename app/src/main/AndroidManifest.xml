@@ -29,6 +29,15 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
+    <!-- M21e (Part B, wellness metrics): read-only, all-day steps via Health Connect (local IPC to
+         the Health Connect app, same no-INTERNET-risk shape as FusedLocationProvider, see
+         decisions.md 2026-09-09). Calories deliberately not requested yet, a real compile-time
+         blocker on the calorie-reading code means the app can't act on that data yet, so it isn't
+         asked for (HealthConnectMetricsSource's own doc comment has the detail); add
+         READ_TOTAL_CALORIES_BURNED back here once that's fixed. Read-only for now; WRITE_*
+         permissions are a separate, optional later milestone (M21i) if ever pursued. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+
     <!-- Solely for the pre-Q "Save image" path (WorkoutShareController.saveToPictures): on
          API 26–28 writing the summary PNG into the shared Pictures library still requires this
          legacy permission. API 29+ saves through scoped MediaStore inserts and requests nothing,
@@ -36,6 +45,14 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <!-- M21e: Android 11+ package-visibility rule, without which HealthConnectClient.getSdkStatus()
+         cannot tell whether the Health Connect app is actually installed and silently reports it as
+         unavailable even when it is. Package-name literal, not a permission; doesn't affect the
+         no-INTERNET posture. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <application
         android:name=".LogEzApplication"

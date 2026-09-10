@@ -1,6 +1,7 @@
 package com.enil.logez.feature.history
 
 import androidx.lifecycle.SavedStateHandle
+import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
@@ -82,7 +83,7 @@ class WorkoutDetailViewModelTest {
     }
 
     @Test
-    fun `hasRoute is true when the workout's set has a saved GPS track`() = runTest {
+    fun `hasRoute is true and routePoints is decoded when the workout's set has a saved GPS track`() = runTest {
         val vm = viewModel(
             workoutRepo = FakeWorkoutRepository(
                 workouts = listOf(workout("w1")),
@@ -92,7 +93,11 @@ class WorkoutDetailViewModelTest {
             trackRepo = FakeActivityTrackRepository(listOf(track("s1"))),
         )
 
-        assertTrue(vm.uiState.value.hasRoute)
+        val state = vm.uiState.value
+        assertTrue(state.hasRoute)
+        assertEquals(2, state.routePoints.size)
+        assertEquals(14.5995, state.routePoints[0].first, 1e-4)
+        assertEquals(120.9842, state.routePoints[0].second, 1e-4)
     }
 
     @Test
@@ -193,6 +198,8 @@ class WorkoutDetailViewModelTest {
     )
 
     private fun track(workoutSetId: String) = ActivityTrackEntity(
-        id = "track-$workoutSetId", workoutSetId = workoutSetId, routePolyline = "abc", pointCount = 1, avgAccuracyM = 5.0,
+        id = "track-$workoutSetId", workoutSetId = workoutSetId,
+        routePolyline = PolylineEncoding.encode(listOf(14.5995 to 120.9842, 14.5985 to 120.9842)),
+        pointCount = 2, avgAccuracyM = 5.0,
     )
 }

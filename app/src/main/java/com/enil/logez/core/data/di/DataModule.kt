@@ -14,6 +14,7 @@ import com.enil.logez.core.data.dao.GoalDao
 import com.enil.logez.core.data.dao.MeasurementDao
 import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
+import com.enil.logez.core.data.dao.WellnessDao
 import com.enil.logez.core.data.dao.WorkoutDao
 import com.enil.logez.core.di.ActiveSessionDataStore
 import com.enil.logez.core.di.EntitlementDataStore
@@ -33,7 +34,7 @@ object DataModule {
         Room.databaseBuilder(context, LogEzDatabase::class.java, LogEzDatabase.DATABASE_NAME)
             .addMigrations(
                 LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
-                LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6,
+                LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
             )
             .build()
 
@@ -42,6 +43,9 @@ object DataModule {
 
     @Provides
     fun provideActivityTrackDao(db: LogEzDatabase): ActivityTrackDao = db.activityTrackDao()
+
+    @Provides
+    fun provideWellnessDao(db: LogEzDatabase): WellnessDao = db.wellnessDao()
 
     @Provides
     fun provideGoalDao(db: LogEzDatabase): GoalDao = db.goalDao()

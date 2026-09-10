@@ -3,6 +3,7 @@ package com.enil.logez.feature.history
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
@@ -105,7 +106,7 @@ class WorkoutDetailViewModel @Inject constructor(
         val included = rows.filter { isIncluded(it.set, includeWarmups) }
         val volumeKg = included.sumOf { row -> setVolume(row.exerciseId, row.set) }
 
-        // M21b: any set with an ActivityTrackEntity means this workout was GPS-tracked -- an
+        // M21b/c: any set with an ActivityTrackEntity means this workout was GPS-tracked -- an
         // N-query loop, same pattern as exerciseRepository.getById(we.exerciseId) per exercise
         // above; ActivityTrackRepository has no bulk-lookup method and a workout has at most a
         // handful of sets, so this isn't worth a second repository method for.
@@ -115,7 +116,8 @@ class WorkoutDetailViewModel @Inject constructor(
         // not also hide the Route card -- the two are intentionally independent, not copy-paste
         // drift. WorkoutSummaryViewModel's routePoints lookup makes the identical choice, and for
         // the identical reason, so the two screens can't disagree about whether a route exists.
-        val hasRoute = rows.any { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) != null }
+        val track = rows.firstNotNullOfOrNull { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) }
+        val routePoints = track?.routePolyline?.let(PolylineEncoding::decode) ?: emptyList()
 
         _uiState.value = WorkoutDetailUiState(
             isLoading = false,
@@ -132,7 +134,8 @@ class WorkoutDetailViewModel @Inject constructor(
             completedSetCount = included.size,
             hasRecords = workoutPrs.isNotEmpty(),
             exerciseBlocks = exerciseBlocks,
-            hasRoute = hasRoute,
+            hasRoute = track != null,
+            routePoints = routePoints,
         )
     }
 
@@ -192,8 +195,10 @@ data class WorkoutDetailUiState(
     val completedSetCount: Int = 0,
     val hasRecords: Boolean = false,
     val exerciseBlocks: List<DetailExerciseBlock> = emptyList(),
-    /** M21b: true if any set in this workout was GPS-tracked -- shows the Route card (no route line yet, that's M21c). */
+    /** M21b: true if any set in this workout was GPS-tracked -- shows the Route card. */
     val hasRoute: Boolean = false,
+    /** M21c: decoded from the tracked set's saved polyline -- the actual line the Route card draws. */
+    val routePoints: List<Pair<Double, Double>> = emptyList(),
 )
 
 data class DetailExerciseBlock(

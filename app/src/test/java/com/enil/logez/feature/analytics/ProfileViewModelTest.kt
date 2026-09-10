@@ -5,8 +5,11 @@ import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeSettingsRepository
+import com.enil.logez.fakes.FakeWellnessRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.wellness.HealthConnectAvailability
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -48,8 +51,12 @@ class ProfileViewModelTest {
         workoutRepo: FakeWorkoutRepository = FakeWorkoutRepository(),
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
+        healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
+        wellnessRepo: FakeWellnessRepository = FakeWellnessRepository(),
     ): ProfileViewModel {
-        return ProfileViewModel(workoutRepo, exerciseRepo, settingsRepo, FakeClock(currentMillis = nowMillis))
+        return ProfileViewModel(
+            workoutRepo, exerciseRepo, settingsRepo, healthMetricsSource, wellnessRepo, FakeClock(currentMillis = nowMillis),
+        )
             // The screen's RefreshOnResume drives the first load (no init load) — mirror it here.
             .also { it.refresh() }
     }
@@ -95,5 +102,65 @@ class ProfileViewModelTest {
         val frequency = vm.uiState.value.quickCharts.getValue(TrainingMetric.FREQUENCY)
         assertEquals(1.0, frequency.last().value, 1e-9)
         assertEquals(TrainingMetric.entries.size, vm.uiState.value.quickCharts.size)
+    }
+
+    // --- M21e wellness (steps only) ---
+
+    @Test
+    fun `wellness section reports unavailable when Health Connect isn't usable on this device`() = runTest {
+        val vm = newViewModel(healthMetricsSource = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Unavailable))
+        assertEquals(HealthConnectAvailability.Unavailable, vm.uiState.value.wellnessAvailability)
+        assertFalse(vm.uiState.value.hasWellnessPermissions)
+    }
+
+    @Test
+    fun `wellness section reports no permissions yet when Health Connect is available but ungranted`() = runTest {
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available, permissionsGranted = false),
+        )
+        val state = vm.uiState.value
+        assertEquals(HealthConnectAvailability.Available, state.wellnessAvailability)
+        assertFalse(state.hasWellnessPermissions)
+        assertEquals(null, state.todaySteps)
+    }
+
+    @Test
+    fun `today's steps load and persist to the wellness repository once permission is granted`() = runTest {
+        val wellnessRepo = FakeWellnessRepository()
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = HealthConnectAvailability.Available,
+                permissionsGranted = true,
+                totals = com.enil.logez.feature.wellness.DailyTotals(steps = 8_432L, caloriesBurned = null),
+            ),
+            wellnessRepo = wellnessRepo,
+        )
+
+        val state = vm.uiState.value
+        assertTrue(state.hasWellnessPermissions)
+        assertEquals(8_432L, state.todaySteps)
+        assertEquals(null, state.todayCaloriesBurned)
+        assertEquals(1, wellnessRepo.all.size)
+        assertEquals(8_432L, wellnessRepo.all.single().steps)
+    }
+
+    @Test
+    fun `onWellnessPermissionResult re-refreshes only when the grant actually succeeded`() = runTest {
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            totals = com.enil.logez.feature.wellness.DailyTotals(steps = 100L, caloriesBurned = null),
+        )
+        val vm = ProfileViewModel(
+            FakeWorkoutRepository(), FakeExerciseRepository(), FakeSettingsRepository(),
+            healthMetricsSource, FakeWellnessRepository(), FakeClock(currentMillis = nowMillis),
+        )
+        assertEquals(true, vm.uiState.value.isLoading) // never refreshed yet -- no init load
+
+        vm.onWellnessPermissionResult(granted = false)
+        assertEquals(true, vm.uiState.value.isLoading) // a denial must not trigger a load
+
+        vm.onWellnessPermissionResult(granted = true)
+        assertEquals(100L, vm.uiState.value.todaySteps)
     }
 }

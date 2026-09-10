@@ -28,7 +28,7 @@ data class ActivityTrackingState(
     val startedAtMillis: Long? = null,
     val distanceMeters: Double = 0.0,
     /** Same accepted-fix sequence [finishTracking] encodes into `route_polyline` -- exposed live
-     * here too so [com.enil.logez.feature.activity.RouteSketch] can draw it as it grows. */
+     * here too so the live tracking screen's map can draw it as it grows. */
     val routePoints: List<Pair<Double, Double>> = emptyList(),
 ) {
     val isTracking: Boolean get() = workoutId != null

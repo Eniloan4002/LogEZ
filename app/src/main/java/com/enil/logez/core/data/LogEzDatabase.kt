@@ -12,9 +12,11 @@ import com.enil.logez.core.data.dao.GoalDao
 import com.enil.logez.core.data.dao.MeasurementDao
 import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
+import com.enil.logez.core.data.dao.WellnessDao
 import com.enil.logez.core.data.dao.WorkoutDao
 import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.BodyMeasurementEntity
+import com.enil.logez.core.data.entity.DailyWellnessTotalEntity
 import com.enil.logez.core.data.entity.ExerciseEntity
 import com.enil.logez.core.data.entity.GoalDefinitionEntity
 import com.enil.logez.core.data.entity.PersonalRecordEntity
@@ -33,7 +35,8 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
  * revision — a checklist, not a single pick), v5 adds `routines.structure` and
  * `workouts.structure` (M11 circuits — a discriminator only, no new tables), v6 adds
  * `activity_tracks` (M21a — GPS-tracked run/walk route data, one row per tracked `workout_sets`
- * row). `exportSchema = true`
+ * row), v7 adds `daily_wellness_totals` (M21e — a local cache of Health Connect's own all-day
+ * steps/calories aggregate, one row per calendar day). `exportSchema = true`
  * from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
  * app (project-rules.md testing expectations): this app's entire value is the historical log, so
@@ -54,8 +57,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         ProgressPhotoEntity::class,
         GoalDefinitionEntity::class,
         ActivityTrackEntity::class,
+        DailyWellnessTotalEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -68,6 +72,7 @@ abstract class LogEzDatabase : RoomDatabase() {
     abstract fun analyticsDao(): AnalyticsDao
     abstract fun goalDao(): GoalDao
     abstract fun activityTrackDao(): ActivityTrackDao
+    abstract fun wellnessDao(): WellnessDao
 
     companion object {
         const val DATABASE_NAME = "logez.db"
@@ -161,6 +166,23 @@ abstract class LogEzDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS `index_activity_tracks_workout_set_id` ON `activity_tracks` (`workout_set_id`)",
+                )
+            }
+        }
+
+        /** v6 -> v7 (M21e): a brand-new table only, nothing existing changes shape. */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `daily_wellness_totals` (
+                        `date` TEXT NOT NULL,
+                        `steps` INTEGER NOT NULL,
+                        `calories_burned` REAL,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`date`)
+                    )
+                    """.trimIndent(),
                 )
             }
         }

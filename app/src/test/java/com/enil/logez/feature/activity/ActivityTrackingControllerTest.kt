@@ -70,7 +70,7 @@ class ActivityTrackingControllerTest {
 
     @Test
     fun `accepted fixes accumulate live in state, not only at finish`() = runTest {
-        // RouteSketch draws state.routePoints while tracking is still in progress -- it must grow
+        // The live tracking screen's map draws state.routePoints while tracking is in progress -- it must grow
         // fix-by-fix, the same way distanceMeters already does, not sit empty until finishTracking().
         val locationSource = FakeLocationSource()
         val controller = newController(locationSource = locationSource)

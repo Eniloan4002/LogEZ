@@ -12,6 +12,7 @@ import com.enil.logez.core.data.repository.PersonalRecordsRepositoryImpl
 import com.enil.logez.core.data.repository.RoomTransactionRunner
 import com.enil.logez.core.data.repository.RoutineRepositoryImpl
 import com.enil.logez.core.data.repository.SettingsRepositoryImpl
+import com.enil.logez.core.data.repository.WellnessRepositoryImpl
 import com.enil.logez.core.data.repository.WorkoutRepositoryImpl
 import com.enil.logez.core.domain.repository.ActiveSessionRepository
 import com.enil.logez.core.domain.repository.ActivityTrackRepository
@@ -23,6 +24,7 @@ import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.TransactionRunner
+import com.enil.logez.core.domain.repository.WellnessRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import dagger.Binds
 import dagger.Module
@@ -80,4 +82,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindActivityTrackRepository(impl: ActivityTrackRepositoryImpl): ActivityTrackRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWellnessRepository(impl: WellnessRepositoryImpl): WellnessRepository
 }

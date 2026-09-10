@@ -20,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -44,6 +45,8 @@ import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
+import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.rememberRequestHealthConnectPermissions
 import java.util.Locale
 
 /**
@@ -64,6 +67,10 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val requestWellnessPermissions = rememberRequestHealthConnectPermissions(
+        source = viewModel.healthMetricsSource,
+        onResult = viewModel::onWellnessPermissionResult,
+    )
 
     RefreshOnResume(viewModel::refresh)
 
@@ -81,7 +88,7 @@ fun ProfileScreen(
                 onStatisticsClick = onStatisticsClick,
                 onSettingsClick = onSettingsClick,
             )
-            profileStatsItems(uiState, onStatisticsClick)
+            profileStatsItems(uiState, onStatisticsClick, requestWellnessPermissions)
         }
     }
 }
@@ -96,6 +103,7 @@ fun ProfileScreen(
 private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
     uiState: ProfileUiState,
     onStatisticsClick: (TrainingMetric?) -> Unit,
+    onConnectWellness: () -> Unit,
 ) {
         item(key = "headline") {
             if (uiState.isLoading) return@item
@@ -117,6 +125,41 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
                     },
                     modifier = Modifier.weight(1f),
                 )
+            }
+        }
+
+        // M21e: graceful degrade -- no Health Connect on this device means no section at all,
+        // never a nag (plan §0.2/decisions.md). Only two remaining states render anything.
+        item(key = "wellness") {
+            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available) return@item
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
+                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    if (uiState.hasWellnessPermissions) {
+                        Text(
+                            stringResource(R.string.wellness_today_title).uppercase(Locale.getDefault()),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+                            // Calories cell intentionally absent -- HealthConnectMetricsSource
+                            // doesn't read it yet (its own doc comment has the blocker), and this
+                            // app never shows a stat it isn't actually tracking (same rule as the
+                            // Volume/Reps/Distance gating on the Finish/History screens).
+                            WellnessStatCell(
+                                label = stringResource(R.string.wellness_steps_label),
+                                value = formatSteps(uiState.todaySteps ?: 0L),
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(R.string.wellness_connect_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(stringResource(R.string.wellness_connect_body), style = MaterialTheme.typography.bodyMedium)
+                        Button(onClick = onConnectWellness) { Text(stringResource(R.string.wellness_connect_action)) }
+                    }
+                }
             }
         }
 
@@ -244,3 +287,14 @@ private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modi
         }
     }
 }
+
+/** Un-carded — [HeadlineStat] wraps its own [LogEzCard], which would double-nest inside the wellness section's own card. */
+@Composable
+private fun WellnessStatCell(label: String, value: String) {
+    Column {
+        Text(value, style = LogEzMono.dataLarge)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun formatSteps(steps: Long): String = "%,d".format(Locale.ROOT, steps)

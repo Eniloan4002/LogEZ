@@ -37,6 +37,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.feature.activity.map.OfflineMapView
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -98,10 +99,12 @@ fun ActivityTrackingScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            // The route drawn so far -- a map-free sketch, not a real basemap (see RouteSketch's
-            // own doc for why), so it can live on this screen without any bundled tile-data cost.
-            RouteSketch(
-                points = state.routePoints,
+            // M21c: the real offline map, camera following the newest GPS fix as it arrives --
+            // upgraded from the framework-free Canvas sketch (RouteSketchGeometry) once that spike
+            // proved the concept, per the Owner's explicit choice (P-125/decisions.md 2026-09-10).
+            OfflineMapView(
+                routePoints = state.routePoints,
+                followLatest = true,
                 modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
             )
 
