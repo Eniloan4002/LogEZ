@@ -44,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -59,12 +60,14 @@ import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.feature.activity.map.OfflineMapView
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.finish.labelRes
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -186,11 +189,22 @@ fun WorkoutDetailScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         DetailStatCell(stringResource(R.string.summary_duration), formatDetailDuration(uiState.durationSeconds))
-                        DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg))
+                        // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise
+                        // next to its real distance, so the cell is gated on whether it was tracked.
+                        if (uiState.hasVolume) DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg))
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
+                        if (uiState.hasDistance) DetailStatCell(stringResource(R.string.summary_distance), formatDetailDistance(uiState.distanceMeters))
                         if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
                         if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Filled.EmojiEvents)
                     }
+                }
+            }
+
+            // M21b: only the map itself so far -- no route line overlay yet (that's M21c), and
+            // only rendered for a GPS-tracked workout (uiState.hasRoute), never for a strength one.
+            if (uiState.hasRoute) {
+                item {
+                    RouteCard()
                 }
             }
 
@@ -304,6 +318,19 @@ private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Uni
                     DetailSetRowView(round.roundNumber, set, exercise?.exerciseType, positionLabel = false)
                 }
             }
+        }
+    }
+}
+
+/** M21b: the offline Metro Manila map, fixed-centered for now -- M21c adds the actual GPS route line and frames the camera to it. */
+@Composable
+private fun RouteCard() {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Text(stringResource(R.string.workout_detail_route_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            OfflineMapView(
+                modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.sm).clip(RoundedCornerShape(Radius.sm)),
+            )
         }
     }
 }
@@ -422,3 +449,5 @@ private fun formatDetailDuration(totalSeconds: Int): String {
 }
 
 private fun formatDetailVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
+
+private fun formatDetailDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)

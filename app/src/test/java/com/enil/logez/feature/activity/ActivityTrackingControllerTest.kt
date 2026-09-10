@@ -69,6 +69,45 @@ class ActivityTrackingControllerTest {
     }
 
     @Test
+    fun `accepted fixes accumulate live in state, not only at finish`() = runTest {
+        // RouteSketch draws state.routePoints while tracking is still in progress -- it must grow
+        // fix-by-fix, the same way distanceMeters already does, not sit empty until finishTracking().
+        val locationSource = FakeLocationSource()
+        val controller = newController(locationSource = locationSource)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+
+        assertEquals(emptyList<Pair<Double, Double>>(), controller.state.value.routePoints)
+
+        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        assertEquals(listOf(14.5995 to 120.9842), controller.state.value.routePoints)
+
+        locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 3_000L)) // ~111m south — accepted
+        assertEquals(listOf(14.5995 to 120.9842, 14.5985 to 120.9842), controller.state.value.routePoints)
+
+        locationSource.emit(LocationFix(14.59849, 120.9842, accuracyMeters = 50f, elapsedRealtimeMillis = 6_000L)) // rejected: poor accuracy
+        assertEquals(2, controller.state.value.routePoints.size)
+    }
+
+    @Test
+    fun `a previously-read routePoints snapshot does not grow after later fixes -- no shared-list aliasing`() = runTest {
+        // Regression guard for the defensive copy in onFix (routePoints.toList()): without it,
+        // every earlier ActivityTrackingState.routePoints would alias the same backing list the
+        // controller keeps mutating, so a value a collector already read would silently grow too.
+        val locationSource = FakeLocationSource()
+        val controller = newController(locationSource = locationSource)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+
+        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        val snapshotAfterFirstFix = controller.state.value.routePoints
+        assertEquals(1, snapshotAfterFirstFix.size)
+
+        locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 3_000L)) // ~111m south — accepted
+
+        assertEquals("an already-read snapshot must not be mutated by a later fix", 1, snapshotAfterFirstFix.size)
+        assertEquals(2, controller.state.value.routePoints.size)
+    }
+
+    @Test
     fun `finishTracking persists an encoded route with the accepted fix count`() = runTest {
         val trackRepo = FakeActivityTrackRepository()
         val locationSource = FakeLocationSource()

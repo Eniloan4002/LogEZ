@@ -4,11 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
+import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.domain.calc.StreakCalculator
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.repository.ActivityTrackRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -30,8 +32,8 @@ import kotlinx.coroutines.launch
  * matches logged data").
  *
  * Stat parity invariant: the share card never shows a stat the summary screen doesn't — both
- * surfaces render the same Duration/Volume/Sets/Reps values from this one UiState, so adding a
- * card stat means adding the matching screen cell (and vice versa).
+ * surfaces render the same Duration/Volume/Sets/Reps/Distance values from this one UiState, so
+ * adding a card stat means adding the matching screen cell (and vice versa).
  */
 @HiltViewModel
 class WorkoutSummaryViewModel @Inject constructor(
@@ -40,6 +42,7 @@ class WorkoutSummaryViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val personalRecordsRepository: PersonalRecordsRepository,
     private val settingsRepository: SettingsRepository,
+    private val activityTrackRepository: ActivityTrackRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
@@ -104,6 +107,20 @@ class WorkoutSummaryViewModel @Inject constructor(
                     )
                 }
 
+            // M21c spike: scans the unfiltered `sets`, not `included` -- a recorded GPS track is a
+            // fact about what happened, not a stats-inclusion choice, so re-tagging this set as a
+            // warm-up (excluding it from `included`) must not also hide the route it recorded.
+            // WorkoutDetailViewModel's hasRoute check makes the identical choice for the identical
+            // reason; keeping the two aligned matters here specifically, since disagreeing would
+            // mean the same workout shows a route on one screen and not the other (adversarial
+            // review, 2026-09-10). At most one set is ever GPS-tracked per workout today (the
+            // "Track a walk/run" flow creates exactly one), so the first hit is the whole answer --
+            // an N-query loop like WorkoutDetailViewModel's, same justification (no bulk-lookup
+            // method, and a workout has at most a handful of sets).
+            val routePoints = sets.firstNotNullOfOrNull { row ->
+                activityTrackRepository.getByWorkoutSetId(row.set.setId)?.routePolyline
+            }?.let(PolylineEncoding::decode) ?: emptyList()
+
             val prs = personalRecordsRepository.getForWorkout(workoutId).map { pr ->
                 PrMedal(
                     exerciseName = exerciseRepository.getById(pr.exerciseId)?.name.orEmpty(),
@@ -122,6 +139,17 @@ class WorkoutSummaryViewModel @Inject constructor(
                 // the two numbers. Rep-less sets (cardio/time) honestly contribute 0.
                 totalReps = included.sumOf { it.set.reps ?: 0 },
                 totalVolumeKg = volumeKg,
+                // A GPS-tracked walk/run has no weight/reps concept at all -- showing "0kg"/"0 Reps"
+                // next to a real distance/duration reads as noise, not data. Gate each cell on
+                // whether it was actually logged, not on whether the aggregate happens to be zero
+                // (a bodyweight exercise can legitimately total 0kg volume while still being
+                // weight-tracked in spirit -- checking the raw field's presence, not the computed
+                // total, is what distinguishes "not tracked" from "tracked as zero").
+                hasVolume = included.any { it.set.weightKg != null },
+                hasReps = included.any { it.set.reps != null },
+                hasDistance = included.any { it.set.distanceMeters != null },
+                totalDistanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 },
+                routePoints = routePoints,
                 workoutOrdinal = workoutRepository.countCompletedWorkoutsUpTo(workout.startedAt, workout.id),
                 weeklyStreak = streak,
                 prMedals = prs,
@@ -153,6 +181,13 @@ data class WorkoutSummaryUiState(
     /** Reps summed over the same `isIncluded` set list as [completedSetCount]; null reps count 0. */
     val totalReps: Int = 0,
     val totalVolumeKg: Double = 0.0,
+    /** Whether any included set actually logged that field -- gates the matching summary cell. */
+    val hasVolume: Boolean = false,
+    val hasReps: Boolean = false,
+    val hasDistance: Boolean = false,
+    val totalDistanceMeters: Double = 0.0,
+    /** Decoded from the workout's `ActivityTrackEntity`, if any set in it was GPS-tracked. */
+    val routePoints: List<Pair<Double, Double>> = emptyList(),
     val workoutOrdinal: Int = 0,
     val weeklyStreak: Int = 0,
     val prMedals: List<PrMedal> = emptyList(),

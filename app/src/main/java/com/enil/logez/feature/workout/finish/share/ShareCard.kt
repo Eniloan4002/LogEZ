@@ -39,9 +39,12 @@ data class ShareCardData(
     val title: String,
     val dateLine: String,
     val durationText: String,
-    val volumeText: String,
+    /** Null when this workout never logged that field at all (e.g. a GPS-tracked walk has no
+     * weight/reps concept) -- [ShareCard] omits the cell entirely rather than show a fake zero. */
+    val volumeText: String?,
     val setsText: String,
-    val repsText: String,
+    val repsText: String?,
+    val distanceText: String? = null,
     val workoutOrdinal: Int,
     val weeklyStreak: Int,
     val prs: List<PrMedal>,
@@ -109,9 +112,10 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 CardStat(R.string.summary_duration, data.durationText)
-                CardStat(R.string.summary_volume, data.volumeText)
+                data.volumeText?.let { CardStat(R.string.summary_volume, it) }
                 CardStat(R.string.summary_sets, data.setsText)
-                CardStat(R.string.summary_reps, data.repsText)
+                data.repsText?.let { CardStat(R.string.summary_reps, it) }
+                data.distanceText?.let { CardStat(R.string.summary_distance, it) }
             }
 
             Row(modifier = Modifier.padding(top = sectionGap), verticalAlignment = Alignment.CenterVertically) {

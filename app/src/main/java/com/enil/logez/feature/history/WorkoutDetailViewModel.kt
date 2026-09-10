@@ -9,6 +9,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.isIncluded
+import com.enil.logez.core.domain.repository.ActivityTrackRepository
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
@@ -40,6 +41,7 @@ class WorkoutDetailViewModel @Inject constructor(
     private val workoutToRoutineConverter: WorkoutToRoutineConverter,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
+    private val activityTrackRepository: ActivityTrackRepository,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
@@ -103,15 +105,34 @@ class WorkoutDetailViewModel @Inject constructor(
         val included = rows.filter { isIncluded(it.set, includeWarmups) }
         val volumeKg = included.sumOf { row -> setVolume(row.exerciseId, row.set) }
 
+        // M21b: any set with an ActivityTrackEntity means this workout was GPS-tracked -- an
+        // N-query loop, same pattern as exerciseRepository.getById(we.exerciseId) per exercise
+        // above; ActivityTrackRepository has no bulk-lookup method and a workout has at most a
+        // handful of sets, so this isn't worth a second repository method for.
+        // Deliberately scans the unfiltered `rows`, not `included`: a recorded GPS track is a fact
+        // about what happened, not a stats-inclusion choice, so re-tagging the tracked set as a
+        // warm-up (which drops it from `included`, and so from hasVolume/hasDistance above) must
+        // not also hide the Route card -- the two are intentionally independent, not copy-paste
+        // drift. WorkoutSummaryViewModel's routePoints lookup makes the identical choice, and for
+        // the identical reason, so the two screens can't disagree about whether a route exists.
+        val hasRoute = rows.any { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) != null }
+
         _uiState.value = WorkoutDetailUiState(
             isLoading = false,
             workout = workout,
             routineName = routineName,
             durationSeconds = workout.durationSeconds,
             volumeKg = volumeKg,
+            // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise next to
+            // its real distance, so the cell is gated on whether it was actually tracked (same
+            // rationale as WorkoutSummaryViewModel/HistoryViewModel).
+            hasVolume = included.any { it.set.weightKg != null },
+            hasDistance = included.any { it.set.distanceMeters != null },
+            distanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 },
             completedSetCount = included.size,
             hasRecords = workoutPrs.isNotEmpty(),
             exerciseBlocks = exerciseBlocks,
+            hasRoute = hasRoute,
         )
     }
 
@@ -164,9 +185,15 @@ data class WorkoutDetailUiState(
     val routineName: String? = null,
     val durationSeconds: Int = 0,
     val volumeKg: Double = 0.0,
+    /** Whether any included set actually logged that field -- gates the matching stat cell. */
+    val hasVolume: Boolean = false,
+    val hasDistance: Boolean = false,
+    val distanceMeters: Double = 0.0,
     val completedSetCount: Int = 0,
     val hasRecords: Boolean = false,
     val exerciseBlocks: List<DetailExerciseBlock> = emptyList(),
+    /** M21b: true if any set in this workout was GPS-tracked -- shows the Route card (no route line yet, that's M21c). */
+    val hasRoute: Boolean = false,
 )
 
 data class DetailExerciseBlock(

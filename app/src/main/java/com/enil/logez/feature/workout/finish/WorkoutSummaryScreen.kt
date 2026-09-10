@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -27,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,8 +40,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.feature.activity.RouteSketch
 import com.enil.logez.feature.history.formatCardDateTime
 import com.enil.logez.feature.workout.finish.share.ShareCardData
 import com.enil.logez.feature.workout.finish.share.ShareSummaryDialog
@@ -95,10 +100,21 @@ fun WorkoutSummaryScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                StatCell(stringResource(R.string.summary_volume), formatVolume(uiState.totalVolumeKg))
+                // Only a metric this workout actually logged gets a cell -- a GPS-tracked walk has
+                // no weight/reps concept, so showing "0kg"/"0 Reps" next to its real distance would
+                // be noise, not data (each cell is independently gated, not tied to workout type).
+                if (uiState.hasVolume) StatCell(stringResource(R.string.summary_volume), formatVolume(uiState.totalVolumeKg))
                 StatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
-                StatCell(stringResource(R.string.summary_reps), uiState.totalReps.toString())
+                if (uiState.hasReps) StatCell(stringResource(R.string.summary_reps), uiState.totalReps.toString())
+                if (uiState.hasDistance) StatCell(stringResource(R.string.summary_distance), formatDistance(uiState.totalDistanceMeters))
                 StatCell(stringResource(R.string.summary_duration), formatDuration(uiState.durationSeconds))
+            }
+
+            if (uiState.routePoints.isNotEmpty()) {
+                RouteSketch(
+                    points = uiState.routePoints,
+                    modifier = Modifier.fillMaxWidth().height(180.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
+                )
             }
 
             if (uiState.weeklyStreak > 0) {
@@ -137,9 +153,10 @@ fun WorkoutSummaryScreen(
                     title = uiState.title,
                     dateLine = formatCardDateTime(uiState.startedAtMillis),
                     durationText = formatDuration(uiState.durationSeconds),
-                    volumeText = formatVolume(uiState.totalVolumeKg),
+                    volumeText = if (uiState.hasVolume) formatVolume(uiState.totalVolumeKg) else null,
                     setsText = uiState.completedSetCount.toString(),
-                    repsText = uiState.totalReps.toString(),
+                    repsText = if (uiState.hasReps) uiState.totalReps.toString() else null,
+                    distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
                     workoutOrdinal = uiState.workoutOrdinal,
                     weeklyStreak = uiState.weeklyStreak,
                     prs = uiState.prMedals,
@@ -204,6 +221,8 @@ private fun formatAvgReps(value: Double): String {
 }
 
 private fun formatVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
+
+private fun formatDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)
 
 private fun formatDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600

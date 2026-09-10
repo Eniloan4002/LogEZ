@@ -1,5 +1,7 @@
 package com.enil.logez.core.designsystem
 
+import java.util.Locale
+
 /**
  * Shared formatting utilities for the UI layer.
  *
@@ -38,6 +40,18 @@ object Formatting {
      */
     fun mmSs(totalSeconds: Int): String =
         "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+
+    /**
+     * Formats a distance in meters as kilometers with a "km" suffix, `Locale.ROOT`-safe (unlike
+     * [weightKg]/[mmSs] above, which format with the default locale and can render non-ASCII
+     * digits on some locales — a known, separately-tracked issue, not repeated here).
+     *
+     * Examples: `2000.0` -> `"2km"`, `2350.0` -> `"2.35km"`
+     */
+    fun distanceKm(meters: Double): String {
+        val km = meters / 1000.0
+        return if (km == km.toLong().toDouble()) "${km.toLong()}km" else "%.2fkm".format(Locale.ROOT, km)
+    }
 }
 
 /** Convenience top-level aliases so call sites read naturally. */
@@ -45,3 +59,4 @@ fun formatTargetNumber(value: Double): String = Formatting.wholeOrOneDecimal(val
 fun formatWeightKg(kg: Double): String = Formatting.weightKg(kg)
 fun formatWeightKgShort(kg: Double): String = Formatting.weightKgShort(kg)
 fun formatMmSs(totalSeconds: Int): String = Formatting.mmSs(totalSeconds)
+fun formatDistanceKm(meters: Double): String = Formatting.distanceKm(meters)

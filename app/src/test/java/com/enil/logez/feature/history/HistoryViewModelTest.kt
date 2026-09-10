@@ -126,6 +126,37 @@ class HistoryViewModelTest {
     }
 
     @Test
+    fun `a GPS-tracked walk with no weight logged hides Volume and reports its distance`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1", startedAt = 1_000L)),
+            exercises = listOf(workoutExercise("we1", "w1")),
+            sets = listOf(
+                aSet("s1", "we1", 0, weightKg = null, reps = null, distanceMeters = 2_000.0, isCompleted = true),
+            ),
+        )
+        val vm = viewModel(workoutRepo)
+
+        val card = vm.uiState.value.cards.single()
+        assertFalse(card.hasVolume)
+        assertTrue(card.hasDistance)
+        assertEquals(2_000.0, card.distanceMeters, 1e-9)
+    }
+
+    @Test
+    fun `a strength workout with logged weight shows Volume and has no distance`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1", startedAt = 1_000L)),
+            exercises = listOf(workoutExercise("we1", "w1")),
+            sets = listOf(aSet("s1", "we1", 0, weightKg = 100.0, reps = 5, isCompleted = true)),
+        )
+        val vm = viewModel(workoutRepo)
+
+        val card = vm.uiState.value.cards.single()
+        assertTrue(card.hasVolume)
+        assertFalse(card.hasDistance)
+    }
+
+    @Test
     fun `the records chip only appears when a PR names this workout`() = runTest {
         val workoutRepo = FakeWorkoutRepository(
             workouts = listOf(workout("w-pr", startedAt = 1_000L), workout("w-no-pr", startedAt = 2_000L)),
@@ -191,9 +222,10 @@ class HistoryViewModelTest {
         reps: Int?,
         setType: SetType = SetType.NORMAL,
         isCompleted: Boolean,
+        distanceMeters: Double? = null,
     ) = WorkoutSetEntity(
         id = id, workoutExerciseId = workoutExerciseId, orderIndex = orderIndex, setType = setType,
-        weightKg = weightKg, reps = reps, durationSeconds = null, distanceMeters = null, rpe = null,
+        weightKg = weightKg, reps = reps, durationSeconds = null, distanceMeters = distanceMeters, rpe = null,
         customMetric = null, isCompleted = isCompleted, completedAt = if (isCompleted) 1L else null,
     )
 

@@ -1,6 +1,8 @@
 package com.enil.logez.feature.workout.finish
 
 import androidx.lifecycle.SavedStateHandle
+import com.enil.logez.core.common.PolylineEncoding
+import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
@@ -11,6 +13,7 @@ import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
@@ -24,6 +27,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -56,6 +60,86 @@ class WorkoutSummaryViewModelTest {
         assertFalse(state.isLoading)
         assertEquals(30, state.totalReps) // 8 + 10 + 12, hard-coded — never recomputed
         assertEquals(3, state.completedSetCount)
+    }
+
+    @Test
+    fun `a GPS-tracked walk with no weight or reps logged hides Volume and Reps and reports distance`() = runTest {
+        val vm = viewModel(
+            FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", 0, reps = null, weightKg = null, distanceMeters = 2_000.0)),
+            ),
+        )
+
+        val state = vm.uiState.value
+        assertFalse(state.hasVolume)
+        assertFalse(state.hasReps)
+        assertEquals(2_000.0, state.totalDistanceMeters, 1e-9)
+        // Distance-tracked is asserted via totalDistanceMeters above; hasDistance mirrors it.
+        assertEquals(true, state.hasDistance)
+    }
+
+    @Test
+    fun `a strength set with logged weight and reps shows Volume and Reps, no distance`() = runTest {
+        val vm = viewModel(
+            FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", 0, reps = 8)), // aSet defaults weightKg = 50.0
+            ),
+        )
+
+        val state = vm.uiState.value
+        assertEquals(true, state.hasVolume)
+        assertEquals(true, state.hasReps)
+        assertFalse(state.hasDistance)
+    }
+
+    @Test
+    fun `a GPS-tracked workout's saved route decodes onto the summary`() = runTest {
+        val trackRepo = FakeActivityTrackRepository(
+            listOf(
+                ActivityTrackEntity(
+                    id = "track-1",
+                    workoutSetId = "s1",
+                    routePolyline = PolylineEncoding.encode(listOf(14.5995 to 120.9842, 14.6 to 120.99)),
+                    pointCount = 2,
+                    avgAccuracyM = 8.0,
+                ),
+            ),
+        )
+        val vm = WorkoutSummaryViewModel(
+            savedStateHandle = SavedStateHandle(mapOf(WorkoutSummaryViewModel.WORKOUT_ID_ARG to "w1")),
+            workoutRepository = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", 0, reps = null, weightKg = null, distanceMeters = 500.0)),
+            ),
+            exerciseRepository = FakeExerciseRepository(listOf(exercise("ex-1"))),
+            personalRecordsRepository = FakePersonalRecordsRepository(),
+            settingsRepository = FakeSettingsRepository(),
+            activityTrackRepository = trackRepo,
+            clock = FakeClock(),
+        )
+
+        val points = vm.uiState.value.routePoints
+        assertEquals(2, points.size)
+        assertEquals(14.5995, points[0].first, 1e-4)
+        assertEquals(120.9842, points[0].second, 1e-4)
+    }
+
+    @Test
+    fun `a workout with no GPS track has an empty route`() = runTest {
+        val vm = viewModel(
+            FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", 0, reps = 8)),
+            ),
+        )
+
+        assertTrue(vm.uiState.value.routePoints.isEmpty())
     }
 
     @Test
@@ -123,6 +207,7 @@ class WorkoutSummaryViewModelTest {
         exerciseRepository = FakeExerciseRepository(listOf(exercise("ex-1"))),
         personalRecordsRepository = FakePersonalRecordsRepository(),
         settingsRepository = FakeSettingsRepository(),
+        activityTrackRepository = FakeActivityTrackRepository(),
         clock = FakeClock(),
     )
 
@@ -142,9 +227,11 @@ class WorkoutSummaryViewModelTest {
         orderIndex: Int,
         reps: Int?,
         setType: SetType = SetType.NORMAL,
+        weightKg: Double? = 50.0,
+        distanceMeters: Double? = null,
     ) = WorkoutSetEntity(
         id = id, workoutExerciseId = workoutExerciseId, orderIndex = orderIndex, setType = setType,
-        weightKg = 50.0, reps = reps, durationSeconds = null, distanceMeters = null, rpe = null,
+        weightKg = weightKg, reps = reps, durationSeconds = null, distanceMeters = distanceMeters, rpe = null,
         customMetric = null, isCompleted = true, completedAt = 1L,
     )
 

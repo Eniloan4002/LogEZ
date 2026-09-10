@@ -73,6 +73,14 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+    androidResources {
+        // M21b: AssetManager.openFd() (used to get the bundled .mbtiles' real byte size before
+        // copying it to internal storage) needs the asset stored uncompressed in the APK -- AAPT
+        // doesn't recognize "mbtiles" as an extension to leave alone by default, so without this
+        // the app crashes with FileNotFoundException("...it is probably compressed") the first
+        // time it opens the map.
+        noCompress += "mbtiles"
+    }
 }
 
 // PHASE2_PLAN.md §10.4 — exportSchema=true from day one; schemas/ is committed alongside code.
@@ -149,6 +157,11 @@ dependencies {
     // (decisions.md 2026-09-09) -- it talks to the already-networked Play services process over
     // local Binder IPC, never opening a socket from this app's own process.
     implementation(libs.play.services.location)
+
+    // M21b: offline map rendering (a bundled Metro Manila MBTiles, no live tile fetching).
+    // Its own SDK manifest declares INTERNET/ACCESS_NETWORK_STATE/ACCESS_WIFI_STATE -- stripped
+    // via tools:node="remove" in AndroidManifest.xml, same as every other dependency here.
+    implementation(libs.maplibre.android.sdk)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

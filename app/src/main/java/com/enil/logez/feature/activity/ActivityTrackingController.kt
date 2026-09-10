@@ -27,6 +27,9 @@ data class ActivityTrackingState(
     val workoutSetId: String? = null,
     val startedAtMillis: Long? = null,
     val distanceMeters: Double = 0.0,
+    /** Same accepted-fix sequence [finishTracking] encodes into `route_polyline` -- exposed live
+     * here too so [com.enil.logez.feature.activity.RouteSketch] can draw it as it grows. */
+    val routePoints: List<Pair<Double, Double>> = emptyList(),
 ) {
     val isTracking: Boolean get() = workoutId != null
 }
@@ -87,6 +90,9 @@ class ActivityTrackingController @Inject constructor(
         lastAccepted = fix
         routePoints += fix.latitude to fix.longitude
         accuracySumMeters += fix.accuracyMeters
+        // A defensive copy: routePoints keeps growing in place, so a stale emitted state must not
+        // alias the same backing list a later fix would silently mutate out from under it.
+        _state.update { it.copy(routePoints = routePoints.toList()) }
     }
 
     fun elapsedSeconds(nowMillis: Long = clock.now().toEpochMilliseconds()): Int {

@@ -100,6 +100,11 @@ class HistoryViewModel @Inject constructor(
                 startedAtMillis = workout.startedAt,
                 durationSeconds = workout.durationSeconds,
                 volumeKg = volumeKg,
+                // A GPS-tracked walk/run has no weight concept at all -- "0kg Volume" next to its
+                // real distance would be noise, not data (§ same rationale as WorkoutSummaryViewModel).
+                hasVolume = included.any { it.set.weightKg != null },
+                hasDistance = included.any { it.set.distanceMeters != null },
+                distanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 },
                 setCount = included.size,
                 hasRecords = workout.id in workoutIdsWithRecords,
                 exerciseSummaries = exerciseSummaries,
@@ -123,6 +128,10 @@ data class WorkoutCardModel(
     val startedAtMillis: Long,
     val durationSeconds: Int,
     val volumeKg: Double,
+    /** Whether any included set actually logged that field -- gates the matching card cell. */
+    val hasVolume: Boolean = false,
+    val hasDistance: Boolean = false,
+    val distanceMeters: Double = 0.0,
     /** Sets counted through `isIncluded` — warm-ups drop out unless the setting says otherwise. */
     val setCount: Int,
     val hasRecords: Boolean,

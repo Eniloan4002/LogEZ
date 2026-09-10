@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,9 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -91,6 +96,13 @@ fun ActivityTrackingScreen(
                 stringResource(R.string.activity_tracking_elapsed_label),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            // The route drawn so far -- a map-free sketch, not a real basemap (see RouteSketch's
+            // own doc for why), so it can live on this screen without any bundled tile-data cost.
+            RouteSketch(
+                points = state.routePoints,
+                modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
             )
 
             Text(

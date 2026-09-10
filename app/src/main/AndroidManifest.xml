@@ -9,6 +9,9 @@
     -->
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <!-- M21b: MapLibre's own SDK manifest declares this too (it needs it for live-tile use,
+         which this app never does — offline-only, a bundled MBTiles, no network fetch). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
 
     <!-- M4b (PHASE2_PLAN.md §9.2/§9.3/§9.4/§9.7): live-workout foreground service, its ongoing
          notification, and the rest-timer's bounded doze-insurance wake lock. -->

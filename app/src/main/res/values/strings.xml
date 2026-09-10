@@ -229,6 +229,12 @@
     <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
     <string name="activity_tracking_cancel_confirm_body">Your tracked distance and route won\'t be saved.</string>
     <string name="activity_tracking_cancel_confirm_action">Discard</string>
+    <string name="route_sketch_waiting">Waiting for GPS…</string>
+    <!-- M21b: our tiles are generated via Planetiler's OpenMapTiles schema, whose license requires
+         crediting OpenMapTiles alongside OSM's own ODbL attribution requirement — both must stay
+         visible without a tap (research finding, not stylistic). -->
+    <string name="map_attribution">© OpenMapTiles © OpenStreetMap contributors</string>
+    <string name="workout_detail_route_title">Route</string>
     <string name="workout_create_first_routine">Create your first routine</string>
     <string name="workout_live_logging_coming_soon">Live workout logging lands in M4</string>
     <string name="workout_my_routines_header">My Routines</string>
@@ -406,6 +412,7 @@
     <string name="summary_volume">Volume</string>
     <string name="summary_sets">Sets</string>
     <string name="summary_reps">Reps</string>
+    <string name="summary_distance">Distance</string>
     <string name="summary_duration">Duration</string>
     <string name="summary_streak">Week streak</string>
     <plurals name="summary_streak_value">

@@ -123,8 +123,11 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
                 StatCell(stringResource(R.string.summary_duration), formatCardDuration(card.durationSeconds))
-                StatCell(stringResource(R.string.summary_volume), formatCardVolume(card.volumeKg))
+                // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise next to
+                // its real distance, so the cell is gated on whether it was actually tracked.
+                if (card.hasVolume) StatCell(stringResource(R.string.summary_volume), formatCardVolume(card.volumeKg))
                 StatCell(stringResource(R.string.summary_sets), card.setCount.toString())
+                if (card.hasDistance) StatCell(stringResource(R.string.summary_distance), formatCardDistance(card.distanceMeters))
                 // M11: circuit cards report their round count alongside the shared stats.
                 if (card.structure == WorkoutStructure.CIRCUIT) {
                     StatCell(stringResource(R.string.routine_rounds_label), card.rounds.toString())
@@ -199,3 +202,5 @@ private fun formatCardDuration(totalSeconds: Int): String {
 }
 
 private fun formatCardVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
+
+private fun formatCardDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)
