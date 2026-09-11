@@ -108,7 +108,19 @@ class ActivityTrackingController @Inject constructor(
         }
     }
 
-    /** Writes distance/duration onto the existing `WorkoutSetEntity` and persists the encoded route. Returns `null` if no session was active. */
+    /**
+     * Writes distance/duration onto the existing `WorkoutSetEntity` and persists the encoded
+     * route. Returns `null` if no session was active.
+     *
+     * M21 redesign (2026-09-11): Finish now goes straight to the Save Workout screen instead of
+     * handing off into the strength Logger first (decisions.md same date) — the Logger was the
+     * only place that used to mark this set `isCompleted` (its own checkmark tap) and freeze the
+     * live elapsed time onto the parent `WorkoutEntity.durationSeconds`
+     * (`WorkoutLoggerViewModel.prepareForFinish()`). Both now happen here instead, since nothing
+     * downstream of this call visits the Logger anymore to do it: `WorkoutFinisher.finish()`'s own
+     * save transaction purges any *uncompleted* set before rebuilding PRs, which would otherwise
+     * silently delete this workout's one and only set.
+     */
     suspend fun finishTracking(): FinishedTrack? {
         val startState = _state.value
         val workoutId = startState.workoutId ?: return null
@@ -121,8 +133,10 @@ class ActivityTrackingController @Inject constructor(
         // distance contribution from the saved total.
         val durationSeconds = elapsedSeconds()
         val distanceMeters = _state.value.distanceMeters
+        val now = clock.now().toEpochMilliseconds()
         workoutRepository.updateWorkoutSetDistance(workoutSetId, distanceMeters)
         workoutRepository.updateWorkoutSetDuration(workoutSetId, durationSeconds)
+        workoutRepository.updateWorkoutSetCompletion(workoutSetId, true, now)
         activityTrackRepository.upsert(
             ActivityTrackEntity(
                 id = UUID.randomUUID().toString(),
@@ -132,6 +146,9 @@ class ActivityTrackingController @Inject constructor(
                 avgAccuracyM = routePoints.takeIf { it.isNotEmpty() }?.let { accuracySumMeters / it.size },
             ),
         )
+        workoutRepository.getById(workoutId)?.let { workout ->
+            workoutRepository.updateWorkout(workout.copy(durationSeconds = durationSeconds, updatedAt = now))
+        }
         _state.value = ActivityTrackingState()
         return FinishedTrack(workoutId, distanceMeters, durationSeconds)
     }

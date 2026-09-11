@@ -37,17 +37,18 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.feature.activity.map.OfflineMapView
-import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
- * M21a. `onFinished` is what actually enters the Logger — routed through
- * [rememberStartWorkoutSession] (not called directly) so that landing there starts
- * `WorkoutSessionService` exactly the same way every other "enter the Logger" path does (its own
- * notification-permission dialog included). Only one foreground service runs at a time:
- * `ActivityTrackingService` here, handed off to `WorkoutSessionService` at Finish.
+ * M21 redesign (2026-09-11, decisions.md same date): Finish goes straight to the Save Workout
+ * screen (`onFinished`), never through the strength Logger — a GPS-tracked walk/run has nothing
+ * for the Logger's sets/reps table to show, and routing through it just added a screen and a
+ * detour into `WorkoutSessionService` (the strength-session foreground service, which the
+ * Logger-hand-off path used to start via `rememberStartWorkoutSession`) that this flow no longer
+ * needs. `ActivityTrackingService` is the only foreground service this screen ever runs, stopped
+ * right below on both Finish and Cancel.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,12 +63,11 @@ fun ActivityTrackingScreen(
     val elapsedSeconds by viewModel.elapsedSecondsFlow.collectAsStateWithLifecycle(initialValue = 0)
     val liveBpm by viewModel.liveBpmFlow.collectAsStateWithLifecycle(initialValue = null)
     var showCancelConfirm by remember { mutableStateOf(false) }
-    val enterLogger = rememberStartWorkoutSession(onFinished)
 
     fun finish() = scope.launch {
         val result = viewModel.finish()
         stopActivityTrackingService(context)
-        if (result != null) enterLogger(result.workoutId) else onCancelled()
+        if (result != null) onFinished(result.workoutId) else onCancelled()
     }
 
     fun cancel() = scope.launch {

@@ -29,9 +29,19 @@ class ActivityTrackingViewModel @Inject constructor(
      * own doc comment for why this must not be an eagerly-started poller. */
     val liveBpmFlow: Flow<Long?> = liveHeartRateFlow(healthMetricsSource)
 
-    /** Finish deliberately leaves `sessionController`'s state alone — the caller hands off into
-     * the Logger next, which needs it to still point at this workoutId. */
-    suspend fun finish(): FinishedTrack? = controller.finishTracking()
+    /**
+     * M21 redesign (2026-09-11): Finish now goes straight to the Save Workout screen instead of
+     * handing off into the strength Logger (which used to be the thing that later called
+     * `sessionController.endSession()` itself, in `WorkoutLoggerViewModel.prepareForFinish()`).
+     * Ending it here instead, mirroring [cancel]'s existing call -- otherwise the mini-bar's
+     * "in-progress, tap to resume" state would keep pointing at a workoutId that's about to become
+     * COMPLETED, since nothing else on the new direct path ever clears it.
+     */
+    suspend fun finish(): FinishedTrack? {
+        val result = controller.finishTracking()
+        sessionController.endSession()
+        return result
+    }
 
     suspend fun cancel() {
         controller.cancelTracking()

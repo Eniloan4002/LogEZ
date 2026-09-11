@@ -97,8 +97,12 @@ fun LogEzNavHost(
         }
         composable(ActivityTrackingRoutes.LIVE_TRACKING) {
             ActivityTrackingScreen(
+                // M21 redesign (2026-09-11): straight to Save Workout, never through the Logger —
+                // see ActivityTrackingScreen's own doc comment and the FINISH composable below,
+                // whose onSaved/onDiscardInstead now handle arriving from either this route or the
+                // Logger.
                 onFinished = { workoutId ->
-                    navController.navigate(WorkoutRoutes.logger(workoutId)) {
+                    navController.navigate(WorkoutRoutes.finish(workoutId)) {
                         popUpTo(ActivityTrackingRoutes.LIVE_TRACKING) { inclusive = true }
                     }
                 },
@@ -267,21 +271,32 @@ fun LogEzNavHost(
             arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
         ) {
             FinishWorkoutScreen(
-                // Back returns to the still-IN_PROGRESS Logger — nothing was saved yet (§5.1.8).
+                // Back returns to the still-IN_PROGRESS Logger/live-tracking screen — nothing was
+                // saved yet (§5.1.8).
                 onBack = { navController.popBackStack() },
                 onSaved = { savedId ->
-                    // Drop the Logger and this screen: the workout is COMPLETED, so neither is a
-                    // sane back destination from the summary.
-                    navController.navigate(WorkoutRoutes.summary(savedId)) {
-                        popUpTo(WorkoutRoutes.LOGGER) { inclusive = true }
+                    // Drop whichever of the Logger or the live-tracking screen sits behind this
+                    // one, plus this screen itself: the workout is COMPLETED, so none of them is a
+                    // sane back destination from the summary. M21 redesign (2026-09-11): FINISH is
+                    // now reachable from either ancestor (GPS tracking's Finish button skips the
+                    // Logger entirely) — popBackStack(route, inclusive) is a no-op returning false
+                    // when that route isn't actually on the back stack, so trying LOGGER first and
+                    // falling back to LIVE_TRACKING covers both origins correctly.
+                    val poppedLogger = navController.popBackStack(WorkoutRoutes.LOGGER, inclusive = true)
+                    if (!poppedLogger) {
+                        navController.popBackStack(ActivityTrackingRoutes.LIVE_TRACKING, inclusive = true)
                     }
+                    navController.navigate(WorkoutRoutes.summary(savedId))
                 },
                 onDiscardInstead = {
-                    // The workout has been deleted by now, so the Logger behind this screen is
-                    // dead too — pop through it. A target pop at "workout" silently no-opped
+                    // The workout has been deleted by now, so whichever screen sits behind this
+                    // one is dead too — pop through it. A target pop at "workout" silently no-opped
                     // whenever the Logger was reached from the mini-bar or a cold start, which
                     // left the user sitting on the Save screen with nothing having happened.
-                    if (!navController.popBackStack(WorkoutRoutes.LOGGER, inclusive = true)) {
+                    val poppedLogger = navController.popBackStack(WorkoutRoutes.LOGGER, inclusive = true)
+                    val poppedLiveTracking = !poppedLogger &&
+                        navController.popBackStack(ActivityTrackingRoutes.LIVE_TRACKING, inclusive = true)
+                    if (!poppedLogger && !poppedLiveTracking) {
                         navController.popBackStack()
                     }
                 },

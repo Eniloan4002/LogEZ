@@ -1,7 +1,9 @@
 package com.enil.logez.feature.activity
 
+import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeLocationSource
@@ -66,6 +68,52 @@ class ActivityTrackingControllerTest {
         val updatedSet = workoutRepo.getSetsForWorkoutExercise("we-1").single()
         assertEquals(111.32, updatedSet.distanceMeters!!, 1.0)
         assertEquals(60, updatedSet.durationSeconds)
+    }
+
+    /**
+     * M21 redesign (2026-09-11): Finish now goes straight to the Save Workout screen instead of
+     * through the strength Logger, which used to be the only place that marked this set completed
+     * (its checkmark tap) before `WorkoutFinisher.finish()`'s save transaction runs -- that
+     * transaction purges any *uncompleted* set first, so without this the GPS-tracked set (and its
+     * now-empty exercise) would be silently deleted on save.
+     */
+    @Test
+    fun `finishTracking marks the workout set completed, so WorkoutFinisher's purge step can't delete it`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(sets = listOf(blankSet()))
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(workoutRepo = workoutRepo, clock = clock)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+
+        controller.finishTracking()
+
+        val updatedSet = workoutRepo.getSetsForWorkoutExercise("we-1").single()
+        assertEquals(true, updatedSet.isCompleted)
+        assertEquals(1_000_000L, updatedSet.completedAt)
+    }
+
+    /**
+     * M21 redesign (2026-09-11): the live elapsed duration used to get frozen onto the parent
+     * `WorkoutEntity` by `WorkoutLoggerViewModel.prepareForFinish()`, which only ran once the
+     * strength Logger was reached -- `FinishWorkoutViewModel` reads `WorkoutEntity.durationSeconds`
+     * directly and trusts it's already correct, so skipping the Logger means this has to happen
+     * here instead.
+     */
+    @Test
+    fun `finishTracking freezes the elapsed duration onto the parent WorkoutEntity`() = runTest {
+        val workout = WorkoutEntity(
+            id = "w-1", routineId = null, title = "Walking (Outdoor)", notes = null,
+            status = WorkoutStatus.IN_PROGRESS, startedAt = 1_000_000L, endedAt = null,
+            durationSeconds = 0, createdAt = 1_000_000L, updatedAt = 1_000_000L,
+        )
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(workout), sets = listOf(blankSet()))
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(workoutRepo = workoutRepo, clock = clock)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+
+        clock.currentMillis = 1_000_000L + 60_000L
+        controller.finishTracking()
+
+        assertEquals(60, workoutRepo.getById("w-1")!!.durationSeconds)
     }
 
     @Test
