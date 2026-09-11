@@ -36,7 +36,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
-import com.enil.logez.feature.activity.map.OfflineMapView
+import com.enil.logez.feature.activity.map.MapTilerView
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -142,7 +142,7 @@ fun ActivityTrackingScreen(
             // Fills all remaining vertical space (Owner request, 2026-09-11) rather than a fixed
             // 220dp box -- the live tracking screen is map-first now; the Finish-summary and History
             // Detail Route cards keep their own fixed, smaller aspect-ratio sizing untouched.
-            OfflineMapView(
+            MapTilerView(
                 routePoints = state.routePoints,
                 followLatest = true,
                 modifier = Modifier.fillMaxWidth().weight(1f).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),

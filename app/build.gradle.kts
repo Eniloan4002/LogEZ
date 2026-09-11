@@ -18,6 +18,17 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+// M21 (2026-09-12): the MapTiler API key lives in the gitignored local.properties, same pattern
+// as keystore.properties above -- never in this file or in source control. Missing on a fresh
+// clone means an empty BuildConfig string, which MapTiler's API rejects with a clear 401 rather
+// than silently loading a wrong map.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "com.enil.logez"
     compileSdk {
@@ -34,6 +45,15 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Escaped before splicing into the generated BuildConfig source -- buildConfigField's value
+        // argument is spliced verbatim as Kotlin source text, so an unescaped `"` or `\` in a pasted
+        // key (stray quoting from a dashboard copy-paste) would otherwise break the generated file
+        // with a confusing compile error instead of just being part of the string.
+        val mapTilerApiKey = localProperties.getProperty("MAPTILER_API_KEY", "")
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+        buildConfigField("String", "MAPTILER_API_KEY", "\"$mapTilerApiKey\"")
     }
 
     signingConfigs {
@@ -72,14 +92,6 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
-    }
-    androidResources {
-        // M21b: AssetManager.openFd() (used to get the bundled .mbtiles' real byte size before
-        // copying it to internal storage) needs the asset stored uncompressed in the APK -- AAPT
-        // doesn't recognize "mbtiles" as an extension to leave alone by default, so without this
-        // the app crashes with FileNotFoundException("...it is probably compressed") the first
-        // time it opens the map.
-        noCompress += "mbtiles"
     }
 }
 
@@ -120,7 +132,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 
-    // ADR-0008: entitlement checks only — no other network calls anywhere in the app.
+    // ADR-0008: entitlement checks only -- no network calls of its own. As of M21 (2026-09-12) this
+    // is no longer the only network-adjacent dependency in the app; see the MapLibre entry below.
     implementation(libs.billing.ktx)
 
     // M20a: long-press drag reorder for routine/exercise lists — replaces the arrow-button
@@ -128,7 +141,8 @@ dependencies {
     implementation(libs.reorderable)
 
     // M20b: local-file image loading with downsampling + memory/disk cache for custom-exercise
-    // photos. NO coil-network-* anywhere — the app has no INTERNET permission (ADR-0008 posture).
+    // photos. NO coil-network-* anywhere -- this loader itself never touches the network, regardless
+    // of the MapLibre-driven INTERNET grant added in M21 (2026-09-12) for map tiles elsewhere.
     implementation(libs.coil.compose)
     implementation(libs.coil.core)
 
@@ -158,9 +172,11 @@ dependencies {
     // local Binder IPC, never opening a socket from this app's own process.
     implementation(libs.play.services.location)
 
-    // M21b: offline map rendering (a bundled Metro Manila MBTiles, no live tile fetching).
-    // Its own SDK manifest declares INTERNET/ACCESS_NETWORK_STATE/ACCESS_WIFI_STATE -- stripped
-    // via tools:node="remove" in AndroidManifest.xml, same as every other dependency here.
+    // M21b: originally offline map rendering (a bundled Metro Manila MBTiles, no live tile
+    // fetching), with its SDK-declared INTERNET/ACCESS_NETWORK_STATE/ACCESS_WIFI_STATE stripped via
+    // tools:node="remove". M21 (2026-09-12) reverses that: those three permissions are now genuinely
+    // declared and used for live MapTiler tile fetches (AndroidManifest.xml) -- this is the app's
+    // only network-facing dependency.
     implementation(libs.maplibre.android.sdk)
     implementation(libs.androidx.health.connect.client)
 

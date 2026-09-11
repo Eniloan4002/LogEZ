@@ -240,11 +240,13 @@
     <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
     <string name="activity_tracking_cancel_confirm_body">Your tracked distance and route won\'t be saved.</string>
     <string name="activity_tracking_cancel_confirm_action">Discard</string>
-    <!-- M21b: our tiles are generated via Planetiler's OpenMapTiles schema, whose license requires
-         crediting OpenMapTiles alongside OSM's own ODbL attribution requirement — both must stay
-         visible without a tap (research finding, not stylistic). -->
-    <string name="map_attribution">© OpenMapTiles © OpenStreetMap contributors</string>
+    <!-- M21 (2026-09-12): switched from the bundled OpenMapTiles-schema mbtiles to live MapTiler
+         tiles. MapTiler's own copyright page (maptiler.com/copyright/) requires this exact text,
+         visible without a tap, alongside OSM's own ODbL attribution requirement. -->
+    <string name="map_attribution">© MapTiler © OpenStreetMap contributors</string>
     <string name="map_recenter">Recenter on my location</string>
+    <string name="map_load_error">Couldn\'t load the map. Check your connection and try again.</string>
+    <string name="map_retry">Retry</string>
     <string name="workout_detail_route_title">Route</string>
     <string name="workout_create_first_routine">Create your first routine</string>
     <string name="workout_live_logging_coming_soon">Live workout logging lands in M4</string>
@@ -477,7 +479,7 @@
     <string name="settings_section_about">About</string>
     <string name="settings_privacy_policy_row">Privacy Policy</string>
     <string name="privacy_policy_title">Privacy Policy</string>
-    <string name="privacy_policy_body">logEZ does not collect any data, from you or about you. There is no account, no server, and no INTERNET permission — the app is physically incapable of sending anything anywhere, even if it wanted to.\n\nEverything you log — routines, workouts, sets, measurements, progress photos — is stored only on this device, in a local database and local files. Nothing is uploaded, synced, or shared unless you personally export a file yourself (Settings → Data) and send it somewhere of your own choosing.\n\nLocation: if you track a GPS walk or run, logEZ reads your device\'s location only while that tracking screen is open, to record your distance and route. This never leaves the device, is never used for anything else, and is only ever requested while the app is in the foreground.\n\nHealth Connect: if you connect Health Connect, logEZ reads your daily steps, calories burned, and heart rate from it, read-only, to show them back to you in the app. logEZ never writes to Health Connect and never sends this data anywhere else — it is used only to display your own numbers back to you, on this device.\n\nIf you ever revoke a permission, logEZ simply stops showing whatever depended on it — nothing breaks, and nothing already stored on-device is deleted.</string>
+    <string name="privacy_policy_body">logEZ does not collect any data, from you or about you. There is no account and no server.\n\nEverything you log — routines, workouts, sets, measurements, progress photos — is stored only on this device, in a local database and local files. Nothing is uploaded, synced, or shared unless you personally export a file yourself (Settings → Data) and send it somewhere of your own choosing.\n\nMap tiles: logEZ shows a map anywhere a GPS-tracked walk or run appears — while it\'s being tracked, on its finish summary, and whenever you view it later in History. Any of these fetch map tiles over the internet from MapTiler, a third-party map provider, for whatever area of the map is currently on screen. No workout data, and no data you\'ve logged, is ever included in these requests. See MapTiler\'s own privacy policy at maptiler.com for how they handle requests it receives.\n\nLocation: if you track a GPS walk or run, logEZ reads your device\'s location only while that tracking screen is open, to record your distance and route. Only ever requested while the app is in the foreground. That raw location is stored on-device and is never sent anywhere directly — but while a map is on screen showing that route (live or later in History), the map area currently in view is sent to MapTiler as part of fetching its tiles, which necessarily reveals roughly where that route is to MapTiler, the same way any map app\'s map view does. It is never sent anywhere else, and never tied to an account or identity.\n\nHealth Connect: if you connect Health Connect, logEZ reads your daily steps, calories burned, and heart rate from it, read-only, to show them back to you in the app. logEZ never writes to Health Connect and never sends this data anywhere else — it is used only to display your own numbers back to you, on this device.\n\nIf you ever revoke a permission, logEZ simply stops showing whatever depended on it — nothing breaks, and nothing already stored on-device is deleted.</string>
     <string name="settings_weight_unit">Weight unit</string>
     <string name="settings_weight_unit_kg">Kilograms (kg)</string>
     <string name="settings_weight_unit_lb">Pounds (lb)</string>

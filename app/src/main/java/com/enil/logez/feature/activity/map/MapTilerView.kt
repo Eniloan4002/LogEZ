@@ -2,6 +2,7 @@ package com.enil.logez.feature.activity.map
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.enil.logez.BuildConfig
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import org.maplibre.android.MapLibre
@@ -42,7 +45,6 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
-import org.maplibre.android.net.ConnectivityReceiver
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
@@ -51,7 +53,16 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-/** Metro Manila's approximate centroid — the default camera position when no route is passed. */
+/** M21 (2026-09-12): MapTiler's own style URL -- a single fetch, its JSON already embeds the API
+ * key into every sub-resource (tiles.json, sprite, glyphs), confirmed by inspecting a fetched copy
+ * of this exact style. `streets-v2-dark` is a genuine native dark cartography style (not a runtime
+ * color-inversion hack), confirmed via a fetched copy showing dark paint colors throughout. */
+private val MAPTILER_STYLE_URL =
+    "https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${BuildConfig.MAPTILER_API_KEY}"
+
+/** Fallback camera center used only until the first real route point arrives. No longer tied to any
+ * bundled data region now that tiles are fetched live for any location -- kept as a stable, familiar
+ * default rather than because the map is limited to it. */
 private val METRO_MANILA_CENTER = LatLng(14.5995, 120.9842)
 
 /**
@@ -102,14 +113,19 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
     LatLng(points.sumOf { it.first } / points.size, points.sumOf { it.second } / points.size)
 
 /**
- * M21b. A classic `MapView` wrapped in `AndroidView`, not `maplibre-compose` (that wrapper needs
- * Kotlin 2.4.10, ahead of this project's 2.3.0 pin — decisions.md/gradle/libs.versions.toml).
- * Renders entirely from the bundled Metro Manila `.mbtiles` + local style/glyphs/sprites — no
- * network call at any point (verify: build with `INTERNET` stripped, confirm this still renders).
+ * M21b, switched to live MapTiler tiles M21 (2026-09-12). A classic `MapView` wrapped in
+ * `AndroidView`, not `maplibre-compose` (that wrapper needs Kotlin 2.4.10, ahead of this project's
+ * 2.3.0 pin — decisions.md/gradle/libs.versions.toml). The style is fetched live from MapTiler
+ * (`MAPTILER_STYLE_URL` above) rather than loaded from a bundled `.mbtiles` + local style/glyphs/
+ * sprites -- this is logEZ's first-ever real network access (Owner directive, decisions.md
+ * 2026-09-12), narrowly scoped to map tile/style/glyph/sprite requests only. GPS tracking, workout
+ * data, and Health Connect reads all stay fully local, unaffected. Replacing the old
+ * Metro-Manila-only bundled map means the map now renders anywhere in the world, not just one city.
  *
  * The persistent, always-visible attribution text is deliberate, not decorative: MapLibre's own
- * default tap-to-reveal "(i)" control does not, on its own, satisfy OpenStreetMap's requirement
- * that attribution be visible without requiring a tap (M21b research, a real open MapLibre issue).
+ * default tap-to-reveal "(i)" control does not, on its own, satisfy OpenStreetMap's (and MapTiler's)
+ * requirement that attribution be visible without requiring a tap (M21b research, a real open
+ * MapLibre issue; MapTiler's own copyright page states the same requirement for its own credit).
  *
  * M21c: [routePoints] draws the GPS track as a line layer once 2+ points exist. [followLatest]
  * chooses how the camera reacts to it -- `true` (live tracking) keeps centering on the newest
@@ -129,35 +145,66 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
  * app (Strava, Nike Run Club, Google Maps' own blue-dot follow mode) uses for this same conflict.
  */
 @Composable
-fun OfflineMapView(
+fun MapTilerView(
     modifier: Modifier = Modifier,
     routePoints: List<Pair<Double, Double>> = emptyList(),
     followLatest: Boolean = false,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var styleJson by remember { mutableStateOf<String?>(null) }
+    var mapLibreReady by remember { mutableStateOf(false) }
     var maplibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleReady by remember { mutableStateOf(false) }
+    var loadError by remember { mutableStateOf<String?>(null) }
     var userPanned by remember { mutableStateOf(false) }
     val routeLineColor = MaterialTheme.colorScheme.primary.toArgb()
 
+    // Extracted so both the initial load and the Retry button below can (re)run it. Recap screens
+    // (WorkoutDetailScreen/WorkoutSummaryScreen) already know their full route at this point, so the
+    // zoom-dance below targets its centroid instead of unconditionally fetching Metro Manila tiles
+    // for a workout that may be anywhere in the world -- live tracking has no route yet at this stage
+    // and still falls back to the fixed default, which is the one case with no better data available.
+    fun loadStyle(map: MapLibreMap) {
+        loadError = null
+        val initialTarget = if (routePoints.size >= 2) routeCentroid(routePoints) else METRO_MANILA_CENTER
+        map.setStyle(Style.Builder().fromUri(MAPTILER_STYLE_URL)) { style ->
+            style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
+            style.addLayer(
+                LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
+                    PropertyFactory.lineColor(routeLineColor),
+                    PropertyFactory.lineWidth(4f),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                ),
+            )
+
+            // See the class doc comment for why this exact two-step zoom sequence, with a real
+            // delay between steps, is required for line/symbol layers to render at all.
+            map.cameraPosition = CameraPosition.Builder()
+                .target(initialTarget)
+                .zoom(FINAL_ZOOM - 1.0)
+                .build()
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                map.cameraPosition = CameraPosition.Builder()
+                    .target(initialTarget)
+                    .zoom(FINAL_ZOOM)
+                    .build()
+                styleReady = true
+            }, 1500)
+        }
+    }
+
     LaunchedEffect(Unit) {
         MapLibre.getInstance(context)
-        // Without ACCESS_NETWORK_STATE (never granted -- no network permissions, ever), MapLibre's
-        // own ConnectivityReceiver crashes the first time Android delivers a CONNECTIVITY_CHANGE
-        // broadcast: its onReceive() calls ConnectivityManager.getActiveNetworkInfo(), which throws
-        // a SecurityException without that permission. setConnected() pre-seeds its internal
-        // connected state, which onReceive() checks first and returns early on -- the framework
-        // call is never reached. This app is never connected anyway, so `false` is also just true.
-        ConnectivityReceiver.instance(context).setConnected(false)
-        val mbtiles = OfflineMapAssets.ensureMbtilesInstalled(context)
-        styleJson = OfflineMapAssets.loadStyleJson(context, mbtiles.absolutePath)
+        mapLibreReady = true
     }
 
     Box(modifier = modifier) {
-        val json = styleJson
-        if (json == null) {
+        // MapView's constructor calls MapLibre.hasInstance() and throws if it's false -- it must
+        // never be constructed (even via remember, which runs during composition) before the
+        // LaunchedEffect above has actually completed MapLibre.getInstance(), which only happens on
+        // a later recomposition. This early return is what enforces that ordering.
+        if (!mapLibreReady) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -188,6 +235,13 @@ fun OfflineMapView(
             mv.getMapAsync { map ->
                 if (maplibreMap != null) return@getMapAsync
                 maplibreMap = map
+                // No OnDidFailLoadingMapListener existed before this milestone because the bundled
+                // local style/mbtiles could never fail this way. A live network fetch genuinely can
+                // (no connectivity, an invalid/missing API key, a MapTiler outage) -- without this,
+                // `styleReady` would simply never flip and the loading spinner below would spin
+                // forever with no way out, including for a past workout's route that used to render
+                // 100% offline.
+                mv.addOnDidFailLoadingMapListener { error -> loadError = error }
                 // MapLibre's own default logo mark and tap-to-reveal attribution "(i)" icon are pure
                 // SDK branding/decoration, not an OSM compliance requirement -- our own always-visible
                 // attribution Text below already satisfies that on its own. Disabling these removes
@@ -209,46 +263,33 @@ fun OfflineMapView(
                         userPanned = true
                     }
                 }
-                map.setStyle(Style.Builder().fromJson(json)) { style ->
-                    style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
-                    style.addLayer(
-                        LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
-                            PropertyFactory.lineColor(routeLineColor),
-                            PropertyFactory.lineWidth(4f),
-                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                        ),
-                    )
+                loadStyle(map)
+            }
+        }
 
-                    // A camera position set here, on the very first frame, leaves every line/symbol
-                    // layer unrendered (roads, place labels) -- only fill/background layers show --
-                    // confirmed on-device against this exact mbtiles+style (MapLibre 13.6.1). Only a
-                    // genuine zoom-level change, after the first one has had time to actually finish
-                    // loading, fixes it -- moveCamera/easeCamera/triggerRepaint immediately after the
-                    // first camera position, or a same-frame second camera change, all reproduce the
-                    // same broken (roads-missing) render just as plainly as doing nothing. An
-                    // OnDidFinishLoadingMapListener-driven version was tried and tested worse (didn't
-                    // even reproduce the water fill reliably -- it's a one-shot lifecycle event, not
-                    // guaranteed to still be pending by the time a listener attaches to it here), so
-                    // this uses an explicit delay instead: land one zoom level out first, then step
-                    // to FINAL_ZOOM once that first load has clearly had time to settle. Deliberately
-                    // always targets the fixed Metro Manila center here, never the route -- the route
-                    // line is still empty at this point (added just above with no data yet), and this
-                    // exact sequence is the one confirmed to unblock rendering, so nothing route-aware
-                    // touches it. The route's own camera framing happens afterward, once styleReady
-                    // flips true below, in the separate effect that reacts to routePoints.
-                    map.cameraPosition = CameraPosition.Builder()
-                        .target(METRO_MANILA_CENTER)
-                        .zoom(FINAL_ZOOM - 1.0)
-                        .build()
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        map.cameraPosition = CameraPosition.Builder()
-                            .target(METRO_MANILA_CENTER)
-                            .zoom(FINAL_ZOOM)
-                            .build()
-                        styleReady = true
-                    }, 1500)
+        // Shown until the style has fetched over the network and the zoom-dance above has settled --
+        // MapView itself renders a blank tile grid underneath while that's in flight. A failure
+        // (no connectivity, bad API key, MapTiler outage) shows a retry affordance instead of
+        // spinning forever -- see loadStyle()'s and the failure listener's own comments above.
+        if (loadError != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        stringResource(R.string.map_load_error),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = { maplibreMap?.let(::loadStyle) },
+                        modifier = Modifier.padding(top = Spacing.sm),
+                    ) {
+                        Text(stringResource(R.string.map_retry))
+                    }
                 }
+            }
+        } else if (!styleReady) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
         }
 
