@@ -1,5 +1,6 @@
 package com.enil.logez.feature.settings
 
+import android.content.Intent
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,6 +28,7 @@ import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.feature.privacy.PrivacyPolicyActivity
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -50,6 +53,7 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var openDialog by remember { mutableStateOf<SettingsDialog?>(null) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -223,6 +227,16 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_sounds_row_subtitle),
                     value = "",
                     onClick = onSoundsClick,
+                )
+            }
+
+            // --- ABOUT ---
+            item(key = "section_about") { SettingsSectionHeader(stringResource(R.string.settings_section_about)) }
+            item(key = "privacy_policy") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_privacy_policy_row),
+                    value = "",
+                    onClick = { context.startActivity(Intent(context, PrivacyPolicyActivity::class.java)) },
                 )
             }
         }

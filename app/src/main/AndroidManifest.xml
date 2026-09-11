@@ -78,6 +78,21 @@
             </intent-filter>
         </activity>
 
+        <!-- M21: Health Connect's own permission screen refuses to show its grant checkboxes at
+             all unless the requesting app declares an activity for its privacy-policy/rationale
+             link — confirmed on-device (logcat: "PermissionsActivity: App should support rationale
+             intent, finishing!") before this was added, which is exactly why "Connect" on the
+             Profile wellness card looked like a dead button. Two separate declarations are both
+             required per Android's own Health Connect integration guide: the pre-Android-14 action
+             below, and the Android-14+ activity-alias further down (search ViewPermissionUsageActivity). -->
+        <activity
+            android:name=".feature.privacy.PrivacyPolicyActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
         <!-- §9.2: specialUse — shortService caps at ~3min (workouts run 30-120min+); health
              requires body-sensor permissions this app has no use for. -->
         <service
@@ -110,6 +125,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- M21: the Android-14+ half of the Health Connect rationale requirement described above
+             PrivacyPolicyActivity — a fixed-name alias Health Connect resolves directly by action
+             and category, targeting the same activity as the pre-14 declaration. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".feature.privacy.PrivacyPolicyActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
     </application>
 
