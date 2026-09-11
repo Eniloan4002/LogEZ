@@ -1,6 +1,7 @@
 package com.enil.logez.feature.activity.map
 
 import android.content.Context
+import com.enil.logez.core.common.MapStyleDarkMode
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,9 +29,14 @@ object OfflineMapAssets {
         dest
     }
 
-    /** Loads the bundled style JSON with the mbtiles source's placeholder token filled in with a real filesystem path. */
+    /**
+     * Loads the bundled style JSON with the mbtiles source's placeholder token filled in with a
+     * real filesystem path, then darkened via [MapStyleDarkMode] to match this dark-only app's
+     * theme (LogEzTheme) -- the bundled style itself stays an untouched, light "OSM Bright" style
+     * on disk; only the in-memory copy fed to MapLibre is transformed.
+     */
     suspend fun loadStyleJson(context: Context, mbtilesAbsolutePath: String): String = withContext(Dispatchers.IO) {
         val raw = context.assets.open(STYLE_ASSET_PATH).bufferedReader().use { it.readText() }
-        raw.replace(MBTILES_PATH_TOKEN, mbtilesAbsolutePath)
+        MapStyleDarkMode.darken(raw.replace(MBTILES_PATH_TOKEN, mbtilesAbsolutePath))
     }
 }

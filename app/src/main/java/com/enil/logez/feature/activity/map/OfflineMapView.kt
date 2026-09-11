@@ -171,6 +171,12 @@ fun OfflineMapView(
             mv.getMapAsync { map ->
                 if (maplibreMap != null) return@getMapAsync
                 maplibreMap = map
+                // MapLibre's own default logo mark and tap-to-reveal attribution "(i)" icon are pure
+                // SDK branding/decoration, not an OSM compliance requirement -- our own always-visible
+                // attribution Text below already satisfies that on its own. Disabling these removes
+                // the actual visual "watermark" without touching the legally-required credit line.
+                map.uiSettings.isLogoEnabled = false
+                map.uiSettings.isAttributionEnabled = false
                 map.setStyle(Style.Builder().fromJson(json)) { style ->
                     style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
                     style.addLayer(

@@ -93,12 +93,33 @@ fun ActivityTrackingScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(formatElapsed(elapsedSeconds), style = MaterialTheme.typography.displayLarge)
-            Text(
-                stringResource(R.string.activity_tracking_elapsed_label),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Timer and distance share one row (Owner request, 2026-09-11) rather than stacking
+            // above/below the map -- each stat is its own centered column so the row reads the same
+            // as a two-up stat card.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(formatElapsed(elapsedSeconds), style = MaterialTheme.typography.displayMedium)
+                    Text(
+                        stringResource(R.string.activity_tracking_elapsed_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        stringResource(R.string.activity_tracking_distance_value, formatKm(state.distanceMeters)),
+                        style = MaterialTheme.typography.displayMedium,
+                    )
+                    Text(
+                        stringResource(R.string.activity_tracking_distance_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             // M21c: the real offline map, camera following the newest GPS fix as it arrives --
             // upgraded from the framework-free Canvas sketch (RouteSketchGeometry) once that spike
@@ -107,17 +128,6 @@ fun ActivityTrackingScreen(
                 routePoints = state.routePoints,
                 followLatest = true,
                 modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
-            )
-
-            Text(
-                stringResource(R.string.activity_tracking_distance_value, formatKm(state.distanceMeters)),
-                style = MaterialTheme.typography.displayMedium,
-                modifier = Modifier.padding(top = Spacing.xl),
-            )
-            Text(
-                stringResource(R.string.activity_tracking_distance_label),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // M21f: absent whenever Health Connect has nothing to show (not connected, no
