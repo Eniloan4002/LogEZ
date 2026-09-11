@@ -29,14 +29,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-    <!-- M21e (Part B, wellness metrics): read-only, all-day steps via Health Connect (local IPC to
-         the Health Connect app, same no-INTERNET-risk shape as FusedLocationProvider, see
-         decisions.md 2026-09-09). Calories deliberately not requested yet, a real compile-time
-         blocker on the calorie-reading code means the app can't act on that data yet, so it isn't
-         asked for (HealthConnectMetricsSource's own doc comment has the detail); add
-         READ_TOTAL_CALORIES_BURNED back here once that's fixed. Read-only for now; WRITE_*
+    <!-- M21e/M21g (Part B, wellness metrics): read-only, all-day steps + calories via Health
+         Connect (local IPC to the Health Connect app, same no-INTERNET-risk shape as
+         FusedLocationProvider, see decisions.md 2026-09-09). Read-only for now; WRITE_*
          permissions are a separate, optional later milestone (M21i) if ever pursued. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
 
     <!-- M21f: live BPM scorecard during a workout + a historical chart afterward. Unlike calories,
          HeartRateRecord's own values are plain Longs (confirmed via the same javap check), so this

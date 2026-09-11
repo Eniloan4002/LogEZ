@@ -48,6 +48,7 @@ import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.feature.wellness.HealthConnectAvailability
 import com.enil.logez.feature.wellness.rememberRequestHealthConnectPermissions
 import java.util.Locale
+import kotlin.math.roundToLong
 
 /**
  * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats (lifetime Workouts + Streak,
@@ -141,14 +142,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
                             fontWeight = FontWeight.SemiBold,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-                            // Calories cell intentionally absent -- HealthConnectMetricsSource
-                            // doesn't read it yet (its own doc comment has the blocker), and this
-                            // app never shows a stat it isn't actually tracking (same rule as the
-                            // Volume/Reps/Distance gating on the Finish/History screens).
                             WellnessStatCell(
                                 label = stringResource(R.string.wellness_steps_label),
                                 value = formatSteps(uiState.todaySteps ?: 0L),
                             )
+                            // M21g: absent when Health Connect has no calorie data for today yet
+                            // (null, not zero) -- this app never shows a stat it isn't actually
+                            // tracking, same rule as the Volume/Reps/Distance gating on Finish/History.
+                            if (uiState.todayCaloriesBurned != null) {
+                                WellnessStatCell(
+                                    label = stringResource(R.string.wellness_calories_label),
+                                    value = formatCalories(uiState.todayCaloriesBurned),
+                                )
+                            }
                         }
                     } else {
                         Text(
@@ -298,3 +304,5 @@ private fun WellnessStatCell(label: String, value: String) {
 }
 
 private fun formatSteps(steps: Long): String = "%,d".format(Locale.ROOT, steps)
+
+private fun formatCalories(calories: Double): String = "%,d".format(Locale.ROOT, calories.roundToLong())

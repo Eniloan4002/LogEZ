@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -15,7 +16,7 @@ import java.time.LocalDateTime
 import javax.inject.Inject
 
 /**
- * M21e (steps) + M21f (heart rate). Wraps `HealthConnectClient`, the same
+ * M21e (steps + calories) + M21f (heart rate). Wraps `HealthConnectClient`, the same
  * local-IPC-to-an-already-installed-app shape as `FusedLocationSource` -- confirmed via direct
  * AAR/manifest inspection (decisions.md 2026-09-10), not assumed from the library's category. Uses
  * real wall-clock time directly (`LocalDate.now()`/`Instant.now()`), not the injected `Clock` --
@@ -23,15 +24,16 @@ import javax.inject.Inject
  * wrapper around a live external data source, not testable business logic, so it isn't unit-tested
  * directly (see `FakeHealthMetricsSource` for what drives ViewModel/controller tests).
  *
- * Calories deliberately NOT requested/read yet, a real scope reduction from the plan's original
- * "steps + calories" M21e (decisions.md 2026-09-10): androidx.health.connect.client.units.Energy's
- * own accessors (`.kilocalories`, even the plain Java `.getKilocalories()`) fail to resolve from
- * this module against connect-client 1.1.0 -- confirmed empirically (both forms compile-fail with
- * "unresolved reference" against a method javap confirms exists, unmangled, on the class), not a
- * shortcut of convenience. Rather than guess at Energy's raw storage unit (a wrong guess would
- * silently show a wildly incorrect calorie count -- this app never fabricates a number, see the
- * Volume/Distance stat-gating precedent), the `READ_TOTAL_CALORIES_BURNED` permission isn't even
- * requested until this is root-caused, so the app never asks for access it can't yet act on.
+ * Calories root-caused and fixed 2026-09-11 (M21g), after M21e originally cut it from scope. The
+ * real bug: `Energy.kilocalories`/`.getKilocalories()` genuinely exist in the connect-client 1.1.0
+ * AAR's bytecode -- `javap` shows a clean, unmangled, public `getKilocalories()` -- but that member
+ * is a deprecated-hidden legacy alias, invisible to Kotlin *source* resolution even though it's
+ * still callable from raw bytecode/Java; Kotlin's compiler reads visibility from the artifact's own
+ * `@Metadata` annotation, not the JVM access flags, so `javap` alone can't tell public-and-live apart
+ * from public-bytecode-but-hidden. The real, currently-resolvable accessor is `inKilocalories`
+ * (matching this library's `inXxx` convention used by its other unit-wrapper classes). Confirmed
+ * empirically, not guessed: `.kilocalories` reproduced the exact "unresolved reference" failure
+ * against this same real AAR, `.inKilocalories` compiled clean on the first try.
  */
 class HealthConnectMetricsSource @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -39,6 +41,7 @@ class HealthConnectMetricsSource @Inject constructor(
     override val requiredPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
     )
 
     override fun availability(): HealthConnectAvailability =
@@ -55,12 +58,13 @@ class HealthConnectMetricsSource @Inject constructor(
         val startOfToday = LocalDate.now().atStartOfDay()
         val result = client().aggregate(
             AggregateRequest(
-                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                metrics = setOf(StepsRecord.COUNT_TOTAL, TotalCaloriesBurnedRecord.ENERGY_TOTAL),
                 timeRangeFilter = TimeRangeFilter.between(startOfToday, LocalDateTime.now()),
             ),
         )
         val steps: Long = result.get(StepsRecord.COUNT_TOTAL) ?: 0L
-        return DailyTotals(steps = steps, caloriesBurned = null)
+        val caloriesBurned: Double? = result.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories
+        return DailyTotals(steps = steps, caloriesBurned = caloriesBurned)
     }
 
     override suspend fun readLatestHeartRate(withinSeconds: Long): Long? {

@@ -145,6 +145,24 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun `today's calories load and persist alongside steps once permission is granted`() = runTest {
+        val wellnessRepo = FakeWellnessRepository()
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = HealthConnectAvailability.Available,
+                permissionsGranted = true,
+                totals = com.enil.logez.feature.wellness.DailyTotals(steps = 8_432L, caloriesBurned = 1_842.7),
+            ),
+            wellnessRepo = wellnessRepo,
+        )
+
+        val state = vm.uiState.value
+        assertEquals(1_842.7, state.todayCaloriesBurned)
+        assertEquals(1, wellnessRepo.all.size)
+        assertEquals(1_842.7, wellnessRepo.all.single().caloriesBurned)
+    }
+
+    @Test
     fun `onWellnessPermissionResult re-refreshes only when the grant actually succeeded`() = runTest {
         val healthMetricsSource = FakeHealthMetricsSource(
             availabilityValue = HealthConnectAvailability.Available,
