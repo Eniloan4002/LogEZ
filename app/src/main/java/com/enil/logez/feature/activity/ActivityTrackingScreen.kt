@@ -61,6 +61,7 @@ fun ActivityTrackingScreen(
     val scope = rememberCoroutineScope()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elapsedSeconds by viewModel.elapsedSecondsFlow.collectAsStateWithLifecycle(initialValue = 0)
+    val liveBpm by viewModel.liveBpmFlow.collectAsStateWithLifecycle(initialValue = null)
     var showCancelConfirm by remember { mutableStateOf(false) }
     val enterLogger = rememberStartWorkoutSession(onFinished)
 
@@ -118,6 +119,18 @@ fun ActivityTrackingScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            // M21f: absent whenever Health Connect has nothing to show (not connected, no
+            // permission, no wearable data) -- graceful degrade, same rule as the Profile wellness
+            // card and the Logger's HeartRateChip.
+            if (liveBpm != null) {
+                Text(
+                    stringResource(R.string.workout_bpm_value, liveBpm!!),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxl),

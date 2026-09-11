@@ -258,6 +258,11 @@ fun WorkoutLoggerScreen(
                                 if (uiState.restExerciseId != null) {
                                     RestTimerChip(viewModel.restRemainingMillisFlow)
                                 }
+                                // M21f: absent whenever Health Connect has nothing to show (not
+                                // connected, no permission, no wearable data) -- HeartRateChip
+                                // itself returns early on a null value, same `?: return` shape as
+                                // RestTimerChip above.
+                                HeartRateChip(viewModel.liveBpmFlow)
                             }
                         }
                     }
@@ -656,6 +661,26 @@ private fun RestTimerChip(restRemainingMillisFlow: Flow<Long?>, modifier: Modifi
     ) {
         Text(
             "${stringResource(R.string.workout_rest_timer_label)} ${formatElapsed(remainingSeconds)}",
+            style = LogEzMono.dataSmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+        )
+    }
+}
+
+/** M21f: same compact-chip shape as [RestTimerChip] (an `AssistChip` reads too heavy in this row). */
+@Composable
+private fun HeartRateChip(liveBpmFlow: Flow<Long?>, modifier: Modifier = Modifier) {
+    val bpm by liveBpmFlow.collectAsStateWithLifecycle(null)
+    val value = bpm ?: return
+    Surface(
+        shape = RoundedCornerShape(Radius.pill),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+        modifier = modifier,
+    ) {
+        Text(
+            stringResource(R.string.workout_bpm_value, value),
             style = LogEzMono.dataSmall,
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,

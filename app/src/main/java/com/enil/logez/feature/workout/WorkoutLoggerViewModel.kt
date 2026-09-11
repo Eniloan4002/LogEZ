@@ -32,6 +32,8 @@ import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutNotificationContent
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
+import com.enil.logez.feature.wellness.HealthMetricsSource
+import com.enil.logez.feature.wellness.liveHeartRateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -43,6 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -102,6 +105,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val setCompletionUseCase: SetCompletionUseCase,
     private val livePrDetector: LivePrDetector,
     private val workoutEditor: WorkoutEditor,
+    private val healthMetricsSource: HealthMetricsSource,
     private val clock: Clock,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
@@ -177,6 +181,16 @@ class WorkoutLoggerViewModel @Inject constructor(
     val elapsedSecondsFlow: Flow<Long> = sessionController.elapsedSecondsFlow
     val restRemainingMillisFlow: Flow<Long?> = sessionController.restRemainingMillisFlow
     val inlineTimerSecondsFlow: Flow<Int?> = sessionController.inlineTimerSecondsFlow
+
+    /**
+     * M21f: exactly the same spine-rule cold-flow shape as the three flows above -- `liveHeartRateFlow`
+     * is itself a `flow { while(true) {...; delay(...)} }` builder (see its own doc comment for why
+     * an earlier, eagerly-started version of this hung the test suite). Owned by this ViewModel,
+     * not [WorkoutSessionController] (a BPM poller has nothing to do with that controller's own
+     * pause/resume/rest-timer bookkeeping). `emptyFlow()` in edit mode -- there is no live session
+     * to sample, matching the other three flows' edit-mode behavior at the Screen layer.
+     */
+    val liveBpmFlow: Flow<Long?> = if (isEditMode) emptyFlow() else liveHeartRateFlow(healthMetricsSource)
 
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
         // Group 1: exercises + loading

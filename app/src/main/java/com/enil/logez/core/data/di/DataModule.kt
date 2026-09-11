@@ -16,6 +16,7 @@ import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
 import com.enil.logez.core.data.dao.WellnessDao
 import com.enil.logez.core.data.dao.WorkoutDao
+import com.enil.logez.core.data.dao.WorkoutHeartRateSampleDao
 import com.enil.logez.core.di.ActiveSessionDataStore
 import com.enil.logez.core.di.EntitlementDataStore
 import dagger.Module
@@ -35,6 +36,7 @@ object DataModule {
             .addMigrations(
                 LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                 LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
+                LogEzDatabase.MIGRATION_7_8,
             )
             .build()
 
@@ -46,6 +48,9 @@ object DataModule {
 
     @Provides
     fun provideWellnessDao(db: LogEzDatabase): WellnessDao = db.wellnessDao()
+
+    @Provides
+    fun provideWorkoutHeartRateSampleDao(db: LogEzDatabase): WorkoutHeartRateSampleDao = db.workoutHeartRateSampleDao()
 
     @Provides
     fun provideGoalDao(db: LogEzDatabase): GoalDao = db.goalDao()

@@ -3,22 +3,25 @@ package com.enil.logez.feature.wellness
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
 
 /**
- * M21e, steps only. Wraps `HealthConnectClient`, the same local-IPC-to-an-already-installed-app
- * shape as `FusedLocationSource` -- confirmed via direct AAR/manifest inspection
- * (decisions.md 2026-09-10), not assumed from the library's category. Uses real wall-clock time
- * directly (`LocalDate.now()`), not the injected `Clock` -- same exemption as
- * `FusedLocationSource`'s `SystemClock` use: this is a thin framework-boundary wrapper around a
- * live external data source, not testable business logic, so it isn't unit-tested directly (see
- * `FakeHealthMetricsSource` for what drives ViewModel tests).
+ * M21e (steps) + M21f (heart rate). Wraps `HealthConnectClient`, the same
+ * local-IPC-to-an-already-installed-app shape as `FusedLocationSource` -- confirmed via direct
+ * AAR/manifest inspection (decisions.md 2026-09-10), not assumed from the library's category. Uses
+ * real wall-clock time directly (`LocalDate.now()`/`Instant.now()`), not the injected `Clock` --
+ * same exemption as `FusedLocationSource`'s `SystemClock` use: this is a thin framework-boundary
+ * wrapper around a live external data source, not testable business logic, so it isn't unit-tested
+ * directly (see `FakeHealthMetricsSource` for what drives ViewModel/controller tests).
  *
  * Calories deliberately NOT requested/read yet, a real scope reduction from the plan's original
  * "steps + calories" M21e (decisions.md 2026-09-10): androidx.health.connect.client.units.Energy's
@@ -35,6 +38,7 @@ class HealthConnectMetricsSource @Inject constructor(
 ) : HealthMetricsSource {
     override val requiredPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(HeartRateRecord::class),
     )
 
     override fun availability(): HealthConnectAvailability =
@@ -57,6 +61,25 @@ class HealthConnectMetricsSource @Inject constructor(
         )
         val steps: Long = result.get(StepsRecord.COUNT_TOTAL) ?: 0L
         return DailyTotals(steps = steps, caloriesBurned = null)
+    }
+
+    override suspend fun readLatestHeartRate(withinSeconds: Long): Long? {
+        val now = Instant.now()
+        return readHeartRateSamples(now.minusSeconds(withinSeconds), now)
+            .maxByOrNull { it.time }
+            ?.bpm
+    }
+
+    override suspend fun readHeartRateSamples(start: Instant, end: Instant): List<HeartRateSample> {
+        val response = client().readRecords(
+            ReadRecordsRequest(HeartRateRecord::class, TimeRangeFilter.between(start, end)),
+        )
+        // HeartRateRecord.Sample.beatsPerMinute is a plain Long, not a units-wrapper class like
+        // Energy -- confirmed via the same javap inspection that caught the calories blocker, so
+        // this path doesn't carry the same interop risk.
+        return response.records
+            .flatMap { record -> record.samples.map { HeartRateSample(time = it.time, bpm = it.beatsPerMinute) } }
+            .sortedBy { it.time }
     }
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)

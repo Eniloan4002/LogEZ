@@ -15,11 +15,13 @@ import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeMeasurementRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeTransactionRunner
+import com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -192,7 +194,7 @@ class FinishWorkoutViewModelTest {
             SavedStateHandle(mapOf("workoutId" to "w1")),
             repo,
             routineRepo,
-            WorkoutFinisher(repo, routineRepo, updater, runner, clock),
+            WorkoutFinisher(repo, routineRepo, updater, runner, FakeHealthMetricsSource(), FakeWorkoutHeartRateSampleRepository(), clock),
         )
     }
 

@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.LineChart
+import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
@@ -117,6 +119,23 @@ fun WorkoutSummaryScreen(
                     routePoints = uiState.routePoints,
                     followLatest = false,
                     modifier = Modifier.fillMaxWidth().height(180.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
+                )
+            }
+
+            if (uiState.heartRateSamples.isNotEmpty()) {
+                var selectedBpmIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+                Text(
+                    stringResource(R.string.summary_heart_rate_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = Spacing.lg),
+                )
+                LineChart(
+                    points = uiState.heartRateSamples.map { (recordedAt, bpm) -> LineChartPoint(x = recordedAt, y = bpm.toDouble()) },
+                    yLabel = { "${it.toInt()}" },
+                    xLabel = { formatChartElapsed(((it - uiState.startedAtMillis) / 1000).coerceAtLeast(0L)) },
+                    selectedIndex = selectedBpmIndex,
+                    onPointTap = { selectedBpmIndex = it },
+                    modifier = Modifier.padding(top = Spacing.sm),
                 )
             }
 
@@ -231,6 +250,13 @@ private fun formatDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600
     val m = (totalSeconds % 3600) / 60
     return if (h > 0) "${h}h ${m}m" else "${m}m"
+}
+
+/** M21f: mm:ss elapsed-since-start, for the heart-rate chart's x-axis -- finer-grained than [formatDuration]'s hour/minute rounding, since a workout can be a few minutes long. */
+private fun formatChartElapsed(totalSeconds: Long): String {
+    val m = totalSeconds / 60
+    val s = totalSeconds % 60
+    return "%d:%02d".format(java.util.Locale.ROOT, m, s)
 }
 
 /** Reps-based records are whole numbers; time is m:ss; everything else carries a unit. */

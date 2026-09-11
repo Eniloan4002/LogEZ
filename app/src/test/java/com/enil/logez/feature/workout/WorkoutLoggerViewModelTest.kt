@@ -20,6 +20,7 @@ import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeElapsedRealtimeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeMeasurementRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
@@ -88,7 +89,7 @@ class WorkoutLoggerViewModelTest {
                 },
             ),
             workoutRepo, exerciseRepo, settingsRepo,
-            sessionController, setCompletionUseCase, livePrDetector, editor, clock,
+            sessionController, setCompletionUseCase, livePrDetector, editor, FakeHealthMetricsSource(), clock,
         )
     }
 

@@ -5,6 +5,7 @@ import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
+import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.LoggedSetValues
 import com.enil.logez.core.domain.calc.RoutineSetTargets
@@ -15,8 +16,12 @@ import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.TransactionRunner
+import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
+import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.HealthMetricsSource
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +56,8 @@ class WorkoutFinisher @Inject constructor(
     private val routineRepository: RoutineRepository,
     private val personalRecordsUpdater: PersonalRecordsUpdater,
     private val transactionRunner: TransactionRunner,
+    private val healthMetricsSource: HealthMetricsSource,
+    private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
     private val clock: Clock,
 ) {
     suspend fun finish(
@@ -107,7 +114,31 @@ class WorkoutFinisher @Inject constructor(
             val touchedExerciseIds = setsBefore.map { it.exerciseId }.toSet()
             val prs = personalRecordsUpdater.rebuildForExercises(touchedExerciseIds, workout.id, includeWarmups)
             FinishResult(workoutId = workout.id, prs = prs)
+        }.also {
+            // M21f: outside the transaction, deliberately — same reasoning as includeWarmups above
+            // (a Health Connect read is local-IPC-but-still-not-Room I/O, so it must not pin the
+            // Room transaction open across it). A missing/denied Health Connect grant degrades
+            // silently to "no samples saved," never a failed finish -- a workout must always be
+            // saveable with or without a connected wearable.
+            saveHeartRateSamples(workoutId = workout.id, startedAt = effectiveStartedAt, endedAt = effectiveStartedAt + durationSeconds * 1000L)
         }
+    }
+
+    private suspend fun saveHeartRateSamples(workoutId: String, startedAt: Long, endedAt: Long) {
+        if (healthMetricsSource.availability() != HealthConnectAvailability.Available) return
+        if (!healthMetricsSource.hasAllPermissions()) return
+        val samples = healthMetricsSource.readHeartRateSamples(Instant.ofEpochMilli(startedAt), Instant.ofEpochMilli(endedAt))
+        if (samples.isEmpty()) return
+        heartRateSampleRepository.insertAll(
+            samples.map {
+                WorkoutHeartRateSampleEntity(
+                    id = UUID.randomUUID().toString(),
+                    workoutId = workoutId,
+                    recordedAt = it.time.toEpochMilli(),
+                    bpm = it.bpm,
+                )
+            },
+        )
     }
 
     /**

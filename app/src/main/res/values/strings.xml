@@ -357,6 +357,8 @@
     <string name="workout_pause_timer">Pause Workout Timer</string>
     <string name="workout_resume_timer">Resume Workout Timer</string>
     <string name="workout_rest_timer_label">Rest</string>
+    <!-- M21f: live heart-rate chip, live tracking screen + workout logger. -->
+    <string name="workout_bpm_value">%1$d bpm</string>
     <string name="workout_rest_timer_minus_15">−15s</string>
     <string name="workout_rest_timer_plus_15">+15s</string>
     <string name="workout_rest_timer_skip">Skip</string>
@@ -421,6 +423,8 @@
     <string name="summary_reps">Reps</string>
     <string name="summary_distance">Distance</string>
     <string name="summary_duration">Duration</string>
+    <!-- M21f: post-workout historical heart-rate chart. -->
+    <string name="summary_heart_rate_title">Heart rate</string>
     <string name="summary_streak">Week streak</string>
     <plurals name="summary_streak_value">
         <item quantity="one">%1$d week</item>

@@ -14,6 +14,7 @@ import com.enil.logez.core.domain.repository.ActivityTrackRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
+import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
@@ -43,6 +44,7 @@ class WorkoutSummaryViewModel @Inject constructor(
     private val personalRecordsRepository: PersonalRecordsRepository,
     private val settingsRepository: SettingsRepository,
     private val activityTrackRepository: ActivityTrackRepository,
+    private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
@@ -121,6 +123,12 @@ class WorkoutSummaryViewModel @Inject constructor(
                 activityTrackRepository.getByWorkoutSetId(row.set.setId)?.routePolyline
             }?.let(PolylineEncoding::decode) ?: emptyList()
 
+            // M21f: read from the local cache WorkoutFinisher already wrote at finish time, never
+            // Health Connect directly -- by the time this screen shows, the samples (if any) are
+            // already saved, same "local cache of what Health Connect already tracks" shape as
+            // routePoints/DailyWellnessTotalEntity elsewhere in this milestone.
+            val heartRateSamples = heartRateSampleRepository.getForWorkout(workoutId).map { it.recordedAt to it.bpm }
+
             val prs = personalRecordsRepository.getForWorkout(workoutId).map { pr ->
                 PrMedal(
                     exerciseName = exerciseRepository.getById(pr.exerciseId)?.name.orEmpty(),
@@ -150,6 +158,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 hasDistance = included.any { it.set.distanceMeters != null },
                 totalDistanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 },
                 routePoints = routePoints,
+                heartRateSamples = heartRateSamples,
                 workoutOrdinal = workoutRepository.countCompletedWorkoutsUpTo(workout.startedAt, workout.id),
                 weeklyStreak = streak,
                 prMedals = prs,
@@ -188,6 +197,8 @@ data class WorkoutSummaryUiState(
     val totalDistanceMeters: Double = 0.0,
     /** Decoded from the workout's `ActivityTrackEntity`, if any set in it was GPS-tracked. */
     val routePoints: List<Pair<Double, Double>> = emptyList(),
+    /** M21f: (recordedAtMillis, bpm) pairs saved by `WorkoutFinisher` at finish time, oldest first; empty if no wearable data existed for this workout's window. */
+    val heartRateSamples: List<Pair<Long, Long>> = emptyList(),
     val workoutOrdinal: Int = 0,
     val weeklyStreak: Int = 0,
     val prMedals: List<PrMedal> = emptyList(),

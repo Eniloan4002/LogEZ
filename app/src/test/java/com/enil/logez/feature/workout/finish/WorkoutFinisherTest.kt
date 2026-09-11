@@ -13,13 +13,17 @@ import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.HeartRateSample
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeMeasurementRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeTransactionRunner
+import com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -203,6 +207,63 @@ class WorkoutFinisherTest {
         assertTrue(f.workoutRepo.getById("w1")!!.status == WorkoutStatus.COMPLETED)
     }
 
+    // --- M21f: heart-rate samples saved outside the transaction, best-effort ---
+
+    @Test
+    fun `finish saves Health Connect heart-rate samples for the workout's own time window`() = runTest {
+        val samples = listOf(
+            HeartRateSample(time = java.time.Instant.ofEpochMilli(startedAt + 10_000L), bpm = 128L),
+            HeartRateSample(time = java.time.Instant.ofEpochMilli(startedAt + 20_000L), bpm = 134L),
+        )
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            heartRateSamples = samples,
+        )
+        val f = fixture(healthMetricsSource = healthMetricsSource)
+
+        f.finisher.finish(
+            workout = f.workout, title = "Push Day", notes = null, startedAt = startedAt,
+            durationSeconds = 60, updateRoutineValues = false, structureChoice = null,
+        )
+
+        val saved = f.heartRateRepo.getForWorkout("w1")
+        assertEquals(2, saved.size)
+        assertEquals(128L, saved[0].bpm)
+        assertEquals(134L, saved[1].bpm)
+        assertTrue(saved.all { it.workoutId == "w1" })
+    }
+
+    @Test
+    fun `finish saves nothing when Health Connect is unavailable -- never blocks the save`() = runTest {
+        val f = fixture(healthMetricsSource = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Unavailable))
+
+        f.finisher.finish(
+            workout = f.workout, title = "Push Day", notes = null, startedAt = startedAt,
+            durationSeconds = 60, updateRoutineValues = false, structureChoice = null,
+        )
+
+        assertTrue(f.heartRateRepo.getForWorkout("w1").isEmpty())
+        assertTrue(f.workoutRepo.getById("w1")!!.status == WorkoutStatus.COMPLETED)
+    }
+
+    @Test
+    fun `finish saves nothing when Health Connect is available but the permission isn't granted yet`() = runTest {
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available,
+            permissionsGranted = false,
+            heartRateSamples = listOf(HeartRateSample(time = java.time.Instant.ofEpochMilli(startedAt + 5_000L), bpm = 100L)),
+        )
+        val f = fixture(healthMetricsSource = healthMetricsSource)
+
+        f.finisher.finish(
+            workout = f.workout, title = "Push Day", notes = null, startedAt = startedAt,
+            durationSeconds = 60, updateRoutineValues = false, structureChoice = null,
+        )
+
+        assertTrue(f.heartRateRepo.getForWorkout("w1").isEmpty())
+    }
+
     // --- fixture ---
 
     private class Fixture(
@@ -210,6 +271,7 @@ class WorkoutFinisherTest {
         val workoutRepo: FakeWorkoutRepository,
         val routineRepo: FakeRoutineRepository,
         val recordsRepo: FakePersonalRecordsRepository,
+        val heartRateRepo: FakeWorkoutHeartRateSampleRepository,
         val workout: WorkoutEntity,
     )
 
@@ -217,6 +279,8 @@ class WorkoutFinisherTest {
         withRoutine: Boolean = false,
         routineRepRange: Boolean = false,
         sets: List<WorkoutSetEntity> = listOf(workoutSet("s1", "we1", 0, 100.0, 5, isCompleted = true)),
+        healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
+        heartRateRepo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
     ): Fixture {
         val routineId = if (withRoutine) "r1" else null
         val workout = WorkoutEntity(
@@ -259,8 +323,8 @@ class WorkoutFinisherTest {
             workoutRepo, exerciseRepo, recordsRepo, FakeMeasurementRepository(), FakeSettingsRepository(),
         )
         return Fixture(
-            finisher = WorkoutFinisher(workoutRepo, routineRepo, updater, FakeTransactionRunner(), clock),
-            workoutRepo = workoutRepo, routineRepo = routineRepo, recordsRepo = recordsRepo, workout = workout,
+            finisher = WorkoutFinisher(workoutRepo, routineRepo, updater, FakeTransactionRunner(), healthMetricsSource, heartRateRepo, clock),
+            workoutRepo = workoutRepo, routineRepo = routineRepo, recordsRepo = recordsRepo, heartRateRepo = heartRateRepo, workout = workout,
         )
     }
 

@@ -13,11 +13,13 @@ import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeMeasurementRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeTransactionRunner
+import com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -379,7 +381,10 @@ class WorkoutFinisherRegressionTest {
         val updater = PersonalRecordsUpdater(
             workoutRepo, exerciseRepo, recordsRepo, measurements, FakeSettingsRepository(),
         )
-        return WorkoutFinisher(workoutRepo, routineRepo, updater, runner, FakeClock(currentMillis = nowMillis))
+        return WorkoutFinisher(
+            workoutRepo, routineRepo, updater, runner,
+            FakeHealthMetricsSource(), FakeWorkoutHeartRateSampleRepository(), FakeClock(currentMillis = nowMillis),
+        )
     }
 
     private fun isoMillis(date: String): Long =

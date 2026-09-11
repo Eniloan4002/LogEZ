@@ -5,6 +5,7 @@ import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
+import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
@@ -18,8 +19,10 @@ import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
+import com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -35,6 +38,7 @@ import org.junit.Test
  * Post-save summary stats — the Reps total (same `isIncluded` list as the Sets stat) and the M11
  * circuit fields (structure passthrough plus History's post-purge rounds derivation).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class WorkoutSummaryViewModelTest {
     private val dispatcher = UnconfinedTestDispatcher()
 
@@ -120,6 +124,7 @@ class WorkoutSummaryViewModelTest {
             personalRecordsRepository = FakePersonalRecordsRepository(),
             settingsRepository = FakeSettingsRepository(),
             activityTrackRepository = trackRepo,
+            heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
             clock = FakeClock(),
         )
 
@@ -127,6 +132,42 @@ class WorkoutSummaryViewModelTest {
         assertEquals(2, points.size)
         assertEquals(14.5995, points[0].first, 1e-4)
         assertEquals(120.9842, points[0].second, 1e-4)
+    }
+
+    @Test
+    fun `heart-rate samples WorkoutFinisher already saved surface on the summary, oldest first`() = runTest {
+        val heartRateRepo = FakeWorkoutHeartRateSampleRepository(
+            listOf(
+                WorkoutHeartRateSampleEntity(id = "hr2", workoutId = "w1", recordedAt = 2_000L, bpm = 140L),
+                WorkoutHeartRateSampleEntity(id = "hr1", workoutId = "w1", recordedAt = 1_000L, bpm = 120L),
+            ),
+        )
+        val vm = viewModel(
+            FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", 0, reps = 8)),
+            ),
+            heartRateRepo = heartRateRepo,
+        )
+
+        val samples = vm.uiState.value.heartRateSamples
+        assertEquals(2, samples.size)
+        assertEquals(1_000L to 120L, samples[0])
+        assertEquals(2_000L to 140L, samples[1])
+    }
+
+    @Test
+    fun `a workout with no saved heart-rate samples shows an empty chart list, not a crash`() = runTest {
+        val vm = viewModel(
+            FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", 0, reps = 8)),
+            ),
+        )
+
+        assertTrue(vm.uiState.value.heartRateSamples.isEmpty())
     }
 
     @Test
@@ -201,13 +242,17 @@ class WorkoutSummaryViewModelTest {
 
     // --- fixture ---
 
-    private fun viewModel(workoutRepo: FakeWorkoutRepository) = WorkoutSummaryViewModel(
+    private fun viewModel(
+        workoutRepo: FakeWorkoutRepository,
+        heartRateRepo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+    ) = WorkoutSummaryViewModel(
         savedStateHandle = SavedStateHandle(mapOf(WorkoutSummaryViewModel.WORKOUT_ID_ARG to "w1")),
         workoutRepository = workoutRepo,
         exerciseRepository = FakeExerciseRepository(listOf(exercise("ex-1"))),
         personalRecordsRepository = FakePersonalRecordsRepository(),
         settingsRepository = FakeSettingsRepository(),
         activityTrackRepository = FakeActivityTrackRepository(),
+        heartRateSampleRepository = heartRateRepo,
         clock = FakeClock(),
     )
 

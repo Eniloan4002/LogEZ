@@ -38,6 +38,11 @@
          permissions are a separate, optional later milestone (M21i) if ever pursued. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
 
+    <!-- M21f: live BPM scorecard during a workout + a historical chart afterward. Unlike calories,
+         HeartRateRecord's own values are plain Longs (confirmed via the same javap check), so this
+         permission is safe to request now, no unresolved-accessor risk. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
     <!-- Solely for the pre-Q "Save image" path (WorkoutShareController.saveToPictures): on
          API 26–28 writing the summary PNG into the shared Pictures library still requires this
          legacy permission. API 29+ saves through scoped MediaStore inserts and requests nothing,

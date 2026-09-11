@@ -14,6 +14,7 @@ import com.enil.logez.core.data.dao.RecordsDao
 import com.enil.logez.core.data.dao.RoutineDao
 import com.enil.logez.core.data.dao.WellnessDao
 import com.enil.logez.core.data.dao.WorkoutDao
+import com.enil.logez.core.data.dao.WorkoutHeartRateSampleDao
 import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.BodyMeasurementEntity
 import com.enil.logez.core.data.entity.DailyWellnessTotalEntity
@@ -27,6 +28,7 @@ import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
+import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 
 /**
@@ -36,7 +38,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
  * `workouts.structure` (M11 circuits — a discriminator only, no new tables), v6 adds
  * `activity_tracks` (M21a — GPS-tracked run/walk route data, one row per tracked `workout_sets`
  * row), v7 adds `daily_wellness_totals` (M21e — a local cache of Health Connect's own all-day
- * steps/calories aggregate, one row per calendar day). `exportSchema = true`
+ * steps/calories aggregate, one row per calendar day), v8 adds `workout_heart_rate_samples` (M21f —
+ * a local cache of Health Connect's per-sample heart rate over a workout's own time window, read
+ * once at Finish). `exportSchema = true`
  * from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
  * app (project-rules.md testing expectations): this app's entire value is the historical log, so
@@ -58,8 +62,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         GoalDefinitionEntity::class,
         ActivityTrackEntity::class,
         DailyWellnessTotalEntity::class,
+        WorkoutHeartRateSampleEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -73,6 +78,7 @@ abstract class LogEzDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun activityTrackDao(): ActivityTrackDao
     abstract fun wellnessDao(): WellnessDao
+    abstract fun workoutHeartRateSampleDao(): WorkoutHeartRateSampleDao
 
     companion object {
         const val DATABASE_NAME = "logez.db"
@@ -183,6 +189,30 @@ abstract class LogEzDatabase : RoomDatabase() {
                         PRIMARY KEY(`date`)
                     )
                     """.trimIndent(),
+                )
+            }
+        }
+
+        /** v7 -> v8 (M21f): a brand-new table only, nothing existing changes shape. */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // FOREIGN KEY clause required verbatim -- WorkoutHeartRateSampleEntity declares
+                // one, and Room's post-migration TableInfo comparison rejects a table missing it
+                // exactly like a genuinely wrong column would (the debug13.9 failure mode).
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `workout_heart_rate_samples` (
+                        `id` TEXT NOT NULL,
+                        `workout_id` TEXT NOT NULL,
+                        `recorded_at` INTEGER NOT NULL,
+                        `bpm` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`workout_id`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_workout_heart_rate_samples_workout_id` ON `workout_heart_rate_samples` (`workout_id`)",
                 )
             }
         }

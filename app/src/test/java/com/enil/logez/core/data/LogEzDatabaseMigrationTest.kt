@@ -577,6 +577,82 @@ class LogEzDatabaseMigrationTest {
     }
 
     /**
+     * A "v7" stand-in with just the one table MIGRATION_7_8 references (`workouts`, the FK target
+     * `workout_heart_rate_samples.workout_id` points at) -- matching [openV5]'s same "sufficient
+     * for what this migration does" scope.
+     */
+    private fun openV7(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(7) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE `workouts` (
+                        `id` TEXT NOT NULL, `routine_id` TEXT, `title` TEXT NOT NULL, `notes` TEXT,
+                        `status` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER,
+                        `duration_seconds` INTEGER NOT NULL, `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_7_8 creates workout_heart_rate_samples with the entity's exact columns`() {
+        val helper = openV7()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_7_8.migrate(db)
+
+        val cursor = db.query("PRAGMA table_info(`workout_heart_rate_samples`)")
+        val columns = mutableMapOf<String, Pair<String, Boolean>>() // name -> (type, notNull)
+        cursor.use {
+            val nameIdx = it.getColumnIndexOrThrow("name")
+            val typeIdx = it.getColumnIndexOrThrow("type")
+            val notNullIdx = it.getColumnIndexOrThrow("notnull")
+            while (it.moveToNext()) {
+                columns[it.getString(nameIdx)] = it.getString(typeIdx) to (it.getInt(notNullIdx) == 1)
+            }
+        }
+
+        assertEquals(setOf("id", "workout_id", "recorded_at", "bpm"), columns.keys)
+        assertEquals("TEXT" to true, columns["id"])
+        assertEquals("TEXT" to true, columns["workout_id"])
+        assertEquals("INTEGER" to true, columns["recorded_at"])
+        assertEquals("INTEGER" to true, columns["bpm"])
+
+        db.close()
+    }
+
+    @Test
+    fun `MIGRATION_7_8 can read back a row it just accepted, and is safe to run twice`() {
+        val helper = openV7()
+        val db = helper.writableDatabase
+        db.execSQL(
+            "INSERT INTO workouts (id, routine_id, title, notes, status, started_at, ended_at, duration_seconds, created_at, updated_at) " +
+                "VALUES ('w1', NULL, 'Session', NULL, 'COMPLETED', 1000, 2000, 60, 1000, 2000)",
+        )
+        LogEzDatabase.MIGRATION_7_8.migrate(db)
+        LogEzDatabase.MIGRATION_7_8.migrate(db) // CREATE TABLE IF NOT EXISTS must not throw on a second run
+
+        db.execSQL(
+            "INSERT INTO workout_heart_rate_samples (id, workout_id, recorded_at, bpm) VALUES ('s1', 'w1', 1500, 132)",
+        )
+        val cursor = db.query("SELECT workout_id, bpm FROM workout_heart_rate_samples WHERE id = 's1'")
+        cursor.moveToFirst()
+        assertEquals("w1", cursor.getString(0))
+        assertEquals(132, cursor.getInt(1))
+        cursor.close()
+        db.close()
+    }
+
+    /**
      * Same real-open technique as the historical-chain tests below: a database physically built to
      * the real v4 schema (`4.json`'s createSql), opened through [LogEzDatabase]'s own
      * `Room.databaseBuilder(...).addMigrations(...)` path — so Room's post-migration validation
@@ -605,6 +681,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
+                    LogEzDatabase.MIGRATION_7_8,
                 )
                 .build()
 
@@ -648,6 +725,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
+                    LogEzDatabase.MIGRATION_7_8,
                 )
                 .build()
 
@@ -690,6 +768,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
+                    LogEzDatabase.MIGRATION_7_8,
                 )
                 .build()
 
