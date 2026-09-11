@@ -244,6 +244,7 @@
          crediting OpenMapTiles alongside OSM's own ODbL attribution requirement — both must stay
          visible without a tap (research finding, not stylistic). -->
     <string name="map_attribution">© OpenMapTiles © OpenStreetMap contributors</string>
+    <string name="map_recenter">Recenter on my location</string>
     <string name="workout_detail_route_title">Route</string>
     <string name="workout_create_first_routine">Create your first routine</string>
     <string name="workout_live_logging_coming_soon">Live workout logging lands in M4</string>

@@ -4,9 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -27,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.Spacing
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -111,6 +118,15 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
  * initial style load and populated afterward by a separate effect (never during the load callback
  * itself) so the already-proven-working first-paint zoom sequence below is never touched by
  * route-specific logic -- see that sequence's own comment for why it's this fragile.
+ *
+ * M21: while [followLatest] is true, a naive "re-center on every new fix" fights the user the
+ * instant they try to pinch-zoom or drag -- the very next GPS fix (every few seconds) snaps the
+ * camera straight back, which reads as "the map won't let me zoom or move it at all" (Owner
+ * report, 2026-09-11), not as a momentary jump. [MapLibreMap.addOnCameraMoveStartedListener] can
+ * tell a real touch gesture (`REASON_API_GESTURE`) apart from this composable's own `easeCamera`
+ * calls (`REASON_API_ANIMATION`); [userPanned] latches true on the former and suppresses
+ * auto-follow until the user taps the "recenter" button, exactly the pattern every real GPS-track
+ * app (Strava, Nike Run Club, Google Maps' own blue-dot follow mode) uses for this same conflict.
  */
 @Composable
 fun OfflineMapView(
@@ -123,6 +139,7 @@ fun OfflineMapView(
     var styleJson by remember { mutableStateOf<String?>(null) }
     var maplibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleReady by remember { mutableStateOf(false) }
+    var userPanned by remember { mutableStateOf(false) }
     val routeLineColor = MaterialTheme.colorScheme.primary.toArgb()
 
     LaunchedEffect(Unit) {
@@ -177,6 +194,21 @@ fun OfflineMapView(
                 // the actual visual "watermark" without touching the legally-required credit line.
                 map.uiSettings.isLogoEnabled = false
                 map.uiSettings.isAttributionEnabled = false
+                // Explicit, not relying on the SDK's own defaults -- this is the exact set of
+                // gestures the "can't zoom or move the map" report (2026-09-11) was about.
+                map.uiSettings.isZoomGesturesEnabled = true
+                map.uiSettings.isScrollGesturesEnabled = true
+                map.uiSettings.isRotateGesturesEnabled = true
+                map.uiSettings.isTiltGesturesEnabled = true
+                map.uiSettings.isDoubleTapGesturesEnabled = true
+                map.uiSettings.isQuickZoomGesturesEnabled = true
+                // A real pinch/drag (not this composable's own easeCamera calls) latches
+                // userPanned -- see the class doc comment for why this exists.
+                map.addOnCameraMoveStartedListener { reason ->
+                    if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                        userPanned = true
+                    }
+                }
                 map.setStyle(Style.Builder().fromJson(json)) { style ->
                     style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
                     style.addLayer(
@@ -229,6 +261,31 @@ fun OfflineMapView(
                 .background(Color.White.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp),
         )
+
+        // Only ever meaningful while actively following -- a static recap/history map has no
+        // "latest fix" to snap back to, and isn't fought by a repeating auto-follow call in the
+        // first place (its own bounds-fit only runs once, when routePoints first arrives).
+        if (followLatest && userPanned) {
+            Surface(
+                onClick = {
+                    userPanned = false
+                    val (lat, lng) = routePoints.lastOrNull() ?: return@Surface
+                    maplibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), FOLLOW_ZOOM))
+                },
+                modifier = Modifier.align(Alignment.BottomStart).padding(Spacing.sm).size(44.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        Icons.Filled.MyLocation,
+                        contentDescription = stringResource(R.string.map_recenter),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
     }
 
     // Owns every route-specific update: the initial population once styleReady flips true, and
@@ -240,6 +297,10 @@ fun OfflineMapView(
         val source = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID) ?: return@LaunchedEffect
 
         if (routePoints.size >= 2) source.setGeoJson(routeFeature(routePoints))
+
+        // userPanned: don't fight a gesture the user is mid-way through -- see the class doc
+        // comment. The recenter button (above) is the only way back to auto-follow from here.
+        if (userPanned) return@LaunchedEffect
 
         if (followLatest) {
             if (routePoints.isNotEmpty()) {
