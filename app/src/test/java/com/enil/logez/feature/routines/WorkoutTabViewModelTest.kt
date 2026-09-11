@@ -20,6 +20,7 @@ import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeLocationSource
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
@@ -62,11 +63,13 @@ class WorkoutTabViewModelTest {
         activityTrackingController: ActivityTrackingController = ActivityTrackingController(
             workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()),
         ),
+        healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
     ): WorkoutTabViewModel {
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
         return WorkoutTabViewModel(
             routineRepo, workoutRepo, settingsRepo, exerciseRepo,
-            WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, activityTrackingController, clock,
+            WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, activityTrackingController,
+            healthMetricsSource, clock,
         )
     }
 
@@ -293,5 +296,31 @@ class WorkoutTabViewModelTest {
         assertNull(workoutRepo.getById(oldId)) // discarded, not left dangling
         assertEquals("Walking (Outdoor)", workoutRepo.getById(started.workoutId)!!.title)
         assertTrue(controller.state.value.isTracking)
+    }
+
+    @Test
+    fun `refreshSteps reports today's steps once Health Connect is available and granted`() = runTest {
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            totals = com.enil.logez.feature.wellness.DailyTotals(steps = 4_210L, caloriesBurned = null),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), healthMetricsSource = healthMetricsSource)
+
+        assertNull(vm.todaySteps.value) // never shows a stat before it's actually loaded
+        vm.refreshSteps()
+        assertEquals(4_210L, vm.todaySteps.value)
+    }
+
+    @Test
+    fun `refreshSteps reports null -- not zero -- when Health Connect isn't usable on this device`() = runTest {
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Unavailable,
+        )
+        val vm = newViewModel(FakeRoutineRepository(), healthMetricsSource = healthMetricsSource)
+
+        vm.refreshSteps()
+
+        assertNull(vm.todaySteps.value)
     }
 }

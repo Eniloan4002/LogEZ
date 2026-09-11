@@ -6,6 +6,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -13,6 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.Period
 import javax.inject.Inject
 
 /**
@@ -84,6 +86,19 @@ class HealthConnectMetricsSource @Inject constructor(
         return response.records
             .flatMap { record -> record.samples.map { HeartRateSample(time = it.time, bpm = it.beatsPerMinute) } }
             .sortedBy { it.time }
+    }
+
+    override suspend fun readStepsHistory(start: LocalDate, end: LocalDate): List<DailyStepCount> {
+        val response = client().aggregateGroupByPeriod(
+            AggregateGroupByPeriodRequest(
+                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(start.atStartOfDay(), end.plusDays(1).atStartOfDay()),
+                timeRangeSlicer = Period.ofDays(1),
+            ),
+        )
+        return response.map { bucket ->
+            DailyStepCount(date = bucket.startTime.toLocalDate(), steps = bucket.result.get(StepsRecord.COUNT_TOTAL) ?: 0L)
+        }
     }
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)

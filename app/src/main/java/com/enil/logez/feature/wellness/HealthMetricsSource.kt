@@ -1,6 +1,7 @@
 package com.enil.logez.feature.wellness
 
 import java.time.Instant
+import java.time.LocalDate
 
 /** Whether Health Connect can actually be used on this device right now. */
 sealed interface HealthConnectAvailability {
@@ -19,6 +20,9 @@ data class DailyTotals(val steps: Long, val caloriesBurned: Double?)
 
 /** One Health-Connect-sourced heart-rate reading, plain-typed (no `Energy`-style unit wrapper -- `bpm` is already a beats-per-minute count). */
 data class HeartRateSample(val time: Instant, val bpm: Long)
+
+/** One calendar day's step total, as Health Connect's own per-day aggregate reports it. */
+data class DailyStepCount(val date: LocalDate, val steps: Long)
 
 /**
  * M21e/M21f. `HealthConnectMetricsSource` is the production binding (talks to the real Health
@@ -43,4 +47,12 @@ interface HealthMetricsSource {
 
     /** M21f: every heart-rate sample Health Connect has for [start]..[end] (a finished workout's own window), oldest first -- drives the post-workout historical chart. */
     suspend fun readHeartRateSamples(start: Instant, end: Instant): List<HeartRateSample>
+
+    /**
+     * One entry per calendar day in [start]..[end] inclusive that Health Connect actually has data
+     * for -- drives the Statistics steps chart. Health Connect itself caps how far back a normal
+     * read grant can see (its own permission screen says "the app can read new data and data from
+     * the past 30 days"), so callers should not ask for a wider range expecting more to come back.
+     */
+    suspend fun readStepsHistory(start: LocalDate, end: LocalDate): List<DailyStepCount>
 }

@@ -18,6 +18,9 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.wellness.DailyStepCount
+import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.HealthMetricsSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import java.time.Instant
@@ -43,6 +46,7 @@ class AnalyticsViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val settingsRepository: SettingsRepository,
+    private val healthMetricsSource: HealthMetricsSource,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -55,6 +59,9 @@ class AnalyticsViewModel @Inject constructor(
         val weightUnit: WeightUnit = WeightUnit.KG,
         val zone: ZoneId = ZoneId.systemDefault(),
         val today: LocalDate = LocalDate.EPOCH,
+        /** M21: absent (not zero-filled) whenever Health Connect has nothing to show. */
+        val stepsAvailable: Boolean = false,
+        val stepsHistory: List<DailyStepCount> = emptyList(),
     )
 
     private data class Selections(
@@ -68,6 +75,7 @@ class AnalyticsViewModel @Inject constructor(
         val setCountBucket: StatBucket,
         val deselectedMuscles: Set<MuscleGroup>,
         val mainRange: ChartRange,
+        val stepsSelectedBar: Int?,
     )
 
     private var data = DashboardData()
@@ -83,6 +91,7 @@ class AnalyticsViewModel @Inject constructor(
         setCountBucket = StatBucket.WEEK,
         deselectedMuscles = emptySet(),
         mainRange = ChartRange.LAST_3_MONTHS,
+        stepsSelectedBar = null,
     )
 
     private val _uiState = MutableStateFlow(AnalyticsUiState())
@@ -117,9 +126,20 @@ class AnalyticsViewModel @Inject constructor(
                     isCompleted = row.set.isCompleted,
                 )
             }
+            val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
+
+            // M21: same graceful-degrade rule as the Profile wellness card and Workout tab
+            // scorecard — absent, not zero-filled, whenever Health Connect has nothing to show.
+            // Health Connect's own permission grant only sees the last 30 days of history (its own
+            // permission screen says so), so this always asks for exactly that window regardless of
+            // the card's own selectors — there's never more to fetch beyond it.
+            val stepsAvailable = healthMetricsSource.availability() == HealthConnectAvailability.Available &&
+                healthMetricsSource.hasAllPermissions()
+            val stepsHistory = if (stepsAvailable) healthMetricsSource.readStepsHistory(today.minusDays(29), today) else emptyList()
+
             // A surviving positional selection would re-anchor to a different week when the
             // reloaded bar list shifts — drop it with the data it indexed into.
-            selections = selections.copy(trainingSelectedBar = null)
+            selections = selections.copy(trainingSelectedBar = null, stepsSelectedBar = null)
             data = DashboardData(
                 workouts = workoutEntities.map { DashboardAggregator.WorkoutInfo(it.id, it.startedAt, it.durationSeconds) },
                 sets = sets,
@@ -128,7 +148,9 @@ class AnalyticsViewModel @Inject constructor(
                 firstDayOfWeek = settings.firstDayOfWeek,
                 weightUnit = settings.weightUnit,
                 zone = zone,
-                today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate(),
+                today = today,
+                stepsAvailable = stepsAvailable,
+                stepsHistory = stepsHistory,
             )
             rebuild(isLoading = false)
         }
@@ -158,6 +180,8 @@ class AnalyticsViewModel @Inject constructor(
     }
 
     fun selectMainRange(range: ChartRange) { selections = selections.copy(mainRange = range); rebuild() }
+
+    fun selectStepsBar(index: Int?) { selections = selections.copy(stepsSelectedBar = index); rebuild() }
 
     private fun rebuild(isLoading: Boolean = _uiState.value.isLoading) {
         val d = data
@@ -201,6 +225,10 @@ class AnalyticsViewModel @Inject constructor(
             .sortedWith(compareByDescending<MuscleTotalRow> { it.setCount }.thenBy { it.group.name })
         val setCountMax = muscleTotals.filter { it.included }.maxOfOrNull { it.setCount } ?: 0
 
+        // Card 7 — steps, sourced from Health Connect (Owner request, 2026-09-11). Sorted since
+        // AggregationResultGroupedByPeriod's own ordering isn't documented as sorted.
+        val stepsBars = d.stepsHistory.sortedBy { it.date }.map { DailyStepBar(it.date, it.steps) }
+
         return AnalyticsUiState(
             isLoading = isLoading,
             hasAnyWorkouts = d.workouts.isNotEmpty(),
@@ -240,6 +268,11 @@ class AnalyticsViewModel @Inject constructor(
                 rows = DashboardAggregator.mainExercises(
                     d.sets, ChartAggregator.window(s.mainRange, d.today), d.zone, d.includeWarmups,
                 ),
+            ),
+            steps = StepsCardState(
+                available = d.stepsAvailable,
+                bars = stepsBars,
+                selectedBar = s.stepsSelectedBar?.takeIf { it in stepsBars.indices },
             ),
         )
     }
@@ -289,6 +322,19 @@ data class MainExercisesCardState(
     val rows: List<DashboardAggregator.ExerciseFrequency> = emptyList(),
 )
 
+data class DailyStepBar(val date: LocalDate, val steps: Long)
+
+/**
+ * M21. No range chips, unlike every other card here — Health Connect's own permission grant only
+ * exposes the last 30 days of history (its own permission screen says so), so there's never a wider
+ * window this card could actually show; a range selector implying otherwise would mislead.
+ */
+data class StepsCardState(
+    val available: Boolean = false,
+    val bars: List<DailyStepBar> = emptyList(),
+    val selectedBar: Int? = null,
+)
+
 data class AnalyticsUiState(
     val isLoading: Boolean = true,
     val hasAnyWorkouts: Boolean = false,
@@ -298,4 +344,5 @@ data class AnalyticsUiState(
     val body: BodyCardState = BodyCardState(),
     val setCounts: SetCountCardState = SetCountCardState(),
     val mainExercises: MainExercisesCardState = MainExercisesCardState(),
+    val steps: StepsCardState = StepsCardState(),
 )

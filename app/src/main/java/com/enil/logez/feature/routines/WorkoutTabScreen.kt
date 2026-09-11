@@ -64,6 +64,7 @@ import com.enil.logez.core.designsystem.SyncOptimisticList
 import com.enil.logez.core.designsystem.Elevation
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
@@ -75,6 +76,7 @@ import com.enil.logez.feature.activity.rememberRequestLocationForTracking
 import com.enil.logez.feature.activity.startActivityTrackingService
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
+import java.util.Locale
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -101,7 +103,9 @@ fun WorkoutTabScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val goalsUiState by goalsViewModel.uiState.collectAsStateWithLifecycle()
     val quickTrackExercises by viewModel.quickTrackExercises.collectAsStateWithLifecycle()
+    val todaySteps by viewModel.todaySteps.collectAsStateWithLifecycle()
     RefreshOnResume(goalsViewModel::refresh)
+    RefreshOnResume(viewModel::refreshSteps)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -284,6 +288,14 @@ fun WorkoutTabScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // M21: absent entirely (not a zeroed "0 steps" scorecard) whenever Health Connect has
+            // nothing to show -- same graceful-degrade rule as the Profile wellness card.
+            todaySteps?.let { steps ->
+                item {
+                    StepsScorecard(steps)
                 }
             }
 
@@ -692,6 +704,21 @@ private fun QuickTrackCard(exercises: QuickTrackExercises, onTrack: (Exercise) -
                     Text(stringResource(R.string.workout_track_walk_run_walking))
                 }
             }
+        }
+    }
+}
+
+/** M21: today's step count, sourced from Health Connect -- a passive scorecard, same visual weight as the heatmap card above it. Never rendered at all when Health Connect has nothing to show (see the `todaySteps?.let` call site). */
+@Composable
+private fun StepsScorecard(steps: Long) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Text(stringResource(R.string.workout_steps_scorecard_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                "%,d".format(Locale.ROOT, steps),
+                style = LogEzMono.dataLarge,
+                modifier = Modifier.padding(top = Spacing.xs),
+            )
         }
     }
 }

@@ -14,6 +14,8 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
+import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.HealthMetricsSource
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -42,9 +44,24 @@ class WorkoutTabViewModel @Inject constructor(
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
     private val activityTrackingController: ActivityTrackingController,
+    private val healthMetricsSource: HealthMetricsSource,
     private val clock: Clock,
 ) : ViewModel() {
     private val _quickTrackExercises = MutableStateFlow<QuickTrackExercises?>(null)
+
+    private val _todaySteps = MutableStateFlow<Long?>(null)
+
+    /** M21: the tab's own steps scorecard -- absent (null), not zero, whenever Health Connect has nothing to show (same graceful-degrade rule as the Profile wellness card). */
+    val todaySteps: StateFlow<Long?> = _todaySteps.asStateFlow()
+
+    /** Called via `RefreshOnResume` so the scorecard reflects new steps without requiring a full tab re-entry. */
+    fun refreshSteps() {
+        viewModelScope.launch {
+            val available = healthMetricsSource.availability() == HealthConnectAvailability.Available &&
+                healthMetricsSource.hasAllPermissions()
+            _todaySteps.value = if (available) healthMetricsSource.readTodayTotals().steps else null
+        }
+    }
 
     /**
      * M21a "Track a walk/run": the two seed exercises the card offers, looked up by their exact

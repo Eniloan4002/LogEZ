@@ -133,6 +133,11 @@ fun AnalyticsScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "training") { TrainingCard(uiState, viewModel) }
+            // M21: absent entirely (not a zeroed/empty card) whenever Health Connect has nothing to
+            // show — same graceful-degrade rule as the Profile wellness card and Workout tab scorecard.
+            if (uiState.steps.available) {
+                item(key = "steps") { StepsCard(uiState, viewModel) }
+            }
             item(key = "distribution") { DistributionCard(uiState, viewModel, onMuscleClick) }
             item(key = "muscle_balance") { MuscleBalanceCard(uiState, viewModel) }
             item(key = "body") { BodyCard(uiState, viewModel) }
@@ -341,6 +346,44 @@ private fun TrainingCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewMode
                     yLabel = { AnalyticsFormatters.axisLabel(card.metric, it, uiState.weightUnit) },
                     selectedIndex = card.selectedBar,
                     onBarTap = { viewModel.selectTrainingBar(it) },
+                )
+            }
+        }
+    }
+}
+
+// --- card: steps (M21, Health Connect) ---
+
+private val stepsDayFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+
+/**
+ * Fixed to the last 30 days, no range chips — Health Connect's own read grant only exposes that
+ * much history (its own permission screen says so), so a longer selection would have nothing more
+ * to show. Daily bars, not weekly: 30 is a perfectly reasonable bar count for [BarChart] (it only
+ * labels the first/last bar and taps resolve to the nearest one regardless of count), and daily
+ * granularity is more useful than folding 30 days into ~4 weekly bars would be.
+ */
+@Composable
+private fun StepsCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
+    val card = uiState.steps
+    LogEzCard {
+        Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            CardTitle(stringResource(R.string.analytics_steps_title))
+            if (card.bars.isEmpty()) {
+                Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
+            } else {
+                card.selectedBar?.let { i ->
+                    val bar = card.bars[i]
+                    ChartReadout(
+                        label = stepsDayFormatter.format(bar.date),
+                        value = "%,d".format(Locale.ROOT, bar.steps),
+                    )
+                }
+                BarChart(
+                    entries = card.bars.map { BarChartEntry(stepsDayFormatter.format(it.date), it.steps.toDouble()) },
+                    yLabel = { "%,d".format(Locale.ROOT, it.toLong()) },
+                    selectedIndex = card.selectedBar,
+                    onBarTap = viewModel::selectStepsBar,
                 )
             }
         }

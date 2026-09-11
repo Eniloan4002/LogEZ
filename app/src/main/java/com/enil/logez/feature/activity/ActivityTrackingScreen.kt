@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -90,12 +89,14 @@ fun ActivityTrackingScreen(
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg),
-            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Timer and distance share one row (Owner request, 2026-09-11) rather than stacking
-            // above/below the map -- each stat is its own centered column so the row reads the same
-            // as a two-up stat card.
+            // Timer, distance and (when available) BPM share one row (Owner request, 2026-09-11)
+            // rather than stacking above/below the map -- each stat is its own centered column so
+            // the row reads the same as a two- or three-up stat card. BPM's own column is omitted
+            // entirely, not shown empty, whenever Health Connect has nothing to show (not connected,
+            // no permission, no wearable data) -- same graceful-degrade rule as the Profile wellness
+            // card and the Logger's HeartRateChip.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -119,28 +120,33 @@ fun ActivityTrackingScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (liveBpm != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            stringResource(R.string.workout_bpm_value, liveBpm!!),
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            stringResource(R.string.activity_tracking_bpm_label),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             // M21c: the real offline map, camera following the newest GPS fix as it arrives --
             // upgraded from the framework-free Canvas sketch (RouteSketchGeometry) once that spike
             // proved the concept, per the Owner's explicit choice (P-125/decisions.md 2026-09-10).
+            // Fills all remaining vertical space (Owner request, 2026-09-11) rather than a fixed
+            // 220dp box -- the live tracking screen is map-first now; the Finish-summary and History
+            // Detail Route cards keep their own fixed, smaller aspect-ratio sizing untouched.
             OfflineMapView(
                 routePoints = state.routePoints,
                 followLatest = true,
-                modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
             )
-
-            // M21f: absent whenever Health Connect has nothing to show (not connected, no
-            // permission, no wearable data) -- graceful degrade, same rule as the Profile wellness
-            // card and the Logger's HeartRateChip.
-            if (liveBpm != null) {
-                Text(
-                    stringResource(R.string.workout_bpm_value, liveBpm!!),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = Spacing.md),
-                )
-            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxl),

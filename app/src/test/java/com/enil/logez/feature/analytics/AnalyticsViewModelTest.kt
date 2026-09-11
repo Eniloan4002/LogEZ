@@ -15,6 +15,7 @@ import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
 import java.time.LocalDate
@@ -92,9 +93,10 @@ class AnalyticsViewModelTest {
     private fun newViewModel(
         focus: String? = null,
         repos: Pair<FakeWorkoutRepository, FakeExerciseRepository> = fixtureRepos(),
+        healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
     ): AnalyticsViewModel = AnalyticsViewModel(
         SavedStateHandle(buildMap { focus?.let { put(AnalyticsViewModel.FOCUS_ARG, it) } }),
-        repos.first, repos.second, FakeSettingsRepository(), FakeClock(currentMillis = nowMillis),
+        repos.first, repos.second, FakeSettingsRepository(), healthMetricsSource, FakeClock(currentMillis = nowMillis),
         // The screen's RefreshOnResume drives the first load (no init load) — mirror it here.
     ).also { it.refresh() }
 
@@ -199,5 +201,51 @@ class AnalyticsViewModelTest {
         val vm = newViewModel(repos = FakeWorkoutRepository() to FakeExerciseRepository())
         assertFalse(vm.uiState.value.hasAnyWorkouts)
         assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `steps card is unavailable when Health Connect has nothing to show`() = runTest {
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Unavailable,
+            ),
+        )
+        assertFalse(vm.uiState.value.steps.available)
+        assertEquals(emptyList<DailyStepBar>(), vm.uiState.value.steps.bars)
+    }
+
+    @Test
+    fun `steps card loads the last 30 days once Health Connect is available and granted`() = runTest {
+        val history = listOf(
+            com.enil.logez.feature.wellness.DailyStepCount(LocalDate.parse("2026-08-10"), 5_000L),
+            com.enil.logez.feature.wellness.DailyStepCount(LocalDate.parse("2026-08-11"), 8_200L),
+        )
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            stepsHistory = history,
+        )
+        val vm = newViewModel(healthMetricsSource = healthMetricsSource)
+
+        assertTrue(vm.uiState.value.steps.available)
+        assertEquals(listOf(5_000L, 8_200L), vm.uiState.value.steps.bars.map { it.steps })
+        assertEquals(1, healthMetricsSource.queriedStepsRanges.size)
+    }
+
+    @Test
+    fun `tapping a steps bar selects it, and a refresh drops the selection`() = runTest {
+        val history = listOf(com.enil.logez.feature.wellness.DailyStepCount(LocalDate.parse("2026-08-10"), 5_000L))
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
+                permissionsGranted = true,
+                stepsHistory = history,
+            ),
+        )
+
+        vm.selectStepsBar(0)
+        assertEquals(0, vm.uiState.value.steps.selectedBar)
+        vm.refresh()
+        assertEquals(null, vm.uiState.value.steps.selectedBar)
     }
 }

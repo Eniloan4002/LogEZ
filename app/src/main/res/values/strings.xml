@@ -68,6 +68,7 @@
 
     <string name="analytics_title">Statistics</string>
     <string name="analytics_training_title">Training</string>
+    <string name="analytics_steps_title">Steps (last 30 days)</string>
     <string name="analytics_metric_volume">Volume</string>
     <string name="analytics_metric_reps">Reps</string>
     <string name="analytics_metric_duration">Duration</string>
@@ -216,6 +217,7 @@
 
     <string name="workout_tab_title">Workout</string>
     <string name="workout_heatmap_title">Progress</string>
+    <string name="workout_steps_scorecard_title">Steps Today</string>
     <string name="workout_new_folder">New folder</string>
     <string name="workout_new_routine">New routine</string>
     <string name="workout_start_empty">Start Empty Workout</string>
@@ -232,6 +234,7 @@
     <string name="activity_tracking_distance_label">Distance</string>
     <string name="activity_tracking_distance_value">%1$s km</string>
     <string name="activity_tracking_elapsed_label">Time</string>
+    <string name="activity_tracking_bpm_label">Heart Rate</string>
     <string name="activity_tracking_finish">Finish</string>
     <string name="activity_tracking_cancel">Cancel</string>
     <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
