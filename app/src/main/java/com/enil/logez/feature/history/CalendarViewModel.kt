@@ -79,6 +79,7 @@ class CalendarViewModel @Inject constructor(
             firstDayOfWeek = firstDay,
             countsByDate = StreakCalculator.countsByDate(dates),
             weeklyStreak = StreakCalculator.weeklyStreak(dates, now, firstDay),
+            dailyStreak = StreakCalculator.dailyStreak(dates, now),
             today = now,
             // M20f: the swipeable calendar needs a finite range (decisions.md 2026-09-08). This is
             // also now the one source of truth the chevrons/setDisplayedMonth clamp against below —
@@ -146,6 +147,7 @@ data class CalendarUiState(
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     val countsByDate: Map<LocalDate, Int> = emptyMap(),
     val weeklyStreak: Int = 0,
+    val dailyStreak: Int = 0,
     val today: LocalDate = LocalDate.now(),
     val earliestWorkoutMonth: YearMonth? = null,
     /** M20f's swipe range, and the bound every month-navigation entry point clamps against. */

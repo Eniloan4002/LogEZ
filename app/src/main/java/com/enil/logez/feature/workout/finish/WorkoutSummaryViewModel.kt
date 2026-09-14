@@ -81,11 +81,13 @@ class WorkoutSummaryViewModel @Inject constructor(
             val zone = ZoneId.systemDefault()
             val workoutDates = workoutRepository.getCompletedWorkoutTimestamps()
                 .map { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+            val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
             val streak = StreakCalculator.weeklyStreak(
                 workoutDates = workoutDates,
-                today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate(),
+                today = today,
                 firstDayOfWeek = settings.firstDayOfWeek,
             )
+            val dayStreak = StreakCalculator.dailyStreak(workoutDates, today)
 
             // Share-card exercise lines, built the way HistoryViewModel builds its card summaries
             // (group by workoutExerciseId, order by exerciseOrderIndex, count through the same
@@ -161,6 +163,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 heartRateSamples = heartRateSamples,
                 workoutOrdinal = workoutRepository.countCompletedWorkoutsUpTo(workout.startedAt, workout.id),
                 weeklyStreak = streak,
+                dailyStreak = dayStreak,
                 prMedals = prs,
                 exerciseLines = exerciseLines,
                 structure = workout.structure,
@@ -201,6 +204,7 @@ data class WorkoutSummaryUiState(
     val heartRateSamples: List<Pair<Long, Long>> = emptyList(),
     val workoutOrdinal: Int = 0,
     val weeklyStreak: Int = 0,
+    val dailyStreak: Int = 0,
     val prMedals: List<PrMedal> = emptyList(),
     val exerciseLines: List<SummaryExerciseLine> = emptyList(),
     /** M11: CIRCUIT summaries add a "CIRCUIT · N rounds" line on screen and card. */

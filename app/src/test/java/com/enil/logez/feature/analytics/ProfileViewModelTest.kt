@@ -71,6 +71,7 @@ class ProfileViewModelTest {
         assertFalse(state.isLoading)
         assertEquals(0, state.workoutCount)
         assertEquals(0, state.streakWeeks)
+        assertEquals(0, state.streakDays)
         assertEquals(0, state.last7Count)
         assertTrue(state.last7Heat.isEmpty())
     }
@@ -90,8 +91,29 @@ class ProfileViewModelTest {
         val state = vm.uiState.value
         assertEquals(3, state.workoutCount)
         assertEquals(3, state.streakWeeks)
+        // None of 08-18/08-11/08-04 is today (08-22) or yesterday -- day and week streaks are
+        // independent figures, and a healthy week streak here comes with zero day streak.
+        assertEquals(0, state.streakDays)
         // Last-7-days window [08-16, 08-22] holds only the 08-18 workout.
         assertEquals(1, state.last7Count)
+    }
+
+    @Test
+    fun `the daily streak counts consecutive days, independent of the weekly streak`() = runTest {
+        // today is 08-22 -- three consecutive days ending today all land in the SAME Monday-
+        // anchored week (08-17 to 08-23), so streakDays=3 but streakWeeks is still just 1.
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(
+                    completedWorkout("w1", "2026-08-22"),
+                    completedWorkout("w2", "2026-08-21"),
+                    completedWorkout("w3", "2026-08-20"),
+                ),
+            ),
+        )
+        val state = vm.uiState.value
+        assertEquals(3, state.streakDays)
+        assertEquals(1, state.streakWeeks)
     }
 
     @Test

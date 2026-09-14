@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzMono
@@ -139,12 +140,20 @@ fun WorkoutSummaryScreen(
                 )
             }
 
+            if (uiState.dailyStreak > 0) {
+                Text(
+                    "${stringResource(R.string.summary_day_streak)}: " +
+                        pluralStringResource(R.plurals.summary_day_streak_value, uiState.dailyStreak, uiState.dailyStreak),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = Spacing.lg),
+                )
+            }
             if (uiState.weeklyStreak > 0) {
                 Text(
                     "${stringResource(R.string.summary_streak)}: " +
                         pluralStringResource(R.plurals.summary_streak_value, uiState.weeklyStreak, uiState.weeklyStreak),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = Spacing.lg),
+                    modifier = Modifier.padding(top = if (uiState.dailyStreak > 0) Spacing.xs else Spacing.lg),
                 )
             }
 
@@ -181,6 +190,7 @@ fun WorkoutSummaryScreen(
                     distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
                     workoutOrdinal = uiState.workoutOrdinal,
                     weeklyStreak = uiState.weeklyStreak,
+                    dailyStreak = uiState.dailyStreak,
                     prs = uiState.prMedals,
                     // CIRCUIT drops the "N × " prefix — the card's own rounds line already says
                     // how many times the sequence ran; REGULAR keeps History's shape.
@@ -206,14 +216,17 @@ fun WorkoutSummaryScreen(
 private fun PrMedalCard(medal: PrMedal) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        border = BorderStroke(1.5.dp, Gold500),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.EmojiEvents, contentDescription = null)
+            Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = Gold500)
             Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
                 Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)

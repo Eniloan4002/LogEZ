@@ -47,6 +47,7 @@ data class ShareCardData(
     val distanceText: String? = null,
     val workoutOrdinal: Int,
     val weeklyStreak: Int,
+    val dailyStreak: Int,
     val prs: List<PrMedal>,
     /**
      * REGULAR: History's "3 × Bench Press (Barbell)" shape. CIRCUIT: bare names in sequence order
@@ -124,6 +125,13 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                     style = LogEzMono.dataMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                if (data.dailyStreak > 0) {
+                    Text(
+                        " · " + pluralStringResource(R.plurals.calendar_day_streak_banner, data.dailyStreak, data.dailyStreak),
+                        style = LogEzMono.dataMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
                 if (data.weeklyStreak > 0) {
                     Text(
                         " · " + pluralStringResource(R.plurals.calendar_streak_banner, data.weeklyStreak, data.weeklyStreak),

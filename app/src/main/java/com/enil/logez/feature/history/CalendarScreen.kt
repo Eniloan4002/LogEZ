@@ -54,6 +54,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.kizitonwose.calendar.compose.HorizontalCalendar
 import com.kizitonwose.calendar.compose.rememberCalendarState
 import com.kizitonwose.calendar.core.DayPosition
@@ -145,6 +146,7 @@ fun CalendarScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 // Owner: the header should read "CALENDAR", not the month -- the month name
                 // already lives in the stepper row below (uiState.displayedMonth + Chevron
                 // controls), so the header would otherwise just duplicate it.
@@ -174,11 +176,25 @@ fun CalendarScreen(
         if (uiState.isLoading) return@Scaffold
 
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.md)) {
+            // Each half is independent and absent (not zeroed) when that streak isn't active -- a
+            // broken day streak with an intact week streak is a real, common state, not a bug --
+            // "No active streak" only replaces the whole banner when neither is active.
+            val dayText = if (uiState.dailyStreak > 0) {
+                pluralStringResource(R.plurals.calendar_day_streak_banner, uiState.dailyStreak, uiState.dailyStreak)
+            } else {
+                null
+            }
+            val weekText = if (uiState.weeklyStreak > 0) {
+                pluralStringResource(R.plurals.calendar_streak_banner, uiState.weeklyStreak, uiState.weeklyStreak)
+            } else {
+                null
+            }
             Text(
-                if (uiState.weeklyStreak > 0) {
-                    pluralStringResource(R.plurals.calendar_streak_banner, uiState.weeklyStreak, uiState.weeklyStreak)
-                } else {
-                    stringResource(R.string.calendar_no_streak)
+                when {
+                    dayText != null && weekText != null -> "$dayText · $weekText"
+                    dayText != null -> dayText
+                    weekText != null -> weekText
+                    else -> stringResource(R.string.calendar_no_streak)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,

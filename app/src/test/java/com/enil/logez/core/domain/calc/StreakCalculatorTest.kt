@@ -74,4 +74,39 @@ class StreakCalculatorTest {
         assertEquals(2, counts.getValue(monday))
         assertEquals(1, counts.getValue(monday.plusDays(1)))
     }
+
+    @Test
+    fun `consecutive days accumulate`() {
+        val dates = listOf(monday, monday.minusDays(1), monday.minusDays(2))
+        assertEquals(3, StreakCalculator.dailyStreak(dates, monday))
+    }
+
+    @Test
+    fun `a gap day ends the daily streak at the gap`() {
+        val dates = listOf(monday, monday.minusDays(1), monday.minusDays(3), monday.minusDays(4))
+        assertEquals(2, StreakCalculator.dailyStreak(dates, monday))
+    }
+
+    @Test
+    fun `a still-empty today does not break an otherwise-active daily streak`() {
+        val dates = listOf(monday.minusDays(1), monday.minusDays(2))
+        assertEquals(2, StreakCalculator.dailyStreak(dates, monday))
+    }
+
+    @Test
+    fun `two consecutive empty days end the daily streak`() {
+        val dates = listOf(monday.minusDays(2), monday.minusDays(3))
+        assertEquals(0, StreakCalculator.dailyStreak(dates, monday))
+    }
+
+    @Test
+    fun `no workouts at all is a zero daily streak`() {
+        assertEquals(0, StreakCalculator.dailyStreak(emptyList(), monday))
+    }
+
+    @Test
+    fun `several workouts in one day still count as one day`() {
+        val dates = listOf(monday, monday, monday)
+        assertEquals(1, StreakCalculator.dailyStreak(dates, monday))
+    }
 }

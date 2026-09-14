@@ -105,6 +105,52 @@ class WorkoutTabViewModelTest {
     }
 
     @Test
+    fun `weeklyStreak reflects a workout completed this week`() = runTest {
+        val clock = FakeClock()
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w1", routineId = null, title = "Workout", notes = null,
+                    status = WorkoutStatus.COMPLETED, startedAt = clock.currentMillis, endedAt = clock.currentMillis + 1000,
+                    durationSeconds = 1000, createdAt = clock.currentMillis, updatedAt = clock.currentMillis,
+                ),
+            ),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo)
+
+        assertEquals(1, vm.uiState.value.weeklyStreak)
+    }
+
+    @Test
+    fun `weeklyStreak is zero with no completed workouts`() = runTest {
+        val vm = newViewModel(FakeRoutineRepository())
+        assertEquals(0, vm.uiState.value.weeklyStreak)
+    }
+
+    @Test
+    fun `dailyStreak reflects a workout completed today`() = runTest {
+        val clock = FakeClock()
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w1", routineId = null, title = "Workout", notes = null,
+                    status = WorkoutStatus.COMPLETED, startedAt = clock.currentMillis, endedAt = clock.currentMillis + 1000,
+                    durationSeconds = 1000, createdAt = clock.currentMillis, updatedAt = clock.currentMillis,
+                ),
+            ),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo)
+
+        assertEquals(1, vm.uiState.value.dailyStreak)
+    }
+
+    @Test
+    fun `dailyStreak is zero with no completed workouts`() = runTest {
+        val vm = newViewModel(FakeRoutineRepository())
+        assertEquals(0, vm.uiState.value.dailyStreak)
+    }
+
+    @Test
     fun `showHeatmap and showGoals default true`() = runTest {
         val vm = newViewModel(FakeRoutineRepository())
         assertEquals(true, vm.uiState.value.showHeatmap)

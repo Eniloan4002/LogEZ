@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,6 +45,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.feature.wellness.HealthConnectAvailability
 import com.enil.logez.feature.wellness.rememberRequestHealthConnectPermissions
@@ -80,7 +82,7 @@ fun ProfileScreen(
         // Tab roots live inside LogEzApp's Scaffold, whose innerPadding already pushes this whole
         // NavHost below the status bar — TopAppBar's default windowInsets would re-apply the
         // status-bar inset and double the empty space above the header, so it is zeroed too.
-        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_profile)) }, windowInsets = WindowInsets(0, 0, 0, 0)) },
+        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_profile)) }, windowInsets = WindowInsets(0, 0, 0, 0), colors = logEzTopAppBarColors()) },
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             navItems(
@@ -109,12 +111,21 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
         item(key = "headline") {
             if (uiState.isLoading) return@item
             Row(
-                modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 HeadlineStat(
                     label = stringResource(R.string.profile_stat_workouts),
                     value = uiState.workoutCount.toString(),
+                    modifier = Modifier.weight(1f),
+                )
+                HeadlineStat(
+                    label = stringResource(R.string.profile_stat_day_streak),
+                    value = if (uiState.streakDays > 0) {
+                        pluralStringResource(R.plurals.profile_day_streak_value, uiState.streakDays, uiState.streakDays)
+                    } else {
+                        stringResource(R.string.profile_no_streak)
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 HeadlineStat(
@@ -131,47 +142,67 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
 
         // M21e: graceful degrade -- no Health Connect on this device means no section at all,
         // never a nag (plan §0.2/decisions.md). Only two remaining states render anything.
-        item(key = "wellness") {
-            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available) return@item
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
+        //
+        // Owner-requested redesign pass (2026-09-12), two changes: (1) steps and calories used to
+        // share one card as two cells in a Row -- now each is its own scorecard, matching the
+        // Workouts/Streak headline-stat pair above, with the shared "Today" context moved to a
+        // section label rather than repeated inside every card; (2) every stacked item on this
+        // screen now carries the same `horizontal = Spacing.md, vertical = Spacing.sm` margin
+        // (already the established pattern on the Workout tab's heatmap/steps/quick-track cards)
+        // instead of the horizontal-only padding this screen used to have, which left zero gap
+        // between consecutive cards.
+        item(key = "wellness_connect") {
+            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || uiState.hasWellnessPermissions) return@item
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    if (uiState.hasWellnessPermissions) {
-                        Text(
-                            stringResource(R.string.wellness_today_title).uppercase(Locale.getDefault()),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-                            WellnessStatCell(
-                                label = stringResource(R.string.wellness_steps_label),
-                                value = formatSteps(uiState.todaySteps ?: 0L),
-                            )
-                            // M21g: absent when Health Connect has no calorie data for today yet
-                            // (null, not zero) -- this app never shows a stat it isn't actually
-                            // tracking, same rule as the Volume/Reps/Distance gating on Finish/History.
-                            if (uiState.todayCaloriesBurned != null) {
-                                WellnessStatCell(
-                                    label = stringResource(R.string.wellness_calories_label),
-                                    value = formatCalories(uiState.todayCaloriesBurned),
-                                )
-                            }
-                        }
-                    } else {
-                        Text(
-                            stringResource(R.string.wellness_connect_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(stringResource(R.string.wellness_connect_body), style = MaterialTheme.typography.bodyMedium)
-                        Button(onClick = onConnectWellness) { Text(stringResource(R.string.wellness_connect_action)) }
-                    }
+                    Text(
+                        stringResource(R.string.wellness_connect_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(stringResource(R.string.wellness_connect_body), style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = onConnectWellness) { Text(stringResource(R.string.wellness_connect_action)) }
+                }
+            }
+        }
+
+        item(key = "wellness_today_label") {
+            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || !uiState.hasWellnessPermissions) return@item
+            Text(
+                stringResource(R.string.wellness_today_title).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            )
+        }
+
+        item(key = "wellness_stats") {
+            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || !uiState.hasWellnessPermissions) return@item
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                HeadlineStat(
+                    label = stringResource(R.string.wellness_steps_label),
+                    value = formatSteps(uiState.todaySteps ?: 0L),
+                    modifier = Modifier.weight(1f),
+                )
+                // M21g: absent when Health Connect has no calorie data for today yet (null, not
+                // zero) -- this app never shows a stat it isn't actually tracking, same rule as the
+                // Volume/Reps/Distance gating on Finish/History. Steps alone then fills the row.
+                if (uiState.todayCaloriesBurned != null) {
+                    HeadlineStat(
+                        label = stringResource(R.string.wellness_calories_label),
+                        value = formatCalories(uiState.todayCaloriesBurned),
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
 
         item(key = "last7") {
             if (uiState.isLoading) return@item
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md)) {
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
                         stringResource(R.string.profile_last7_title).uppercase(Locale.getDefault()),
@@ -199,7 +230,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
 
         item(key = "quick_charts") {
             if (uiState.isLoading) return@item
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
                         stringResource(R.string.profile_quick_charts_title).uppercase(Locale.getDefault()),
@@ -288,18 +319,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
 private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modifier) {
     LogEzCard(modifier = modifier) {
         Column(modifier = Modifier.padding(Spacing.md)) {
-            Text(value, style = LogEzMono.dataLarge)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // dataLarge (20sp) wrapped a plural value ("3 weeks") onto a second line at larger
+            // system font scales/higher-density devices (Owner report, S26 Ultra) while the other
+            // two cards' shorter values ("15", "2 days") still fit -- the three equal-weight cards
+            // in the row above then rendered at different heights, reading as misaligned. dataMedium
+            // is the same size every other stat-cell value in the app already uses (History/Workout
+            // Detail's own StatCell), so this also makes Profile's headline consistent with them,
+            // not just smaller. maxLines/ellipsis is a hard backstop -- even the widest realistic
+            // value (a triple-digit streak) truncates instead of ever wrapping again.
+            Text(value, style = LogEzMono.dataMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-    }
-}
-
-/** Un-carded — [HeadlineStat] wraps its own [LogEzCard], which would double-nest inside the wellness section's own card. */
-@Composable
-private fun WellnessStatCell(label: String, value: String) {
-    Column {
-        Text(value, style = LogEzMono.dataLarge)
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

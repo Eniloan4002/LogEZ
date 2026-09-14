@@ -58,6 +58,7 @@ class ProfileViewModel @Inject constructor(
             val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
             val workoutEntities = workoutRepository.getCompletedWorkouts()
             val workouts = workoutEntities.map { DashboardAggregator.WorkoutInfo(it.id, it.startedAt, it.durationSeconds) }
+            val workoutDates = workouts.map { DashboardAggregator.localDate(it.startedAt, zone) }
             val joined = workoutRepository.getSetsWithExerciseForCompletedWorkouts()
             val exerciseById = joined.map { it.exerciseId }.distinct()
                 .mapNotNull { id -> exerciseRepository.getById(id)?.let { id to it } }.toMap()
@@ -106,11 +107,8 @@ class ProfileViewModel @Inject constructor(
             _uiState.value = ProfileUiState(
                 isLoading = false,
                 workoutCount = workouts.size,
-                streakWeeks = StreakCalculator.weeklyStreak(
-                    workouts.map { DashboardAggregator.localDate(it.startedAt, zone) },
-                    today,
-                    settings.firstDayOfWeek,
-                ),
+                streakWeeks = StreakCalculator.weeklyStreak(workoutDates, today, settings.firstDayOfWeek),
+                streakDays = StreakCalculator.dailyStreak(workoutDates, today),
                 last7Count = last7Count,
                 last7Heat = if (heatMax == 0) emptyMap() else heatCounts.associate { it.group to it.setCount.toFloat() / heatMax },
                 quickCharts = TrainingMetric.entries.associateWith { metric ->
@@ -138,6 +136,7 @@ data class ProfileUiState(
     val isLoading: Boolean = true,
     val workoutCount: Int = 0,
     val streakWeeks: Int = 0,
+    val streakDays: Int = 0,
     val last7Count: Int = 0,
     val last7Heat: Map<MuscleGroup, Float> = emptyMap(),
     val quickCharts: Map<TrainingMetric, List<DashboardAggregator.WeeklyBar>> = emptyMap(),

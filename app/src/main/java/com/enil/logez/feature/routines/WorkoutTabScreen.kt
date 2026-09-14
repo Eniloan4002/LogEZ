@@ -69,6 +69,7 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
@@ -175,6 +176,7 @@ fun WorkoutTabScreen(
             TopAppBar(
                 title = { ScreenTitle(stringResource(R.string.workout_tab_title)) },
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 actions = {
                     IconButton(onClick = { showCreateFolder = true }) {
                         Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.workout_new_folder))
@@ -276,10 +278,28 @@ fun WorkoutTabScreen(
                     // Start/routines for the first tap.
                     LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
-                            Text(
-                                stringResource(R.string.workout_heatmap_title),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(R.string.workout_heatmap_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                // Owner-requested redesign pass: the streak used to only surface on
+                                // the finish summary, several taps deep — absent entirely (not a "0
+                                // weeks" chip) until there's a real streak to show, same
+                                // honest-empty-state rule as every other card on this tab. Day and
+                                // week streaks are independent chips (a broken day streak with an
+                                // intact week streak is a real, common state) rather than one
+                                // combined figure.
+                                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                    if (uiState.dailyStreak > 0) {
+                                        StreakChip(uiState.dailyStreak, R.plurals.summary_day_streak_value)
+                                    }
+                                    if (uiState.weeklyStreak > 0) {
+                                        StreakChip(uiState.weeklyStreak, R.plurals.summary_streak_value)
+                                    }
+                                }
+                            }
                             HeatmapGrid(
                                 countsByDate = uiState.heatmapCounts,
                                 today = uiState.heatmapToday,
@@ -705,6 +725,27 @@ private fun QuickTrackCard(exercises: QuickTrackExercises, onTrack: (Exercise) -
                 }
             }
         }
+    }
+}
+
+/**
+ * Same v4.0 pill/mono-caps chip vocabulary [CircuitChip] established (primary-tinted fill,
+ * [LogEzMono] text) — reused here rather than invented fresh, so a status chip reads the same
+ * wherever one appears on the tab.
+ */
+@Composable
+private fun StreakChip(value: Int, pluralsRes: Int) {
+    Surface(
+        shape = RoundedCornerShape(Radius.pill),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+    ) {
+        Text(
+            pluralStringResource(pluralsRes, value, value),
+            style = LogEzMono.dataSmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+        )
     }
 }
 

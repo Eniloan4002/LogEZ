@@ -123,7 +123,14 @@ class WorkoutTabViewModel @Inject constructor(
         val firstDayOfWeek = settings.firstDayOfWeek
         val zone = ZoneId.systemDefault()
         val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
-        val heatmapCounts = StreakCalculator.countsByDate(completed.map { DashboardAggregator.localDate(it.startedAt, zone) })
+        val workoutDates = completed.map { DashboardAggregator.localDate(it.startedAt, zone) }
+        val heatmapCounts = StreakCalculator.countsByDate(workoutDates)
+        // Same StreakCalculator call Profile/the finish summary already make -- surfaced here too
+        // (Owner-requested redesign pass) so the number that keeps someone opening the tab daily
+        // isn't buried below the heatmap card's fold. 0 renders as "no chip" at the call site, same
+        // honest-empty-state rule as the steps scorecard and quick-track card above it.
+        val weeklyStreak = StreakCalculator.weeklyStreak(workoutDates, today, firstDayOfWeek)
+        val dailyStreak = StreakCalculator.dailyStreak(workoutDates, today)
 
         WorkoutTabUiState(
             isLoading = false,
@@ -136,6 +143,8 @@ class WorkoutTabViewModel @Inject constructor(
             heatmapCounts = heatmapCounts,
             heatmapToday = today,
             heatmapFirstDayOfWeek = firstDayOfWeek,
+            weeklyStreak = weeklyStreak,
+            dailyStreak = dailyStreak,
             showHeatmap = settings.showHeatmap,
             showGoals = settings.showGoals,
         )
@@ -275,6 +284,10 @@ data class WorkoutTabUiState(
     val heatmapCounts: Map<LocalDate, Int> = emptyMap(),
     val heatmapToday: LocalDate = LocalDate.EPOCH,
     val heatmapFirstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
+    /** Same figure the finish summary/Profile already show (`StreakCalculator.weeklyStreak`). 0 means no chip, not a "0 weeks" chip. */
+    val weeklyStreak: Int = 0,
+    /** `StreakCalculator.dailyStreak` -- same honest-empty-state rule: 0 means no chip. */
+    val dailyStreak: Int = 0,
     /** Owner, 2026-09-03: Settings toggles hiding the heatmap/Goals sections below. Default on. */
     val showHeatmap: Boolean = true,
     val showGoals: Boolean = true,

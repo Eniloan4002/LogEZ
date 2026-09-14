@@ -31,4 +31,24 @@ object StreakCalculator {
     /** Calendar aggregation (§8.7): completed-workout count per local date, for calendar highlighting. */
     fun countsByDate(workoutDates: List<LocalDate>): Map<LocalDate, Int> =
         workoutDates.groupingBy { it }.eachCount()
+
+    /**
+     * Consecutive calendar days with >=1 completed workout — [weeklyStreak]'s same grace rule, one
+     * granularity down: a still-empty today does not break an otherwise-active streak, it just
+     * hasn't extended it yet (mirrors §8.7's "still-empty current week" rule for days).
+     */
+    fun dailyStreak(workoutDates: List<LocalDate>, today: LocalDate): Int {
+        val dateSet = workoutDates.toHashSet()
+        var anchor = when {
+            today in dateSet -> today
+            today.minusDays(1) in dateSet -> today.minusDays(1)
+            else -> return 0
+        }
+        var streak = 0
+        while (anchor in dateSet) {
+            streak++
+            anchor = anchor.minusDays(1)
+        }
+        return streak
+    }
 }

@@ -32,6 +32,10 @@
         <item quantity="one">%1$d-week streak</item>
         <item quantity="other">%1$d-week streak</item>
     </plurals>
+    <plurals name="calendar_day_streak_banner">
+        <item quantity="one">%1$d-day streak</item>
+        <item quantity="other">%1$d-day streak</item>
+    </plurals>
     <string name="profile_calendar_row">Calendar</string>
     <string name="history_detail_delete_title">Delete this workout?</string>
     <string name="history_detail_delete_body">This can\'t be undone.</string>
@@ -44,10 +48,15 @@
     <string name="profile_nav_exercises">Exercises</string>
     <string name="profile_nav_statistics">Statistics</string>
     <string name="profile_stat_workouts">Workouts</string>
-    <string name="profile_stat_streak">Streak</string>
+    <string name="profile_stat_streak">Week streak</string>
     <plurals name="profile_streak_weeks">
         <item quantity="one">%1$d week</item>
         <item quantity="other">%1$d weeks</item>
+    </plurals>
+    <string name="profile_stat_day_streak">Day streak</string>
+    <plurals name="profile_day_streak_value">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
     </plurals>
     <string name="profile_no_streak">No active streak</string>
     <string name="profile_last7_title">Last 7 days</string>
@@ -435,6 +444,11 @@
     <plurals name="summary_streak_value">
         <item quantity="one">%1$d week</item>
         <item quantity="other">%1$d weeks</item>
+    </plurals>
+    <string name="summary_day_streak">Day streak</string>
+    <plurals name="summary_day_streak_value">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
     </plurals>
     <string name="summary_prs_header">Personal records</string>
     <string name="summary_done">Done</string>
