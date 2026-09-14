@@ -58,6 +58,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val SMART_SUPERSET_SCROLLING = booleanPreferencesKey("smartSupersetScrolling")
         val INLINE_TIMER_ENABLED = booleanPreferencesKey("inlineTimerEnabled")
         val LIVE_PR_NOTIFICATION_ENABLED = booleanPreferencesKey("livePrNotificationEnabled")
+        val MAX_HEART_RATE_BPM = intPreferencesKey("maxHeartRateBpm")
         val SHOW_HEATMAP = booleanPreferencesKey("showHeatmap")
         val SHOW_GOALS = booleanPreferencesKey("showGoals")
     }
@@ -99,6 +100,7 @@ class SettingsRepositoryImpl @Inject constructor(
             smartSupersetScrolling = prefs[Keys.SMART_SUPERSET_SCROLLING] ?: defaults.smartSupersetScrolling,
             inlineTimerEnabled = prefs[Keys.INLINE_TIMER_ENABLED] ?: defaults.inlineTimerEnabled,
             livePrNotificationEnabled = prefs[Keys.LIVE_PR_NOTIFICATION_ENABLED] ?: defaults.livePrNotificationEnabled,
+            maxHeartRateBpm = prefs[Keys.MAX_HEART_RATE_BPM] ?: defaults.maxHeartRateBpm,
             showHeatmap = prefs[Keys.SHOW_HEATMAP] ?: defaults.showHeatmap,
             showGoals = prefs[Keys.SHOW_GOALS] ?: defaults.showGoals,
         )
@@ -132,6 +134,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setSmartSupersetScrolling(value: Boolean) = edit { it[Keys.SMART_SUPERSET_SCROLLING] = value }
     override suspend fun setInlineTimerEnabled(value: Boolean) = edit { it[Keys.INLINE_TIMER_ENABLED] = value }
     override suspend fun setLivePrNotificationEnabled(value: Boolean) = edit { it[Keys.LIVE_PR_NOTIFICATION_ENABLED] = value }
+    override suspend fun setMaxHeartRateBpm(value: Int?) = edit { if (value != null) it[Keys.MAX_HEART_RATE_BPM] = value else it.remove(Keys.MAX_HEART_RATE_BPM) }
     override suspend fun setShowHeatmap(value: Boolean) = edit { it[Keys.SHOW_HEATMAP] = value }
     override suspend fun setShowGoals(value: Boolean) = edit { it[Keys.SHOW_GOALS] = value }
 

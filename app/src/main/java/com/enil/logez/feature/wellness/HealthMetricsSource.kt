@@ -42,8 +42,18 @@ interface HealthMetricsSource {
     /** Today's local-calendar-day totals. Zero steps / null calories if Health Connect has nothing for today yet. */
     suspend fun readTodayTotals(): DailyTotals
 
-    /** M21f: the single most recent heart-rate sample within the last [withinSeconds], or null if none -- drives the live scorecard. */
-    suspend fun readLatestHeartRate(withinSeconds: Long = 60): Long?
+    /**
+     * The single most recent heart-rate sample within the last [withinSeconds], or null if none --
+     * drives the live scorecard. Returns the whole [HeartRateSample] (not just the bpm) so the UI
+     * can show how stale it actually is -- a wearable's readings reach Health Connect through a
+     * multi-hop sync (watch -> its companion app -> Health Connect), not in real time, so what's
+     * "latest" here can genuinely be several minutes old even while the watch face itself shows a
+     * fresher on-wrist reading. [withinSeconds] default widened from M21f's original 60s (Owner
+     * report 2026-09-12: BPM often went blank entirely, or showed a number that looked wrong next
+     * to the watch, purely because that sync lag routinely exceeds one minute) -- 5 minutes is
+     * still "recent enough to mean something" without going blank on every ordinary sync gap.
+     */
+    suspend fun readLatestHeartRate(withinSeconds: Long = 300): HeartRateSample?
 
     /** M21f: every heart-rate sample Health Connect has for [start]..[end] (a finished workout's own window), oldest first -- drives the post-workout historical chart. */
     suspend fun readHeartRateSamples(start: Instant, end: Instant): List<HeartRateSample>

@@ -68,9 +68,11 @@ import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SyncOptimisticList
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
+import com.enil.logez.feature.wellness.HeartRateSample
 import com.enil.logez.feature.workout.finish.fromDatePickerMillis
 import com.enil.logez.feature.workout.finish.labelRes
 import com.enil.logez.feature.workout.finish.toDatePickerMillis
@@ -212,6 +214,7 @@ fun WorkoutLoggerScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = {
                     Column {
                         Text(
@@ -671,9 +674,9 @@ private fun RestTimerChip(restRemainingMillisFlow: Flow<Long?>, modifier: Modifi
 
 /** M21f: same compact-chip shape as [RestTimerChip] (an `AssistChip` reads too heavy in this row). */
 @Composable
-private fun HeartRateChip(liveBpmFlow: Flow<Long?>, modifier: Modifier = Modifier) {
-    val bpm by liveBpmFlow.collectAsStateWithLifecycle(null)
-    val value = bpm ?: return
+private fun HeartRateChip(liveBpmFlow: Flow<HeartRateSample?>, modifier: Modifier = Modifier) {
+    val sample by liveBpmFlow.collectAsStateWithLifecycle(null)
+    val value = sample?.bpm ?: return
     Surface(
         shape = RoundedCornerShape(Radius.pill),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),

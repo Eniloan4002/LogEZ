@@ -13,7 +13,7 @@ class FakeHealthMetricsSource(
     private val availabilityValue: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
     private val permissionsGranted: Boolean = false,
     private val totals: DailyTotals = DailyTotals(steps = 0L, caloriesBurned = null),
-    private val latestHeartRate: Long? = null,
+    private val latestHeartRate: HeartRateSample? = null,
     private val heartRateSamples: List<HeartRateSample> = emptyList(),
     private val stepsHistory: List<DailyStepCount> = emptyList(),
 ) : HealthMetricsSource {
@@ -33,7 +33,7 @@ class FakeHealthMetricsSource(
     override suspend fun hasAllPermissions(): Boolean = permissionsGranted
     override suspend fun readTodayTotals(): DailyTotals = totals
 
-    override suspend fun readLatestHeartRate(withinSeconds: Long): Long? {
+    override suspend fun readLatestHeartRate(withinSeconds: Long): HeartRateSample? {
         readLatestHeartRateCallCount++
         return latestHeartRate
     }

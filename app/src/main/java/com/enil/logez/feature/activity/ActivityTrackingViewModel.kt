@@ -1,14 +1,20 @@
 package com.enil.logez.feature.activity
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.feature.wellness.HealthMetricsSource
+import com.enil.logez.feature.wellness.HeartRateSample
 import com.enil.logez.feature.wellness.liveHeartRateFlow
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * M21a. A thin wrapper around the shared [ActivityTrackingController] singleton — tracking itself
@@ -20,6 +26,7 @@ class ActivityTrackingViewModel @Inject constructor(
     private val controller: ActivityTrackingController,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
+    private val settingsRepository: SettingsRepository,
     healthMetricsSource: HealthMetricsSource,
 ) : ViewModel() {
     val state: StateFlow<ActivityTrackingState> = controller.state
@@ -27,7 +34,12 @@ class ActivityTrackingViewModel @Inject constructor(
 
     /** M21f: cold flow, same spine-rule shape as `elapsedSecondsFlow` -- see `liveHeartRateFlow`'s
      * own doc comment for why this must not be an eagerly-started poller. */
-    val liveBpmFlow: Flow<Long?> = liveHeartRateFlow(healthMetricsSource)
+    val liveBpmFlow: Flow<HeartRateSample?> = liveHeartRateFlow(healthMetricsSource)
+
+    /** Distance unit (for pace) and max heart rate (for the live zone) -- the two settings the
+     * screen's pace/zone display needs. */
+    val settings: StateFlow<UserSettings> = settingsRepository.settings
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
 
     /**
      * M21 redesign (2026-09-11): Finish now goes straight to the Save Workout screen instead of

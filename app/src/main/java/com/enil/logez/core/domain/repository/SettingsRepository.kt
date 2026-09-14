@@ -38,6 +38,7 @@ interface SettingsRepository {
     suspend fun setSmartSupersetScrolling(value: Boolean)
     suspend fun setInlineTimerEnabled(value: Boolean)
     suspend fun setLivePrNotificationEnabled(value: Boolean)
+    suspend fun setMaxHeartRateBpm(value: Int?)
     suspend fun setShowHeatmap(value: Boolean)
     suspend fun setShowGoals(value: Boolean)
 }

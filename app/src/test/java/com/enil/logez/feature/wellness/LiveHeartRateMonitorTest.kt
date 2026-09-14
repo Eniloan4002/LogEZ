@@ -1,6 +1,7 @@
 package com.enil.logez.feature.wellness
 
 import com.enil.logez.fakes.FakeHealthMetricsSource
+import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -20,15 +21,16 @@ import org.junit.Test
 class LiveHeartRateMonitorTest {
     @Test
     fun `emits the latest heart rate on every poll while available and granted`() = runTest {
+        val sample = HeartRateSample(time = Instant.ofEpochSecond(1_000), bpm = 92L)
         val source = FakeHealthMetricsSource(
             availabilityValue = HealthConnectAvailability.Available,
             permissionsGranted = true,
-            latestHeartRate = 92L,
+            latestHeartRate = sample,
         )
 
         val emissions = liveHeartRateFlow(source, pollIntervalMs = 5_000L).take(3).toList()
 
-        assertEquals(listOf(92L, 92L, 92L), emissions)
+        assertEquals(listOf(sample, sample, sample), emissions)
         assertEquals(3, source.readLatestHeartRateCallCount)
     }
 
@@ -46,7 +48,7 @@ class LiveHeartRateMonitorTest {
         val source = FakeHealthMetricsSource(
             availabilityValue = HealthConnectAvailability.Available,
             permissionsGranted = false,
-            latestHeartRate = 100L,
+            latestHeartRate = HeartRateSample(time = Instant.ofEpochSecond(1_000), bpm = 100L),
         )
 
         val first = liveHeartRateFlow(source, pollIntervalMs = 1_000L).take(1).toList().single()
@@ -59,7 +61,7 @@ class LiveHeartRateMonitorTest {
         val source = FakeHealthMetricsSource(
             availabilityValue = HealthConnectAvailability.Available,
             permissionsGranted = true,
-            latestHeartRate = 70L,
+            latestHeartRate = HeartRateSample(time = Instant.ofEpochSecond(1_000), bpm = 70L),
         )
 
         liveHeartRateFlow(source, pollIntervalMs = 1_000L).take(4).toList()

@@ -48,6 +48,7 @@ class SettingsViewModel @Inject constructor(
     fun setSmartSupersetScrolling(value: Boolean) = write { setSmartSupersetScrolling(value) }
     fun setInlineTimerEnabled(value: Boolean) = write { setInlineTimerEnabled(value) }
     fun setLivePrNotificationEnabled(value: Boolean) = write { setLivePrNotificationEnabled(value) }
+    fun setMaxHeartRateBpm(value: Int?) = write { setMaxHeartRateBpm(value) }
     fun setRpeTrackingEnabled(value: Boolean) = write { setRpeTrackingEnabled(value) }
     fun setIncludeWarmupsInStats(value: Boolean) = write { setIncludeWarmupsInStats(value) }
     fun setShowHeatmap(value: Boolean) = write { setShowHeatmap(value) }

@@ -24,15 +24,18 @@ private const val DEFAULT_POLL_INTERVAL_MS = 10_000L
  * never subscribes at all) -- no explicit lifecycle wiring needed on the ViewModel's part.
  * Silently emits null -- never crashes, never nags -- whenever Health Connect isn't available or
  * the permission isn't granted, matching the Profile card's own graceful-degrade rule.
+ *
+ * Emits the whole [HeartRateSample], not just the bpm -- see [HealthMetricsSource.readLatestHeartRate]'s
+ * own doc comment for why a caller showing this live needs the timestamp, not just the number.
  */
-fun liveHeartRateFlow(healthMetricsSource: HealthMetricsSource, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<Long?> = flow {
+fun liveHeartRateFlow(healthMetricsSource: HealthMetricsSource, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<HeartRateSample?> = flow {
     while (true) {
-        val bpm = if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
+        val sample = if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
             healthMetricsSource.readLatestHeartRate()
         } else {
             null
         }
-        emit(bpm)
+        emit(sample)
         delay(pollIntervalMs)
     }
 }

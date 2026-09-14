@@ -39,6 +39,7 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     override suspend fun setSmartSupersetScrolling(value: Boolean) { state.value = state.value.copy(smartSupersetScrolling = value) }
     override suspend fun setInlineTimerEnabled(value: Boolean) { state.value = state.value.copy(inlineTimerEnabled = value) }
     override suspend fun setLivePrNotificationEnabled(value: Boolean) { state.value = state.value.copy(livePrNotificationEnabled = value) }
+    override suspend fun setMaxHeartRateBpm(value: Int?) { state.value = state.value.copy(maxHeartRateBpm = value) }
     override suspend fun setShowHeatmap(value: Boolean) { state.value = state.value.copy(showHeatmap = value) }
     override suspend fun setShowGoals(value: Boolean) { state.value = state.value.copy(showGoals = value) }
 }

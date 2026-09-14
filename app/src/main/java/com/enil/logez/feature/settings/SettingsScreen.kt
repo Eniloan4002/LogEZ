@@ -3,14 +3,20 @@ package com.enil.logez.feature.settings
 import android.content.Intent
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,10 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.WeightUnit
@@ -34,7 +42,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
-private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES }
+private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
 
 /**
  * M16 Workout Settings (PHASE2_PLAN.md §5.2 Settings tree). Every editor writes through the
@@ -59,6 +67,7 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { ScreenTitle(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -141,6 +150,15 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_live_pr_subtitle),
                     checked = settings.livePrNotificationEnabled,
                     onCheckedChange = viewModel::setLivePrNotificationEnabled,
+                )
+            }
+            item(key = "max_heart_rate") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_max_heart_rate),
+                    subtitle = stringResource(R.string.settings_max_heart_rate_subtitle),
+                    value = settings.maxHeartRateBpm?.let { stringResource(R.string.settings_max_heart_rate_value, it) }
+                        ?: stringResource(R.string.settings_max_heart_rate_not_set),
+                    onClick = { openDialog = SettingsDialog.MAX_HEART_RATE },
                 )
             }
             item(key = "rpe_tracking") {
@@ -287,8 +305,58 @@ fun SettingsScreen(
             onSelect = viewModel::setPreviousValuesMode,
             onDismiss = { openDialog = null },
         )
+        SettingsDialog.MAX_HEART_RATE -> MaxHeartRateDialog(
+            initial = settings.maxHeartRateBpm,
+            onSave = viewModel::setMaxHeartRateBpm,
+            onDismiss = { openDialog = null },
+        )
         null -> Unit
     }
+}
+
+/**
+ * Free-text bpm entry — unlike every other row on this screen, there's no small fixed option set
+ * to pick from (a `SettingsRadioDialog` doesn't fit), so this is a plain Material3 `AlertDialog`
+ * with one numeric field, matching `WarmupSetsScreen`'s/`PlateEquipmentScreen`'s existing
+ * `OutlinedTextField(keyboardType = Number)` convention rather than inventing a new generic
+ * input-dialog component for this one field. Blank clears the setting (zones simply stop
+ * rendering, same graceful-degrade rule as everywhere else); a non-numeric or out-of-range entry
+ * disables Save rather than persisting nonsense.
+ */
+@Composable
+private fun MaxHeartRateDialog(initial: Int?, onSave: (Int?) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf(initial?.toString().orEmpty()) }
+    val parsed = text.toIntOrNull()
+    val isError = text.isNotEmpty() && (parsed == null || parsed !in 1..300)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_max_heart_rate_dialog_title)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(stringResource(R.string.settings_max_heart_rate_field_label)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                isError = isError,
+                supportingText = if (isError) {
+                    { Text(stringResource(R.string.settings_max_heart_rate_invalid)) }
+                } else {
+                    null
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text.ifEmpty { null }?.toIntOrNull()); onDismiss() }, enabled = !isError) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 @Composable

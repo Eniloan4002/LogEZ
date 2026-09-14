@@ -69,11 +69,9 @@ class HealthConnectMetricsSource @Inject constructor(
         return DailyTotals(steps = steps, caloriesBurned = caloriesBurned)
     }
 
-    override suspend fun readLatestHeartRate(withinSeconds: Long): Long? {
+    override suspend fun readLatestHeartRate(withinSeconds: Long): HeartRateSample? {
         val now = Instant.now()
-        return readHeartRateSamples(now.minusSeconds(withinSeconds), now)
-            .maxByOrNull { it.time }
-            ?.bpm
+        return readHeartRateSamples(now.minusSeconds(withinSeconds), now).maxByOrNull { it.time }
     }
 
     override suspend fun readHeartRateSamples(start: Instant, end: Instant): List<HeartRateSample> {

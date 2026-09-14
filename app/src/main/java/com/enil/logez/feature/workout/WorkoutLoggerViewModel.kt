@@ -33,6 +33,7 @@ import com.enil.logez.feature.workout.session.WorkoutNotificationContent
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
 import com.enil.logez.feature.wellness.HealthMetricsSource
+import com.enil.logez.feature.wellness.HeartRateSample
 import com.enil.logez.feature.wellness.liveHeartRateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -190,7 +191,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      * pause/resume/rest-timer bookkeeping). `emptyFlow()` in edit mode -- there is no live session
      * to sample, matching the other three flows' edit-mode behavior at the Screen layer.
      */
-    val liveBpmFlow: Flow<Long?> = if (isEditMode) emptyFlow() else liveHeartRateFlow(healthMetricsSource)
+    val liveBpmFlow: Flow<HeartRateSample?> = if (isEditMode) emptyFlow() else liveHeartRateFlow(healthMetricsSource)
 
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
         // Group 1: exercises + loading

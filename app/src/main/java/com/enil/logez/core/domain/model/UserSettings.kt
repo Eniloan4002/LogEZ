@@ -29,6 +29,12 @@ data class UserSettings(
     val smartSupersetScrolling: Boolean = true,
     val inlineTimerEnabled: Boolean = true,
     val livePrNotificationEnabled: Boolean = true,
+    /** Basis for the GPS activity-tracking screen's live heart-rate zone. Null (never set) means
+     * zones don't render at all -- same graceful-degrade rule as every other Health Connect-backed
+     * display in this app -- rather than guess from an age this app has never collected (it has no
+     * account and no server; asking for a birthdate to estimate this would be a bigger ask than
+     * asking for the number directly). */
+    val maxHeartRateBpm: Int? = null,
     /** Owner, 2026-09-03: hides the Workout tab's Progress heatmap when off. Default on — nothing is hidden today. */
     val showHeatmap: Boolean = true,
     /** Owner, 2026-09-03: hides the Workout tab's Goals card when off. Default on — nothing is hidden today. */

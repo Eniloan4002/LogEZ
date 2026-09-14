@@ -52,6 +52,9 @@ object Formatting {
         val km = meters / 1000.0
         return if (km == km.toLong().toDouble()) "${km.toLong()}km" else "%.2fkm".format(Locale.ROOT, km)
     }
+
+    /** `M:SS` per km/mile from [PaceCalculator.paceSecondsPerUnit] -- reuses [mmSs]'s exact shape. */
+    fun pace(secondsPerUnit: Double): String = mmSs(secondsPerUnit.toLong().toInt())
 }
 
 /** Convenience top-level aliases so call sites read naturally. */
@@ -60,3 +63,4 @@ fun formatWeightKg(kg: Double): String = Formatting.weightKg(kg)
 fun formatWeightKgShort(kg: Double): String = Formatting.weightKgShort(kg)
 fun formatMmSs(totalSeconds: Int): String = Formatting.mmSs(totalSeconds)
 fun formatDistanceKm(meters: Double): String = Formatting.distanceKm(meters)
+fun formatPace(secondsPerUnit: Double): String = Formatting.pace(secondsPerUnit)

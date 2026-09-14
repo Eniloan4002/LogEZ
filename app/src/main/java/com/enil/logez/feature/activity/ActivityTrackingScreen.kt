@@ -36,7 +36,16 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.formatPace
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.domain.calc.HeartRateZone
+import com.enil.logez.core.domain.calc.HeartRateZoneCalculator
+import com.enil.logez.core.domain.calc.PaceCalculator
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.feature.activity.map.MapTilerView
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -62,7 +71,11 @@ fun ActivityTrackingScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elapsedSeconds by viewModel.elapsedSecondsFlow.collectAsStateWithLifecycle(initialValue = 0)
     val liveBpm by viewModel.liveBpmFlow.collectAsStateWithLifecycle(initialValue = null)
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     var showCancelConfirm by remember { mutableStateOf(false) }
+
+    val paceSecondsPerUnit = PaceCalculator.paceSecondsPerUnit(state.distanceMeters, elapsedSeconds, settings.distanceUnit)
+    val heartRateZone = liveBpm?.let { HeartRateZoneCalculator.zoneFor(it.bpm, settings.maxHeartRateBpm) }
 
     fun finish() = scope.launch {
         val result = viewModel.finish()
@@ -84,6 +97,7 @@ fun ActivityTrackingScreen(
             TopAppBar(
                 title = { ScreenTitle(stringResource(R.string.activity_tracking_screen_title)) },
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
             )
         },
     ) { padding ->
@@ -91,12 +105,12 @@ fun ActivityTrackingScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Timer, distance and (when available) BPM share one row (Owner request, 2026-09-11)
-            // rather than stacking above/below the map -- each stat is its own centered column so
-            // the row reads the same as a two- or three-up stat card. BPM's own column is omitted
-            // entirely, not shown empty, whenever Health Connect has nothing to show (not connected,
-            // no permission, no wearable data) -- same graceful-degrade rule as the Profile wellness
-            // card and the Logger's HeartRateChip.
+            // Timer, distance and pace share one row (Owner request, 2026-09-11 extended
+            // 2026-09-12 with pace) rather than stacking above/below the map -- each stat is its
+            // own centered column so the row reads the same as a two- or three-up stat card.
+            // Pace's own column is omitted entirely, not shown as "--:--", before enough distance
+            // has accumulated to mean anything (PaceCalculator.MIN_METERS_FOR_PACE) -- same
+            // honest-absence rule the BPM/zone row below already followed.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -120,10 +134,34 @@ fun ActivityTrackingScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (liveBpm != null) {
+                if (paceSecondsPerUnit != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(formatPace(paceSecondsPerUnit), style = MaterialTheme.typography.displayMedium)
+                        Text(
+                            stringResource(
+                                if (settings.distanceUnit == DistanceUnit.MILES) R.string.activity_tracking_pace_label_mi else R.string.activity_tracking_pace_label_km,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // BPM and its live zone share their own row, entirely below the fold of the row above
+            // rather than squeezed into it -- omitted entirely (not shown empty/dashed), same
+            // graceful-degrade rule as the Profile wellness card and the Logger's HeartRateChip,
+            // whenever Health Connect has nothing to show (not connected, no permission, no
+            // wearable data). The zone label needs its own further condition -- a max heart rate
+            // set in Settings -- so BPM alone (no zone) is a real, common state too, not a bug.
+            if (liveBpm != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.md),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            stringResource(R.string.workout_bpm_value, liveBpm!!),
+                            stringResource(R.string.workout_bpm_value, liveBpm!!.bpm),
                             style = MaterialTheme.typography.displayMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -132,6 +170,30 @@ fun ActivityTrackingScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // Owner-reported 2026-09-12: a wearable's readings reach Health Connect
+                        // through a multi-hop sync (watch -> its companion app -> Health Connect),
+                        // not in real time, so this can genuinely be several minutes old even while
+                        // the watch face itself shows something fresher. Labeling it honestly beats
+                        // implying live-instant accuracy it can't actually guarantee.
+                        Text(
+                            stringResource(R.string.activity_tracking_bpm_as_of, formatClockTime(liveBpm!!.time)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (heartRateZone != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                stringResource(R.string.activity_tracking_zone_value, heartRateZone.number),
+                                style = MaterialTheme.typography.displayMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                heartRateZoneLabel(heartRateZone),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -179,6 +241,17 @@ fun ActivityTrackingScreen(
     }
 }
 
+@Composable
+private fun heartRateZoneLabel(zone: HeartRateZone): String = stringResource(
+    when (zone) {
+        HeartRateZone.ZONE_1 -> R.string.activity_tracking_zone_1
+        HeartRateZone.ZONE_2 -> R.string.activity_tracking_zone_2
+        HeartRateZone.ZONE_3 -> R.string.activity_tracking_zone_3
+        HeartRateZone.ZONE_4 -> R.string.activity_tracking_zone_4
+        HeartRateZone.ZONE_5 -> R.string.activity_tracking_zone_5
+    },
+)
+
 private fun formatElapsed(totalSeconds: Int): String {
     val h = totalSeconds / 3600
     val m = (totalSeconds % 3600) / 60
@@ -192,3 +265,7 @@ private fun formatKm(distanceMeters: Double): String {
     val km = distanceMeters / 1000.0
     return "%.2f".format(Locale.ROOT, (km * 100).roundToInt() / 100.0)
 }
+
+/** "7:44 PM" -- same `h:mm a` clock-time convention `HistoryScreen.formatCardDateTime` uses for its own time-of-day portion. */
+private fun formatClockTime(instant: Instant): String =
+    instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a"))
