@@ -57,6 +57,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
@@ -100,6 +101,7 @@ fun ExerciseDetailScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { ScreenTitle(uiState.exercise?.name.orEmpty()) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

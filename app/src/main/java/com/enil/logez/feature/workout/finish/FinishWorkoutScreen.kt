@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -103,6 +104,7 @@ fun FinishWorkoutScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { Text(stringResource(R.string.finish_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

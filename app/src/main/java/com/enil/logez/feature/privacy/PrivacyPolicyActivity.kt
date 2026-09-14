@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzTheme
 import com.enil.logez.core.designsystem.ScreenTitle
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.Spacing
 
 /**
@@ -64,8 +64,14 @@ class PrivacyPolicyActivity : ComponentActivity() {
 private fun PrivacyPolicyScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
+            // Deliberately NOT zeroed like the NavHost-hosted screens' TopAppBars: those live
+            // inside LogEzApp's outer Scaffold, whose innerPadding already pushes the whole
+            // NavHost below the status bar, so their TopAppBar's own inset would double it. This
+            // Activity is its own top-level Scaffold with no such outer padding, so it needs
+            // TopAppBar's default windowInsets to clear the status bar itself -- zeroing it here
+            // (copied verbatim from those screens) drew "PRIVACY POLICY" under the status bar icons.
             TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { ScreenTitle(stringResource(R.string.privacy_policy_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

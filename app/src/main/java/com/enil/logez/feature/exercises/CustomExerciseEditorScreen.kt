@@ -67,6 +67,7 @@ import com.enil.logez.core.common.muscleHeadLabel
 import com.enil.logez.core.designsystem.LocalImage
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
@@ -113,6 +114,7 @@ fun CustomExerciseEditorScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = {
                     Text(
                         stringResource(

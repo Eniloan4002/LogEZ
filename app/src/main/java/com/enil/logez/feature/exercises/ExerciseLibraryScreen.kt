@@ -55,6 +55,7 @@ import com.enil.logez.core.common.muscleHeadLabel
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LocalImage
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.muscleGroupIcon
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.MuscleGroup
@@ -76,6 +77,7 @@ fun ExerciseLibraryScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { Text(stringResource(R.string.exercise_library_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

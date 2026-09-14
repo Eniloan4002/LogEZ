@@ -36,7 +36,7 @@ fun LogEzCard(
     // Dp directly and re-draws on change; colors/shape/border are Card's defaults spelled out.
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(Radius.md),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shadowElevation = elevation,
@@ -55,7 +55,7 @@ fun LogEzCard(
     Card(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(Radius.md),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = Elevation.card),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),

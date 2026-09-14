@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.feature.workout.audio.WorkoutAudioPlayer
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -75,6 +76,7 @@ fun SoundsSettingsScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { ScreenTitle(stringResource(R.string.settings_sounds_row)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

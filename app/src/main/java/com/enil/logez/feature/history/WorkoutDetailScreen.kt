@@ -58,12 +58,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.Danger500
+import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStructure
@@ -122,6 +124,7 @@ fun WorkoutDetailScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { Text(uiState.workout?.title.orEmpty(), color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -261,7 +264,7 @@ fun WorkoutDetailScreen(
 private fun DetailStatCell(label: String, value: String, icon: ImageVector? = null) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, contentDescription = null, tint = Gold500)
         } else {
             Text(value, style = LogEzMono.dataLarge)
         }
@@ -293,7 +296,7 @@ private fun buildDetailRounds(blocks: List<DetailExerciseBlock>): List<DetailRou
 
 @Composable
 private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Unit) {
-    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -325,7 +328,7 @@ private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Uni
 /** M21b/c: the offline Metro Manila map with the recorded GPS route drawn on it, camera fit to the route's bounds. */
 @Composable
 private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
-    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Text(stringResource(R.string.workout_detail_route_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             MapTilerView(
@@ -340,7 +343,7 @@ private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
 @Composable
 private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (String) -> Unit) {
     val supersetColor = block.workoutExercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
-    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             if (supersetColor != null) {
                 Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(supersetColor))
@@ -399,7 +402,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
             Icon(
                 Icons.Filled.EmojiEvents,
                 contentDescription = stringResource(set.pr.prType.labelRes()),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = Gold500,
                 modifier = Modifier.size(18.dp),
             )
         }

@@ -144,10 +144,10 @@ fun ShareSummaryDialog(
         // Platform default width is too narrow for the card preview; the Surface below takes 92%.
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        // Styled like LogEzCard (surface fill, Radius.md corners, outlineVariant hairline) so the
+        // Styled like LogEzCard (surface fill, Radius.card corners, outlineVariant hairline) so the
         // dialog reads as one of the app's own cards floating over the summary.
         Surface(
-            shape = RoundedCornerShape(Radius.md),
+            shape = RoundedCornerShape(Radius.card),
             color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier

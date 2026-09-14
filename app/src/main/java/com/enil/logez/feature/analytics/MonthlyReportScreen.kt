@@ -48,6 +48,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.feature.analytics.MonthlyReportViewModel.ComparisonMetric
 import com.enil.logez.feature.exercises.SummaryFormatters
 import com.enil.logez.core.domain.model.DistanceUnit
@@ -78,6 +79,7 @@ fun MonthlyReportScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { ScreenTitle(stringResource(R.string.analytics_monthly_report_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

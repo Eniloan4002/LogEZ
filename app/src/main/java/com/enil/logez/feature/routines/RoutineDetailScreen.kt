@@ -37,6 +37,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -67,6 +68,7 @@ fun RoutineDetailScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = { Text(uiState.routine?.name.orEmpty()) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

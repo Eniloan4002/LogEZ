@@ -32,11 +32,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import java.time.Instant
 import java.time.LocalDate
@@ -67,7 +69,7 @@ fun HistoryScreen(
         // Tab roots live inside LogEzApp's Scaffold, whose innerPadding already pushes this whole
         // NavHost below the status bar — TopAppBar's default windowInsets would re-apply the
         // status-bar inset and double the empty space above the header, so it is zeroed too.
-        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_history)) }, windowInsets = WindowInsets(0, 0, 0, 0)) },
+        topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_history)) }, windowInsets = WindowInsets(0, 0, 0, 0), colors = logEzTopAppBarColors()) },
     ) { padding ->
         if (uiState.isLoading) return@Scaffold
 
@@ -93,7 +95,7 @@ fun HistoryScreen(
 
 @Composable
 private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
-    LogEzCard(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md).clickable(onClick = onClick)) {
+    LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm).clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 // Weighted and clipped to one line: a Row measures unweighted children in order and
@@ -166,10 +168,10 @@ private fun RecordsChip() {
         Icon(
             Icons.Filled.EmojiEvents,
             contentDescription = stringResource(R.string.history_card_records_chip),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = Gold500,
             modifier = Modifier.padding(end = Spacing.xxs),
         )
-        Text(stringResource(R.string.history_card_records_chip), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.history_card_records_chip), style = MaterialTheme.typography.labelMedium, color = Gold500)
     }
 }
 

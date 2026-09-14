@@ -65,6 +65,7 @@ import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SyncOptimisticList
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
@@ -104,6 +105,7 @@ fun RoutineBuilderScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = logEzTopAppBarColors(),
                 title = {
                     OutlinedTextField(
                         value = uiState.title,
@@ -371,7 +373,7 @@ private fun StructureCard(
     icon: @Composable (tint: Color) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(Radius.md)
+    val shape = RoundedCornerShape(Radius.card)
     val primary = MaterialTheme.colorScheme.primary
     val borderColor = when {
         selected && enabled -> primary

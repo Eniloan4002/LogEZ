@@ -185,7 +185,7 @@ internal fun SettingsValueRow(
  *
  * M20e: rebuilt on compose-unstyled's renderless `UnstyledDialog`/`DialogPanel` — the panel is the
  * app's own "on-brand dialog chrome" reference tokens (§2.6: `ShareSummaryDialog.kt` —
- * `Radius.md` + `colorScheme.surface` + a 1.dp `outlineVariant` border), not Material3's default
+ * `Radius.card` + `colorScheme.surface` + a 1.dp `outlineVariant` border), not Material3's default
  * dialog shape/elevation. Dismiss behaviour: outside-tap and [onDismiss] both work; the system back
  * gesture does not (see the KNOWN LIMITATION comment below) — that is a change from the AlertDialog
  * this replaced, not "unchanged" as an earlier version of this doc claimed.
@@ -220,9 +220,9 @@ internal fun <T> SettingsRadioDialog(
         Box(modifier = Modifier.fillMaxSize().padding(Spacing.lg), contentAlignment = Alignment.Center) {
         DialogPanel(
             modifier = Modifier
-                .clip(RoundedCornerShape(Radius.md))
+                .clip(RoundedCornerShape(Radius.card))
                 .background(MaterialTheme.colorScheme.surface)
-                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(Radius.md))
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(Radius.card))
                 .padding(Spacing.md),
         ) {
             Column {

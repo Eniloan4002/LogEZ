@@ -24,6 +24,14 @@ object Radius {
     val md: Dp = 12.dp
     val lg: Dp = 16.dp
     val pill: Dp = 999.dp
+
+    /**
+     * v7.0 redesign mockup's card radius (`--radius-card: 18px`). Deliberately separate from [md]:
+     * [md] is also used for the exercise-photo thumbnail clip in `CustomExerciseEditorScreen`, an
+     * image-well affordance rather than card chrome, and that shouldn't co-vary with how round
+     * cards are.
+     */
+    val card: Dp = 18.dp
 }
 
 /** M9b (Neon Lab) — real elevation for [LogEzCard], replacing the fully-flat pre-rebrand cards. */
