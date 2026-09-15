@@ -1,6 +1,5 @@
 package com.enil.logez.feature.analytics
 
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +55,7 @@ import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.MuscleBalanceRadar
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
@@ -64,15 +63,6 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.ChartRange
-import io.github.koalaplot.core.polar.PolarGraph
-import io.github.koalaplot.core.polar.PolarGraphDefaults
-import io.github.koalaplot.core.polar.PolarPlotSeries
-import io.github.koalaplot.core.polar.PolarPoint
-import io.github.koalaplot.core.polar.RadialGridType
-import io.github.koalaplot.core.polar.rememberCategoryAngularAxisModel
-import io.github.koalaplot.core.polar.rememberFloatRadialAxisModel
-import io.github.koalaplot.core.style.AreaStyle
-import io.github.koalaplot.core.style.LineStyle
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.RegionShare
@@ -486,18 +476,6 @@ private fun bodyRegionLabel(region: BodyRegion): String = when (region) {
  * spelling every region out in full measures down to roughly a third of the wheel. The legend below
  * the wheel carries the full name for each spoke, so these only have to be recognisable.
  */
-@Composable
-private fun bodyRegionAxisLabel(region: BodyRegion): String = when (region) {
-    BodyRegion.CHEST -> stringResource(R.string.muscle_region_chest_axis)
-    BodyRegion.BACK -> stringResource(R.string.muscle_region_back_axis)
-    BodyRegion.SHOULDERS -> stringResource(R.string.muscle_region_shoulders_axis)
-    BodyRegion.ARMS -> stringResource(R.string.muscle_region_arms_axis)
-    BodyRegion.CORE -> stringResource(R.string.muscle_region_core_axis)
-    BodyRegion.QUADS -> stringResource(R.string.muscle_region_quads_axis)
-    BodyRegion.HAMSTRINGS_GLUTES -> stringResource(R.string.muscle_region_hamstrings_glutes_axis)
-    BodyRegion.LOWER_LEG -> stringResource(R.string.muscle_region_lower_leg_axis)
-}
-
 /**
  * M20c (ADR-0009): a radar/spider plot of set share per [BodyRegion], sitting beside the existing
  * numeric distribution list above it -- same [DistributionCardState.range] (the range chips here
@@ -524,68 +502,12 @@ private fun MuscleBalanceCard(uiState: AnalyticsUiState, viewModel: AnalyticsVie
             } else if (card.balance.all { it.setCount == 0 }) {
                 Text(stringResource(R.string.analytics_balance_no_regions), style = MaterialTheme.typography.bodyMedium)
             } else {
-                val axisLabels = BodyRegion.entries.associateWith { bodyRegionAxisLabel(it) }
-                val angularAxisModel = rememberCategoryAngularAxisModel(BodyRegion.entries.toList())
                 // Eight shares that sum to 100 average 12.5, so a fixed 0..100 axis would pin even
                 // a wildly lopsided week inside the innermost quarter of the wheel — the shape,
                 // which is the whole point of the card, would be invisible. Scale to the data
                 // instead, using BarChart's own convention (max * 1.1, plus zero/mid/max
                 // gridlines). The floor keeps a genuinely balanced week from filling the rim.
-                val radialMax = (card.balance.maxOf { it.sharePercent } * 1.1f).coerceAtLeast(25f)
-                val radialAxisModel = rememberFloatRadialAxisModel(listOf(0f, radialMax / 2f, radialMax))
-                val primary = MaterialTheme.colorScheme.primary
-                val outlineVariant = MaterialTheme.colorScheme.outlineVariant
-                val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-                val axisLineStyle = LineStyle(brush = SolidColor(outlineVariant), strokeWidth = 1.dp)
-                PolarGraph(
-                    radialAxisModel = radialAxisModel,
-                    angularAxisModel = angularAxisModel,
-                    // These two are @Composable (T) -> Unit slots that EMIT their label, not
-                    // (T) -> String producers. A lambda returning a bare String compiles here —
-                    // Kotlin coerces it to Unit and discards the value — and silently draws
-                    // nothing, which is exactly how this chart shipped unlabelled.
-                    radialAxisLabels = {
-                        // Deliberately empty. The library hard-places every radial label on the
-                        // 12 o'clock axis, i.e. straight down the Chest spoke and through the
-                        // plotted area, with no way to move them. The legend below carries the
-                        // numbers instead; the wheel is for comparing spokes, not reading values.
-                    },
-                    angularAxisLabels = { region ->
-                        Text(
-                            axisLabels.getValue(region).uppercase(Locale.getDefault()),
-                            style = LogEzMono.dataSmall.copy(
-                                letterSpacing = 0.06.em,
-                                color = onSurfaceVariant,
-                            ),
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-                    },
-                    // Square: the measure policy caps the wheel at min(width, height), so a fixed
-                    // height threw away the card's spare width. Centred because the policy reports
-                    // its own square size and ignores minWidth, which left the wheel flush left.
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .align(Alignment.CenterHorizontally),
-                    polarGraphProperties = PolarGraphDefaults.polarGraphPropertyDefaults().copy(
-                        radialGridType = RadialGridType.LINES,
-                        radialAxisGridLineStyle = axisLineStyle,
-                        angularAxisGridLineStyle = axisLineStyle,
-                        angularLabelGap = Spacing.xs,
-                    ),
-                ) {
-                    PolarPlotSeries(
-                        data = card.balance.map { PolarPoint(it.sharePercent.toFloat(), it.region) },
-                        lineStyle = LineStyle(brush = SolidColor(primary), strokeWidth = 2.dp),
-                        areaStyle = AreaStyle(brush = SolidColor(primary), alpha = 0.2f),
-                        // The library grows the polygon out of the pole on every data change by
-                        // default — a new animation on every range-chip tap. Near-zero-motion rule
-                        // (BRAND_IDENTITY §10): the only approved motion in the app is M20h's
-                        // superset auto-scroll.
-                        animationSpec = snap(),
-                    )
-                }
+                MuscleBalanceRadar(card.balance)
                 BalanceLegend(card.balance)
                 Text(
                     stringResource(R.string.analytics_balance_footnote),

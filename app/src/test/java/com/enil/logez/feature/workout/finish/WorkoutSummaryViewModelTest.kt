@@ -214,6 +214,9 @@ class WorkoutSummaryViewModelTest {
         assertEquals(1f, intensity.getValue(MuscleGroup.CHEST), 0.001f)
         assertEquals(0.5f, intensity.getValue(MuscleGroup.LATS), 0.001f)
         assertEquals(0.5f, intensity.getValue(MuscleGroup.TRICEPS), 0.001f)
+        val balance = vm.uiState.value.muscleBalance.associateBy { it.region }
+        assertEquals(67, balance.getValue(com.enil.logez.core.domain.calc.BodyRegion.CHEST).sharePercent)
+        assertEquals(33, balance.getValue(com.enil.logez.core.domain.calc.BodyRegion.BACK).sharePercent)
     }
 
     @Test

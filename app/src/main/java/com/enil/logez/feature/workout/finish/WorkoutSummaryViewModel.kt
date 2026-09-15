@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.WorkoutMuscleTargetCalculator
+import com.enil.logez.core.domain.calc.MuscleStatsCalculator
+import com.enil.logez.core.domain.calc.RegionShare
+import com.enil.logez.core.domain.calc.balanceAxes
 import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WorkoutStructure
@@ -73,14 +76,18 @@ class WorkoutSummaryViewModel @Inject constructor(
                 }
             }
 
-            val muscleIntensity = WorkoutMuscleTargetCalculator.intensities(
-                included.mapNotNull { row ->
+            val muscleTargets = included.mapNotNull { row ->
                     exerciseRepository.getById(row.exerciseId)?.let { exercise ->
                         WorkoutMuscleTargetCalculator.TargetSet(
                             primary = exercise.primaryMuscleGroup,
                             secondary = exercise.secondaryMuscleGroups,
                         )
                     }
+                }
+            val muscleIntensity = WorkoutMuscleTargetCalculator.intensities(muscleTargets)
+            val muscleBalance = balanceAxes(
+                muscleTargets.groupingBy { it.primary }.eachCount().map { (group, count) ->
+                    MuscleStatsCalculator.GroupShare(group = group, setCount = count, sharePercent = 0)
                 },
             )
 
@@ -157,6 +164,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 routePoints = routePoints,
                 heartRateSamples = heartRateSamples,
                 muscleIntensity = muscleIntensity,
+                muscleBalance = muscleBalance,
                 prMedals = prs,
                 exerciseLines = exerciseLines,
                 structure = workout.structure,
@@ -196,6 +204,7 @@ data class WorkoutSummaryUiState(
     /** M21f: (recordedAtMillis, bpm) pairs saved by `WorkoutFinisher` at finish time, oldest first; empty if no wearable data existed for this workout's window. */
     val heartRateSamples: List<Pair<Long, Long>> = emptyList(),
     val muscleIntensity: Map<com.enil.logez.core.domain.model.MuscleGroup, Float> = emptyMap(),
+    val muscleBalance: List<RegionShare> = emptyList(),
     val prMedals: List<PrMedal> = emptyList(),
     val exerciseLines: List<SummaryExerciseLine> = emptyList(),
     /** M11: CIRCUIT summaries add a "CIRCUIT · N rounds" line on screen and card. */

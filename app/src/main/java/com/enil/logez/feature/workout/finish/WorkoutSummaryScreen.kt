@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +42,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.BodyDiagramRegions
+import com.enil.logez.core.designsystem.MuscleBalanceRadar
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzMono
@@ -117,10 +117,20 @@ fun WorkoutSummaryScreen(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg, bottom = Spacing.sm),
                 )
-                BodyDiagram(
-                    intensity = uiState.muscleIntensity,
-                    modifier = Modifier.width(180.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    BodyDiagram(
+                        intensity = uiState.muscleIntensity,
+                        modifier = Modifier.weight(1f),
+                    )
+                    MuscleBalanceRadar(
+                        shares = uiState.muscleBalance,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             if (uiState.routePoints.isNotEmpty()) {
