@@ -440,7 +440,6 @@
     <string name="finish_structure_keep">Keep Original</string>
 
     <string name="summary_title">Workout complete</string>
-    <string name="summary_workout_ordinal">Workout #%1$d</string>
     <string name="summary_volume">Volume</string>
     <string name="summary_sets">Sets</string>
     <string name="summary_reps">Reps</string>
@@ -448,12 +447,10 @@
     <string name="summary_duration">Duration</string>
     <!-- M21f: post-workout historical heart-rate chart. -->
     <string name="summary_heart_rate_title">Heart rate</string>
-    <string name="summary_streak">Week streak</string>
     <plurals name="summary_streak_value">
         <item quantity="one">%1$d week</item>
         <item quantity="other">%1$d weeks</item>
     </plurals>
-    <string name="summary_day_streak">Day streak</string>
     <plurals name="summary_day_streak_value">
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>

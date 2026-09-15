@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +41,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Gold500
+import com.enil.logez.core.designsystem.BodyDiagram
+import com.enil.logez.core.designsystem.BodyDiagramRegions
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzMono
@@ -82,12 +85,6 @@ fun WorkoutSummaryScreen(
                 modifier = Modifier.padding(top = Spacing.lg),
             )
             Text(uiState.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = Spacing.xs))
-            Text(
-                stringResource(R.string.summary_workout_ordinal, uiState.workoutOrdinal),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = Spacing.xxs),
-            )
             if (uiState.structure == WorkoutStructure.CIRCUIT) {
                 // M11: the same "CIRCUIT · N rounds" line the share card carries.
                 Text(
@@ -106,11 +103,24 @@ fun WorkoutSummaryScreen(
                 // Only a metric this workout actually logged gets a cell -- a GPS-tracked walk has
                 // no weight/reps concept, so showing "0kg"/"0 Reps" next to its real distance would
                 // be noise, not data (each cell is independently gated, not tied to workout type).
-                if (uiState.hasVolume) StatCell(stringResource(R.string.summary_volume), formatVolume(uiState.totalVolumeKg))
-                StatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
-                if (uiState.hasReps) StatCell(stringResource(R.string.summary_reps), uiState.totalReps.toString())
-                if (uiState.hasDistance) StatCell(stringResource(R.string.summary_distance), formatDistance(uiState.totalDistanceMeters))
-                StatCell(stringResource(R.string.summary_duration), formatDuration(uiState.durationSeconds))
+                if (uiState.hasVolume) StatCell(stringResource(R.string.summary_volume), formatVolume(uiState.totalVolumeKg), Modifier.weight(1f))
+                StatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString(), Modifier.weight(1f))
+                if (uiState.hasReps) StatCell(stringResource(R.string.summary_reps), uiState.totalReps.toString(), Modifier.weight(1f))
+                if (uiState.hasDistance) StatCell(stringResource(R.string.summary_distance), formatDistance(uiState.totalDistanceMeters), Modifier.weight(1f))
+                StatCell(stringResource(R.string.summary_duration), formatDuration(uiState.durationSeconds), Modifier.weight(1f))
+            }
+
+            if (uiState.muscleIntensity.keys.any { it in BodyDiagramRegions.MAPPABLE }) {
+                Text(
+                    stringResource(R.string.analytics_body_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg, bottom = Spacing.sm),
+                )
+                BodyDiagram(
+                    intensity = uiState.muscleIntensity,
+                    modifier = Modifier.width(180.dp),
+                )
             }
 
             if (uiState.routePoints.isNotEmpty()) {
@@ -137,23 +147,6 @@ fun WorkoutSummaryScreen(
                     selectedIndex = selectedBpmIndex,
                     onPointTap = { selectedBpmIndex = it },
                     modifier = Modifier.padding(top = Spacing.sm),
-                )
-            }
-
-            if (uiState.dailyStreak > 0) {
-                Text(
-                    "${stringResource(R.string.summary_day_streak)}: " +
-                        pluralStringResource(R.plurals.summary_day_streak_value, uiState.dailyStreak, uiState.dailyStreak),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = Spacing.lg),
-                )
-            }
-            if (uiState.weeklyStreak > 0) {
-                Text(
-                    "${stringResource(R.string.summary_streak)}: " +
-                        pluralStringResource(R.plurals.summary_streak_value, uiState.weeklyStreak, uiState.weeklyStreak),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = if (uiState.dailyStreak > 0) Spacing.xs else Spacing.lg),
                 )
             }
 
@@ -188,9 +181,7 @@ fun WorkoutSummaryScreen(
                     setsText = uiState.completedSetCount.toString(),
                     repsText = if (uiState.hasReps) uiState.totalReps.toString() else null,
                     distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
-                    workoutOrdinal = uiState.workoutOrdinal,
-                    weeklyStreak = uiState.weeklyStreak,
-                    dailyStreak = uiState.dailyStreak,
+                    muscleIntensity = uiState.muscleIntensity,
                     prs = uiState.prMedals,
                     // CIRCUIT drops the "N × " prefix — the card's own rounds line already says
                     // how many times the sequence ran; REGULAR keeps History's shape.
@@ -237,8 +228,8 @@ private fun PrMedalCard(medal: PrMedal) {
 }
 
 @Composable
-private fun StatCell(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatCell(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = LogEzMono.dataLarge)
         Text(
             label,
@@ -250,14 +241,11 @@ private fun StatCell(label: String, value: String) {
 }
 
 /** Whole numbers stay whole ("8"); fractional averages keep one honest decimal ("6.5"). */
-private fun formatAvgReps(value: Double): String {
-    val rounded = (value * 10).toLong() / 10.0
-    return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
-}
+private fun formatAvgReps(value: Double): String = formatSummaryNumber(value)
 
-private fun formatVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
+private fun formatVolume(kg: Double): String = formatSummaryVolume(kg)
 
-private fun formatDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)
+private fun formatDistance(meters: Double): String = formatSummaryDistance(meters)
 
 private fun formatDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600
@@ -280,6 +268,6 @@ private fun formatPrValue(medal: PrMedal): String = when (medal.prType) {
     com.enil.logez.core.domain.model.PrType.BEST_TIME,
     com.enil.logez.core.domain.model.PrType.LONGEST_TIME,
     -> "%d:%02d".format(medal.value.toInt() / 60, medal.value.toInt() % 60)
-    com.enil.logez.core.domain.model.PrType.LONGEST_DISTANCE -> "%.0fm".format(medal.value)
+    com.enil.logez.core.domain.model.PrType.LONGEST_DISTANCE -> "${formatSummaryNumber(medal.value)}m"
     else -> formatVolume(medal.value)
 }

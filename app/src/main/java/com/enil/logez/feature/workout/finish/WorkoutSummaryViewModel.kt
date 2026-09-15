@@ -3,10 +3,9 @@ package com.enil.logez.feature.workout.finish
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.enil.logez.core.common.Clock
 import com.enil.logez.core.common.PolylineEncoding
-import com.enil.logez.core.domain.calc.StreakCalculator
 import com.enil.logez.core.domain.calc.VolumeCalculator
+import com.enil.logez.core.domain.calc.WorkoutMuscleTargetCalculator
 import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WorkoutStructure
@@ -17,8 +16,6 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.Instant
-import java.time.ZoneId
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +24,7 @@ import kotlinx.coroutines.launch
 
 /**
  * PHASE2_PLAN.md §5.1.8(c) post-save summary: total volume, completed sets, total reps, duration,
- * ordinal workout count, weekly streak, and one medal per PR achieved. Reads the already-COMPLETED
+ * targeted muscles and one medal per PR achieved. Reads the already-COMPLETED
  * workout — every number here is derived from persisted rows, never from live logger state, so
  * the screen shows exactly what was saved (the milestone's own acceptance criterion is "summary
  * matches logged data").
@@ -45,7 +42,6 @@ class WorkoutSummaryViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val activityTrackRepository: ActivityTrackRepository,
     private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
-    private val clock: Clock,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
@@ -77,17 +73,16 @@ class WorkoutSummaryViewModel @Inject constructor(
                 }
             }
 
-            // §5.1.8 edge case: "Streak/PR computation uses the edited (backdated) startedAt."
-            val zone = ZoneId.systemDefault()
-            val workoutDates = workoutRepository.getCompletedWorkoutTimestamps()
-                .map { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
-            val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds()).atZone(zone).toLocalDate()
-            val streak = StreakCalculator.weeklyStreak(
-                workoutDates = workoutDates,
-                today = today,
-                firstDayOfWeek = settings.firstDayOfWeek,
+            val muscleIntensity = WorkoutMuscleTargetCalculator.intensities(
+                included.mapNotNull { row ->
+                    exerciseRepository.getById(row.exerciseId)?.let { exercise ->
+                        WorkoutMuscleTargetCalculator.TargetSet(
+                            primary = exercise.primaryMuscleGroup,
+                            secondary = exercise.secondaryMuscleGroups,
+                        )
+                    }
+                },
             )
-            val dayStreak = StreakCalculator.dailyStreak(workoutDates, today)
 
             // Share-card exercise lines, built the way HistoryViewModel builds its card summaries
             // (group by workoutExerciseId, order by exerciseOrderIndex, count through the same
@@ -161,9 +156,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 totalDistanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 },
                 routePoints = routePoints,
                 heartRateSamples = heartRateSamples,
-                workoutOrdinal = workoutRepository.countCompletedWorkoutsUpTo(workout.startedAt, workout.id),
-                weeklyStreak = streak,
-                dailyStreak = dayStreak,
+                muscleIntensity = muscleIntensity,
                 prMedals = prs,
                 exerciseLines = exerciseLines,
                 structure = workout.structure,
@@ -202,9 +195,7 @@ data class WorkoutSummaryUiState(
     val routePoints: List<Pair<Double, Double>> = emptyList(),
     /** M21f: (recordedAtMillis, bpm) pairs saved by `WorkoutFinisher` at finish time, oldest first; empty if no wearable data existed for this workout's window. */
     val heartRateSamples: List<Pair<Long, Long>> = emptyList(),
-    val workoutOrdinal: Int = 0,
-    val weeklyStreak: Int = 0,
-    val dailyStreak: Int = 0,
+    val muscleIntensity: Map<com.enil.logez.core.domain.model.MuscleGroup, Float> = emptyMap(),
     val prMedals: List<PrMedal> = emptyList(),
     val exerciseLines: List<SummaryExerciseLine> = emptyList(),
     /** M11: CIRCUIT summaries add a "CIRCUIT · N rounds" line on screen and card. */

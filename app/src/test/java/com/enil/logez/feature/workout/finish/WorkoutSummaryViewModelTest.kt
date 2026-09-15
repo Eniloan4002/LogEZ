@@ -15,7 +15,6 @@ import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActivityTrackRepository
-import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
@@ -125,7 +124,6 @@ class WorkoutSummaryViewModelTest {
             settingsRepository = FakeSettingsRepository(),
             activityTrackRepository = trackRepo,
             heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
-            clock = FakeClock(),
         )
 
         val points = vm.uiState.value.routePoints
@@ -181,6 +179,41 @@ class WorkoutSummaryViewModelTest {
         )
 
         assertTrue(vm.uiState.value.routePoints.isEmpty())
+    }
+
+    @Test
+    fun `summary muscle diagram reflects included primary and secondary targets`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1")),
+            exercises = listOf(
+                workoutExercise("we-chest", "w1", exerciseId = "chest"),
+                workoutExercise("we-back", "w1", orderIndex = 1, exerciseId = "back"),
+            ),
+            sets = listOf(
+                aSet("s1", "we-chest", 0, reps = 8),
+                aSet("s2", "we-chest", 1, reps = 8),
+                aSet("s3", "we-back", 0, reps = 8),
+            ),
+        )
+        val vm = WorkoutSummaryViewModel(
+            savedStateHandle = SavedStateHandle(mapOf(WorkoutSummaryViewModel.WORKOUT_ID_ARG to "w1")),
+            workoutRepository = workoutRepo,
+            exerciseRepository = FakeExerciseRepository(
+                listOf(
+                    exercise("chest", MuscleGroup.CHEST, listOf(MuscleGroup.TRICEPS)),
+                    exercise("back", MuscleGroup.LATS),
+                ),
+            ),
+            personalRecordsRepository = FakePersonalRecordsRepository(),
+            settingsRepository = FakeSettingsRepository(),
+            activityTrackRepository = FakeActivityTrackRepository(),
+            heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+        )
+
+        val intensity = vm.uiState.value.muscleIntensity
+        assertEquals(1f, intensity.getValue(MuscleGroup.CHEST), 0.001f)
+        assertEquals(0.5f, intensity.getValue(MuscleGroup.LATS), 0.001f)
+        assertEquals(0.5f, intensity.getValue(MuscleGroup.TRICEPS), 0.001f)
     }
 
     @Test
@@ -253,7 +286,6 @@ class WorkoutSummaryViewModelTest {
         settingsRepository = FakeSettingsRepository(),
         activityTrackRepository = FakeActivityTrackRepository(),
         heartRateSampleRepository = heartRateRepo,
-        clock = FakeClock(),
     )
 
     private fun workout(id: String, structure: WorkoutStructure = WorkoutStructure.REGULAR) = WorkoutEntity(
@@ -262,8 +294,8 @@ class WorkoutSummaryViewModelTest {
         structure = structure,
     )
 
-    private fun workoutExercise(id: String, workoutId: String, orderIndex: Int = 0) = WorkoutExerciseEntity(
-        id = id, workoutId = workoutId, exerciseId = "ex-1", orderIndex = orderIndex, supersetGroup = null, restTimerSeconds = null, notes = null,
+    private fun workoutExercise(id: String, workoutId: String, orderIndex: Int = 0, exerciseId: String = "ex-1") = WorkoutExerciseEntity(
+        id = id, workoutId = workoutId, exerciseId = exerciseId, orderIndex = orderIndex, supersetGroup = null, restTimerSeconds = null, notes = null,
     )
 
     private fun aSet(
@@ -280,9 +312,13 @@ class WorkoutSummaryViewModelTest {
         customMetric = null, isCompleted = true, completedAt = 1L,
     )
 
-    private fun exercise(id: String) = Exercise(
-        id = id, name = "Ex $id", exerciseType = ExerciseType.WEIGHT_REPS, primaryMuscleGroup = MuscleGroup.CHEST,
-        secondaryMuscleGroups = emptyList(), equipment = Equipment.BARBELL, instructions = "", mediaPath = null,
+    private fun exercise(
+        id: String,
+        primary: MuscleGroup = MuscleGroup.CHEST,
+        secondary: List<MuscleGroup> = emptyList(),
+    ) = Exercise(
+        id = id, name = "Ex $id", exerciseType = ExerciseType.WEIGHT_REPS, primaryMuscleGroup = primary,
+        secondaryMuscleGroups = secondary, equipment = Equipment.BARBELL, instructions = "", mediaPath = null,
         isCustom = false, isBodyweightVolumeEligible = false, isDeleted = false, createdAt = 0, updatedAt = 0,
     )
 }
