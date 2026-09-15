@@ -59,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
@@ -766,14 +767,27 @@ private fun StepsScorecard(steps: Long, recentSteps: List<DailyStepCount>) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
         ) {
-            Column(modifier = Modifier.weight(0.8f)) {
-                Text(stringResource(R.string.workout_steps_scorecard_title), style = MaterialTheme.typography.titleMedium)
+            Column(
+                modifier = Modifier.weight(0.8f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                Text(
+                    text = stringResource(R.string.workout_steps_scorecard_title),
+                    style = LogEzMono.dataSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text(
                     "%,d".format(Locale.ROOT, steps),
-                    style = LogEzMono.dataLarge,
-                    modifier = Modifier.padding(top = Spacing.xs),
+                    style = LogEzMono.dataLarge.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             if (recentSteps.isNotEmpty()) {
