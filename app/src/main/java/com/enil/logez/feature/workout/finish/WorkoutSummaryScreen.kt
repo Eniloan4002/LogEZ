@@ -119,16 +119,17 @@ fun WorkoutSummaryScreen(
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     BodyDiagram(
                         intensity = uiState.muscleIntensity,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(0.8f),
                     )
                     MuscleBalanceRadar(
                         shares = uiState.muscleBalance,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1.2f),
+                        compact = true,
                     )
                 }
             }
@@ -192,6 +193,7 @@ fun WorkoutSummaryScreen(
                     repsText = if (uiState.hasReps) uiState.totalReps.toString() else null,
                     distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
                     muscleIntensity = uiState.muscleIntensity,
+                    muscleBalance = uiState.muscleBalance,
                     prs = uiState.prMedals,
                     // CIRCUIT drops the "N × " prefix — the card's own rounds line already says
                     // how many times the sequence ran; REGULAR keeps History's shape.

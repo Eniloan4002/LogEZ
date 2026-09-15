@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import com.enil.logez.R
 import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.RegionShare
@@ -28,7 +29,7 @@ import java.util.Locale
 /** Shared eight-region radar used by Statistics and the post-workout recap. */
 @OptIn(io.github.koalaplot.core.util.ExperimentalKoalaPlotApi::class)
 @Composable
-fun MuscleBalanceRadar(shares: List<RegionShare>, modifier: Modifier = Modifier) {
+fun MuscleBalanceRadar(shares: List<RegionShare>, modifier: Modifier = Modifier, compact: Boolean = false) {
     val radialMax = (shares.maxOfOrNull { it.sharePercent }?.times(1.1f) ?: 0f).coerceAtLeast(25f)
     val radialAxisModel = rememberFloatRadialAxisModel(listOf(0f, radialMax / 2f, radialMax))
     val angularAxisModel = rememberCategoryAngularAxisModel(BodyRegion.entries.toList())
@@ -45,7 +46,9 @@ fun MuscleBalanceRadar(shares: List<RegionShare>, modifier: Modifier = Modifier)
             Text(
                 bodyRegionAxisLabel(region).uppercase(Locale.getDefault()),
                 style = LogEzMono.dataSmall.copy(
-                    letterSpacing = 0.06.em,
+                    fontSize = if (compact) 9.sp else LogEzMono.dataSmall.fontSize,
+                    lineHeight = if (compact) 11.sp else LogEzMono.dataSmall.lineHeight,
+                    letterSpacing = if (compact) 0.em else 0.06.em,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 maxLines = 1,
@@ -57,7 +60,7 @@ fun MuscleBalanceRadar(shares: List<RegionShare>, modifier: Modifier = Modifier)
             radialGridType = RadialGridType.LINES,
             radialAxisGridLineStyle = axisLineStyle,
             angularAxisGridLineStyle = axisLineStyle,
-            angularLabelGap = Spacing.xs,
+            angularLabelGap = if (compact) 1.dp else Spacing.xs,
         ),
     ) {
         PolarPlotSeries(

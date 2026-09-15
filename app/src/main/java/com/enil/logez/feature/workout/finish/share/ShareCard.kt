@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.MuscleBalanceRadar
+import com.enil.logez.core.domain.calc.RegionShare
 import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.BodyDiagramRegions
 import com.enil.logez.core.designsystem.Gold500
@@ -56,6 +58,7 @@ data class ShareCardData(
     val repsText: String?,
     val distanceText: String? = null,
     val muscleIntensity: Map<MuscleGroup, Float>,
+    val muscleBalance: List<RegionShare>,
     val prs: List<PrMedal>,
     /**
      * REGULAR: History's "3 × Bench Press (Barbell)" shape. CIRCUIT: bare names in sequence order
@@ -133,10 +136,14 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     SectionHeader(stringResource(R.string.analytics_body_title))
-                    BodyDiagram(
-                        intensity = data.muscleIntensity,
-                        modifier = Modifier.padding(top = Spacing.xs).width(96.dp),
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BodyDiagram(data.muscleIntensity, Modifier.weight(0.8f))
+                        MuscleBalanceRadar(data.muscleBalance, Modifier.weight(1.2f), compact = true)
+                    }
                 }
             }
 
