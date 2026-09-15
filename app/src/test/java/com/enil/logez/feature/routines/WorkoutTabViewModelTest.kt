@@ -24,6 +24,7 @@ import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
+import com.enil.logez.feature.wellness.DailyStepCount
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -346,16 +347,23 @@ class WorkoutTabViewModelTest {
 
     @Test
     fun `refreshSteps reports today's steps once Health Connect is available and granted`() = runTest {
+        val clock = FakeClock()
+        val today = java.time.Instant.ofEpochMilli(clock.currentMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
         val healthMetricsSource = FakeHealthMetricsSource(
             availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
             permissionsGranted = true,
             totals = com.enil.logez.feature.wellness.DailyTotals(steps = 4_210L, caloriesBurned = null),
+            stepsHistory = listOf(DailyStepCount(today.minusDays(1), 3_200L)),
         )
-        val vm = newViewModel(FakeRoutineRepository(), healthMetricsSource = healthMetricsSource)
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, healthMetricsSource = healthMetricsSource)
 
         assertNull(vm.todaySteps.value) // never shows a stat before it's actually loaded
         vm.refreshSteps()
         assertEquals(4_210L, vm.todaySteps.value)
+        assertEquals(today.minusDays(6) to today, healthMetricsSource.queriedStepsRanges.single())
+        assertEquals(7, vm.recentSteps.value.size)
+        assertEquals(3_200L, vm.recentSteps.value[5].steps)
+        assertEquals(4_210L, vm.recentSteps.value.last().steps)
     }
 
     @Test
@@ -368,5 +376,6 @@ class WorkoutTabViewModelTest {
         vm.refreshSteps()
 
         assertNull(vm.todaySteps.value)
+        assertEquals(emptyList<DailyStepCount>(), vm.recentSteps.value)
     }
 }

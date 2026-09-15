@@ -15,6 +15,7 @@ import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.feature.wellness.DailyStepCount
 import com.enil.logez.feature.wellness.HealthMetricsSource
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
@@ -50,16 +51,38 @@ class WorkoutTabViewModel @Inject constructor(
     private val _quickTrackExercises = MutableStateFlow<QuickTrackExercises?>(null)
 
     private val _todaySteps = MutableStateFlow<Long?>(null)
+    private val _recentSteps = MutableStateFlow<List<DailyStepCount>>(emptyList())
 
     /** M21: the tab's own steps scorecard -- absent (null), not zero, whenever Health Connect has nothing to show (same graceful-degrade rule as the Profile wellness card). */
     val todaySteps: StateFlow<Long?> = _todaySteps.asStateFlow()
+
+    /** Seven calendar days ending today, including explicit zeroes for days with no returned data. */
+    val recentSteps: StateFlow<List<DailyStepCount>> = _recentSteps.asStateFlow()
 
     /** Called via `RefreshOnResume` so the scorecard reflects new steps without requiring a full tab re-entry. */
     fun refreshSteps() {
         viewModelScope.launch {
             val available = healthMetricsSource.availability() == HealthConnectAvailability.Available &&
                 healthMetricsSource.hasAllPermissions()
-            _todaySteps.value = if (available) healthMetricsSource.readTodayTotals().steps else null
+            if (!available) {
+                _todaySteps.value = null
+                _recentSteps.value = emptyList()
+                return@launch
+            }
+
+            val today = Instant.ofEpochMilli(clock.now().toEpochMilliseconds())
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+            val start = today.minusDays(6)
+            val totals = healthMetricsSource.readTodayTotals()
+            val stepsByDate = healthMetricsSource.readStepsHistory(start, today)
+                .associate { it.date to it.steps }
+
+            _todaySteps.value = totals.steps
+            _recentSteps.value = (0L..6L).map { offset ->
+                val date = start.plusDays(offset)
+                DailyStepCount(date, if (date == today) totals.steps else stepsByDate[date] ?: 0L)
+            }
         }
     }
 

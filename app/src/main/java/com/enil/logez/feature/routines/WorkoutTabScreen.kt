@@ -1,6 +1,7 @@
 package com.enil.logez.feature.routines
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -48,10 +50,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
@@ -75,9 +82,11 @@ import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.feature.activity.rememberRequestLocationForTracking
 import com.enil.logez.feature.activity.startActivityTrackingService
+import com.enil.logez.feature.wellness.DailyStepCount
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import java.util.Locale
+import java.time.format.TextStyle
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -105,6 +114,7 @@ fun WorkoutTabScreen(
     val goalsUiState by goalsViewModel.uiState.collectAsStateWithLifecycle()
     val quickTrackExercises by viewModel.quickTrackExercises.collectAsStateWithLifecycle()
     val todaySteps by viewModel.todaySteps.collectAsStateWithLifecycle()
+    val recentSteps by viewModel.recentSteps.collectAsStateWithLifecycle()
     RefreshOnResume(goalsViewModel::refresh)
     RefreshOnResume(viewModel::refreshSteps)
     val context = LocalContext.current
@@ -315,7 +325,7 @@ fun WorkoutTabScreen(
             // nothing to show -- same graceful-degrade rule as the Profile wellness card.
             todaySteps?.let { steps ->
                 item {
-                    StepsScorecard(steps)
+                    StepsScorecard(steps, recentSteps)
                 }
             }
 
@@ -751,15 +761,68 @@ private fun StreakChip(value: Int, pluralsRes: Int) {
 
 /** M21: today's step count, sourced from Health Connect -- a passive scorecard, same visual weight as the heatmap card above it. Never rendered at all when Health Connect has nothing to show (see the `todaySteps?.let` call site). */
 @Composable
-private fun StepsScorecard(steps: Long) {
+private fun StepsScorecard(steps: Long, recentSteps: List<DailyStepCount>) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-        Column(modifier = Modifier.padding(Spacing.md)) {
-            Text(stringResource(R.string.workout_steps_scorecard_title), style = MaterialTheme.typography.titleMedium)
-            Text(
-                "%,d".format(Locale.ROOT, steps),
-                style = LogEzMono.dataLarge,
-                modifier = Modifier.padding(top = Spacing.xs),
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(0.8f)) {
+                Text(stringResource(R.string.workout_steps_scorecard_title), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "%,d".format(Locale.ROOT, steps),
+                    style = LogEzMono.dataLarge,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+            }
+            if (recentSteps.isNotEmpty()) {
+                SevenDayStepsChart(recentSteps, Modifier.weight(1.2f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SevenDayStepsChart(steps: List<DailyStepCount>, modifier: Modifier = Modifier) {
+    val barColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
+    val todayColor = MaterialTheme.colorScheme.primary
+    val maxSteps = steps.maxOfOrNull { it.steps }?.coerceAtLeast(1L) ?: 1L
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+        Text(
+            text = stringResource(R.string.workout_steps_last_seven_days),
+            style = LogEzMono.dataSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        Canvas(modifier = Modifier.fillMaxWidth().height(64.dp)) {
+            val slotWidth = size.width / steps.size
+            val barWidth = slotWidth * 0.48f
+            val minimumBarHeight = 2.dp.toPx()
+            steps.forEachIndexed { index, day ->
+                val height = if (day.steps == 0L) minimumBarHeight else {
+                    (size.height * day.steps.toFloat() / maxSteps.toFloat()).coerceAtLeast(minimumBarHeight)
+                }
+                drawRoundRect(
+                    color = if (index == steps.lastIndex) todayColor else barColor,
+                    topLeft = Offset(index * slotWidth + (slotWidth - barWidth) / 2f, size.height - height),
+                    size = Size(barWidth, height),
+                    cornerRadius = CornerRadius(3.dp.toPx()),
+                )
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth()) {
+            steps.forEach { day ->
+                Text(
+                    text = day.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                    style = LogEzMono.dataSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

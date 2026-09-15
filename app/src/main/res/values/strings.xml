@@ -227,6 +227,7 @@
     <string name="workout_tab_title">Workout</string>
     <string name="workout_heatmap_title">Progress</string>
     <string name="workout_steps_scorecard_title">Steps Today</string>
+    <string name="workout_steps_last_seven_days">Past 7 days</string>
     <string name="workout_new_folder">New folder</string>
     <string name="workout_new_routine">New routine</string>
     <string name="workout_start_empty">Start Empty Workout</string>
