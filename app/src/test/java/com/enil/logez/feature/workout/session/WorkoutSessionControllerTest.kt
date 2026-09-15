@@ -45,6 +45,43 @@ class WorkoutSessionControllerTest {
     }
 
     @Test
+    fun `empty workout session waits at zero for its first exercise and persists that mode`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(repo, clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+
+        controller.startSession("w1", waitForFirstExercise = true)
+        clock.currentMillis = 70_000L
+
+        assertTrue(controller.state.value.isPaused)
+        assertTrue(controller.state.value.isEmptyWorkoutTimerMode)
+        assertEquals(0L, controller.elapsedSeconds())
+        assertTrue(repo.snapshot.isEmptyWorkoutTimerMode)
+        assertNull(repo.snapshot.lastResumedAtMillis)
+    }
+
+    @Test
+    fun `resetElapsedTime can restart or hold an empty workout at zero`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(repo, clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        controller.startSession("w1", waitForFirstExercise = true)
+
+        controller.resume()
+        clock.currentMillis = 45_000L
+        controller.resetElapsedTime(paused = false)
+        assertEquals(0L, controller.elapsedSeconds())
+        assertTrue(!controller.state.value.isPaused)
+
+        clock.currentMillis = 60_000L
+        controller.resetElapsedTime(paused = true)
+        clock.currentMillis = 90_000L
+        assertEquals(0L, controller.elapsedSeconds())
+        assertTrue(repo.snapshot.isPaused)
+        assertTrue(repo.snapshot.isEmptyWorkoutTimerMode)
+    }
+
+    @Test
     fun `pause persists before returning, so a lost write can't rehydrate a stale un-paused snapshot`() = runTest {
         val repo = FakeActiveSessionRepository()
         val clock = FakeClock(currentMillis = 0L)
@@ -185,7 +222,7 @@ class WorkoutSessionControllerTest {
     @Test
     fun `rehydrate restores a persisted snapshot -- process-death recovery`() = runTest {
         val repo = FakeActiveSessionRepository()
-        repo.startSession("w1", 5_000L)
+        repo.startSession("w1", 5_000L, isEmptyWorkoutTimerMode = false)
         repo.updateRestTimer(20_000L, "we1")
         val controller = WorkoutSessionController(repo, FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
 

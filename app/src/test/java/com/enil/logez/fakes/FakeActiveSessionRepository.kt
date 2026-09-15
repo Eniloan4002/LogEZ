@@ -10,8 +10,13 @@ class FakeActiveSessionRepository(initial: ActiveSessionSnapshot = ActiveSession
 
     override suspend fun getSnapshot(): ActiveSessionSnapshot = snapshot
 
-    override suspend fun startSession(workoutId: String, lastResumedAtMillis: Long) {
-        snapshot = ActiveSessionSnapshot(workoutId = workoutId, lastResumedAtMillis = lastResumedAtMillis)
+    override suspend fun startSession(workoutId: String, lastResumedAtMillis: Long?, isEmptyWorkoutTimerMode: Boolean) {
+        snapshot = ActiveSessionSnapshot(
+            workoutId = workoutId,
+            isPaused = lastResumedAtMillis == null,
+            lastResumedAtMillis = lastResumedAtMillis,
+            isEmptyWorkoutTimerMode = isEmptyWorkoutTimerMode,
+        )
     }
 
     override suspend fun clearSession() {

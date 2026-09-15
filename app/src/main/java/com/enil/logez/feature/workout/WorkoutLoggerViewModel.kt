@@ -783,6 +783,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     /** Adds exercises with auto-fill from the last COMPLETED session, or one blank set if never logged (§5.1.3). */
     fun addExercises(picked: List<Exercise>) {
         viewModelScope.launch {
+            val wasEmpty = exercises.value.isEmpty()
             val settings = settingsRepository.settings.first()
             val startIndex = exercises.value.size
             // M11: a circuit newcomer joins every EXISTING round — exactly that many rows, no more
@@ -844,12 +845,20 @@ class WorkoutLoggerViewModel @Inject constructor(
                 workoutRepository.insertWorkoutExercises(newExerciseEntities)
                 workoutRepository.insertWorkoutSets(newSetEntities)
             }
+            if (wasEmpty && newModels.isNotEmpty() && sessionController.state.value.isEmptyWorkoutTimerMode) {
+                sessionController.resume()
+            }
         }
     }
 
     fun removeExercise(exerciseId: String) {
+        val before = exercises.value
+        val removedStartingExercise = before.firstOrNull()?.id == exerciseId
         updateExercises { list -> cleanupOrphanSupersets(list.filterNot { it.id == exerciseId }) }
         persist { workoutRepository.deleteWorkoutExercise(exerciseId) }
+        if (removedStartingExercise && isEmptyWorkoutGraceActive()) {
+            viewModelScope.launch { sessionController.resetElapsedTime(paused = exercises.value.isEmpty()) }
+        }
     }
 
     /**
@@ -859,6 +868,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      * so it's unconditional here regardless of whether a dialog warned the user first.
      */
     fun replaceExercise(exerciseId: String, newExercise: Exercise) {
+        val replacedStartingExercise = exercises.value.firstOrNull()?.id == exerciseId
         val oldExercise = exercises.value.find { it.id == exerciseId } ?: return
         val carriedSets = oldExercise.sets.map {
             it.carryOverTo(oldExercise.exerciseType, newExercise.exerciseType).copy(isCompleted = false)
@@ -872,7 +882,14 @@ class WorkoutLoggerViewModel @Inject constructor(
             val entities = carriedSets.mapIndexed { index, s -> s.toEntity(exerciseId).copy(orderIndex = index, isCompleted = false, completedAt = null) }
             workoutRepository.replaceWorkoutExerciseExercise(exerciseId, newExercise.id, entities)
         }
+        if (replacedStartingExercise && isEmptyWorkoutGraceActive()) {
+            viewModelScope.launch { sessionController.resetElapsedTime(paused = false) }
+        }
     }
+
+    private fun isEmptyWorkoutGraceActive(): Boolean =
+        sessionController.state.value.isEmptyWorkoutTimerMode &&
+            sessionController.elapsedSeconds() < EMPTY_WORKOUT_TIMER_GRACE_SECONDS
 
     /**
      * Applies a drag-reorder drop. Ids the caller does not name keep their relative order after the
@@ -1052,6 +1069,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     companion object {
         const val WORKOUT_ID_ARG = "workoutId"
         const val EDIT_MODE_ARG = "editMode"
+        private const val EMPTY_WORKOUT_TIMER_GRACE_SECONDS = 5 * 60L
     }
 }
 

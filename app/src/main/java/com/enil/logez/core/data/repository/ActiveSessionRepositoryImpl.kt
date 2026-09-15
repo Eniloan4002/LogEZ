@@ -21,6 +21,7 @@ class ActiveSessionRepositoryImpl @Inject constructor(
         val IS_PAUSED = booleanPreferencesKey("isPaused")
         val ACCUMULATED_ACTIVE_SECONDS = longPreferencesKey("accumulatedActiveSeconds")
         val LAST_RESUMED_AT_MILLIS = longPreferencesKey("lastResumedAtMillis")
+        val IS_EMPTY_WORKOUT_TIMER_MODE = booleanPreferencesKey("isEmptyWorkoutTimerMode")
         val REST_DEADLINE_ELAPSED_REALTIME_MILLIS = longPreferencesKey("restDeadlineElapsedRealtimeMillis")
         val REST_EXERCISE_ID = stringPreferencesKey("restExerciseId")
     }
@@ -32,18 +33,20 @@ class ActiveSessionRepositoryImpl @Inject constructor(
             isPaused = prefs[Keys.IS_PAUSED] ?: false,
             accumulatedActiveSeconds = prefs[Keys.ACCUMULATED_ACTIVE_SECONDS] ?: 0L,
             lastResumedAtMillis = prefs[Keys.LAST_RESUMED_AT_MILLIS],
+            isEmptyWorkoutTimerMode = prefs[Keys.IS_EMPTY_WORKOUT_TIMER_MODE] ?: false,
             restDeadlineElapsedRealtimeMillis = prefs[Keys.REST_DEADLINE_ELAPSED_REALTIME_MILLIS],
             restExerciseId = prefs[Keys.REST_EXERCISE_ID],
         )
     }
 
-    override suspend fun startSession(workoutId: String, lastResumedAtMillis: Long) {
+    override suspend fun startSession(workoutId: String, lastResumedAtMillis: Long?, isEmptyWorkoutTimerMode: Boolean) {
         dataStore.edit { prefs ->
             prefs.clear()
             prefs[Keys.WORKOUT_ID] = workoutId
-            prefs[Keys.IS_PAUSED] = false
+            prefs[Keys.IS_PAUSED] = lastResumedAtMillis == null
             prefs[Keys.ACCUMULATED_ACTIVE_SECONDS] = 0L
-            prefs[Keys.LAST_RESUMED_AT_MILLIS] = lastResumedAtMillis
+            prefs[Keys.IS_EMPTY_WORKOUT_TIMER_MODE] = isEmptyWorkoutTimerMode
+            if (lastResumedAtMillis != null) prefs[Keys.LAST_RESUMED_AT_MILLIS] = lastResumedAtMillis
         }
     }
 

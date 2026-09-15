@@ -817,6 +817,71 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
+    fun `empty workout timer starts on first exercise and resets when that exercise is replaced during grace`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(
+            clock = clock,
+            sessionController = controller,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Squat"))),
+        )
+
+        clock.currentMillis = 70_000L
+        assertEquals(0L, controller.elapsedSeconds())
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        clock.currentMillis = 80_000L
+        assertEquals(10L, controller.elapsedSeconds())
+
+        val startingBlockId = vm.uiState.value.exercises.single().id
+        vm.replaceExercise(startingBlockId, exercise("ex-2", "Squat"))
+
+        assertEquals(0L, controller.elapsedSeconds())
+        assertFalse(controller.state.value.isPaused)
+    }
+
+    @Test
+    fun `empty workout grace no longer resets the timer after five minutes`() = runTest {
+        val clock = FakeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(
+            clock = clock,
+            sessionController = controller,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Squat"))),
+        )
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        clock.currentMillis = 300_000L
+
+        val startingBlockId = vm.uiState.value.exercises.single().id
+        vm.replaceExercise(startingBlockId, exercise("ex-2", "Squat"))
+
+        assertEquals(300L, controller.elapsedSeconds())
+    }
+
+    @Test
+    fun `removing the only starting exercise during grace resets and pauses until another is added`() = runTest {
+        val clock = FakeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(clock = clock, sessionController = controller)
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        clock.currentMillis = 40_000L
+
+        vm.removeExercise(vm.uiState.value.exercises.single().id)
+        clock.currentMillis = 90_000L
+
+        assertEquals(0L, controller.elapsedSeconds())
+        assertTrue(controller.state.value.isPaused)
+    }
+
+    @Test
     fun `addExercises seeds one blank set when the exercise has never been logged`() = runTest {
         val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press")))
         val vm = newViewModel(exerciseRepo = exerciseRepo)

@@ -207,7 +207,7 @@ class WorkoutTabViewModel @Inject constructor(
 
     suspend fun startEmptyWorkout(): StartResult {
         val result = workoutStarter.startEmptyOrConflict()
-        if (result is StartResult.Started) sessionController.startSession(result.workoutId)
+        if (result is StartResult.Started) sessionController.startSession(result.workoutId, waitForFirstExercise = true)
         return result
     }
 
@@ -221,7 +221,7 @@ class WorkoutTabViewModel @Inject constructor(
         workoutStarter.discardInProgress()
         sessionController.endSession()
         val id = workoutStarter.startEmpty()
-        sessionController.startSession(id)
+        sessionController.startSession(id, waitForFirstExercise = true)
         return id
     }
 

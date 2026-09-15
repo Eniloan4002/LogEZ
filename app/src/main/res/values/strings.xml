@@ -353,7 +353,6 @@
     <string name="routine_builder_col_time">TIME</string>
     <string name="routine_builder_col_distance">DISTANCE</string>
 
-    <string name="workout_logger_stats">%1$s · %2$d sets · %3$s</string>
     <string name="workout_finish">Finish</string>
     <string name="workout_discard">Discard Workout</string>
     <string name="workout_finish_confirm_title">Finish this workout?</string>

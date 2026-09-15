@@ -11,6 +11,7 @@ data class ActiveSessionSnapshot(
     val isPaused: Boolean = false,
     val accumulatedActiveSeconds: Long = 0L,
     val lastResumedAtMillis: Long? = null,
+    val isEmptyWorkoutTimerMode: Boolean = false,
     val restDeadlineElapsedRealtimeMillis: Long? = null,
     val restExerciseId: String? = null,
 )

@@ -32,6 +32,7 @@ data class WorkoutSessionState(
     val isPaused: Boolean = false,
     val accumulatedActiveSeconds: Long = 0L,
     val lastResumedAtMillis: Long? = null,
+    val isEmptyWorkoutTimerMode: Boolean = false,
     val restDeadlineElapsedRealtimeMillis: Long? = null,
     val restExerciseId: String? = null,
     val inlineTimer: InlineTimerState? = null,
@@ -89,6 +90,7 @@ class WorkoutSessionController @Inject constructor(
                 isPaused = snapshot.isPaused,
                 accumulatedActiveSeconds = snapshot.accumulatedActiveSeconds,
                 lastResumedAtMillis = snapshot.lastResumedAtMillis,
+                isEmptyWorkoutTimerMode = snapshot.isEmptyWorkoutTimerMode,
                 restDeadlineElapsedRealtimeMillis = snapshot.restDeadlineElapsedRealtimeMillis,
                 restExerciseId = snapshot.restExerciseId,
             )
@@ -104,10 +106,16 @@ class WorkoutSessionController @Inject constructor(
      * notification's "Complete set" action and freezing the elapsed-time display) with no way to
      * recover short of restarting the app.
      */
-    suspend fun startSession(workoutId: String) {
+    suspend fun startSession(workoutId: String, waitForFirstExercise: Boolean = false) {
         val now = clock.now().toEpochMilliseconds()
-        _state.value = WorkoutSessionState(workoutId = workoutId, lastResumedAtMillis = now)
-        activeSessionRepository.startSession(workoutId, now)
+        val resumedAt = now.takeUnless { waitForFirstExercise }
+        _state.value = WorkoutSessionState(
+            workoutId = workoutId,
+            isPaused = waitForFirstExercise,
+            lastResumedAtMillis = resumedAt,
+            isEmptyWorkoutTimerMode = waitForFirstExercise,
+        )
+        activeSessionRepository.startSession(workoutId, resumedAt, waitForFirstExercise)
     }
 
     /** Finish/discard — clears both in-memory and persisted session state. */
@@ -135,6 +143,17 @@ class WorkoutSessionController @Inject constructor(
         val now = clock.now().toEpochMilliseconds()
         _state.update { it.copy(isPaused = false, lastResumedAtMillis = now) }
         activeSessionRepository.updateDurationBookkeeping(false, s.accumulatedActiveSeconds, now)
+    }
+
+    /** Restarts the visible session clock while preserving the workout and empty-workout mode. */
+    suspend fun resetElapsedTime(paused: Boolean) {
+        val s = _state.value
+        if (s.workoutId == null) return
+        val resumedAt = clock.now().toEpochMilliseconds().takeUnless { paused }
+        _state.update {
+            it.copy(isPaused = paused, accumulatedActiveSeconds = 0L, lastResumedAtMillis = resumedAt)
+        }
+        activeSessionRepository.updateDurationBookkeeping(paused, 0L, resumedAt)
     }
 
     fun elapsedSeconds(nowMillis: Long = clock.now().toEpochMilliseconds()): Long {

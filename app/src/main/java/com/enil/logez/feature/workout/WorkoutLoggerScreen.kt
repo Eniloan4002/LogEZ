@@ -245,12 +245,12 @@ fun WorkoutLoggerScreen(
                             // Box(weight) + a maxLines/ellipsis cap + a hand-built compact chip
                             // (not AssistChip's padding) both fix that.
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                                Box(modifier = Modifier.weight(1f, fill = false).clickable { timerMenuExpanded = true }) {
-                                    WorkoutStatsText(
-                                        elapsedSecondsFlow = viewModel.elapsedSecondsFlow,
-                                        completedSetCount = uiState.completedSetCount,
-                                        totalVolumeKg = uiState.totalVolumeKg,
-                                    )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f, fill = false)
+                                        .clickable(enabled = uiState.exercises.isNotEmpty()) { timerMenuExpanded = true },
+                                ) {
+                                    WorkoutStatsText(elapsedSecondsFlow = viewModel.elapsedSecondsFlow)
                                 }
                                 DropdownMenu(expanded = timerMenuExpanded, onDismissRequest = { timerMenuExpanded = false }) {
                                     DropdownMenuItem(
@@ -258,13 +258,9 @@ fun WorkoutLoggerScreen(
                                         onClick = { timerMenuExpanded = false; viewModel.togglePause() },
                                     )
                                 }
-                                if (uiState.restExerciseId != null) {
-                                    RestTimerChip(viewModel.restRemainingMillisFlow)
-                                }
                                 // M21f: absent whenever Health Connect has nothing to show (not
                                 // connected, no permission, no wearable data) -- HeartRateChip
-                                // itself returns early on a null value, same `?: return` shape as
-                                // RestTimerChip above.
+                                // itself returns early on a null value.
                                 HeartRateChip(viewModel.liveBpmFlow)
                             }
                         }
@@ -637,42 +633,17 @@ private suspend fun LazyListState.animateScrollToItemInterruptible(index: Int) {
 
 /** Leaf composable (spine rule) — the only thing that recomposes every second is this Text, not the whole TopAppBar. */
 @Composable
-private fun WorkoutStatsText(elapsedSecondsFlow: Flow<Long>, completedSetCount: Int, totalVolumeKg: Double) {
+private fun WorkoutStatsText(elapsedSecondsFlow: Flow<Long>) {
     val elapsedSeconds by elapsedSecondsFlow.collectAsStateWithLifecycle(0L)
     Text(
-        stringResource(R.string.workout_logger_stats, formatElapsed(elapsedSeconds), completedSetCount, formatVolume(totalVolumeKg)),
+        formatElapsed(elapsedSeconds),
         style = LogEzMono.dataSmall,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
 }
 
-/**
- * Leaf composable — the compact top-bar rest countdown chip. Hand-built rather than Material3's
- * `AssistChip`: that component's spec padding/min-height read as visually heavy next to
- * [WorkoutStatsText]'s small mono readout and pushed the row wider than the TopAppBar's title slot
- * has room for (Owner: "make it fit").
- */
-@Composable
-private fun RestTimerChip(restRemainingMillisFlow: Flow<Long?>, modifier: Modifier = Modifier) {
-    val remainingMillis by restRemainingMillisFlow.collectAsStateWithLifecycle(null)
-    val remainingSeconds = remainingMillis?.let { (it + 999) / 1000 } ?: return
-    Surface(
-        shape = RoundedCornerShape(Radius.pill),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-        modifier = modifier,
-    ) {
-        Text(
-            "${stringResource(R.string.workout_rest_timer_label)} ${formatElapsed(remainingSeconds)}",
-            style = LogEzMono.dataSmall,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
-        )
-    }
-}
-
-/** M21f: same compact-chip shape as [RestTimerChip] (an `AssistChip` reads too heavy in this row). */
+/** Compact live-heart-rate chip beside the session timer. */
 @Composable
 private fun HeartRateChip(liveBpmFlow: Flow<HeartRateSample?>, modifier: Modifier = Modifier) {
     val sample by liveBpmFlow.collectAsStateWithLifecycle(null)
