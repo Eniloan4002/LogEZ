@@ -817,6 +817,39 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
+    fun `exercise added to an empty-start workout gets one blank row while keeping previous context`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val previous = mapOf(
+            "ex-1" to listOf(
+                StatSet(setId = "old1", workoutId = "old", workoutStartedAt = 1L, orderIndex = 0, setType = SetType.NORMAL, weightKg = 55.0, reps = 9, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = 8.0, routineId = null),
+                StatSet(setId = "old2", workoutId = "old", workoutStartedAt = 1L, orderIndex = 1, setType = SetType.NORMAL, weightKg = 60.0, reps = 7, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = 9.0, routineId = null),
+            ),
+        )
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            statSetsByExercise = previous,
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            clock = clock,
+            sessionController = controller,
+        )
+
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+
+        val set = vm.uiState.value.exercises.single().sets.single()
+        assertNull(set.weightKg)
+        assertNull(set.reps)
+        assertEquals("55 kg x 9", set.previousLabel)
+        assertEquals(1, workoutRepo.getSetsForWorkoutExercise(vm.uiState.value.exercises.single().id).size)
+    }
+
+    @Test
     fun `empty workout timer starts on first exercise and resets when that exercise is replaced during grace`() = runTest {
         val clock = FakeClock(currentMillis = 10_000L)
         val controller = WorkoutSessionController(

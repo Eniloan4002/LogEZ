@@ -780,7 +780,11 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     // --- Exercise ops ---
 
-    /** Adds exercises with auto-fill from the last COMPLETED session, or one blank set if never logged (§5.1.3). */
+    /**
+     * Adds exercises with auto-fill from the last COMPLETED session. Workouts explicitly started
+     * empty always begin each added exercise with one blank row; its PREVIOUS label remains useful,
+     * but historical set count and entered values must not become the new workout's prescription.
+     */
     fun addExercises(picked: List<Exercise>) {
         viewModelScope.launch {
             val wasEmpty = exercises.value.isEmpty()
@@ -803,7 +807,18 @@ class WorkoutLoggerViewModel @Inject constructor(
                     workout.value?.routineId,
                     beforeStartedAt = if (isEditMode) workout.value?.startedAt else null,
                 ).sortedBy { it.orderIndex }
-                val sets = if (circuitRounds != null) {
+                val sets = if (sessionController.state.value.isEmptyWorkoutTimerMode) {
+                    val p = previous.firstOrNull()
+                    listOf(
+                        WorkoutSetUiModel(
+                            id = UUID.randomUUID().toString(),
+                            previousLabel = p?.let {
+                                PreviousValueFormatter.format(it, exercise.exerciseType, settings.weightUnit, settings.distanceUnit)
+                            } ?: "—",
+                            previousRpeLabel = p?.let { PreviousValueFormatter.formatRpeLine(it) },
+                        ),
+                    )
+                } else if (circuitRounds != null) {
                     List(circuitRounds) { i ->
                         // By round (orderIndex), not list position — same purge-gap rule as init.
                         val p = previous.find { it.orderIndex == i }
