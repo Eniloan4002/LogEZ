@@ -13,7 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/** M21a — a vendor-SDK, builder-constructed client, the same shape as `BillingModule`. */
+/** M21a — a vendor-SDK, builder-constructed client (needs its own module since it can't have an `@Inject constructor`). */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class ActivityTrackingModule {

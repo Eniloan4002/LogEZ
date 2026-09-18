@@ -20,7 +20,6 @@ datastorePreferences = "1.1.7"
 kotlinxCoroutines = "1.9.0"
 kotlinxSerializationJson = "1.9.0"
 kotlinxDatetime = "0.7.1"
-billing = "9.1.0" # ADR-0008 — verify against https://developer.android.com/google/play/billing/release-notes before bumping
 reorderable = "3.1.0" # M20a — https://github.com/Calvin-LL/Reorderable/releases; re-attempt of the M3 library (see vault lessons-learned 2026-08-23: scroll gate)
 coil = "3.5.0" # M20b — https://github.com/coil-kt/coil/releases; the plan's 3.6.2 pick FAILED the AAR-metadata check (needs compileSdk 37, drags in Compose 1.12.0) — 3.5.0 resolves Compose Multiplatform 1.11.1 (matches our BOM) and is the named fallback
 koalaplot = "0.12.1" # M20c (ADR-0009) — https://github.com/KoalaPlot/koalaplot-core/releases; built with Kotlin 2.4.10 — spike on our pinned 2.3.0
@@ -74,7 +73,6 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 
-billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 

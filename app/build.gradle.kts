@@ -132,10 +132,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 
-    // ADR-0008: entitlement checks only -- no network calls of its own. As of M21 (2026-09-12) this
-    // is no longer the only network-adjacent dependency in the app; see the MapLibre entry below.
-    implementation(libs.billing.ktx)
-
     // M20a: long-press drag reorder for routine/exercise lists — replaces the arrow-button
     // reorder mode. Re-attempt of the M3 library (removed then for blocking scroll — lessons 2026-08-23).
     implementation(libs.reorderable)
