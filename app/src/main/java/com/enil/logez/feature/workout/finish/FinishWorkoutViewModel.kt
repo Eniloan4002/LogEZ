@@ -16,10 +16,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.1.8(a) Save Workout screen + (b) the conditional Update-Routine prompt.
- * Nothing here is persisted until [save] runs — §5.1.8's edge case is explicit that "killing the
- * app on the Save screen leaves the workout IN_PROGRESS (recoverable)", so this screen is pure
- * in-memory draft state over a workout that is still live.
+ * Backs the Save Workout screen (title/date/duration) and the conditional "update this routine to
+ * match?" prompt shown when a workout diverged from the routine it started from. Nothing here is
+ * persisted until [save] runs — killing the app on this screen leaves the workout `IN_PROGRESS`
+ * (recoverable), so this screen is pure in-memory draft state over a workout that is still live.
  */
 @HiltViewModel
 class FinishWorkoutViewModel @Inject constructor(

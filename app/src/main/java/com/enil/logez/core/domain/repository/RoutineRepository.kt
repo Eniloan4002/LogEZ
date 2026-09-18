@@ -8,6 +8,7 @@ import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Routines and the folders that organize them. */
 interface RoutineRepository {
     fun observeFolders(): Flow<List<RoutineFolderEntity>>
     suspend fun getFolderById(id: String): RoutineFolderEntity?

@@ -14,16 +14,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.1.3 in-app mini-bar — "docked above the bottom tab bar on all tab screens".
- * Lives at the [com.enil.logez.LogEzApp] root (Activity-scoped, outside the Logger's own nav
- * back-stack entry) so it survives navigating away from the Logger, which — per M4a's own
- * `handleBack` — pops that destination off the stack (destroying its ViewModel); Room + the
- * controller-backed session state are the actual source of truth either way (spine write-through
- * rule). Elapsed/rest-countdown are exposed as separate `Flow`s, not folded into [uiState] — see
- * [WorkoutLoggerViewModel]'s equivalent doc: folding a per-second self-ticking flow into an
- * Eagerly-shared StateFlow starts it the instant this ViewModel is constructed (Activity-scoped —
- * i.e. for the app's entire foreground lifetime) and recomposes the whole bar every second instead
- * of just its digits.
+ * Backs the mini-bar docked above the bottom tab bar, showing a summary of an in-progress workout
+ * while the user is elsewhere in the app. Lives at the [com.enil.logez.LogEzApp] root
+ * (Activity-scoped, outside the Logger's own nav back-stack entry) so it survives navigating away
+ * from the Logger, which pops that destination off the stack (destroying its ViewModel); Room and
+ * the controller-backed session state are the real source of truth either way. Elapsed/rest
+ * countdown are exposed as separate `Flow`s, not folded into [uiState] — see
+ * [WorkoutLoggerViewModel]'s equivalent doc comment: folding a per-second self-ticking flow into an
+ * eagerly-shared StateFlow would start it the instant this Activity-scoped ViewModel is
+ * constructed (i.e. for the app's entire foreground lifetime) and recompose the whole bar every
+ * second instead of just its digits.
  */
 @HiltViewModel
 class MiniBarViewModel @Inject constructor(

@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 
 /**
- * M20a: keeps a screen's optimistic reorder list in step with the ViewModel's list.
+ * Keeps a screen's optimistic reorder list in step with the ViewModel's list.
  *
  * `sh.calvin.reorderable` calls `onMove` on every hover swap and expects the list it renders to
  * already reflect the move, so each reorderable screen renders a `mutableStateListOf` copy that

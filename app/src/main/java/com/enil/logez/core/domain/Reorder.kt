@@ -1,7 +1,7 @@
 package com.enil.logez.core.domain
 
 /**
- * M20a: the one way a drag-reorder drop is applied to an in-memory list.
+ * The one way a drag-reorder drop is applied to an in-memory list.
  *
  * Returns this list permuted so the items whose [id] appears in [orderedIds] come first, in that
  * order, followed by every item [orderedIds] does not name, in their existing relative order. Ids

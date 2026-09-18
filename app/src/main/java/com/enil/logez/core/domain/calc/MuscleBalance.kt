@@ -3,10 +3,10 @@ package com.enil.logez.core.domain.calc
 import com.enil.logez.core.domain.model.MuscleGroup
 
 /**
- * M20c (ADR-0009) — the 8 body regions the Statistics screen's muscle-balance radar wheel plots.
- * [MuscleGroup] has 20 raw values, four of which aren't body regions at all (see
- * [toBodyRegion]); the remaining 16 are grouped into these 8 for a readable wheel (Owner's choice,
- * 2026-09-08 structured question, over the 16-raw-groups alternative). Declared in the fixed order
+ * The 8 body regions the Statistics/recap muscle-balance radar wheels plot (see
+ * `documentation/adr/0003-koalaplot-radar-chart-exception.md`). [MuscleGroup] has 20 raw values,
+ * four of which aren't body regions at all (see [toBodyRegion]); the remaining 16 are grouped into
+ * these 8 for a readable wheel rather than plotting all 16 raw groups. Declared in the fixed order
  * the wheel's spokes render in.
  */
 enum class BodyRegion { CHEST, BACK, SHOULDERS, ARMS, CORE, QUADS, HAMSTRINGS_GLUTES, LOWER_LEG }

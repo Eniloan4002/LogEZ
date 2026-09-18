@@ -26,11 +26,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.1.8(c) post-save summary: total volume, completed sets, total reps, duration,
- * targeted muscles and one medal per PR achieved. Reads the already-COMPLETED
- * workout — every number here is derived from persisted rows, never from live logger state, so
- * the screen shows exactly what was saved (the milestone's own acceptance criterion is "summary
- * matches logged data").
+ * Backs the post-save workout summary: total volume, completed sets, total reps, duration,
+ * targeted muscles, and one medal per PR achieved. Reads the already-`COMPLETED` workout — every
+ * number here is derived from persisted rows, never from live logger state, so the screen always
+ * shows exactly what was saved.
  *
  * Stat parity invariant: the share card never shows a stat the summary screen doesn't — both
  * surfaces render the same Duration/Volume/Sets/Reps/Distance values from this one UiState, so

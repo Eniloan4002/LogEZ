@@ -91,10 +91,11 @@ private data class SettingsFlags(
 )
 
 /**
- * PHASE2_PLAN.md §5.1.3/§5.1.4/§9.2-§9.7 Live Workout Logger — M4a (core logging) + M4b (timers &
- * foreground service) scope, plus M4c's finish hand-off, M5b's edit mode, and §5.1.7's RPE
- * picker, M17's Plate Calculator config, and M18's Warm-up Calculator insert. Still deliberately
- * not built here: Update Bodyweight (it changes no stored data shape).
+ * Backs the live workout logger screen: set-by-set logging, the session/rest timers and their
+ * foreground service, the finish hand-off, edit mode for backdated entries, RPE, the plate
+ * calculator, and the warm-up-set calculator. Fast-tick values (elapsed time, rest countdown, live
+ * heart rate) are deliberately exposed as separate cold `Flow`s rather than folded into
+ * [WorkoutLoggerUiState] — see the flow properties below for why.
  */
 @HiltViewModel
 class WorkoutLoggerViewModel @Inject constructor(

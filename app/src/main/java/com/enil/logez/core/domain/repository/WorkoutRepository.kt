@@ -9,6 +9,7 @@ import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
 import kotlinx.coroutines.flow.Flow
 
+/** The live/in-progress workout and completed-workout history — the app's central logging surface. */
 interface WorkoutRepository {
     suspend fun getInProgress(): WorkoutEntity?
     fun observeInProgress(): Flow<WorkoutEntity?>

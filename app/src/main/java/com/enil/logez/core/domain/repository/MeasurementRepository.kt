@@ -4,6 +4,7 @@ import com.enil.logez.core.data.entity.BodyMeasurementEntity
 import com.enil.logez.core.data.entity.ProgressPhotoEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Body measurements and progress photos, tracked over time independently of workouts. */
 interface MeasurementRepository {
     fun observeAll(): Flow<List<BodyMeasurementEntity>>
     suspend fun upsert(measurement: BodyMeasurementEntity)
