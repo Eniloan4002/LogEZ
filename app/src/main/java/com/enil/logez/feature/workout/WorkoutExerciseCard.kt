@@ -66,6 +66,8 @@ import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.Elevation
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.boxedFieldColors
+import com.enil.logez.core.designsystem.formatTargetNumber
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
@@ -569,13 +571,8 @@ internal fun weightHeaderRes(unit: WeightUnit): Int =
 
 /** M18 uniform boxed cells: the value fields' chrome — outlineVariant hairline at rest (and when
  * disabled, i.e. completed-locked rows) with the Radius token, so the text fields and the fixed
- * boxed cells (SET/PREVIOUS/RPE) render as one grid. Focus keeps the default primary outline. */
-@Composable
-internal fun boxedFieldColors() = OutlinedTextFieldDefaults.colors(
-    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-    disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
-)
-
+ * boxed cells (SET/PREVIOUS/RPE) render as one grid. Focus keeps the default primary outline.
+ * See [com.enil.logez.core.designsystem.boxedFieldColors], shared with RoutineExerciseCard.kt. */
 @Composable
 internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null) {
     var text by remember(value) { mutableStateOf(value?.let { formatTargetNumber(it) }.orEmpty()) }
@@ -711,8 +708,6 @@ private fun CompactBoxedTextField(
         }
     }
 }
-
-private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
 
 /** §5.1.7 entry point: "tap the RPE cell". A tappable box, not a text field — RPE is never free
  * text. M18 uniform boxed cells: field-height hairline box like every other cell; the filled

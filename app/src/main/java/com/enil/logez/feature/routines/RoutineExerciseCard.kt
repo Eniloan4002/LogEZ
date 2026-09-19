@@ -25,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +47,7 @@ import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.Elevation
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.boxedFieldColors
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.SupersetPalette
@@ -326,14 +326,6 @@ private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modif
         }
     }
 }
-
-/** M18 uniform boxed cells: outlineVariant hairline + Radius token so the builder's fields match
- * the logger's boxed grid. */
-@Composable
-private fun boxedFieldColors() = OutlinedTextFieldDefaults.colors(
-    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-    disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
-)
 
 @Composable
 private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifier: Modifier = Modifier, suffix: String? = null) {

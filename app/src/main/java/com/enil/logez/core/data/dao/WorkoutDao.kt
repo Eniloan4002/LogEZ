@@ -360,43 +360,66 @@ interface WorkoutDao {
     suspend fun countCompletedWorkoutsUpTo(startedAt: Long, workoutId: String): Int
 }
 
+/**
+ * The fields every StatSet-projecting DAO row below shares, so [WorkoutRepositoryImpl]'s
+ * `toStatSet()` mapping exists exactly once (2026-09-19 debt audit — these three row types
+ * previously carried three byte-identical copies of that mapping, one per receiver type). Room's
+ * column-to-constructor-parameter binding for a `@Query` result only inspects the primary
+ * constructor, so implementing this interface has no effect on how these rows are populated.
+ */
+interface StatSetRowFields {
+    val setId: String
+    val workoutId: String
+    val workoutStartedAt: Long
+    val routineId: String?
+    val orderIndex: Int
+    val setType: com.enil.logez.core.domain.model.SetType
+    val weightKg: Double?
+    val reps: Int?
+    val durationSeconds: Int?
+    val distanceMeters: Double?
+    val customMetric: Double?
+    val isCompleted: Boolean
+    val rpe: Double?
+}
+
 /** Flat projection backing [WorkoutDao.getSetsWithExerciseForWorkout] — carries the exercise and its block identity, both of which `StatSet` deliberately omits. */
 data class WorkoutSetWithExerciseRow(
-    val setId: String,
+    override val setId: String,
     val exerciseId: String,
     val workoutExerciseId: String,
     val exerciseOrderIndex: Int,
-    val workoutId: String,
-    val workoutStartedAt: Long,
-    val routineId: String?,
-    val orderIndex: Int,
-    val setType: com.enil.logez.core.domain.model.SetType,
-    val weightKg: Double?,
-    val reps: Int?,
-    val durationSeconds: Int?,
-    val distanceMeters: Double?,
-    val customMetric: Double?,
-    val isCompleted: Boolean,
-    val rpe: Double?,
-)
+    override val workoutId: String,
+    override val workoutStartedAt: Long,
+    override val routineId: String?,
+    override val orderIndex: Int,
+    override val setType: com.enil.logez.core.domain.model.SetType,
+    override val weightKg: Double?,
+    override val reps: Int?,
+    override val durationSeconds: Int?,
+    override val distanceMeters: Double?,
+    override val customMetric: Double?,
+    override val isCompleted: Boolean,
+    override val rpe: Double?,
+) : StatSetRowFields
 
 /** Flat projection backing [WorkoutDao.getStatRowsForExercise] — mapped to `StatSet` or `ExerciseHistoryEntry`. */
 data class ExerciseStatRow(
-    val setId: String,
-    val workoutId: String,
+    override val setId: String,
+    override val workoutId: String,
     val workoutTitle: String,
-    val workoutStartedAt: Long,
-    val routineId: String?,
-    val orderIndex: Int,
-    val setType: com.enil.logez.core.domain.model.SetType,
-    val weightKg: Double?,
-    val reps: Int?,
-    val durationSeconds: Int?,
-    val distanceMeters: Double?,
-    val customMetric: Double?,
-    val isCompleted: Boolean,
-    val rpe: Double?,
-)
+    override val workoutStartedAt: Long,
+    override val routineId: String?,
+    override val orderIndex: Int,
+    override val setType: com.enil.logez.core.domain.model.SetType,
+    override val weightKg: Double?,
+    override val reps: Int?,
+    override val durationSeconds: Int?,
+    override val distanceMeters: Double?,
+    override val customMetric: Double?,
+    override val isCompleted: Boolean,
+    override val rpe: Double?,
+) : StatSetRowFields
 
 /** Flat projection backing [WorkoutDao.getMostRecentUsagePerExercise]. */
 data class ExerciseRecencyRow(
@@ -406,22 +429,22 @@ data class ExerciseRecencyRow(
 
 /** Flat projection backing [WorkoutDao.getStatRowsForExercises] — same as ExerciseStatRow but with exerciseId. */
 data class ExerciseStatRowWithExerciseId(
-    val setId: String,
-    val workoutId: String,
+    override val setId: String,
+    override val workoutId: String,
     val workoutTitle: String,
-    val workoutStartedAt: Long,
-    val routineId: String?,
-    val orderIndex: Int,
-    val setType: com.enil.logez.core.domain.model.SetType,
-    val weightKg: Double?,
-    val reps: Int?,
-    val durationSeconds: Int?,
-    val distanceMeters: Double?,
-    val customMetric: Double?,
-    val isCompleted: Boolean,
-    val rpe: Double?,
+    override val workoutStartedAt: Long,
+    override val routineId: String?,
+    override val orderIndex: Int,
+    override val setType: com.enil.logez.core.domain.model.SetType,
+    override val weightKg: Double?,
+    override val reps: Int?,
+    override val durationSeconds: Int?,
+    override val distanceMeters: Double?,
+    override val customMetric: Double?,
+    override val isCompleted: Boolean,
+    override val rpe: Double?,
     @androidx.room.ColumnInfo(name = "exerciseId") val exerciseId: String,
-)
+) : StatSetRowFields
 
 /** Flat projection backing [WorkoutDao.getAllSetsForWorkout]. */
 data class WorkoutSetWithExerciseIdRow(

@@ -3,6 +3,7 @@ package com.enil.logez.core.data.repository
 import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseStatRow
 import com.enil.logez.core.data.dao.ExerciseStatRowWithExerciseId
+import com.enil.logez.core.data.dao.StatSetRowFields
 import com.enil.logez.core.data.dao.WorkoutDao
 import com.enil.logez.core.data.dao.WorkoutSetWithExerciseIdRow
 import com.enil.logez.core.data.dao.WorkoutSetWithExerciseRow
@@ -152,39 +153,8 @@ class WorkoutRepositoryImpl @Inject constructor(
 private fun WorkoutSetWithExerciseRow.toDomain() =
     WorkoutSetWithExercise(exerciseId, workoutExerciseId, exerciseOrderIndex, toStatSet())
 
-private fun WorkoutSetWithExerciseRow.toStatSet() = StatSet(
-    setId = setId,
-    workoutId = workoutId,
-    workoutStartedAt = workoutStartedAt,
-    orderIndex = orderIndex,
-    setType = setType,
-    weightKg = weightKg,
-    reps = reps,
-    durationSeconds = durationSeconds,
-    distanceMeters = distanceMeters,
-    customMetric = customMetric,
-    isCompleted = isCompleted,
-    rpe = rpe,
-    routineId = routineId,
-)
-
-private fun ExerciseStatRow.toStatSet() = StatSet(
-    setId = setId,
-    workoutId = workoutId,
-    workoutStartedAt = workoutStartedAt,
-    orderIndex = orderIndex,
-    setType = setType,
-    weightKg = weightKg,
-    reps = reps,
-    durationSeconds = durationSeconds,
-    distanceMeters = distanceMeters,
-    customMetric = customMetric,
-    isCompleted = isCompleted,
-    rpe = rpe,
-    routineId = routineId,
-)
-
-private fun ExerciseStatRowWithExerciseId.toStatSet() = StatSet(
+/** The one mapping shared by every StatSet-projecting DAO row — see [StatSetRowFields]. */
+private fun StatSetRowFields.toStatSet() = StatSet(
     setId = setId,
     workoutId = workoutId,
     workoutStartedAt = workoutStartedAt,
