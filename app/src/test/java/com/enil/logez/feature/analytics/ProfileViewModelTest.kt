@@ -9,7 +9,7 @@ import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWellnessRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
-import com.enil.logez.feature.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthConnectAvailability
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -153,7 +153,7 @@ class ProfileViewModelTest {
             healthMetricsSource = FakeHealthMetricsSource(
                 availabilityValue = HealthConnectAvailability.Available,
                 permissionsGranted = true,
-                totals = com.enil.logez.feature.wellness.DailyTotals(steps = 8_432L, caloriesBurned = null),
+                totals = com.enil.logez.core.wellness.DailyTotals(steps = 8_432L, caloriesBurned = null),
             ),
             wellnessRepo = wellnessRepo,
         )
@@ -173,7 +173,7 @@ class ProfileViewModelTest {
             healthMetricsSource = FakeHealthMetricsSource(
                 availabilityValue = HealthConnectAvailability.Available,
                 permissionsGranted = true,
-                totals = com.enil.logez.feature.wellness.DailyTotals(steps = 8_432L, caloriesBurned = 1_842.7),
+                totals = com.enil.logez.core.wellness.DailyTotals(steps = 8_432L, caloriesBurned = 1_842.7),
             ),
             wellnessRepo = wellnessRepo,
         )
@@ -189,7 +189,7 @@ class ProfileViewModelTest {
         val healthMetricsSource = FakeHealthMetricsSource(
             availabilityValue = HealthConnectAvailability.Available,
             permissionsGranted = true,
-            totals = com.enil.logez.feature.wellness.DailyTotals(steps = 100L, caloriesBurned = null),
+            totals = com.enil.logez.core.wellness.DailyTotals(steps = 100L, caloriesBurned = null),
         )
         val vm = ProfileViewModel(
             FakeWorkoutRepository(), FakeExerciseRepository(), FakeSettingsRepository(),

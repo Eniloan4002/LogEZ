@@ -13,8 +13,8 @@ import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
-import com.enil.logez.feature.wellness.HealthConnectAvailability
-import com.enil.logez.feature.wellness.HeartRateSample
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HeartRateSample
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeHealthMetricsSource

@@ -83,7 +83,7 @@ import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.feature.activity.rememberRequestLocationForTracking
 import com.enil.logez.feature.activity.startActivityTrackingService
-import com.enil.logez.feature.wellness.DailyStepCount
+import com.enil.logez.core.wellness.DailyStepCount
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import java.util.Locale

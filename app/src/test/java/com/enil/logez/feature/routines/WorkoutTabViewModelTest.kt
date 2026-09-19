@@ -24,7 +24,7 @@ import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
-import com.enil.logez.feature.wellness.DailyStepCount
+import com.enil.logez.core.wellness.DailyStepCount
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -350,9 +350,9 @@ class WorkoutTabViewModelTest {
         val clock = FakeClock()
         val today = java.time.Instant.ofEpochMilli(clock.currentMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
         val healthMetricsSource = FakeHealthMetricsSource(
-            availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
+            availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Available,
             permissionsGranted = true,
-            totals = com.enil.logez.feature.wellness.DailyTotals(steps = 4_210L, caloriesBurned = null),
+            totals = com.enil.logez.core.wellness.DailyTotals(steps = 4_210L, caloriesBurned = null),
             stepsHistory = listOf(DailyStepCount(today.minusDays(1), 3_200L)),
         )
         val vm = newViewModel(FakeRoutineRepository(), clock = clock, healthMetricsSource = healthMetricsSource)
@@ -369,7 +369,7 @@ class WorkoutTabViewModelTest {
     @Test
     fun `refreshSteps reports null -- not zero -- when Health Connect isn't usable on this device`() = runTest {
         val healthMetricsSource = FakeHealthMetricsSource(
-            availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Unavailable,
+            availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Unavailable,
         )
         val vm = newViewModel(FakeRoutineRepository(), healthMetricsSource = healthMetricsSource)
 

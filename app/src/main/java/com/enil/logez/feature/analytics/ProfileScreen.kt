@@ -48,8 +48,8 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
-import com.enil.logez.feature.wellness.HealthConnectAvailability
-import com.enil.logez.feature.wellness.rememberRequestHealthConnectPermissions
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.rememberRequestHealthConnectPermissions
 import java.util.Locale
 import kotlin.math.roundToLong
 

@@ -20,8 +20,8 @@ import com.enil.logez.core.domain.repository.TransactionRunner
 import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
-import com.enil.logez.feature.wellness.HealthConnectAvailability
-import com.enil.logez.feature.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthMetricsSource
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject

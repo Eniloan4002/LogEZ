@@ -1,10 +1,10 @@
 package com.enil.logez.fakes
 
-import com.enil.logez.feature.wellness.DailyStepCount
-import com.enil.logez.feature.wellness.DailyTotals
-import com.enil.logez.feature.wellness.HealthConnectAvailability
-import com.enil.logez.feature.wellness.HealthMetricsSource
-import com.enil.logez.feature.wellness.HeartRateSample
+import com.enil.logez.core.wellness.DailyStepCount
+import com.enil.logez.core.wellness.DailyTotals
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HeartRateSample
 import java.time.Instant
 import java.time.LocalDate
 

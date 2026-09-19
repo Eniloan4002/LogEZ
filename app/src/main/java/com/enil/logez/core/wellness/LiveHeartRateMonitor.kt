@@ -1,4 +1,4 @@
-package com.enil.logez.feature.wellness
+package com.enil.logez.core.wellness
 
 import com.enil.logez.core.common.AppLogger
 import kotlinx.coroutines.CancellationException

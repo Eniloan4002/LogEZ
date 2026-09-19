@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.repository.SettingsRepository
-import com.enil.logez.feature.wellness.HealthMetricsSource
-import com.enil.logez.feature.wellness.HeartRateSample
-import com.enil.logez.feature.wellness.liveHeartRateFlow
+import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HeartRateSample
+import com.enil.logez.core.wellness.liveHeartRateFlow
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel

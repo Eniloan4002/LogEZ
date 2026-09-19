@@ -207,7 +207,7 @@ class AnalyticsViewModelTest {
     fun `steps card is unavailable when Health Connect has nothing to show`() = runTest {
         val vm = newViewModel(
             healthMetricsSource = FakeHealthMetricsSource(
-                availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Unavailable,
+                availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Unavailable,
             ),
         )
         assertFalse(vm.uiState.value.steps.available)
@@ -217,11 +217,11 @@ class AnalyticsViewModelTest {
     @Test
     fun `steps card loads the last 30 days once Health Connect is available and granted`() = runTest {
         val history = listOf(
-            com.enil.logez.feature.wellness.DailyStepCount(LocalDate.parse("2026-08-10"), 5_000L),
-            com.enil.logez.feature.wellness.DailyStepCount(LocalDate.parse("2026-08-11"), 8_200L),
+            com.enil.logez.core.wellness.DailyStepCount(LocalDate.parse("2026-08-10"), 5_000L),
+            com.enil.logez.core.wellness.DailyStepCount(LocalDate.parse("2026-08-11"), 8_200L),
         )
         val healthMetricsSource = FakeHealthMetricsSource(
-            availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
+            availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Available,
             permissionsGranted = true,
             stepsHistory = history,
         )
@@ -234,10 +234,10 @@ class AnalyticsViewModelTest {
 
     @Test
     fun `tapping a steps bar selects it, and a refresh drops the selection`() = runTest {
-        val history = listOf(com.enil.logez.feature.wellness.DailyStepCount(LocalDate.parse("2026-08-10"), 5_000L))
+        val history = listOf(com.enil.logez.core.wellness.DailyStepCount(LocalDate.parse("2026-08-10"), 5_000L))
         val vm = newViewModel(
             healthMetricsSource = FakeHealthMetricsSource(
-                availabilityValue = com.enil.logez.feature.wellness.HealthConnectAvailability.Available,
+                availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Available,
                 permissionsGranted = true,
                 stepsHistory = history,
             ),

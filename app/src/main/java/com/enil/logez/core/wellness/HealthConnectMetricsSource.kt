@@ -1,4 +1,4 @@
-package com.enil.logez.feature.wellness
+package com.enil.logez.core.wellness
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient

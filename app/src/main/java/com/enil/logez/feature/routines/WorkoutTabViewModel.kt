@@ -14,9 +14,9 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
-import com.enil.logez.feature.wellness.HealthConnectAvailability
-import com.enil.logez.feature.wellness.DailyStepCount
-import com.enil.logez.feature.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.DailyStepCount
+import com.enil.logez.core.wellness.HealthMetricsSource
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController

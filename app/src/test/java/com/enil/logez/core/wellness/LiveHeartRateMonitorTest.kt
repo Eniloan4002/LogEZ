@@ -1,4 +1,4 @@
-package com.enil.logez.feature.wellness
+package com.enil.logez.core.wellness
 
 import com.enil.logez.fakes.FakeHealthMetricsSource
 import java.time.Instant

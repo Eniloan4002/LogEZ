@@ -1,7 +1,7 @@
-package com.enil.logez.feature.wellness.di
+package com.enil.logez.core.wellness.di
 
-import com.enil.logez.feature.wellness.HealthConnectMetricsSource
-import com.enil.logez.feature.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HealthConnectMetricsSource
+import com.enil.logez.core.wellness.HealthMetricsSource
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

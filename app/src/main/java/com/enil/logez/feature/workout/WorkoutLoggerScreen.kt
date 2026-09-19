@@ -72,7 +72,7 @@ import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
-import com.enil.logez.feature.wellness.HeartRateSample
+import com.enil.logez.core.wellness.HeartRateSample
 import com.enil.logez.feature.workout.finish.fromDatePickerMillis
 import com.enil.logez.feature.workout.finish.labelRes
 import com.enil.logez.feature.workout.finish.toDatePickerMillis

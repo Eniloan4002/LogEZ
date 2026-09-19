@@ -32,9 +32,9 @@ import com.enil.logez.feature.workout.finish.LivePrDetector
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
-import com.enil.logez.feature.wellness.HealthMetricsSource
-import com.enil.logez.feature.wellness.HeartRateSample
-import com.enil.logez.feature.wellness.liveHeartRateFlow
+import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HeartRateSample
+import com.enil.logez.core.wellness.liveHeartRateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject

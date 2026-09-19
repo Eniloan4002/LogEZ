@@ -1,4 +1,4 @@
-package com.enil.logez.feature.wellness
+package com.enil.logez.core.wellness
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.Composable
