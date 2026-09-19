@@ -5,7 +5,7 @@
     <!--
         M21 (2026-09-12, Owner directive, decisions.md same date): the app's long-standing
         "no INTERNET, ever" rule is narrowly reversed for online map tiles (MapTiler), replacing
-        the bundled offline Metro-Manila-only map — this is logEZ's first real network access.
+        the bundled offline Metro-Manila-only map — this is LogEZ's first real network access.
         Map tile/style requests are the only thing that ever leaves the device; GPS tracking,
         workouts, Health Connect reads, and everything else stay fully local, unaffected. See
         docs/APP_OVERVIEW.md §8 for the current, accurate privacy description — its older

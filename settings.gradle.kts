@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "logEZ"
+rootProject.name = "LogEZ"
 include(":app")

@@ -3,7 +3,7 @@ package com.enil.logez.core.designsystem
 import androidx.compose.ui.graphics.Color
 
 /**
- * logEZ palette v6.0 "Neon Lab, root #73FF00" — dark-only (Owner directive, unchanged since launch).
+ * LogEZ palette v6.0 "Neon Lab, root #73FF00" — dark-only (Owner directive, unchanged since launch).
  * v4.0 narrowed the palette to black, white and green only; v5.0 (2026-09-03) re-rooted that green
  * on `#CAFF00`; v6.0 (Owner directive, 2026-09-04) re-roots it again on [NeonGreen] = `#73FF00` — a
  * truer green (H≈93°) than v5.0's yellow-green. Every other green in the file — the two derived

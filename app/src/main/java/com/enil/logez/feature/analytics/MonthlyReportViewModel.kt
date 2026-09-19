@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.2 card 6 — the Monthly Report for any completed calendar month. logEZ extends
+ * PHASE2_PLAN.md §5.2 card 6 — the Monthly Report for any completed calendar month. LogEZ extends
  * Hevy here (Hevy offers only the last completed month; an archive is free once the aggregates
  * exist), so the picker spans first-workout-month through the current month. Same single-snapshot
  * refresh discipline as [AnalyticsViewModel], plus a cancel-and-restart rebuild job: unlike that

@@ -8,7 +8,7 @@ import java.io.File
 
 /**
  * Renders an app-private local file (custom-exercise photos, PHASE2_PLAN.md §9.1) via Coil 3
- * (M20b). All logEZ media is local-only (no network permission exists anywhere in this app, and no
+ * (M20b). All LogEZ media is local-only (no network permission exists anywhere in this app, and no
  * network fetcher is registered on the app-wide `ImageLoader` in [com.enil.logez.LogEzApplication])
  * -- Coil is used here for its size-targeted decoding and memory/disk cache, not for loading. A
  * full-resolution user photo would otherwise be re-decoded at full size on every list-row recycle;

@@ -117,7 +117,7 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
  * `AndroidView`, not `maplibre-compose` (that wrapper needs Kotlin 2.4.10, ahead of this project's
  * 2.3.0 pin — decisions.md/gradle/libs.versions.toml). The style is fetched live from MapTiler
  * (`MAPTILER_STYLE_URL` above) rather than loaded from a bundled `.mbtiles` + local style/glyphs/
- * sprites -- this is logEZ's first-ever real network access (Owner directive, decisions.md
+ * sprites -- this is LogEZ's first-ever real network access (Owner directive, decisions.md
  * 2026-09-12), narrowly scoped to map tile/style/glyph/sprite requests only. GPS tracking, workout
  * data, and Health Connect reads all stay fully local, unaffected. Replacing the old
  * Metro-Manila-only bundled map means the map now renders anywhere in the world, not just one city.
