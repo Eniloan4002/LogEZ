@@ -63,15 +63,10 @@ internal fun CircuitRoundCard(
     onOpenReplacePicker: (workoutExerciseId: String) -> Unit,
     onRemoveRound: () -> Unit,
     canRemoveRound: Boolean = true,
-    rpeTrackingEnabled: Boolean,
-    inlineTimerEnabled: Boolean,
     inlineTimerExerciseId: String?,
     inlineTimerSetId: String?,
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
-    isEditMode: Boolean = false,
-    plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
-    /** M18: display unit for weight cells and the KG/LBS header (storage stays kg). */
-    weightUnit: WeightUnit = WeightUnit.KG,
+    config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -107,16 +102,16 @@ internal fun CircuitRoundCard(
             // when a mixed-type circuit genuinely needs different columns per entry.
             val uniformColumns = round.entries
                 .filter { it.set != null }
-                .map { columnSignature(it.exercise, plateCalculator.enabled) }
+                .map { columnSignature(it.exercise, config.plateCalculator.enabled) }
                 .distinct()
                 .singleOrNull()
             if (uniformColumns != null) {
                 CircuitColumnsHeader(
                     fields = uniformColumns.fields,
                     showCustomMetric = uniformColumns.customMetric,
-                    showRpe = rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
+                    showRpe = config.rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
                     showPlateCalculator = uniformColumns.plateCalculator,
-                    weightUnit = weightUnit,
+                    weightUnit = config.weightUnit,
                     modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
@@ -129,13 +124,9 @@ internal fun CircuitRoundCard(
                     callbacks = callbacks,
                     onExerciseClick = { onExerciseClick(entry.exercise.exerciseId) },
                     onOpenReplacePicker = { onOpenReplacePicker(entry.exercise.id) },
-                    rpeTrackingEnabled = rpeTrackingEnabled,
-                    inlineTimerEnabled = inlineTimerEnabled,
                     inlineTimerRunning = inlineTimerExerciseId == entry.exercise.id && inlineTimerSetId == entry.set?.id,
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
-                    isEditMode = isEditMode,
-                    plateCalculator = plateCalculator,
-                    weightUnit = weightUnit,
+                    config = config,
                 )
             }
         }
@@ -151,13 +142,9 @@ private fun CircuitEntry(
     callbacks: WorkoutCallbacks,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
-    rpeTrackingEnabled: Boolean,
-    inlineTimerEnabled: Boolean,
     inlineTimerRunning: Boolean,
     inlineTimerSecondsFlow: Flow<Int?>,
-    isEditMode: Boolean,
-    plateCalculator: PlateCalculatorConfig,
-    weightUnit: WeightUnit,
+    config: WorkoutLoggerDisplayConfig,
 ) {
     val exercise = entry.exercise
     var menuExpanded by remember { mutableStateOf(false) }
@@ -199,12 +186,12 @@ private fun CircuitEntry(
 
         val fields = exercise.exerciseType.targetFields()
         val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
-        val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
-        val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
+        val showRpe = config.rpeTrackingEnabled && TargetField.REPS in fields
+        val showInlineTimer = config.inlineTimerEnabled && TargetField.DURATION in fields
         // Same §5.1.5 gate as the regular table: BARBELL rows only, setting on.
-        val showPlateCalculator = plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
+        val showPlateCalculator = config.plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
 
-        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator, weightUnit = weightUnit)
+        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator, weightUnit = config.weightUnit)
         SetRow(
             index = roundIndex,
             set = set,
@@ -223,7 +210,6 @@ private fun CircuitEntry(
             inlineTimerSecondsFlow = inlineTimerSecondsFlow,
             onStartInlineTimer = { callbacks.onStartInlineTimer(exercise.id, set.id) },
             onStopInlineTimer = { callbacks.onStopInlineTimer(exercise.id, set.id) },
-            isEditMode = isEditMode,
             showRpe = showRpe,
             onRpeChange = { rpe -> callbacks.onUpdateRpe(exercise.id, set.id, rpe) },
             allowWarmup = false,
@@ -231,7 +217,7 @@ private fun CircuitEntry(
             showRoundNumber = false,
             showPlateCalculator = showPlateCalculator,
             onOpenPlateCalculator = { callbacks.onOpenPlateCalculator(exercise.id, set.id, set.weightKg) },
-            weightUnit = weightUnit,
+            config = config,
         )
         if (set.failureError) {
             Text(

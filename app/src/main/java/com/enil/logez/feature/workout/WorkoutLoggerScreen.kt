@@ -583,6 +583,13 @@ private fun ColumnScope.CircuitWorkoutBody(
     var pickerMode by pickerModeState
     var replaceTargetId by replaceTargetIdState
     var pendingRemoveRoundIndex by pendingRemoveRoundIndexState
+    val displayConfig = WorkoutLoggerDisplayConfig(
+        rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+        inlineTimerEnabled = uiState.inlineTimerEnabled,
+        isEditMode = uiState.isEditMode,
+        plateCalculator = uiState.plateCalculator,
+        weightUnit = uiState.weightUnit,
+    )
 
     // M11: round-grouped rendering — one card per round, exercises in sequence
     // order inside it. Grouping is pure (buildCircuitRounds) and never repairs
@@ -610,14 +617,10 @@ private fun ColumnScope.CircuitWorkoutBody(
                     }
                 },
                 canRemoveRound = rounds.size > 1,
-                rpeTrackingEnabled = uiState.rpeTrackingEnabled,
-                inlineTimerEnabled = uiState.inlineTimerEnabled,
                 inlineTimerExerciseId = uiState.inlineTimerExerciseId,
                 inlineTimerSetId = uiState.inlineTimerSetId,
                 inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
-                isEditMode = uiState.isEditMode,
-                plateCalculator = uiState.plateCalculator,
-                weightUnit = uiState.weightUnit,
+                config = displayConfig,
             )
         }
     }
@@ -666,6 +669,14 @@ private fun ColumnScope.RegularWorkoutBody(
 ) {
     var pickerMode by pickerModeState
     var replaceTargetId by replaceTargetIdState
+    val displayConfig = WorkoutLoggerDisplayConfig(
+        rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+        inlineTimerEnabled = uiState.inlineTimerEnabled,
+        isEditMode = uiState.isEditMode,
+        plateCalculator = uiState.plateCalculator,
+        warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
+        weightUnit = uiState.weightUnit,
+    )
 
     // M20a drag reorder: the ViewModel's reorderExercises() is write-through (one
     // persist{} batch per call) and Reorderable's onMove fires on every hover swap, so
@@ -711,17 +722,12 @@ private fun ColumnScope.RegularWorkoutBody(
                     callbacks = workoutCallbacks,
                     onExerciseClick = { onExerciseClick(exercise.exerciseId) },
                     onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
-                    rpeTrackingEnabled = uiState.rpeTrackingEnabled,
                     onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
-                    inlineTimerEnabled = uiState.inlineTimerEnabled,
                     inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
                     inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
                     onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
                     onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
-                    isEditMode = uiState.isEditMode,
-                    plateCalculator = uiState.plateCalculator,
-                    warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
-                    weightUnit = uiState.weightUnit,
+                    config = displayConfig,
                 )
             }
         }

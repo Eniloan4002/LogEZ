@@ -105,19 +105,12 @@ internal fun WorkoutExerciseCard(
     callbacks: WorkoutCallbacks,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
-    rpeTrackingEnabled: Boolean = false,
     onRpeChange: (setId: String, rpe: Double?) -> Unit = { _, _ -> },
-    inlineTimerEnabled: Boolean = true,
     inlineTimerSetId: String? = null,
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     onStartInlineTimer: (setId: String) -> Unit = {},
     onStopInlineTimer: (setId: String) -> Unit = {},
-    isEditMode: Boolean = false,
-    plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
-    /** M18 §5.1.6: gates the "Add warm-up sets" overflow item. Already force-false in circuits (ViewModel invariant). */
-    warmupCalculatorEnabled: Boolean = false,
-    /** M18: the unit weight cells display and accept — storage stays canonical kg. */
-    weightUnit: WeightUnit = WeightUnit.KG,
+    config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -172,7 +165,7 @@ internal fun WorkoutExerciseCard(
                         // BODYWEIGHT_ASSISTED is excluded even though it carries WEIGHT: there
                         // weightKg means assistance, so the 40/60/80% ladder would generate
                         // warm-ups HARDER than the working set (inverted ramp).
-                        if (warmupCalculatorEnabled &&
+                        if (config.warmupCalculatorEnabled &&
                             exercise.exerciseType != ExerciseType.BODYWEIGHT_ASSISTED &&
                             TargetField.WEIGHT in exercise.exerciseType.targetFields()
                         ) {
@@ -200,16 +193,12 @@ internal fun WorkoutExerciseCard(
             SetTable(
                 exercise = exercise,
                 callbacks = callbacks,
-                inlineTimerEnabled = inlineTimerEnabled,
                 inlineTimerSetId = inlineTimerSetId,
                 inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                 onStartInlineTimer = onStartInlineTimer,
                 onStopInlineTimer = onStopInlineTimer,
-                isEditMode = isEditMode,
-                rpeTrackingEnabled = rpeTrackingEnabled,
                 onRpeChange = onRpeChange,
-                plateCalculator = plateCalculator,
-                weightUnit = weightUnit,
+                config = config,
             )
 
             TextButton(onClick = { callbacks.onAddSet(exercise.id) }, modifier = Modifier.padding(top = Spacing.xs)) {
@@ -248,33 +237,29 @@ internal fun RestTimerBar(remainingMillisFlow: Flow<Long?>, onMinus15: () -> Uni
 private fun SetTable(
     exercise: WorkoutExerciseUiModel,
     callbacks: WorkoutCallbacks,
-    inlineTimerEnabled: Boolean,
     inlineTimerSetId: String?,
     inlineTimerSecondsFlow: Flow<Int?>,
     onStartInlineTimer: (setId: String) -> Unit,
     onStopInlineTimer: (setId: String) -> Unit,
-    isEditMode: Boolean,
-    rpeTrackingEnabled: Boolean,
     onRpeChange: (setId: String, rpe: Double?) -> Unit,
-    plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
-    weightUnit: WeightUnit = WeightUnit.KG,
+    config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
 ) {
     val fields = exercise.exerciseType.targetFields()
-    val showInlineTimer = inlineTimerEnabled && TargetField.DURATION in fields
+    val showInlineTimer = config.inlineTimerEnabled && TargetField.DURATION in fields
     val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
     // §5.1.7: "the RPE column appears only when the setting is on and only for rep-based types" —
     // never for the routine builder (which shares none of this UI) and never for duration/distance
     // types, where RPE doesn't apply.
-    val showRpe = rpeTrackingEnabled && TargetField.REPS in fields
+    val showRpe = config.rpeTrackingEnabled && TargetField.REPS in fields
     // §5.1.5: the Plate Calculator affordance exists only for BARBELL exercises with the setting
     // on — "assisted/weighted bodyweight exercises never show the button (equipment ≠ BARBELL)".
-    val showPlateCalculator = plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
+    val showPlateCalculator = config.plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
             HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell, textAlign = TextAlign.Center)
             if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(config.weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             // Mirrors the row's trailing calculator button so the KG header stays over its cell.
             if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
             // REPS gets a smaller weight than KG/TIME/DISTANCE (Owner, 2026-09-03): it only ever
@@ -306,12 +291,11 @@ private fun SetTable(
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                     onStartInlineTimer = { onStartInlineTimer(set.id) },
                     onStopInlineTimer = { onStopInlineTimer(set.id) },
-                    isEditMode = isEditMode,
                     showRpe = showRpe,
                     onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
                     showPlateCalculator = showPlateCalculator,
                     onOpenPlateCalculator = { callbacks.onOpenPlateCalculator(exercise.id, set.id, set.weightKg) },
-                    weightUnit = weightUnit,
+                    config = config,
                 )
                 if (set.failureError) {
                     Text(
@@ -360,7 +344,6 @@ internal fun SetRow(
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     onStartInlineTimer: () -> Unit = {},
     onStopInlineTimer: () -> Unit = {},
-    isEditMode: Boolean = false,
     showRpe: Boolean = false,
     onRpeChange: (Double?) -> Unit = {},
     /** M11 circuit rows: WARMUP leaves the badge menu (breaks row-index == round) ... */
@@ -375,8 +358,9 @@ internal fun SetRow(
     /** M20d: opens the screen-hoisted (non-modal) plate calculator sheet for this exact set. Only
      *  called when [showPlateCalculator] is true, so the no-op default is never actually reached. */
     onOpenPlateCalculator: () -> Unit = {},
-    /** M18: display unit for the weight cell only — every other field is unit-less. */
-    weightUnit: WeightUnit = WeightUnit.KG,
+    /** Only isEditMode and weightUnit are read here -- the other fields exist so a future
+     * screen-wide toggle can reach this row without a signature change. */
+    config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var showRpeSheet by remember { mutableStateOf(false) }
@@ -384,7 +368,7 @@ internal fun SetRow(
     // PAST workout inverts that: every set in a COMPLETED workout is checked, so the same rule
     // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
     // exactly as in live logging") impossible — every field would be read-only.
-    val fieldsEnabled = isEditMode || !set.isCompleted
+    val fieldsEnabled = config.isEditMode || !set.isCompleted
     // M18 (Owner directive): a completed row gets a VISIBLE full-width primary-green band — the
     // old primaryContainer @ 25% was indistinguishable from the plain surface on the dark theme.
     val rowBackground = if (set.isCompleted) MaterialTheme.colorScheme.primary.copy(alpha = COMPLETED_ROW_BAND_ALPHA) else Color.Transparent
@@ -452,7 +436,7 @@ internal fun SetRow(
             NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
         }
         if (TargetField.WEIGHT in fields) {
-            WeightCell(valueKg = set.weightKg, unit = weightUnit, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            WeightCell(valueKg = set.weightKg, unit = config.weightUnit, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
             if (showPlateCalculator) {
                 // Trails the KG cell inside the same fixed width the header row spaces over, so
                 // the M15 column alignment holds with or without the button.
