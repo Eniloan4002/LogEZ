@@ -78,8 +78,16 @@ class WorkoutDetailViewModel @Inject constructor(
         val workoutPrs = personalRecordsRepository.getForWorkout(workoutId)
         val prsBySetId = workoutPrs.filter { it.workoutSetId != null }.associateBy { it.workoutSetId }
 
+        // Resolved once per distinct exercise (not once per exercise block, and not once per set
+        // for the volume sum below) -- same batched pattern as HistoryViewModel's card-list build.
+        // A workout's own exercise count is small, but this was still one getById() call per
+        // exercise block AND a second one per completed set of that exercise.
+        val exercisesById = workoutExercises.map { it.exerciseId }.distinct()
+            .mapNotNull { id -> exerciseRepository.getById(id)?.let { id to it } }
+            .toMap()
+
         val exerciseBlocks = workoutExercises.map { we ->
-            val exercise = exerciseRepository.getById(we.exerciseId)
+            val exercise = exercisesById[we.exerciseId]
             val sets = workoutRepository.getSetsForWorkoutExercise(we.id).sortedBy { it.orderIndex }
             DetailExerciseBlock(
                 workoutExercise = we,
@@ -104,12 +112,12 @@ class WorkoutDetailViewModel @Inject constructor(
 
         val rows = workoutRepository.getSetsWithExerciseForWorkout(workoutId)
         val included = rows.filter { isIncluded(it.set, includeWarmups) }
-        val volumeKg = included.sumOf { row -> setVolume(row.exerciseId, row.set) }
+        val volumeKg = included.sumOf { row -> setVolume(exercisesById[row.exerciseId], row.set) }
 
         // M21b/c: any set with an ActivityTrackEntity means this workout was GPS-tracked -- an
-        // N-query loop, same pattern as exerciseRepository.getById(we.exerciseId) per exercise
-        // above; ActivityTrackRepository has no bulk-lookup method and a workout has at most a
-        // handful of sets, so this isn't worth a second repository method for.
+        // N-query loop; ActivityTrackRepository has no bulk-lookup method and a workout has at
+        // most a handful of sets, so this isn't worth a second repository method for (unlike the
+        // exercise lookup above, which is resolved once per distinct exercise, not once per set).
         // Deliberately scans the unfiltered `rows`, not `included`: a recorded GPS track is a fact
         // about what happened, not a stats-inclusion choice, so re-tagging the tracked set as a
         // warm-up (which drops it from `included`, and so from hasVolume/hasDistance above) must
@@ -139,8 +147,8 @@ class WorkoutDetailViewModel @Inject constructor(
         )
     }
 
-    private suspend fun setVolume(exerciseId: String, set: StatSet): Double {
-        val exercise = exerciseRepository.getById(exerciseId) ?: return 0.0
+    private fun setVolume(exercise: Exercise?, set: StatSet): Double {
+        if (exercise == null) return 0.0
         return VolumeCalculator.setVolume(
             exerciseType = exercise.exerciseType,
             isBodyweightVolumeEligible = exercise.isBodyweightVolumeEligible,

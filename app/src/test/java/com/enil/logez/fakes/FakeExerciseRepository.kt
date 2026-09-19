@@ -11,12 +11,20 @@ import kotlinx.coroutines.flow.update
 class FakeExerciseRepository(initial: List<Exercise> = emptyList()) : ExerciseRepository {
     private val exercises = MutableStateFlow(initial.associateBy { it.id })
 
+    /** How many times [getById] was called — lets a test assert a lookup is batched per distinct
+     *  exercise rather than repeated per set/block (an N+1 regression the debt audit flagged). */
+    var getByIdCallCount = 0
+        private set
+
     override fun observeActive(): Flow<List<Exercise>> =
         exercises.map { map -> map.values.filter { !it.isDeleted } }
 
     override fun observeById(id: String): Flow<Exercise?> = exercises.map { it[id] }
 
-    override suspend fun getById(id: String): Exercise? = exercises.value[id]
+    override suspend fun getById(id: String): Exercise? {
+        getByIdCallCount++
+        return exercises.value[id]
+    }
 
     override suspend fun getAllActive(): List<Exercise> = exercises.value.values.filter { !it.isDeleted }
 

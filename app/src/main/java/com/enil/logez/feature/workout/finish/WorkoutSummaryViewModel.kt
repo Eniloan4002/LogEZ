@@ -56,9 +56,18 @@ class WorkoutSummaryViewModel @Inject constructor(
             val settings = settingsRepository.settings.first()
             val sets = workoutRepository.getSetsWithExerciseForWorkout(workoutId)
             val included = sets.filter { isIncluded(it.set, settings.includeWarmupsInStats) }
+            val workoutPrs = personalRecordsRepository.getForWorkout(workoutId)
+
+            // Resolved once per distinct exercise (not once per set for volume, again per set for
+            // muscle targets, again per block for the share-card lines, and again per PR medal --
+            // four independent unbatched getById() loops previously, all over the same small set
+            // of exercises this one workout actually used).
+            val exercisesById = (sets.map { it.exerciseId } + workoutPrs.map { it.exerciseId }).distinct()
+                .mapNotNull { id -> exerciseRepository.getById(id)?.let { id to it } }
+                .toMap()
 
             val volumeKg = included.sumOf { row ->
-                val exercise = exerciseRepository.getById(row.exerciseId)
+                val exercise = exercisesById[row.exerciseId]
                 if (exercise == null) {
                     0.0
                 } else {
@@ -76,7 +85,7 @@ class WorkoutSummaryViewModel @Inject constructor(
             }
 
             val muscleTargets = included.mapNotNull { row ->
-                    exerciseRepository.getById(row.exerciseId)?.let { exercise ->
+                    exercisesById[row.exerciseId]?.let { exercise ->
                         WorkoutMuscleTargetCalculator.TargetSet(
                             primary = exercise.primaryMuscleGroup,
                             secondary = exercise.secondaryMuscleGroups,
@@ -99,7 +108,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 .map { (_, blockRows) ->
                     val includedRows = blockRows.filter { isIncluded(it.set, settings.includeWarmupsInStats) }
                     SummaryExerciseLine(
-                        name = exerciseRepository.getById(blockRows.first().exerciseId)?.name.orEmpty(),
+                        name = exercisesById[blockRows.first().exerciseId]?.name.orEmpty(),
                         setCount = includedRows.size,
                         // Owner (P-079): each line also carries average reps per set. Null (not 0)
                         // for exercises that log no reps at all — duration/distance rows have no
@@ -132,9 +141,9 @@ class WorkoutSummaryViewModel @Inject constructor(
             // routePoints/DailyWellnessTotalEntity elsewhere in this milestone.
             val heartRateSamples = heartRateSampleRepository.getForWorkout(workoutId).map { it.recordedAt to it.bpm }
 
-            val prs = personalRecordsRepository.getForWorkout(workoutId).map { pr ->
+            val prs = workoutPrs.map { pr ->
                 PrMedal(
-                    exerciseName = exerciseRepository.getById(pr.exerciseId)?.name.orEmpty(),
+                    exerciseName = exercisesById[pr.exerciseId]?.name.orEmpty(),
                     prType = pr.prType,
                     value = pr.value,
                 )

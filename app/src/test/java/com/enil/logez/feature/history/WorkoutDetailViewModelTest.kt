@@ -6,9 +6,13 @@ import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.Equipment
+import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeClock
@@ -138,6 +142,33 @@ class WorkoutDetailViewModelTest {
     }
 
     @Test
+    fun `exercise lookup is batched once per distinct exercise, not once per set or per block`() = runTest {
+        // 2 exercise blocks, 3 sets each, sharing between them only 2 DISTINCT exercises -- a
+        // naive per-block-and-per-set lookup would call getById 2 (blocks) + 6 (sets) = 8 times;
+        // batched correctly, it's called exactly twice (see WorkoutDetailViewModel.reload()).
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Squat")))
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(
+                    workoutExercise("we1", "w1", exerciseId = "ex-1", orderIndex = 0),
+                    workoutExercise("we2", "w1", exerciseId = "ex-2", orderIndex = 1),
+                ),
+                sets = listOf(
+                    aSet("s1", "we1", weightKg = 100.0, reps = 5), aSet("s2", "we1", weightKg = 100.0, reps = 5), aSet("s3", "we1", weightKg = 100.0, reps = 5),
+                    aSet("s4", "we2", weightKg = 60.0, reps = 8), aSet("s5", "we2", weightKg = 60.0, reps = 8), aSet("s6", "we2", weightKg = 60.0, reps = 8),
+                ),
+            ),
+            exerciseRepo = exerciseRepo,
+        )
+
+        // Volume actually computed (exercise resolves this time, unlike the other tests' empty repo):
+        // 3 sets of 100kg x 5 (500 each) + 3 sets of 60kg x 8 (480 each) = 1500 + 1440.
+        assertEquals(2_940.0, vm.uiState.value.volumeKg, 1e-9)
+        assertEquals(2, exerciseRepo.getByIdCallCount)
+    }
+
+    @Test
     fun `a workout that no longer exists reports isMissing instead of an error`() = runTest {
         val vm = viewModel(workoutRepo = FakeWorkoutRepository())
 
@@ -152,8 +183,8 @@ class WorkoutDetailViewModelTest {
         workoutRepo: FakeWorkoutRepository,
         trackRepo: FakeActivityTrackRepository = FakeActivityTrackRepository(),
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
+        exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(listOf()),
     ): WorkoutDetailViewModel {
-        val exerciseRepo = FakeExerciseRepository(listOf())
         val personalRecordsRepo = FakePersonalRecordsRepository()
         val personalRecordsUpdater = PersonalRecordsUpdater(
             workoutRepo, exerciseRepo, personalRecordsRepo, FakeMeasurementRepository(), settingsRepo,
@@ -180,8 +211,14 @@ class WorkoutDetailViewModelTest {
         startedAt = 1_000L, endedAt = 2_000L, durationSeconds = 60, createdAt = 1_000L, updatedAt = 1_000L,
     )
 
-    private fun workoutExercise(id: String, workoutId: String) = WorkoutExerciseEntity(
-        id = id, workoutId = workoutId, exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null,
+    private fun workoutExercise(id: String, workoutId: String, exerciseId: String = "ex-1", orderIndex: Int = 0) = WorkoutExerciseEntity(
+        id = id, workoutId = workoutId, exerciseId = exerciseId, orderIndex = orderIndex, supersetGroup = null, restTimerSeconds = null, notes = null,
+    )
+
+    private fun exercise(id: String, name: String) = Exercise(
+        id = id, name = name, exerciseType = ExerciseType.WEIGHT_REPS, primaryMuscleGroup = MuscleGroup.CHEST,
+        secondaryMuscleGroups = emptyList(), equipment = Equipment.BARBELL, instructions = "", mediaPath = null,
+        isCustom = false, isBodyweightVolumeEligible = false, isDeleted = false, createdAt = 0, updatedAt = 0,
     )
 
     private fun aSet(
