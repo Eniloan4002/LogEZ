@@ -1,6 +1,7 @@
 package com.enil.logez.feature.workout
 
 import android.app.Activity
+import android.content.Context
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +83,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -104,21 +108,32 @@ fun WorkoutLoggerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var pickerMode by remember { mutableStateOf<ExercisePickerMode?>(null) }
-    var replaceTargetId by remember { mutableStateOf<String?>(null) }
+    // Exposed as MutableState (not just `var x by remember {}`) so WorkoutLoggerDialogs and the
+    // circuit/regular body composables below can read and write the same instance — same
+    // delegate object either way, this just lets it cross a composable-function boundary.
+    val pickerModeState = remember { mutableStateOf<ExercisePickerMode?>(null) }
+    var pickerMode by pickerModeState
+    val replaceTargetIdState = remember { mutableStateOf<String?>(null) }
+    var replaceTargetId by replaceTargetIdState
     var menuExpanded by remember { mutableStateOf(false) }
     var timerMenuExpanded by remember { mutableStateOf(false) }
-    var showDiscardConfirm by remember { mutableStateOf(false) }
+    val showDiscardConfirmState = remember { mutableStateOf(false) }
+    var showDiscardConfirm by showDiscardConfirmState
     var isFinishing by remember { mutableStateOf(false) }
-    var showDiscardEditConfirm by remember { mutableStateOf(false) }
-    var showEditIncompleteConfirm by remember { mutableStateOf(false) }
-    var showEditDatePicker by remember { mutableStateOf(false) }
+    val showDiscardEditConfirmState = remember { mutableStateOf(false) }
+    var showDiscardEditConfirm by showDiscardEditConfirmState
+    val showEditIncompleteConfirmState = remember { mutableStateOf(false) }
+    var showEditIncompleteConfirm by showEditIncompleteConfirmState
+    val showEditDatePickerState = remember { mutableStateOf(false) }
+    var showEditDatePicker by showEditDatePickerState
     // M11: which round's "Remove Round" is awaiting confirmation (0-based), if any.
-    var pendingRemoveRoundIndex by remember { mutableStateOf<Int?>(null) }
+    val pendingRemoveRoundIndexState = remember { mutableStateOf<Int?>(null) }
+    var pendingRemoveRoundIndex by pendingRemoveRoundIndexState
     // M20d: the set the screen-hoisted (non-modal) plate calculator sheet currently targets, if
     // any — hoisted out of SetRow so the sheet is a single screen-level instance instead of one
     // per row (both the regular and circuit branches share this one sheet host below).
-    var plateTarget by remember { mutableStateOf<PlateTarget?>(null) }
+    val plateTargetState = remember { mutableStateOf<PlateTarget?>(null) }
+    var plateTarget by plateTargetState
     val snackbarHostState = remember { SnackbarHostState() }
     val editSaveState by viewModel.editSaveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -343,154 +358,86 @@ fun WorkoutLoggerScreen(
                 val isCircuit = uiState.structure == WorkoutStructure.CIRCUIT
 
                 if (isCircuit) {
-                    // M11: round-grouped rendering — one card per round, exercises in sequence
-                    // order inside it. Grouping is pure (buildCircuitRounds) and never repairs
-                    // data: unequal set counts render as inert "—" slots.
-                    val rounds = buildCircuitRounds(uiState.exercises)
-                    LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
-                        // Keyed by the round's first surviving set id, not its position: removing
-                        // an earlier round must not re-attach later cards' remembered UI state
-                        // (open menus, unparsed cell text) to a different round.
-                        items(
-                            items = rounds,
-                            key = { r -> r.entries.firstNotNullOfOrNull { it.set?.id } ?: "round-${r.roundNumber}" },
-                        ) { round ->
-                            CircuitRoundCard(
-                                round = round,
-                            callbacks = workoutCallbacks,
-                            onExerciseClick = onExerciseClick,
-                            onOpenReplacePicker = { weId -> replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE },
-                                onRemoveRound = {
-                                    val roundIndex = round.roundNumber - 1
-                                    if (viewModel.roundHasLoggedValues(roundIndex)) {
-                                        pendingRemoveRoundIndex = roundIndex
-                                    } else {
-                                        viewModel.removeRound(roundIndex)
-                                    }
-                                },
-                                canRemoveRound = rounds.size > 1,
-                                rpeTrackingEnabled = uiState.rpeTrackingEnabled,
-                                inlineTimerEnabled = uiState.inlineTimerEnabled,
-                                inlineTimerExerciseId = uiState.inlineTimerExerciseId,
-                                inlineTimerSetId = uiState.inlineTimerSetId,
-                                inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
-                                isEditMode = uiState.isEditMode,
-                                plateCalculator = uiState.plateCalculator,
-                                weightUnit = uiState.weightUnit,
-                            )
-                        }
-                    }
-
-                    // M11: in circuit mode the per-exercise cards' rest bar has no single home (a
-                    // round card holds every exercise), so the countdown + controls dock here
-                    // instead. Owner, 2026-09-03: moved from above the round list to just above
-                    // the Add Round/Add Exercise row, matching the regular table's own global bar.
-                    if (uiState.restExerciseId != null && !uiState.isEditMode) {
-                        Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
-                            RestTimerBar(
-                                remainingMillisFlow = viewModel.restRemainingMillisFlow,
-                                onMinus15 = { viewModel.adjustRestTimer(-15) },
-                                onPlus15 = { viewModel.adjustRestTimer(15) },
-                                onSkip = viewModel::skipRestTimer,
-                            )
-                        }
-                    }
-
-                    // M11: + Add Round replaces per-exercise + Add Set — pinned beside Add Exercise.
-                    Row(modifier = Modifier.fillMaxWidth().padding(Spacing.md), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Button(onClick = viewModel::addRound, modifier = Modifier.weight(1f), enabled = uiState.exercises.isNotEmpty()) {
-                            Text(stringResource(R.string.workout_add_round))
-                        }
-                        Button(onClick = { pickerMode = ExercisePickerMode.ADD }, modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.routine_builder_add_exercise))
-                        }
-                    }
-                    return@Column
-                }
-
-                // M20a drag reorder: the ViewModel's reorderExercises() is write-through (one
-                // persist{} batch per call) and Reorderable's onMove fires on every hover swap, so
-                // a screen-level optimistic copy absorbs the swaps and the ViewModel gets exactly
-                // one call on drop. One list instance for the screen's life (see SyncOptimisticList).
-                val localExercises = remember { mutableStateListOf<WorkoutExerciseUiModel>().apply { addAll(uiState.exercises) } }
-                val reorderState = rememberReorderableLazyListState(listState) { from, to ->
-                    val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
-                    val toKey = to.key as? String ?: return@rememberReorderableLazyListState
-                    val fromIndex = localExercises.indexOfFirst { it.id == fromKey }
-                    val toIndex = localExercises.indexOfFirst { it.id == toKey }
-                    if (fromIndex >= 0 && toIndex >= 0) localExercises.add(toIndex, localExercises.removeAt(fromIndex))
-                }
-                SyncOptimisticList(localExercises, uiState.exercises, reorderState.isAnyItemDragging)
-                val commitOrder = { viewModel.reorderExercises(localExercises.map { it.id }) }
-                // Accessibility "Move up/down" (DragHandle custom actions): one slot, then commit.
-                fun nudge(id: String, delta: Int) {
-                    val from = localExercises.indexOfFirst { it.id == id }
-                    val to = from + delta
-                    if (from < 0 || to !in localExercises.indices) return
-                    localExercises.add(to, localExercises.removeAt(from))
-                    commitOrder()
-                }
-                LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
-                    items(items = localExercises, key = { it.id }) { exercise ->
-                        // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule).
-                        // Declined at the M20a checkpoint (decisions.md 2026-09-07) -- a settled
-                        // decision, not an open question.
-                        ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
-                        WorkoutExerciseCard(
-                            exercise = exercise,
-                            dragHandle = {
-                                val index = localExercises.indexOfFirst { it.id == exercise.id }
-                                DragHandle(
-                                    modifier = Modifier.longPressDraggableHandle(onDragStopped = commitOrder),
-                                    onMoveUp = if (index > 0) ({ nudge(exercise.id, -1) }) else null,
-                                    onMoveDown = if (index in 0 until localExercises.lastIndex) ({ nudge(exercise.id, +1) }) else null,
-                                )
-                            },
-                            isDragging = isDragging,
-                            supersetSelectionActive = uiState.supersetSelectionActive,
-                            isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
-                            callbacks = workoutCallbacks,
-                            onExerciseClick = { onExerciseClick(exercise.exerciseId) },
-                            onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
-                            rpeTrackingEnabled = uiState.rpeTrackingEnabled,
-                            onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
-                            inlineTimerEnabled = uiState.inlineTimerEnabled,
-                            inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
-                            inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
-                            onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
-                            onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
-                            isEditMode = uiState.isEditMode,
-                            plateCalculator = uiState.plateCalculator,
-                            warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
-                            weightUnit = uiState.weightUnit,
-                        )
-                        }
-                    }
-                }
-
-                // Owner, 2026-09-03: rest timer moved out of the resting exercise's own card into
-                // one persistent bar here, just above Add Exercise — same engine/controls as the
-                // circuit bar above, just for the regular (non-circuit) table.
-                if (uiState.restExerciseId != null && !uiState.isEditMode) {
-                    Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
-                        RestTimerBar(
-                            remainingMillisFlow = viewModel.restRemainingMillisFlow,
-                            onMinus15 = { viewModel.adjustRestTimer(-15) },
-                            onPlus15 = { viewModel.adjustRestTimer(15) },
-                            onSkip = viewModel::skipRestTimer,
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = { pickerMode = ExercisePickerMode.ADD },
-                    modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-                ) {
-                    Text(stringResource(R.string.routine_builder_add_exercise))
+                    CircuitWorkoutBody(
+                        uiState = uiState,
+                        viewModel = viewModel,
+                        workoutCallbacks = workoutCallbacks,
+                        listState = listState,
+                        onExerciseClick = onExerciseClick,
+                        pickerModeState = pickerModeState,
+                        replaceTargetIdState = replaceTargetIdState,
+                        pendingRemoveRoundIndexState = pendingRemoveRoundIndexState,
+                    )
+                } else {
+                    RegularWorkoutBody(
+                        uiState = uiState,
+                        viewModel = viewModel,
+                        workoutCallbacks = workoutCallbacks,
+                        listState = listState,
+                        onExerciseClick = onExerciseClick,
+                        pickerModeState = pickerModeState,
+                        replaceTargetIdState = replaceTargetIdState,
+                    )
                 }
             }
         }
     }
+
+    WorkoutLoggerDialogs(
+        uiState = uiState,
+        viewModel = viewModel,
+        workoutCallbacks = workoutCallbacks,
+        pickerModeState = pickerModeState,
+        replaceTargetIdState = replaceTargetIdState,
+        onCreateExercise = onCreateExercise,
+        plateTargetState = plateTargetState,
+        showEditDatePickerState = showEditDatePickerState,
+        showEditIncompleteConfirmState = showEditIncompleteConfirmState,
+        showDiscardEditConfirmState = showDiscardEditConfirmState,
+        onExit = onExit,
+        pendingRemoveRoundIndexState = pendingRemoveRoundIndexState,
+        showDiscardConfirmState = showDiscardConfirmState,
+        scope = scope,
+        context = context,
+        onDiscarded = onDiscarded,
+    )
+}
+
+/**
+ * The exercise picker sheet, plate calculator sheet, and the 5 confirm/date-pick `AlertDialog`s
+ * `WorkoutLoggerScreen` can show — extracted as pure code motion (2026-09-19 debt audit finding
+ * #21) so the main composable's body doesn't have to hold all of this leaf UI in the same scope
+ * as the top bar and the circuit/regular list bodies. Each state param is the actual
+ * `MutableState` the caller declared (not a value+setter pair) so this stays a single source of
+ * truth with the parent, not a copy.
+ */
+@Composable
+private fun WorkoutLoggerDialogs(
+    uiState: WorkoutLoggerUiState,
+    viewModel: WorkoutLoggerViewModel,
+    workoutCallbacks: WorkoutCallbacks,
+    pickerModeState: MutableState<ExercisePickerMode?>,
+    replaceTargetIdState: MutableState<String?>,
+    onCreateExercise: (prefillName: String?) -> Unit,
+    plateTargetState: MutableState<PlateTarget?>,
+    showEditDatePickerState: MutableState<Boolean>,
+    showEditIncompleteConfirmState: MutableState<Boolean>,
+    showDiscardEditConfirmState: MutableState<Boolean>,
+    onExit: () -> Unit,
+    pendingRemoveRoundIndexState: MutableState<Int?>,
+    showDiscardConfirmState: MutableState<Boolean>,
+    scope: CoroutineScope,
+    context: Context,
+    onDiscarded: () -> Unit,
+) {
+    var pickerMode by pickerModeState
+    var replaceTargetId by replaceTargetIdState
+    var plateTarget by plateTargetState
+    var showEditDatePicker by showEditDatePickerState
+    var showEditIncompleteConfirm by showEditIncompleteConfirmState
+    var showDiscardEditConfirm by showDiscardEditConfirmState
+    var pendingRemoveRoundIndex by pendingRemoveRoundIndexState
+    var showDiscardConfirm by showDiscardConfirmState
 
     pickerMode?.let { mode ->
         ExercisePickerSheet(
@@ -615,6 +562,190 @@ fun WorkoutLoggerScreen(
             },
             dismissButton = { TextButton(onClick = { showDiscardConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
+    }
+}
+
+/**
+ * The circuit-mode round list, its rest-timer bar, and the Add Round/Add Exercise row — extracted
+ * as pure code motion (2026-09-19 debt audit finding #21) alongside [RegularWorkoutBody].
+ */
+@Composable
+private fun ColumnScope.CircuitWorkoutBody(
+    uiState: WorkoutLoggerUiState,
+    viewModel: WorkoutLoggerViewModel,
+    workoutCallbacks: WorkoutCallbacks,
+    listState: LazyListState,
+    onExerciseClick: (exerciseId: String) -> Unit,
+    pickerModeState: MutableState<ExercisePickerMode?>,
+    replaceTargetIdState: MutableState<String?>,
+    pendingRemoveRoundIndexState: MutableState<Int?>,
+) {
+    var pickerMode by pickerModeState
+    var replaceTargetId by replaceTargetIdState
+    var pendingRemoveRoundIndex by pendingRemoveRoundIndexState
+
+    // M11: round-grouped rendering — one card per round, exercises in sequence
+    // order inside it. Grouping is pure (buildCircuitRounds) and never repairs
+    // data: unequal set counts render as inert "—" slots.
+    val rounds = buildCircuitRounds(uiState.exercises)
+    LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
+        // Keyed by the round's first surviving set id, not its position: removing
+        // an earlier round must not re-attach later cards' remembered UI state
+        // (open menus, unparsed cell text) to a different round.
+        items(
+            items = rounds,
+            key = { r -> r.entries.firstNotNullOfOrNull { it.set?.id } ?: "round-${r.roundNumber}" },
+        ) { round ->
+            CircuitRoundCard(
+                round = round,
+                callbacks = workoutCallbacks,
+                onExerciseClick = onExerciseClick,
+                onOpenReplacePicker = { weId -> replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE },
+                onRemoveRound = {
+                    val roundIndex = round.roundNumber - 1
+                    if (viewModel.roundHasLoggedValues(roundIndex)) {
+                        pendingRemoveRoundIndex = roundIndex
+                    } else {
+                        viewModel.removeRound(roundIndex)
+                    }
+                },
+                canRemoveRound = rounds.size > 1,
+                rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+                inlineTimerEnabled = uiState.inlineTimerEnabled,
+                inlineTimerExerciseId = uiState.inlineTimerExerciseId,
+                inlineTimerSetId = uiState.inlineTimerSetId,
+                inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
+                isEditMode = uiState.isEditMode,
+                plateCalculator = uiState.plateCalculator,
+                weightUnit = uiState.weightUnit,
+            )
+        }
+    }
+
+    // M11: in circuit mode the per-exercise cards' rest bar has no single home (a
+    // round card holds every exercise), so the countdown + controls dock here
+    // instead. Owner, 2026-09-03: moved from above the round list to just above
+    // the Add Round/Add Exercise row, matching the regular table's own global bar.
+    if (uiState.restExerciseId != null && !uiState.isEditMode) {
+        Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+            RestTimerBar(
+                remainingMillisFlow = viewModel.restRemainingMillisFlow,
+                onMinus15 = { viewModel.adjustRestTimer(-15) },
+                onPlus15 = { viewModel.adjustRestTimer(15) },
+                onSkip = viewModel::skipRestTimer,
+            )
+        }
+    }
+
+    // M11: + Add Round replaces per-exercise + Add Set — pinned beside Add Exercise.
+    Row(modifier = Modifier.fillMaxWidth().padding(Spacing.md), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Button(onClick = viewModel::addRound, modifier = Modifier.weight(1f), enabled = uiState.exercises.isNotEmpty()) {
+            Text(stringResource(R.string.workout_add_round))
+        }
+        Button(onClick = { pickerMode = ExercisePickerMode.ADD }, modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.routine_builder_add_exercise))
+        }
+    }
+}
+
+/**
+ * The regular (non-circuit) drag-reorderable exercise list, its rest-timer bar, and the Add
+ * Exercise button — extracted as pure code motion (2026-09-19 debt audit finding #21) alongside
+ * [CircuitWorkoutBody]. The drag-reorder state (`localExercises`/`reorderState`) is local to this
+ * body and was never read outside it, so it moves wholesale with no external threading needed.
+ */
+@Composable
+private fun ColumnScope.RegularWorkoutBody(
+    uiState: WorkoutLoggerUiState,
+    viewModel: WorkoutLoggerViewModel,
+    workoutCallbacks: WorkoutCallbacks,
+    listState: LazyListState,
+    onExerciseClick: (exerciseId: String) -> Unit,
+    pickerModeState: MutableState<ExercisePickerMode?>,
+    replaceTargetIdState: MutableState<String?>,
+) {
+    var pickerMode by pickerModeState
+    var replaceTargetId by replaceTargetIdState
+
+    // M20a drag reorder: the ViewModel's reorderExercises() is write-through (one
+    // persist{} batch per call) and Reorderable's onMove fires on every hover swap, so
+    // a screen-level optimistic copy absorbs the swaps and the ViewModel gets exactly
+    // one call on drop. One list instance for the screen's life (see SyncOptimisticList).
+    val localExercises = remember { mutableStateListOf<WorkoutExerciseUiModel>().apply { addAll(uiState.exercises) } }
+    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
+        val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
+        val toKey = to.key as? String ?: return@rememberReorderableLazyListState
+        val fromIndex = localExercises.indexOfFirst { it.id == fromKey }
+        val toIndex = localExercises.indexOfFirst { it.id == toKey }
+        if (fromIndex >= 0 && toIndex >= 0) localExercises.add(toIndex, localExercises.removeAt(fromIndex))
+    }
+    SyncOptimisticList(localExercises, uiState.exercises, reorderState.isAnyItemDragging)
+    val commitOrder = { viewModel.reorderExercises(localExercises.map { it.id }) }
+    // Accessibility "Move up/down" (DragHandle custom actions): one slot, then commit.
+    fun nudge(id: String, delta: Int) {
+        val from = localExercises.indexOfFirst { it.id == id }
+        val to = from + delta
+        if (from < 0 || to !in localExercises.indices) return
+        localExercises.add(to, localExercises.removeAt(from))
+        commitOrder()
+    }
+    LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
+        items(items = localExercises, key = { it.id }) { exercise ->
+            // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule).
+            // Declined at the M20a checkpoint (decisions.md 2026-09-07) -- a settled
+            // decision, not an open question.
+            ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
+                WorkoutExerciseCard(
+                    exercise = exercise,
+                    dragHandle = {
+                        val index = localExercises.indexOfFirst { it.id == exercise.id }
+                        DragHandle(
+                            modifier = Modifier.longPressDraggableHandle(onDragStopped = commitOrder),
+                            onMoveUp = if (index > 0) ({ nudge(exercise.id, -1) }) else null,
+                            onMoveDown = if (index in 0 until localExercises.lastIndex) ({ nudge(exercise.id, +1) }) else null,
+                        )
+                    },
+                    isDragging = isDragging,
+                    supersetSelectionActive = uiState.supersetSelectionActive,
+                    isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
+                    callbacks = workoutCallbacks,
+                    onExerciseClick = { onExerciseClick(exercise.exerciseId) },
+                    onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
+                    rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+                    onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
+                    inlineTimerEnabled = uiState.inlineTimerEnabled,
+                    inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
+                    inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
+                    onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
+                    onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
+                    isEditMode = uiState.isEditMode,
+                    plateCalculator = uiState.plateCalculator,
+                    warmupCalculatorEnabled = uiState.warmupCalculatorEnabled,
+                    weightUnit = uiState.weightUnit,
+                )
+            }
+        }
+    }
+
+    // Owner, 2026-09-03: rest timer moved out of the resting exercise's own card into
+    // one persistent bar here, just above Add Exercise — same engine/controls as the
+    // circuit bar above, just for the regular (non-circuit) table.
+    if (uiState.restExerciseId != null && !uiState.isEditMode) {
+        Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+            RestTimerBar(
+                remainingMillisFlow = viewModel.restRemainingMillisFlow,
+                onMinus15 = { viewModel.adjustRestTimer(-15) },
+                onPlus15 = { viewModel.adjustRestTimer(15) },
+                onSkip = viewModel::skipRestTimer,
+            )
+        }
+    }
+
+    Button(
+        onClick = { pickerMode = ExercisePickerMode.ADD },
+        modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+    ) {
+        Text(stringResource(R.string.routine_builder_add_exercise))
     }
 }
 

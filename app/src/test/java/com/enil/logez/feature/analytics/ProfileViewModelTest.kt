@@ -1,8 +1,15 @@
 package com.enil.logez.feature.analytics
 
 import com.enil.logez.core.data.entity.WorkoutEntity
+import com.enil.logez.core.data.entity.WorkoutExerciseEntity
+import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
+import com.enil.logez.core.domain.model.Equipment
+import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeHealthMetricsSource
@@ -45,6 +52,22 @@ class ProfileViewModelTest {
         id = id, routineId = null, title = "W$id", notes = null, status = WorkoutStatus.COMPLETED,
         startedAt = millisOn(date), endedAt = millisOn(date) + 3_600_000L, durationSeconds = 3600,
         createdAt = millisOn(date), updatedAt = millisOn(date),
+    )
+
+    private fun exercise(id: String, muscle: MuscleGroup) = Exercise(
+        id = id, name = id, exerciseType = ExerciseType.WEIGHT_REPS, primaryMuscleGroup = muscle,
+        secondaryMuscleGroups = emptyList(), equipment = Equipment.BARBELL, instructions = "", mediaPath = null,
+        isCustom = false, isBodyweightVolumeEligible = false, isDeleted = false, createdAt = 0, updatedAt = 0,
+    )
+
+    private fun workoutExercise(id: String, workoutId: String, exerciseId: String) = WorkoutExerciseEntity(
+        id = id, workoutId = workoutId, exerciseId = exerciseId, orderIndex = 0, supersetGroup = null,
+        restTimerSeconds = null, notes = null,
+    )
+
+    private fun completedSet(id: String, weId: String) = WorkoutSetEntity(
+        id = id, workoutExerciseId = weId, orderIndex = 0, setType = SetType.NORMAL, weightKg = 20.0, reps = 10,
+        durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1L,
     )
 
     private fun newViewModel(
@@ -124,6 +147,39 @@ class ProfileViewModelTest {
         val frequency = vm.uiState.value.quickCharts.getValue(TrainingMetric.FREQUENCY)
         assertEquals(1.0, frequency.last().value, 1e-9)
         assertEquals(TrainingMetric.entries.size, vm.uiState.value.quickCharts.size)
+    }
+
+    @Test
+    fun `the muscle heat-map normalizes set counts within the last 7 days and excludes older workouts`() = runTest {
+        // today is 08-22 -- last7Window is [08-16, 08-22]. w1/w2 fall inside it (3 CHEST sets,
+        // 1 UPPER_BACK set); w3 sits on 08-01, well outside it, and its 5 CHEST sets must not
+        // count -- otherwise CHEST would wrongly read 8 sets and UPPER_BACK's share would be off.
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(
+                    completedWorkout("w1", "2026-08-18"),
+                    completedWorkout("w2", "2026-08-19"),
+                    completedWorkout("w3", "2026-08-01"),
+                ),
+                exercises = listOf(
+                    workoutExercise("we1", "w1", "ex-bench"),
+                    workoutExercise("we2", "w2", "ex-row"),
+                    workoutExercise("we3", "w3", "ex-bench"),
+                ),
+                sets = listOf(
+                    completedSet("s1", "we1"), completedSet("s2", "we1"), completedSet("s3", "we1"),
+                    completedSet("s4", "we2"),
+                    completedSet("s5", "we3"), completedSet("s6", "we3"), completedSet("s7", "we3"),
+                    completedSet("s8", "we3"), completedSet("s9", "we3"),
+                ),
+            ),
+            exerciseRepo = FakeExerciseRepository(
+                listOf(exercise("ex-bench", MuscleGroup.CHEST), exercise("ex-row", MuscleGroup.UPPER_BACK)),
+            ),
+        )
+        val heat = vm.uiState.value.last7Heat
+        assertEquals(1.0f, heat.getValue(MuscleGroup.CHEST), 1e-6f)
+        assertEquals(1f / 3f, heat.getValue(MuscleGroup.UPPER_BACK), 1e-6f)
     }
 
     // --- M21e wellness (steps only) ---
