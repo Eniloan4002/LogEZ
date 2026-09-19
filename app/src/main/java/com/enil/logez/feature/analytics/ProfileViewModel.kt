@@ -3,7 +3,6 @@ package com.enil.logez.feature.analytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
-import com.enil.logez.core.data.entity.DailyWellnessTotalEntity
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
@@ -11,6 +10,7 @@ import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.StreakCalculator
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.repository.DailyWellnessTotal
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WellnessRepository
@@ -95,7 +95,7 @@ class ProfileViewModel @Inject constructor(
                 todaySteps = totals.steps
                 todayCalories = totals.caloriesBurned
                 wellnessRepository.upsert(
-                    DailyWellnessTotalEntity(
+                    DailyWellnessTotal(
                         date = today.format(DateTimeFormatter.ISO_LOCAL_DATE),
                         steps = totals.steps,
                         caloriesBurned = totals.caloriesBurned,
