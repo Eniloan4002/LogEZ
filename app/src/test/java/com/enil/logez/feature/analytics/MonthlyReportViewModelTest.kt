@@ -11,6 +11,7 @@ import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
@@ -21,7 +22,9 @@ import java.time.YearMonth
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -141,6 +144,50 @@ class MonthlyReportViewModelTest {
         vm.stepMonth(-1)
         vm.stepMonth(-1)
         assertEquals(YearMonth.of(2026, 7), vm.uiState.value.month)
+    }
+
+    @Test
+    fun `rapid month switches always resolve to the last-selected month, even when the earlier read is slower`() = runTest {
+        // Pins rebuildAsync()'s cancel-and-restart guard (see its own doc comment): the PR read is
+        // the one suspend point mid-rebuild, so a naive implementation without the guard could let
+        // an in-flight rebuild for an OLDER selection publish after a NEWER one, silently reverting
+        // it. July is queried first but answers slowest; August is queried second but fastest --
+        // if the guard ever regressed (e.g. swapped for a debounce with no cancellation), July's
+        // slow answer would land last and this test would see July instead of August.
+        fun monthStartMillis(month: YearMonth) = month.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val julyStart = monthStartMillis(YearMonth.of(2026, 7))
+        val augustStart = monthStartMillis(YearMonth.of(2026, 8))
+        val recordsDelegate = FakePersonalRecordsRepository()
+        var slowMode = false
+        val racyRecordsRepo = object : PersonalRecordsRepository by recordsDelegate {
+            override suspend fun getAchievedBetween(fromMillis: Long, untilMillis: Long): List<PersonalRecordEntity> {
+                if (slowMode) {
+                    val delayMillis = when (fromMillis) {
+                        julyStart -> 1_000L
+                        augustStart -> 10L
+                        else -> 0L
+                    }
+                    delay(delayMillis)
+                }
+                return recordsDelegate.getAchievedBetween(fromMillis, untilMillis)
+            }
+        }
+        val vm = MonthlyReportViewModel(
+            fixtureWorkoutRepo(),
+            FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            racyRecordsRepo,
+            FakeSettingsRepository(),
+            FakeClock(currentMillis = nowMillis),
+        )
+        vm.refresh()
+        advanceUntilIdle() // settle the initial (non-racy) load before arming the race
+
+        slowMode = true
+        vm.selectMonth(YearMonth.of(2026, 7)) // starts the slow (1000ms) rebuild
+        vm.selectMonth(YearMonth.of(2026, 8)) // cancels it mid-flight, starts the fast (10ms) rebuild
+        advanceUntilIdle()
+
+        assertEquals(YearMonth.of(2026, 8), vm.uiState.value.month)
     }
 
     @Test

@@ -1154,6 +1154,55 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
+    fun `roundHasLoggedValues is true when any exercise's row at that index has a logged field`() = runTest {
+        val vm = newViewModel(workoutRepo = circuitFixture(), exerciseRepo = circuitExerciseRepo())
+
+        // Both rounds in circuitFixture have real weight/reps logged (isCompleted is false, but
+        // the OR-chain checks every field independently -- see the class doc comment).
+        assertTrue(vm.roundHasLoggedValues(0))
+        assertTrue(vm.roundHasLoggedValues(1))
+    }
+
+    @Test
+    fun `roundHasLoggedValues is false when every exercise's row at that index is fully blank`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(aCircuitWorkout("w1")),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-2", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = listOf(
+                WorkoutSetEntity(id = "a0", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+                WorkoutSetEntity(id = "b0", workoutExerciseId = "we2", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        assertFalse(vm.roundHasLoggedValues(0))
+    }
+
+    @Test
+    fun `roundHasLoggedValues is true when a row is completed even with every numeric field null`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(aCircuitWorkout("w1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(
+                WorkoutSetEntity(id = "a0", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 1_000L),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
+
+        assertTrue(vm.roundHasLoggedValues(0))
+    }
+
+    @Test
+    fun `roundHasLoggedValues on an out-of-range index is false, not a crash`() = runTest {
+        val vm = newViewModel(workoutRepo = circuitFixture(), exerciseRepo = circuitExerciseRepo())
+
+        assertFalse(vm.roundHasLoggedValues(99))
+    }
+
+    @Test
     fun `addExercises mid-circuit gives the newcomer exactly one row per existing round`() = runTest {
         val workoutRepo = circuitFixture()
         val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = circuitExerciseRepo())
