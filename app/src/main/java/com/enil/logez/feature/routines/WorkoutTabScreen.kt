@@ -1,5 +1,6 @@
 package com.enil.logez.feature.routines
 
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -88,6 +90,7 @@ import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import java.util.Locale
 import java.time.format.TextStyle
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -123,12 +126,21 @@ fun WorkoutTabScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var collapsedFolders by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var showCreateFolder by remember { mutableStateOf(false) }
-    var renamingFolder by remember { mutableStateOf<RoutineFolderEntity?>(null) }
-    var deletingFolder by remember { mutableStateOf<RoutineFolderEntity?>(null) }
-    var deletingRoutineId by remember { mutableStateOf<String?>(null) }
-    var movingRoutineId by remember { mutableStateOf<String?>(null) }
-    var pendingStart by remember { mutableStateOf<PendingStart?>(null) }
+    // Exposed as MutableState (not just `var x by remember {}`) so WorkoutTabDialogs below can
+    // read and write the same instance — same delegate object either way, this just lets it
+    // cross a composable-function boundary.
+    val showCreateFolderState = remember { mutableStateOf(false) }
+    var showCreateFolder by showCreateFolderState
+    val renamingFolderState = remember { mutableStateOf<RoutineFolderEntity?>(null) }
+    var renamingFolder by renamingFolderState
+    val deletingFolderState = remember { mutableStateOf<RoutineFolderEntity?>(null) }
+    var deletingFolder by deletingFolderState
+    val deletingRoutineIdState = remember { mutableStateOf<String?>(null) }
+    var deletingRoutineId by deletingRoutineIdState
+    val movingRoutineIdState = remember { mutableStateOf<String?>(null) }
+    var movingRoutineId by movingRoutineIdState
+    val pendingStartState = remember { mutableStateOf<PendingStart?>(null) }
+    var pendingStart by pendingStartState
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
     var pendingTrackExercise by remember { mutableStateOf<Exercise?>(null) }
     val startSession = rememberStartWorkoutSession(onNavigateToLogger)
@@ -497,6 +509,54 @@ fun WorkoutTabScreen(
             }
         }
     }
+
+    WorkoutTabDialogs(
+        uiState = uiState,
+        viewModel = viewModel,
+        showCreateFolderState = showCreateFolderState,
+        renamingFolderState = renamingFolderState,
+        deletingFolderState = deletingFolderState,
+        deletingRoutineIdState = deletingRoutineIdState,
+        movingRoutineIdState = movingRoutineIdState,
+        pendingStartState = pendingStartState,
+        inProgressWorkoutId = inProgressWorkoutId,
+        startSession = startSession,
+        onNavigateToActivityTracking = onNavigateToActivityTracking,
+        scope = scope,
+        context = context,
+    )
+}
+
+/**
+ * The 6 trailing folder/routine dialogs `WorkoutTabScreen` can show — extracted as pure code
+ * motion (2026-09-19 debt audit finding #21, same shape as WorkoutLoggerScreen's
+ * WorkoutLoggerDialogs) so the main composable's body doesn't have to hold all of this leaf UI in
+ * the same scope as the drag-reorderable folder/routine list. Each state param is the actual
+ * `MutableState` the caller declared, not a value+setter pair, so this stays a single source of
+ * truth with the parent, not a copy.
+ */
+@Composable
+private fun WorkoutTabDialogs(
+    uiState: WorkoutTabUiState,
+    viewModel: WorkoutTabViewModel,
+    showCreateFolderState: MutableState<Boolean>,
+    renamingFolderState: MutableState<RoutineFolderEntity?>,
+    deletingFolderState: MutableState<RoutineFolderEntity?>,
+    deletingRoutineIdState: MutableState<String?>,
+    movingRoutineIdState: MutableState<String?>,
+    pendingStartState: MutableState<PendingStart?>,
+    inProgressWorkoutId: String?,
+    startSession: (String) -> Unit,
+    onNavigateToActivityTracking: () -> Unit,
+    scope: CoroutineScope,
+    context: Context,
+) {
+    var showCreateFolder by showCreateFolderState
+    var renamingFolder by renamingFolderState
+    var deletingFolder by deletingFolderState
+    var deletingRoutineId by deletingRoutineIdState
+    var movingRoutineId by movingRoutineIdState
+    var pendingStart by pendingStartState
 
     if (showCreateFolder) {
         TextInputDialog(
