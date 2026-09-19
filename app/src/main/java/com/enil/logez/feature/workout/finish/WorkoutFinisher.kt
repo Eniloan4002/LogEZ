@@ -249,14 +249,6 @@ class WorkoutFinisher @Inject constructor(
             we.id to workoutRepository.getSetsForWorkoutExercise(we.id).sortedBy { it.orderIndex }
         }
 
-        // M11 circuits: a set row's orderIndex IS its round, and the uncompleted-set purge deletes
-        // skipped rows WITHOUT re-indexing — survivors can be {0,2}. Compacting them positionally
-        // (the REGULAR path below) would write round 3's logged values into the routine's round-2
-        // slot and leave exercises with unequal set counts, breaking the rectangle invariant in a
-        // persisted CIRCUIT routine (which the builder then "repairs" by duplicating the shifted
-        // last row — cementing the misattribution). So a circuit rewrite pairs by orderIndex and
-        // PADS a skipped round from the routine's own authored target for that round instead of
-        // compacting, keeping every round's targets on the round they belong to.
         val isCircuit = routine.structure == WorkoutStructure.CIRCUIT
         val circuitRounds = if (isCircuit) {
             survivingSetsByWorkoutExerciseId.values.maxOfOrNull { sets -> sets.maxOfOrNull { it.orderIndex + 1 } ?: 0 } ?: 0
@@ -289,45 +281,10 @@ class WorkoutFinisher @Inject constructor(
             )
             val survivingSets = survivingSetsByWorkoutExerciseId.getValue(we.id)
             val originalRoutineSets = original?.let { originalSets[it.id] }.orEmpty()
-            if (isCircuit) {
-                val exerciseNewSets = mutableListOf<RoutineSetEntity>()
-                (0 until circuitRounds).forEach { round ->
-                    val ws = survivingSets.find { it.orderIndex == round }
-                    val originalSet = originalRoutineSets.getOrNull(round)
-                    exerciseNewSets += when {
-                        // Performed round: the session's values, rep range carried over.
-                        ws != null -> sessionRoutineSet(routineExerciseId, round, ws, originalSet)
-                        // Skipped round: keep the routine's own authored target for THIS round —
-                        // never a later round's values shifted into its place.
-                        originalSet != null -> originalSet.copy(
-                            id = UUID.randomUUID().toString(),
-                            routineExerciseId = routineExerciseId,
-                            orderIndex = round,
-                        )
-                        // No session row and no authored target (e.g. an exercise added
-                        // mid-session whose row for this round was purged): pad from the previous
-                        // round's targets — the builder's own padToRounds semantics.
-                        else -> exerciseNewSets.lastOrNull().let { last ->
-                            RoutineSetEntity(
-                                id = UUID.randomUUID().toString(),
-                                routineExerciseId = routineExerciseId,
-                                orderIndex = round,
-                                setType = SetType.NORMAL,
-                                targetWeightKg = last?.targetWeightKg,
-                                targetReps = last?.targetReps,
-                                targetRepRangeMin = last?.targetRepRangeMin,
-                                targetRepRangeMax = last?.targetRepRangeMax,
-                                targetDurationSeconds = last?.targetDurationSeconds,
-                                targetDistanceMeters = last?.targetDistanceMeters,
-                            )
-                        }
-                    }
-                }
-                newSets += exerciseNewSets
+            newSets += if (isCircuit) {
+                circuitExerciseSets(routineExerciseId, circuitRounds, survivingSets, originalRoutineSets)
             } else {
-                survivingSets.forEachIndexed { setIndex, ws ->
-                    newSets += sessionRoutineSet(routineExerciseId, setIndex, ws, originalRoutineSets.getOrNull(setIndex))
-                }
+                regularExerciseSets(routineExerciseId, survivingSets, originalRoutineSets)
             }
         }
 
@@ -336,6 +293,66 @@ class WorkoutFinisher @Inject constructor(
             dropOrphanSupersets(newExercises),
             newSets,
         )
+    }
+
+    /** The REGULAR-structure rewrite: purely positional, one routine set per surviving session set. */
+    private fun regularExerciseSets(
+        routineExerciseId: String,
+        survivingSets: List<WorkoutSetEntity>,
+        originalRoutineSets: List<RoutineSetEntity>,
+    ): List<RoutineSetEntity> =
+        survivingSets.mapIndexed { setIndex, ws -> sessionRoutineSet(routineExerciseId, setIndex, ws, originalRoutineSets.getOrNull(setIndex)) }
+
+    /**
+     * M11 circuits: a set row's orderIndex IS its round, and the uncompleted-set purge deletes
+     * skipped rows WITHOUT re-indexing — survivors can be {0,2}. Compacting them positionally (as
+     * [regularExerciseSets] does) would write round 3's logged values into the routine's round-2
+     * slot and leave exercises with unequal set counts, breaking the rectangle invariant in a
+     * persisted CIRCUIT routine (which the builder then "repairs" by duplicating the shifted last
+     * row — cementing the misattribution). So this pairs by orderIndex and PADS a skipped round
+     * from the routine's own authored target for that round instead of compacting, keeping every
+     * round's targets on the round they belong to.
+     */
+    private fun circuitExerciseSets(
+        routineExerciseId: String,
+        circuitRounds: Int,
+        survivingSets: List<WorkoutSetEntity>,
+        originalRoutineSets: List<RoutineSetEntity>,
+    ): List<RoutineSetEntity> {
+        val exerciseNewSets = mutableListOf<RoutineSetEntity>()
+        (0 until circuitRounds).forEach { round ->
+            val ws = survivingSets.find { it.orderIndex == round }
+            val originalSet = originalRoutineSets.getOrNull(round)
+            exerciseNewSets += when {
+                // Performed round: the session's values, rep range carried over.
+                ws != null -> sessionRoutineSet(routineExerciseId, round, ws, originalSet)
+                // Skipped round: keep the routine's own authored target for THIS round —
+                // never a later round's values shifted into its place.
+                originalSet != null -> originalSet.copy(
+                    id = UUID.randomUUID().toString(),
+                    routineExerciseId = routineExerciseId,
+                    orderIndex = round,
+                )
+                // No session row and no authored target (e.g. an exercise added mid-session
+                // whose row for this round was purged): pad from the previous round's targets —
+                // the builder's own padToRounds semantics.
+                else -> exerciseNewSets.lastOrNull().let { last ->
+                    RoutineSetEntity(
+                        id = UUID.randomUUID().toString(),
+                        routineExerciseId = routineExerciseId,
+                        orderIndex = round,
+                        setType = SetType.NORMAL,
+                        targetWeightKg = last?.targetWeightKg,
+                        targetReps = last?.targetReps,
+                        targetRepRangeMin = last?.targetRepRangeMin,
+                        targetRepRangeMax = last?.targetRepRangeMax,
+                        targetDurationSeconds = last?.targetDurationSeconds,
+                        targetDistanceMeters = last?.targetDistanceMeters,
+                    )
+                }
+            }
+        }
+        return exerciseNewSets
     }
 
     /**
