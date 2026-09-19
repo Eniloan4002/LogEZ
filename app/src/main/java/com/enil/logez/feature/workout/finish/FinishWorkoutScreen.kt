@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
@@ -216,41 +217,30 @@ fun FinishWorkoutScreen(
     }
 
     if (showNoSetsDialog) {
-        AlertDialog(
+        // Actually deletes the workout — the dialog previously only navigated away, so the
+        // "discarded" session stayed IN_PROGRESS and blocked starting a new one.
+        ConfirmDialog(
             onDismissRequest = { showNoSetsDialog = false },
-            title = { Text(stringResource(R.string.finish_no_sets_title)) },
-            text = { Text(stringResource(R.string.finish_no_sets_body)) },
-            confirmButton = {
-                // Actually deletes the workout — the dialog previously only navigated away, so
-                // the "discarded" session stayed IN_PROGRESS and blocked starting a new one.
-                TextButton(onClick = { showNoSetsDialog = false; viewModel.discard() }) {
-                    Text(stringResource(R.string.workout_discard))
-                }
-            },
-            dismissButton = { TextButton(onClick = { showNoSetsDialog = false }) { Text(stringResource(R.string.action_cancel)) } },
+            title = stringResource(R.string.finish_no_sets_title),
+            body = stringResource(R.string.finish_no_sets_body),
+            confirmLabel = stringResource(R.string.workout_discard),
+            onConfirm = viewModel::discard,
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 
     if (showIncompleteConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showIncompleteConfirm = false },
-            title = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.finish_incomplete_title,
-                        uiState.incompleteSetCount,
-                        uiState.incompleteSetCount,
-                    ),
-                )
-            },
-            text = { Text(stringResource(R.string.finish_incomplete_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showIncompleteConfirm = false
-                    scope.launch { if (viewModel.needsStructurePrompt()) showStructurePrompt = true else viewModel.save(null) }
-                }) { Text(stringResource(R.string.finish_incomplete_confirm)) }
-            },
-            dismissButton = { TextButton(onClick = { showIncompleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
+            title = pluralStringResource(
+                R.plurals.finish_incomplete_title,
+                uiState.incompleteSetCount,
+                uiState.incompleteSetCount,
+            ),
+            body = stringResource(R.string.finish_incomplete_body),
+            confirmLabel = stringResource(R.string.finish_incomplete_confirm),
+            onConfirm = { scope.launch { if (viewModel.needsStructurePrompt()) showStructurePrompt = true else viewModel.save(null) } },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 

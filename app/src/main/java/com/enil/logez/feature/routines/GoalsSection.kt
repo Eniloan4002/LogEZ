@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
@@ -90,14 +91,13 @@ fun GoalsSection(
         )
     }
     deletingGoalId?.let { id ->
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { deletingGoalId = null },
-            title = { Text(stringResource(R.string.goal_delete_title)) },
-            text = { Text(stringResource(R.string.goal_delete_body)) },
-            confirmButton = {
-                TextButton(onClick = { onDeleteGoal(id); deletingGoalId = null }) { Text(stringResource(R.string.action_delete)) }
-            },
-            dismissButton = { TextButton(onClick = { deletingGoalId = null }) { Text(stringResource(R.string.action_cancel)) } },
+            title = stringResource(R.string.goal_delete_title),
+            body = stringResource(R.string.goal_delete_body),
+            confirmLabel = stringResource(R.string.action_delete),
+            onConfirm = { onDeleteGoal(id) },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 }

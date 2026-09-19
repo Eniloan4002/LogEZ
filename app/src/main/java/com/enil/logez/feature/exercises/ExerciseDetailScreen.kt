@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,7 +32,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
@@ -169,20 +168,13 @@ fun ExerciseDetailScreen(
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.exercise_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.exercise_delete_confirm_body)) },
-            confirmButton = {
-                TextButton(onClick = { showDeleteConfirm = false; viewModel.delete(onDeleted) }) {
-                    Text(stringResource(R.string.action_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
+            title = stringResource(R.string.exercise_delete_confirm_title),
+            body = stringResource(R.string.exercise_delete_confirm_body),
+            confirmLabel = stringResource(R.string.action_delete),
+            onConfirm = { viewModel.delete(onDeleted) },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 }

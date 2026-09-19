@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.CircuitChip
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.HeatmapGrid
 import com.enil.logez.core.designsystem.DragHandle
@@ -575,25 +576,23 @@ private fun WorkoutTabDialogs(
         )
     }
     deletingFolder?.let { folder ->
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { deletingFolder = null },
-            title = { Text(stringResource(R.string.workout_delete_folder_title)) },
-            text = { Text(stringResource(R.string.workout_delete_folder_body)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteFolder(folder); deletingFolder = null }) { Text(stringResource(R.string.action_delete)) }
-            },
-            dismissButton = { TextButton(onClick = { deletingFolder = null }) { Text(stringResource(R.string.action_cancel)) } },
+            title = stringResource(R.string.workout_delete_folder_title),
+            body = stringResource(R.string.workout_delete_folder_body),
+            confirmLabel = stringResource(R.string.action_delete),
+            onConfirm = { viewModel.deleteFolder(folder) },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
     deletingRoutineId?.let { routineId ->
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { deletingRoutineId = null },
-            title = { Text(stringResource(R.string.workout_delete_routine_title)) },
-            text = { Text(stringResource(R.string.workout_delete_routine_body)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.deleteRoutine(routineId); deletingRoutineId = null }) { Text(stringResource(R.string.action_delete)) }
-            },
-            dismissButton = { TextButton(onClick = { deletingRoutineId = null }) { Text(stringResource(R.string.action_cancel)) } },
+            title = stringResource(R.string.workout_delete_routine_title),
+            body = stringResource(R.string.workout_delete_routine_body),
+            confirmLabel = stringResource(R.string.action_delete),
+            onConfirm = { viewModel.deleteRoutine(routineId) },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
     movingRoutineId?.let { routineId ->

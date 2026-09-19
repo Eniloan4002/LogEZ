@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DatePicker
@@ -66,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.DragHandle
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
@@ -488,37 +488,25 @@ private fun WorkoutLoggerDialogs(
     }
 
     if (showEditIncompleteConfirm) {
-        AlertDialog(
+        val uncompletedSetCount = viewModel.uncompletedSetCount()
+        ConfirmDialog(
             onDismissRequest = { showEditIncompleteConfirm = false },
-            title = {
-                val count = viewModel.uncompletedSetCount()
-                Text(pluralStringResource(R.plurals.finish_incomplete_title, count, count))
-            },
-            text = { Text(stringResource(R.string.finish_incomplete_body)) },
-            confirmButton = {
-                TextButton(onClick = { showEditIncompleteConfirm = false; viewModel.saveEdit() }) {
-                    Text(stringResource(R.string.finish_incomplete_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditIncompleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            title = pluralStringResource(R.plurals.finish_incomplete_title, uncompletedSetCount, uncompletedSetCount),
+            body = stringResource(R.string.finish_incomplete_body),
+            confirmLabel = stringResource(R.string.finish_incomplete_confirm),
+            onConfirm = viewModel::saveEdit,
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 
     if (showDiscardEditConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showDiscardEditConfirm = false },
-            title = { Text(stringResource(R.string.workout_edit_discard_title)) },
-            text = { Text(stringResource(R.string.workout_edit_discard_body)) },
-            confirmButton = {
-                TextButton(onClick = { showDiscardEditConfirm = false; onExit() }) {
-                    Text(stringResource(R.string.workout_edit_discard_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDiscardEditConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            title = stringResource(R.string.workout_edit_discard_title),
+            body = stringResource(R.string.workout_edit_discard_body),
+            confirmLabel = stringResource(R.string.workout_edit_discard_confirm),
+            onConfirm = onExit,
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 
@@ -527,40 +515,31 @@ private fun WorkoutLoggerDialogs(
 
     // M11: Remove Round holds logged values somewhere — confirm before deleting the whole slice.
     pendingRemoveRoundIndex?.let { roundIndex ->
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { pendingRemoveRoundIndex = null },
-            title = { Text(stringResource(R.string.workout_remove_round_title, roundIndex + 1)) },
-            text = { Text(stringResource(R.string.workout_remove_round_body)) },
-            confirmButton = {
-                TextButton(onClick = { pendingRemoveRoundIndex = null; viewModel.removeRound(roundIndex) }) {
-                    Text(stringResource(R.string.workout_remove_round))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingRemoveRoundIndex = null }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            title = stringResource(R.string.workout_remove_round_title, roundIndex + 1),
+            body = stringResource(R.string.workout_remove_round_body),
+            confirmLabel = stringResource(R.string.workout_remove_round),
+            onConfirm = { viewModel.removeRound(roundIndex) },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 
     if (showDiscardConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showDiscardConfirm = false },
-            title = { Text(stringResource(R.string.workout_discard_confirm_title)) },
-            text = { Text(stringResource(R.string.workout_discard_confirm_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDiscardConfirm = false
-                    scope.launch {
-                        if (viewModel.discard()) {
-                            stopWorkoutSessionService(context)
-                            onDiscarded()
-                        }
+            title = stringResource(R.string.workout_discard_confirm_title),
+            body = stringResource(R.string.workout_discard_confirm_body),
+            confirmLabel = stringResource(R.string.workout_discard),
+            onConfirm = {
+                scope.launch {
+                    if (viewModel.discard()) {
+                        stopWorkoutSessionService(context)
+                        onDiscarded()
                     }
-                }) {
-                    Text(stringResource(R.string.workout_discard))
                 }
             },
-            dismissButton = { TextButton(onClick = { showDiscardConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 }
