@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -59,6 +58,7 @@ import androidx.compose.ui.unit.em
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.DragHandle
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
@@ -284,36 +284,26 @@ fun RoutineBuilderScreen(
     }
 
     if (showDiscardConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showDiscardConfirm = false },
-            title = { Text(stringResource(R.string.routine_builder_discard_title)) },
-            text = { Text(stringResource(R.string.routine_builder_discard_body)) },
-            confirmButton = {
-                TextButton(onClick = { showDiscardConfirm = false; onBack() }) {
-                    Text(stringResource(R.string.routine_builder_discard_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDiscardConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            title = stringResource(R.string.routine_builder_discard_title),
+            body = stringResource(R.string.routine_builder_discard_body),
+            confirmLabel = stringResource(R.string.routine_builder_discard_confirm),
+            onConfirm = onBack,
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 
     // M11: stepping the round count down discards the last round's targets on every exercise —
     // confirmed only when any of those targets are actually filled in.
     if (showRemoveRoundConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showRemoveRoundConfirm = false },
-            title = { Text(stringResource(R.string.routine_builder_remove_round_title, uiState.rounds)) },
-            text = { Text(stringResource(R.string.routine_builder_remove_round_body)) },
-            confirmButton = {
-                TextButton(onClick = { showRemoveRoundConfirm = false; viewModel.removeLastRound() }) {
-                    Text(stringResource(R.string.routine_builder_remove_round))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRemoveRoundConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            title = stringResource(R.string.routine_builder_remove_round_title, uiState.rounds),
+            body = stringResource(R.string.routine_builder_remove_round_body),
+            confirmLabel = stringResource(R.string.routine_builder_remove_round),
+            onConfirm = viewModel::removeLastRound,
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 }

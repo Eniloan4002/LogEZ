@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.CircuitChip
+import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.Danger500
 import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LogEzCard
@@ -245,18 +246,13 @@ fun WorkoutDetailScreen(
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
+        ConfirmDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.history_detail_delete_title)) },
-            text = { Text(stringResource(R.string.history_detail_delete_body)) },
-            confirmButton = {
-                TextButton(onClick = { showDeleteConfirm = false; viewModel.delete(onBack) }) {
-                    Text(stringResource(R.string.action_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            title = stringResource(R.string.history_detail_delete_title),
+            body = stringResource(R.string.history_detail_delete_body),
+            confirmLabel = stringResource(R.string.action_delete),
+            onConfirm = { viewModel.delete(onBack) },
+            dismissLabel = stringResource(R.string.action_cancel),
         )
     }
 }
