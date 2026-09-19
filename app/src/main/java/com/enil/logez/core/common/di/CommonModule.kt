@@ -1,5 +1,7 @@
 package com.enil.logez.core.common.di
 
+import com.enil.logez.core.common.AndroidAppLogger
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.common.ElapsedRealtimeClock
 import com.enil.logez.core.common.SystemClock
@@ -24,6 +26,10 @@ abstract class CommonModule {
     @Binds
     @Singleton
     abstract fun bindElapsedRealtimeClock(impl: SystemElapsedRealtimeClock): ElapsedRealtimeClock
+
+    @Binds
+    @Singleton
+    abstract fun bindAppLogger(impl: AndroidAppLogger): AppLogger
 
     companion object {
         /** §9.2 — [com.enil.logez.feature.workout.session.WorkoutSessionController]'s fire-and-forget

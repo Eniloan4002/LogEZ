@@ -1,5 +1,6 @@
 package com.enil.logez.feature.workout.finish
 
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
@@ -25,6 +26,7 @@ import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /** What the user chose on the §5.1.8(b) prompt — absent when the session made no structural change. */
 enum class RoutineStructureChoice { UPDATE_ROUTINE, KEEP_ORIGINAL }
@@ -59,6 +61,7 @@ class WorkoutFinisher @Inject constructor(
     private val healthMetricsSource: HealthMetricsSource,
     private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
     private val clock: Clock,
+    private val logger: AppLogger = AppLogger.NoOp,
 ) {
     suspend fun finish(
         workout: WorkoutEntity,
@@ -125,20 +128,33 @@ class WorkoutFinisher @Inject constructor(
     }
 
     private suspend fun saveHeartRateSamples(workoutId: String, startedAt: Long, endedAt: Long) {
-        if (healthMetricsSource.availability() != HealthConnectAvailability.Available) return
-        if (!healthMetricsSource.hasAllPermissions()) return
-        val samples = healthMetricsSource.readHeartRateSamples(Instant.ofEpochMilli(startedAt), Instant.ofEpochMilli(endedAt))
-        if (samples.isEmpty()) return
-        heartRateSampleRepository.insertAll(
-            samples.map {
-                WorkoutHeartRateSampleEntity(
-                    id = UUID.randomUUID().toString(),
-                    workoutId = workoutId,
-                    recordedAt = it.time.toEpochMilli(),
-                    bpm = it.bpm,
-                )
-            },
-        )
+        try {
+            if (healthMetricsSource.availability() != HealthConnectAvailability.Available) return
+            if (!healthMetricsSource.hasAllPermissions()) return
+            val samples = healthMetricsSource.readHeartRateSamples(Instant.ofEpochMilli(startedAt), Instant.ofEpochMilli(endedAt))
+            if (samples.isEmpty()) return
+            heartRateSampleRepository.insertAll(
+                samples.map {
+                    WorkoutHeartRateSampleEntity(
+                        id = UUID.randomUUID().toString(),
+                        workoutId = workoutId,
+                        recordedAt = it.time.toEpochMilli(),
+                        bpm = it.bpm,
+                    )
+                },
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Best-effort by design (see the doc comment at this method's call site): the workout
+            // itself already saved successfully by the time this runs, so a Health Connect IPC
+            // failure or a Room insert failure here must never surface as a failed Finish.
+            logger.e(TAG, "Post-finish heart-rate sample save failed for workout $workoutId; workout itself is unaffected", e)
+        }
+    }
+
+    private companion object {
+        private const val TAG = "WorkoutFinisher"
     }
 
     /**

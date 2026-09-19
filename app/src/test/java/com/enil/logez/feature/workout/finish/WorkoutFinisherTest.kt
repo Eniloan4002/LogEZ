@@ -264,6 +264,27 @@ class WorkoutFinisherTest {
         assertTrue(f.heartRateRepo.getForWorkout("w1").isEmpty())
     }
 
+    @Test
+    fun `finish still reports success when the post-save heart-rate sync throws`() = runTest {
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            throwOnReadHeartRateSamples = IllegalStateException("Health Connect IPC hiccup"),
+        )
+        val f = fixture(healthMetricsSource = healthMetricsSource)
+
+        // Must not throw: a best-effort post-save side effect failing must never surface as a
+        // failed Finish for a workout that already saved successfully.
+        val result = f.finisher.finish(
+            workout = f.workout, title = "Push Day", notes = null, startedAt = startedAt,
+            durationSeconds = 60, updateRoutineValues = false, structureChoice = null,
+        )
+
+        assertEquals("w1", result.workoutId)
+        assertTrue(f.workoutRepo.getById("w1")!!.status == WorkoutStatus.COMPLETED)
+        assertTrue(f.heartRateRepo.getForWorkout("w1").isEmpty())
+    }
+
     // --- fixture ---
 
     private class Fixture(

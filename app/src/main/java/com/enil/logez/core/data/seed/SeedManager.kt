@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.data.dao.ExerciseDao
 import com.enil.logez.core.data.entity.ExerciseEntity
 import com.enil.logez.core.domain.model.Equipment
@@ -13,6 +14,7 @@ import com.enil.logez.core.domain.model.MuscleGroup
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 
@@ -34,38 +36,53 @@ class SeedManager @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val exerciseDao: ExerciseDao,
     private val dataStore: DataStore<Preferences>,
+    private val logger: AppLogger = AppLogger.NoOp,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val lastAppliedSeedVersionKey = intPreferencesKey("lastAppliedSeedVersion")
 
     suspend fun seedIfNeeded() {
-        val file = readSeedFile()
-        val lastApplied = dataStore.data.first()[lastAppliedSeedVersionKey] ?: 0
-        if (file.seedVersion <= lastApplied) return
+        try {
+            val file = readSeedFile()
+            val lastApplied = dataStore.data.first()[lastAppliedSeedVersionKey] ?: 0
+            if (file.seedVersion <= lastApplied) return
 
-        val now = System.currentTimeMillis()
-        val entities = file.exercises.map { it.toEntity(now) }
-        val insertResults = exerciseDao.insertIgnore(entities)
+            val now = System.currentTimeMillis()
+            val entities = file.exercises.map { it.toEntity(now) }
+            val insertResults = exerciseDao.insertIgnore(entities)
 
-        entities.forEachIndexed { index, entity ->
-            if (insertResults[index] == -1L) {
-                exerciseDao.updateSeedFields(
-                    id = entity.id,
-                    name = entity.name,
-                    primaryMuscleGroup = entity.primaryMuscleGroup,
-                    secondaryMuscleGroups = entity.secondaryMuscleGroups,
-                    equipment = entity.equipment,
-                    instructions = entity.instructions,
-                    isBodyweightVolumeEligible = entity.isBodyweightVolumeEligible,
-                    isDeleted = false,
-                    updatedAt = now,
-                )
+            entities.forEachIndexed { index, entity ->
+                if (insertResults[index] == -1L) {
+                    exerciseDao.updateSeedFields(
+                        id = entity.id,
+                        name = entity.name,
+                        primaryMuscleGroup = entity.primaryMuscleGroup,
+                        secondaryMuscleGroups = entity.secondaryMuscleGroups,
+                        equipment = entity.equipment,
+                        instructions = entity.instructions,
+                        isBodyweightVolumeEligible = entity.isBodyweightVolumeEligible,
+                        isDeleted = false,
+                        updatedAt = now,
+                    )
+                }
             }
+
+            exerciseDao.pruneRetiredSeeds(entities.map { it.id }, now)
+
+            dataStore.edit { it[lastAppliedSeedVersionKey] = file.seedVersion }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A malformed seed file or a transient Room/DataStore failure must not crash-loop the
+            // app on every launch (lastAppliedSeedVersionKey only advances on success, so a bad
+            // seed would otherwise fail identically forever). Degrade to "stays on whatever seed
+            // version was last successfully applied" instead.
+            logger.e(TAG, "Exercise seeding failed; continuing with the previously seeded library", e)
         }
+    }
 
-        exerciseDao.pruneRetiredSeeds(entities.map { it.id }, now)
-
-        dataStore.edit { it[lastAppliedSeedVersionKey] = file.seedVersion }
+    private companion object {
+        private const val TAG = "SeedManager"
     }
 
     private fun readSeedFile(): ExerciseSeedFile =

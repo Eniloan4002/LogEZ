@@ -3,6 +3,7 @@ package com.enil.logez.feature.workout
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
@@ -38,6 +39,7 @@ import com.enil.logez.feature.wellness.liveHeartRateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,6 +111,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val workoutEditor: WorkoutEditor,
     private val healthMetricsSource: HealthMetricsSource,
     private val clock: Clock,
+    private val logger: AppLogger = AppLogger.NoOp,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
@@ -993,7 +996,14 @@ class WorkoutLoggerViewModel @Inject constructor(
         // refreshed. On a second Finish (Back out of the Save screen, tap Finish again) the stale
         // copy still holds the durationSeconds = 0 every workout is created with, so the fallback
         // below would write zero over the duration the first Finish had correctly stored.
-        val stored = workoutRepository.getById(workoutId) ?: return false
+        val stored = try {
+            workoutRepository.getById(workoutId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.e(TAG, "prepareForFinish: failed to re-read workout $workoutId", e)
+            null
+        } ?: return false
         val now = clock.now().toEpochMilliseconds()
         // Only trust the session controller's elapsed time while it is actually tracking THIS
         // workout. Re-entering Finish after a previous attempt (which already called endSession)
@@ -1010,14 +1020,32 @@ class WorkoutLoggerViewModel @Inject constructor(
         // finishing — it cancels the Service's pending deadline-wait before the Room write starts.
         sessionController.endSession()
         val updated = stored.copy(durationSeconds = duration, updatedAt = now)
-        workoutRepository.updateWorkout(updated)
-        workout.value = updated
-        return true
+        return try {
+            workoutRepository.updateWorkout(updated)
+            workout.value = updated
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The workout stays IN_PROGRESS in the DB either way (this write only freezes the
+            // duration) -- surfacing false keeps the user on this screen instead of crashing, and
+            // Finish is safely re-tappable since sessionController.endSession() is idempotent.
+            logger.e(TAG, "prepareForFinish: failed to persist frozen duration for workout $workoutId", e)
+            false
+        }
     }
 
-    suspend fun discard() {
+    suspend fun discard(): Boolean {
         sessionController.endSession()
-        workoutRepository.deleteById(workoutId)
+        return try {
+            workoutRepository.deleteById(workoutId)
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.e(TAG, "discard: failed to delete workout $workoutId", e)
+            false
+        }
     }
 
     // --- Edit mode (M5b: §5.1.10) ---
@@ -1086,6 +1114,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         const val WORKOUT_ID_ARG = "workoutId"
         const val EDIT_MODE_ARG = "editMode"
         private const val EMPTY_WORKOUT_TIMER_GRACE_SECONDS = 5 * 60L
+        private const val TAG = "WorkoutLoggerViewModel"
     }
 }
 

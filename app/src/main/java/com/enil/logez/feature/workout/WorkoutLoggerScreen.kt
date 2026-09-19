@@ -603,7 +603,12 @@ fun WorkoutLoggerScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardConfirm = false
-                    scope.launch { viewModel.discard(); stopWorkoutSessionService(context); onDiscarded() }
+                    scope.launch {
+                        if (viewModel.discard()) {
+                            stopWorkoutSessionService(context)
+                            onDiscarded()
+                        }
+                    }
                 }) {
                     Text(stringResource(R.string.workout_discard))
                 }
