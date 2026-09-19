@@ -57,6 +57,20 @@ class LiveHeartRateMonitorTest {
     }
 
     @Test
+    fun `a transient read failure degrades to null for that tick instead of terminating the flow`() = runTest {
+        val source = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            latestHeartRate = HeartRateSample(time = Instant.ofEpochSecond(1_000), bpm = 88L),
+            throwOnReadLatestHeartRate = IllegalStateException("Health Connect IPC hiccup"),
+        )
+
+        val emissions = liveHeartRateFlow(source, pollIntervalMs = 1_000L).take(2).toList()
+
+        assertEquals(listOf(null, null), emissions)
+    }
+
+    @Test
     fun `stops polling as soon as collection stops -- a cold flow, not a leaked background poller`() = runTest {
         val source = FakeHealthMetricsSource(
             availabilityValue = HealthConnectAvailability.Available,

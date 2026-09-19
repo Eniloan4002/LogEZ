@@ -203,7 +203,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      * pause/resume/rest-timer bookkeeping). `emptyFlow()` in edit mode -- there is no live session
      * to sample, matching the other three flows' edit-mode behavior at the Screen layer.
      */
-    val liveBpmFlow: Flow<HeartRateSample?> = if (isEditMode) emptyFlow() else liveHeartRateFlow(healthMetricsSource)
+    val liveBpmFlow: Flow<HeartRateSample?> = if (isEditMode) emptyFlow() else liveHeartRateFlow(healthMetricsSource, logger = logger)
 
     val uiState: StateFlow<WorkoutLoggerUiState> = combine(
         // Group 1: exercises + loading
@@ -995,7 +995,10 @@ class WorkoutLoggerViewModel @Inject constructor(
             }.fold(
                 onSuccess = { EditSaveState.Saved },
                 // The whole transaction rolled back, so the workout is untouched and a retry is safe.
-                onFailure = { EditSaveState.Failed },
+                onFailure = {
+                    logger.e(TAG, "saveEdit: workoutEditor.save failed for workout $workoutId", it)
+                    EditSaveState.Failed
+                },
             )
         }
     }

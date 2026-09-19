@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import com.enil.logez.core.common.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
@@ -23,6 +24,7 @@ private const val STORED_JPEG_QUALITY = 85
 @Singleton
 class ExerciseMediaStoreImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val logger: AppLogger = AppLogger.NoOp,
 ) : ExerciseMediaStore {
     override suspend fun copyToAppStorage(uri: Uri): String? = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, "exercise_media").apply { mkdirs() }
@@ -59,6 +61,7 @@ class ExerciseMediaStoreImpl @Inject constructor(
                 upright.recycle()
             }
         }.onFailure {
+            logger.e(TAG, "copyToAppStorage failed for $uri", it)
             destination.delete()
             return@withContext null
         }
@@ -82,6 +85,10 @@ class ExerciseMediaStoreImpl @Inject constructor(
     private fun readExifOrientation(uri: Uri): Int {
         val stream = context.contentResolver.openInputStream(uri) ?: return ExifInterface.ORIENTATION_NORMAL
         return stream.use { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+    }
+
+    private companion object {
+        private const val TAG = "ExerciseMediaStoreImpl"
     }
 }
 

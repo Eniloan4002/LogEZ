@@ -1,5 +1,7 @@
 package com.enil.logez.feature.wellness
 
+import com.enil.logez.core.common.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -28,11 +30,26 @@ private const val DEFAULT_POLL_INTERVAL_MS = 10_000L
  * Emits the whole [HeartRateSample], not just the bpm -- see [HealthMetricsSource.readLatestHeartRate]'s
  * own doc comment for why a caller showing this live needs the timestamp, not just the number.
  */
-fun liveHeartRateFlow(healthMetricsSource: HealthMetricsSource, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<HeartRateSample?> = flow {
+fun liveHeartRateFlow(
+    healthMetricsSource: HealthMetricsSource,
+    pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS,
+    logger: AppLogger = AppLogger.NoOp,
+): Flow<HeartRateSample?> = flow {
     while (true) {
-        val sample = if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
-            healthMetricsSource.readLatestHeartRate()
-        } else {
+        val sample = try {
+            if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
+                healthMetricsSource.readLatestHeartRate()
+            } else {
+                null
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The doc comment above promises this flow "never crashes, never nags" -- that promise
+            // was only actually enforced by the availability/permission check, not by anything
+            // guarding the read itself. A transient Health Connect IPC failure degrades to this
+            // tick emitting null, same as "not granted," instead of terminating the flow.
+            logger.e("LiveHeartRateMonitor", "readLatestHeartRate failed; emitting null for this tick", e)
             null
         }
         emit(sample)

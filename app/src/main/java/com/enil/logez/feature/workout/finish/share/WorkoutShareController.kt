@@ -11,6 +11,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
+import com.enil.logez.core.common.AppLogger
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,6 +34,7 @@ import kotlinx.coroutines.withContext
 @Singleton
 class WorkoutShareController @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val logger: AppLogger = AppLogger.NoOp,
 ) {
     /**
      * PNG-encodes [bitmap] into `cacheDir/shared_images/` under a unique per-export filename and
@@ -91,6 +93,7 @@ class WorkoutShareController @Inject constructor(
             return uri
         } catch (e: Exception) {
             // A row stuck at IS_PENDING=1 would linger invisibly in the library forever.
+            logger.e(TAG, "MediaStore export failed for $displayName; deleting the pending row", e)
             resolver.delete(uri, null, null)
             throw e
         }
@@ -118,6 +121,7 @@ class WorkoutShareController @Inject constructor(
             return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
                 ?: throw IOException("MediaStore insert returned no row")
         } catch (e: Exception) {
+            logger.e(TAG, "Legacy Pictures-dir export failed for $displayName; deleting the partial file", e)
             file.delete()
             throw e
         }
@@ -147,6 +151,7 @@ class WorkoutShareController @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "WorkoutShareController"
         private const val AUTHORITY = "com.enil.logez.fileprovider"
         private const val SHARED_IMAGES_DIR = "shared_images"
         private const val MIME_TYPE_PNG = "image/png"
@@ -163,4 +168,5 @@ class WorkoutShareController @Inject constructor(
 @InstallIn(SingletonComponent::class)
 interface WorkoutShareEntryPoint {
     fun workoutShareController(): WorkoutShareController
+    fun appLogger(): AppLogger
 }

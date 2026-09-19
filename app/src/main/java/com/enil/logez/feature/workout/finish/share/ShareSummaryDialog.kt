@@ -83,10 +83,11 @@ fun ShareSummaryDialog(
     val context = LocalContext.current
     // Fetched through a Hilt entry point rather than the ViewModel: the controller consumes an
     // android.graphics.Bitmap, which the spine testing rule keeps out of ViewModel signatures.
-    val shareController = remember(context) {
+    val shareEntryPoint = remember(context) {
         EntryPointAccessors.fromApplication(context.applicationContext, WorkoutShareEntryPoint::class.java)
-            .workoutShareController()
     }
+    val shareController = remember(shareEntryPoint) { shareEntryPoint.workoutShareController() }
+    val logger = remember(shareEntryPoint) { shareEntryPoint.appLogger() }
     // activeAction is deliberately NOT saveable: its coroutine dies with the activity, so restoring
     // an in-flight state would leave the button disabled behind a spinner nothing will ever clear.
     // A finished outcome (status) is real information and does survive rotation.
@@ -110,6 +111,7 @@ fun ShareSummaryDialog(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                logger.e("ShareSummaryDialog", "Share export failed", e)
                 status = DialogStatus.SHARE_FAILED
             } finally {
                 activeAction = null
@@ -127,6 +129,7 @@ fun ShareSummaryDialog(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                logger.e("ShareSummaryDialog", "Save-to-gallery failed", e)
                 status = DialogStatus.SAVE_FAILED
             } finally {
                 activeAction = null

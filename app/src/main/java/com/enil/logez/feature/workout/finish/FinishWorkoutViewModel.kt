@@ -3,6 +3,7 @@ package com.enil.logez.feature.workout.finish
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.domain.calc.ExerciseShape
 import com.enil.logez.core.domain.calc.RoutineStructureDiffer
@@ -27,6 +28,7 @@ class FinishWorkoutViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val routineRepository: RoutineRepository,
     private val workoutFinisher: WorkoutFinisher,
+    private val logger: AppLogger = AppLogger.NoOp,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
@@ -138,7 +140,10 @@ class FinishWorkoutViewModel @Inject constructor(
                 onSuccess = { SaveState.Saved(it) },
                 // The whole transaction rolled back, so the workout is still IN_PROGRESS and
                 // retrying is safe — hence Idle-able rather than terminal.
-                onFailure = { SaveState.Failed },
+                onFailure = {
+                    logger.e(TAG, "save: workoutFinisher.finish failed for workout $workoutId", it)
+                    SaveState.Failed
+                },
             )
         }
     }
@@ -159,12 +164,19 @@ class FinishWorkoutViewModel @Inject constructor(
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             _saveState.value = runCatching { workoutRepository.deleteById(workoutId) }
-                .fold(onSuccess = { SaveState.Discarded }, onFailure = { SaveState.Failed })
+                .fold(
+                    onSuccess = { SaveState.Discarded },
+                    onFailure = {
+                        logger.e(TAG, "discard: failed to delete workout $workoutId", it)
+                        SaveState.Failed
+                    },
+                )
         }
     }
 
     companion object {
         const val WORKOUT_ID_ARG = "workoutId"
+        private const val TAG = "FinishWorkoutViewModel"
     }
 }
 

@@ -17,6 +17,7 @@ class FakeHealthMetricsSource(
     private val heartRateSamples: List<HeartRateSample> = emptyList(),
     private val stepsHistory: List<DailyStepCount> = emptyList(),
     private val throwOnReadHeartRateSamples: Throwable? = null,
+    private val throwOnReadLatestHeartRate: Throwable? = null,
 ) : HealthMetricsSource {
     override val requiredPermissions: Set<String> = setOf("fake.permission.READ_STEPS", "fake.permission.READ_HEART_RATE")
 
@@ -36,6 +37,7 @@ class FakeHealthMetricsSource(
 
     override suspend fun readLatestHeartRate(withinSeconds: Long): HeartRateSample? {
         readLatestHeartRateCallCount++
+        throwOnReadLatestHeartRate?.let { throw it }
         return latestHeartRate
     }
 
