@@ -15,7 +15,6 @@ object PaceCalculator {
     /** Seconds-per-unit-distance, or null before [MIN_METERS_FOR_PACE] has accumulated. */
     fun paceSecondsPerUnit(distanceMeters: Double, elapsedSeconds: Int, unit: DistanceUnit): Double? {
         if (distanceMeters < MIN_METERS_FOR_PACE) return null
-        val unitMeters = if (unit == DistanceUnit.MILES) 1609.344 else 1000.0
-        return elapsedSeconds / (distanceMeters / unitMeters)
+        return elapsedSeconds / (distanceMeters / DistanceDisplay.unitMeters(unit))
     }
 }

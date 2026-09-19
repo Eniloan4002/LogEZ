@@ -1,6 +1,8 @@
 package com.enil.logez.feature.exercises
 
 import com.enil.logez.core.domain.calc.ChartMetric
+import com.enil.logez.core.domain.calc.DistanceDisplay
+import com.enil.logez.core.domain.calc.WeightDisplay
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WeightUnit
@@ -12,9 +14,6 @@ import com.enil.logez.core.domain.model.WeightUnit
  * Workout Detail and PREVIOUS-column surfaces already use.
  */
 object SummaryFormatters {
-    private const val KG_TO_LB = 2.2046226218
-    private const val METERS_PER_MILE = 1609.344
-
     fun formatMetricValue(metric: ChartMetric, raw: Double, weightUnit: WeightUnit, distanceUnit: DistanceUnit): String =
         when (metric) {
             ChartMetric.HEAVIEST_WEIGHT, ChartMetric.ONE_REP_MAX,
@@ -68,21 +67,23 @@ object SummaryFormatters {
 
     private fun mmss(totalSeconds: Int): String = "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 
-    private fun convertWeight(kg: Double, unit: WeightUnit): Double = if (unit == WeightUnit.LB) kg * KG_TO_LB else kg
+    private fun convertWeight(kg: Double, unit: WeightUnit): Double = WeightDisplay.toDisplay(kg, unit)
 
-    private fun convertDistance(meters: Double, unit: DistanceUnit): Double =
-        if (unit == DistanceUnit.MILES) meters / METERS_PER_MILE else meters / 1000.0
+    private fun convertDistance(meters: Double, unit: DistanceUnit): Double = DistanceDisplay.toDisplay(meters, unit)
 
     private fun convertPace(secPerKm: Double, unit: DistanceUnit): Double =
-        if (unit == DistanceUnit.MILES) secPerKm * (METERS_PER_MILE / 1000.0) else secPerKm
+        if (unit == DistanceUnit.MILES) secPerKm * (DistanceDisplay.METERS_PER_MILE / DistanceDisplay.METERS_PER_KM) else secPerKm
 
     /**
      * Round to 1 decimal (§8.9); whole results render without a decimal via a locale-independent
      * numeric check — a string ".0"-suffix trim silently fails on comma-decimal locales, where
      * "%.1f" yields "100,0" (matching PreviousValueFormatter/Workout Detail's whole-number rule).
+     * The non-whole branch itself must stay Locale.ROOT for the same reason -- the default-locale
+     * "%.1f" overload used here previously still rendered "12,5" on a comma-decimal device, only
+     * the whole-number case had actually been fixed.
      */
     private fun oneDecimal(v: Double): String {
         val rounded = Math.round(v * 10.0) / 10.0
-        return if (rounded == Math.floor(rounded)) rounded.toLong().toString() else "%.1f".format(rounded)
+        return if (rounded == Math.floor(rounded)) rounded.toLong().toString() else "%.1f".format(java.util.Locale.ROOT, rounded)
     }
 }
