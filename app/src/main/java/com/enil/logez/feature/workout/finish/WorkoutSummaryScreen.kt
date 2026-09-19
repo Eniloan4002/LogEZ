@@ -48,6 +48,7 @@ import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.activity.map.MapTilerView
 import com.enil.logez.feature.history.formatCardDateTime
@@ -103,11 +104,11 @@ fun WorkoutSummaryScreen(
                 // Only a metric this workout actually logged gets a cell -- a GPS-tracked walk has
                 // no weight/reps concept, so showing "0kg"/"0 Reps" next to its real distance would
                 // be noise, not data (each cell is independently gated, not tied to workout type).
-                if (uiState.hasVolume) StatCell(stringResource(R.string.summary_volume), formatVolume(uiState.totalVolumeKg), Modifier.weight(1f))
-                StatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString(), Modifier.weight(1f))
-                if (uiState.hasReps) StatCell(stringResource(R.string.summary_reps), uiState.totalReps.toString(), Modifier.weight(1f))
-                if (uiState.hasDistance) StatCell(stringResource(R.string.summary_distance), formatDistance(uiState.totalDistanceMeters), Modifier.weight(1f))
-                StatCell(stringResource(R.string.summary_duration), formatDuration(uiState.durationSeconds), Modifier.weight(1f))
+                if (uiState.hasVolume) StatCell(value = formatVolume(uiState.totalVolumeKg), label = stringResource(R.string.summary_volume), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
+                StatCell(value = uiState.completedSetCount.toString(), label = stringResource(R.string.summary_sets), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
+                if (uiState.hasReps) StatCell(value = uiState.totalReps.toString(), label = stringResource(R.string.summary_reps), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
+                if (uiState.hasDistance) StatCell(value = formatDistance(uiState.totalDistanceMeters), label = stringResource(R.string.summary_distance), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
+                StatCell(value = formatDuration(uiState.durationSeconds), label = stringResource(R.string.summary_duration), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
             }
 
             if (uiState.muscleIntensity.keys.any { it in BodyDiagramRegions.MAPPABLE }) {
@@ -239,18 +240,6 @@ private fun PrMedalCard(medal: PrMedal) {
     }
 }
 
-@Composable
-private fun StatCell(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = LogEzMono.dataLarge)
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
 
 /** Whole numbers stay whole ("8"); fractional averages keep one honest decimal ("6.5"). */
 private fun formatAvgReps(value: Double): String = formatSummaryNumber(value)

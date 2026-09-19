@@ -37,6 +37,7 @@ import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.LogEzTheme
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.feature.workout.finish.PrMedal
@@ -193,15 +194,18 @@ private fun Hairline(modifier: Modifier = Modifier) {
 
 @Composable
 private fun CardStat(@StringRes labelRes: Int, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = LogEzMono.dataLarge, color = MaterialTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
-        Text(
-            stringResource(labelRes).uppercase(Locale.getDefault()),
-            style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-        )
-    }
+    StatCell(
+        value = value,
+        label = stringResource(labelRes).uppercase(Locale.getDefault()),
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        valueStyle = LogEzMono.dataLarge,
+        valueColor = MaterialTheme.colorScheme.onBackground,
+        valueTextAlign = TextAlign.Center,
+        labelStyle = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
+        labelColor = MaterialTheme.colorScheme.onBackground,
+        labelTextAlign = TextAlign.Center,
+    )
 }
 
 @Composable

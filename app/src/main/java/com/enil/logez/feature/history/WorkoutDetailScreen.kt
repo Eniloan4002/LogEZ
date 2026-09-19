@@ -63,6 +63,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
@@ -262,14 +263,16 @@ fun WorkoutDetailScreen(
 
 @Composable
 private fun DetailStatCell(label: String, value: String, icon: ImageVector? = null) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, tint = Gold500)
-        } else {
-            Text(value, style = LogEzMono.dataLarge)
-        }
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    StatCell(
+        value = value,
+        label = label,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        valueStyle = LogEzMono.dataLarge,
+        labelStyle = MaterialTheme.typography.labelSmall,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        icon = icon,
+        iconTint = Gold500,
+    )
 }
 
 /** M11: one round of a completed circuit — the exercises' rows at the same orderIndex, sequence order. */

@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.feature.wellness.HealthConnectAvailability
@@ -315,27 +316,31 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         }
 }
 
+/**
+ * dataMedium (not dataLarge): at larger system font scales/higher-density devices (Owner report,
+ * S26 Ultra), a plural value ("3 weeks") wrapped onto a second line while the other two cards'
+ * shorter values ("15", "2 days") still fit, so the three equal-weight cards in the row above
+ * rendered at different heights, reading as misaligned. dataMedium is the same size every other
+ * stat-cell value in the app already uses (History/Workout Detail's own [StatCell]), so this also
+ * makes Profile's headline consistent with them, not just smaller. maxLines/ellipsis is a hard
+ * backstop -- even the widest realistic value (a triple-digit streak) truncates instead of
+ * wrapping again.
+ */
 @Composable
 private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modifier) {
     LogEzCard(modifier = modifier) {
-        Column(modifier = Modifier.padding(Spacing.md)) {
-            // dataLarge (20sp) wrapped a plural value ("3 weeks") onto a second line at larger
-            // system font scales/higher-density devices (Owner report, S26 Ultra) while the other
-            // two cards' shorter values ("15", "2 days") still fit -- the three equal-weight cards
-            // in the row above then rendered at different heights, reading as misaligned. dataMedium
-            // is the same size every other stat-cell value in the app already uses (History/Workout
-            // Detail's own StatCell), so this also makes Profile's headline consistent with them,
-            // not just smaller. maxLines/ellipsis is a hard backstop -- even the widest realistic
-            // value (a triple-digit streak) truncates instead of ever wrapping again.
-            Text(value, style = LogEzMono.dataMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        StatCell(
+            value = value,
+            label = label,
+            modifier = Modifier.padding(Spacing.md),
+            valueStyle = LogEzMono.dataMedium,
+            valueMaxLines = 1,
+            valueOverflow = TextOverflow.Ellipsis,
+            labelStyle = MaterialTheme.typography.labelMedium,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            labelMaxLines = 1,
+            labelOverflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

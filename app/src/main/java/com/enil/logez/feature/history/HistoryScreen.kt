@@ -35,9 +35,9 @@ import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
-import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import java.time.Instant
@@ -124,15 +124,15 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, onClick: () -> Unit) {
             )
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                StatCell(stringResource(R.string.summary_duration), formatCardDuration(card.durationSeconds))
+                StatCell(label = stringResource(R.string.summary_duration), value = formatCardDuration(card.durationSeconds), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
                 // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise next to
                 // its real distance, so the cell is gated on whether it was actually tracked.
-                if (card.hasVolume) StatCell(stringResource(R.string.summary_volume), formatCardVolume(card.volumeKg))
-                StatCell(stringResource(R.string.summary_sets), card.setCount.toString())
-                if (card.hasDistance) StatCell(stringResource(R.string.summary_distance), formatCardDistance(card.distanceMeters))
+                if (card.hasVolume) StatCell(label = stringResource(R.string.summary_volume), value = formatCardVolume(card.volumeKg), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
+                StatCell(label = stringResource(R.string.summary_sets), value = card.setCount.toString(), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
+                if (card.hasDistance) StatCell(label = stringResource(R.string.summary_distance), value = formatCardDistance(card.distanceMeters), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
                 // M11: circuit cards report their round count alongside the shared stats.
                 if (card.structure == WorkoutStructure.CIRCUIT) {
-                    StatCell(stringResource(R.string.routine_rounds_label), card.rounds.toString())
+                    StatCell(label = stringResource(R.string.routine_rounds_label), value = card.rounds.toString(), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
                 }
             }
 
@@ -176,13 +176,6 @@ private fun RecordsChip() {
 }
 
 @Composable
-private fun StatCell(label: String, value: String) {
-    Column {
-        Text(value, style = LogEzMono.dataMedium, color = MaterialTheme.colorScheme.onSurface)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
-    }
-}
-
 /** "Today, 2:32 PM" / "Yesterday, 2:32 PM" / "12 Aug, 2:32 PM" / "12 Aug 2025, 2:32 PM" once the year rolls over. */
 internal fun formatCardDateTime(millis: Long, today: LocalDate = LocalDate.now(ZoneId.systemDefault())): String {
     val zoned = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
