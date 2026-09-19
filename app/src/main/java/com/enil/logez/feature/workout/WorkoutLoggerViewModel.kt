@@ -30,7 +30,6 @@ import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.feature.workout.finish.LivePrDetector
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
-import com.enil.logez.feature.workout.session.WorkoutNotificationContent
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
 import com.enil.logez.feature.wellness.HealthMetricsSource
@@ -151,6 +150,15 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val livePrNotificationEnabled = MutableStateFlow(true)
     /** §8.6: whether warm-up sets are included in volume/PR calculations. */
     private val includeWarmupsInStats = MutableStateFlow(false)
+
+    // Small helper collaborators sharing this ViewModel's own [exercises]/[supersetSource] state
+    // and [persist] semantics (2026-09-19 debt audit — see each class's own doc comment for why
+    // they're constructed here rather than Hilt-injected: unlike SetCompletionUseCase/
+    // LivePrDetector/WorkoutEditor, they need this specific instance's live in-memory state, not
+    // just repository access).
+    private val notificationContentBuilder = WorkoutNotificationContentBuilder(sessionController)
+    private val circuitRoundEditor = CircuitRoundEditor(exercises, workoutRepository, sessionController, ::persist)
+    private val supersetEditor = SupersetEditor(exercises, supersetSource, workoutRepository, ::persist)
 
     /** The (mode, weight unit, distance unit) the PREVIOUS column was last resolved with — the
      * settings collector in init re-queries labels only when this actually changes. */
@@ -374,7 +382,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             // simply holds until the Logger (and this collector) is alive again.
             viewModelScope.launch {
                 combine(exercises, sessionController.state.map { it.restExerciseId }.distinctUntilChanged()) { ex, restId -> ex to restId }
-                    .collect { (ex, restId) -> pushNotificationContent(ex, restId) }
+                    .collect { (ex, restId) -> notificationContentBuilder.push(ex, restId) }
             }
 
             // Mirrors a notification-driven "Complete set" action (§9.3 — the Service persists to
@@ -428,41 +436,6 @@ class WorkoutLoggerViewModel @Inject constructor(
                 })
             }
         }
-    }
-
-    private fun pushNotificationContent(ex: List<WorkoutExerciseUiModel>, restingExerciseId: String?) {
-        if (ex.isEmpty()) {
-            sessionController.updateNotificationContent(null)
-            return
-        }
-        val current = ex.find { it.id == restingExerciseId } ?: ex.find { e -> e.sets.any { !it.isCompleted } } ?: ex.last()
-        val nextSet = current.sets.firstOrNull { !it.isCompleted }
-        val completedInExercise = current.sets.count { it.isCompleted }
-        val title = "${current.exerciseName} · set ${(completedInExercise + 1).coerceAtMost(current.sets.size.coerceAtLeast(1))} of ${current.sets.size}"
-        val isResting = restingExerciseId != null
-        val text = when {
-            isResting -> "Resting…"
-            nextSet != null -> "Next: ${formatSetTarget(nextSet)}"
-            else -> "All sets complete"
-        }
-        sessionController.updateNotificationContent(
-            WorkoutNotificationContent(
-                title = title,
-                text = text,
-                isResting = isResting,
-                actionableExerciseId = if (!isResting) current.id else null,
-                actionableSetId = if (!isResting) nextSet?.id else null,
-            ),
-        )
-    }
-
-    private fun formatSetTarget(set: WorkoutSetUiModel): String {
-        val parts = mutableListOf<String>()
-        set.weightKg?.let { parts.add("${formatTargetNumber(it)}kg") }
-        set.reps?.let { parts.add("× $it") }
-        set.durationSeconds?.let { parts.add(formatMmSs(it)) }
-        set.distanceMeters?.let { parts.add("${formatTargetNumber(it)}m") }
-        return if (parts.isEmpty()) "—" else parts.joinToString(" ")
     }
 
     private fun updateExercises(transform: (List<WorkoutExerciseUiModel>) -> List<WorkoutExerciseUiModel>) {
@@ -696,78 +669,25 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     /**
      * "+ Add Round": appends one set row to EVERY exercise, pre-seeded from that exercise's
-     * previous (last) round — the circuit-mode replacement for per-exercise + Add Set. All the new
-     * rows land at the same orderIndex (= old round count), preserving the rectangle invariant.
+     * previous (last) round — the circuit-mode replacement for per-exercise + Add Set. See
+     * [CircuitRoundEditor] for the actual mechanics.
      */
     fun addRound() {
         if (!isCircuit()) return
-        val current = exercises.value
-        if (current.isEmpty()) return
-        val newSetsByExercise = current.associate { ex ->
-            val last = ex.sets.lastOrNull()
-            ex.id to WorkoutSetUiModel(
-                id = UUID.randomUUID().toString(),
-                setType = SetType.NORMAL,
-                weightKg = last?.weightKg,
-                reps = last?.reps,
-                durationSeconds = last?.durationSeconds,
-                distanceMeters = last?.distanceMeters,
-                customMetric = last?.customMetric,
-            )
-        }
-        updateExercises { list -> list.map { ex -> newSetsByExercise[ex.id]?.let { ex.copy(sets = ex.sets + it) } ?: ex } }
-        persist {
-            val entities = current.mapNotNull { ex ->
-                newSetsByExercise[ex.id]?.toEntity(ex.id)?.copy(orderIndex = ex.sets.size)
-            }
-            workoutRepository.insertWorkoutSets(entities)
-        }
+        circuitRoundEditor.addRound()
     }
 
     /**
-     * Round header's "Remove Round" ([roundIndex] 0-based): drops that round's row from every
-     * exercise that has one and re-indexes later rounds down, keeping every exercise's set count
-     * identical and its orderIndex contiguous — the invariant everything else keys off.
+     * Round header's "Remove Round" ([roundIndex] 0-based). See [CircuitRoundEditor] for the
+     * actual mechanics.
      */
     fun removeRound(roundIndex: Int) {
-        if (!isCircuit() || roundIndex < 0) return
-        // The last remaining round is not removable: a zero-round circuit renders no entries at
-        // all (exercises become unreachable), and a later Add Exercise would seed the newcomer
-        // one row ahead of everyone else, permanently breaking the equal-row-count invariant.
-        if (circuitRoundCount(exercises.value) <= 1) return
-        val current = exercises.value
-        val removedSetIds = mutableListOf<String>()
-        current.forEach { ex ->
-            ex.sets.getOrNull(roundIndex)?.let { doomed ->
-                removedSetIds += doomed.id
-                // A running inline stopwatch on a row that's about to vanish just stops (nothing to commit).
-                sessionController.stopInlineTimer(ex.id, doomed.id)
-            }
-        }
-        if (removedSetIds.isEmpty()) return
-        updateExercises { list ->
-            list.map { ex ->
-                if (roundIndex >= ex.sets.size) ex else ex.copy(sets = ex.sets.filterIndexed { i, _ -> i != roundIndex })
-            }
-        }
-        persist {
-            removedSetIds.forEach { workoutRepository.deleteWorkoutSet(it) }
-            // Re-index survivors past the removed round so orderIndex stays contiguous per exercise.
-            exercises.value.forEach { ex ->
-                ex.sets.forEachIndexed { index, s ->
-                    if (index >= roundIndex) workoutRepository.updateWorkoutSetOrderIndex(s.id, index)
-                }
-            }
-        }
+        if (!isCircuit()) return
+        circuitRoundEditor.removeRound(roundIndex)
     }
 
     /** How many rows a given round holds values in — the Remove Round confirm's "anything logged" check. */
-    fun roundHasLoggedValues(roundIndex: Int): Boolean = exercises.value.any { ex ->
-        ex.sets.getOrNull(roundIndex)?.let { s ->
-            s.isCompleted || s.weightKg != null || s.reps != null || s.durationSeconds != null ||
-                s.distanceMeters != null || s.customMetric != null
-        } == true
-    }
+    fun roundHasLoggedValues(roundIndex: Int): Boolean = circuitRoundEditor.roundHasLoggedValues(roundIndex)
 
     // --- Notes ---
 
@@ -873,7 +793,7 @@ class WorkoutLoggerViewModel @Inject constructor(
     fun removeExercise(exerciseId: String) {
         val before = exercises.value
         val removedStartingExercise = before.firstOrNull()?.id == exerciseId
-        updateExercises { list -> cleanupOrphanSupersets(list.filterNot { it.id == exerciseId }) }
+        updateExercises { list -> supersetEditor.cleanupOrphans(list.filterNot { it.id == exerciseId }) }
         persist { workoutRepository.deleteWorkoutExercise(exerciseId) }
         if (removedStartingExercise && isEmptyWorkoutGraceActive()) {
             viewModelScope.launch { sessionController.resetElapsedTime(paused = exercises.value.isEmpty()) }
@@ -925,37 +845,11 @@ class WorkoutLoggerViewModel @Inject constructor(
     fun startSupersetSelection(sourceExerciseId: String) {
         // M11: no supersets inside a circuit — the circuit IS the sequence (UI hides the item too).
         if (isCircuit()) return
-        supersetSource.update { sourceExerciseId }
+        supersetEditor.startSelection(sourceExerciseId)
     }
-    fun cancelSupersetSelection() = supersetSource.update { null }
-
-    fun confirmSupersetTarget(targetExerciseId: String) {
-        val sourceId = supersetSource.value ?: return
-        val current = exercises.value
-        val existingGroup = current.find { it.id == targetExerciseId }?.supersetGroup
-        val group = existingGroup ?: ((current.mapNotNull { it.supersetGroup }.maxOrNull() ?: -1) + 1)
-        updateExercises { list -> list.map { if (it.id == sourceId || it.id == targetExerciseId) it.copy(supersetGroup = group) else it } }
-        persist {
-            workoutRepository.updateWorkoutExerciseSuperset(sourceId, group)
-            workoutRepository.updateWorkoutExerciseSuperset(targetExerciseId, group)
-        }
-        supersetSource.value = null
-    }
-
-    fun removeFromSuperset(exerciseId: String) {
-        updateExercises { list -> cleanupOrphanSupersets(list.map { if (it.id == exerciseId) it.copy(supersetGroup = null) else it }) }
-        persist { workoutRepository.updateWorkoutExerciseSuperset(exerciseId, null) }
-    }
-
-    private fun cleanupOrphanSupersets(list: List<WorkoutExerciseUiModel>): List<WorkoutExerciseUiModel> {
-        val counts = list.mapNotNull { it.supersetGroup }.groupingBy { it }.eachCount()
-        val cleaned = list.map { if (it.supersetGroup != null && counts[it.supersetGroup] == 1) it.copy(supersetGroup = null) else it }
-        val orphaned = list.filter { it.supersetGroup != null && counts[it.supersetGroup] == 1 }
-        if (orphaned.isNotEmpty()) {
-            persist { orphaned.forEach { workoutRepository.updateWorkoutExerciseSuperset(it.id, null) } }
-        }
-        return cleaned
-    }
+    fun cancelSupersetSelection() = supersetEditor.cancelSelection()
+    fun confirmSupersetTarget(targetExerciseId: String) = supersetEditor.confirmTarget(targetExerciseId)
+    fun removeFromSuperset(exerciseId: String) = supersetEditor.removeFromSuperset(exerciseId)
 
     fun updateRestTimer(exerciseId: String, seconds: Int?) {
         updateExercises { list -> list.map { if (it.id == exerciseId) it.copy(restTimerSeconds = seconds) else it } }
@@ -1158,7 +1052,7 @@ private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpeLabel: 
     completedAt = completedAt, previousLabel = previousLabel, previousRpeLabel = previousRpeLabel,
 )
 
-private fun WorkoutSetUiModel.toEntity(workoutExerciseId: String) = WorkoutSetEntity(
+internal fun WorkoutSetUiModel.toEntity(workoutExerciseId: String) = WorkoutSetEntity(
     id = id, workoutExerciseId = workoutExerciseId, orderIndex = 0, setType = setType, weightKg = weightKg,
     reps = reps, durationSeconds = durationSeconds, distanceMeters = distanceMeters, rpe = rpe,
     customMetric = customMetric, isCompleted = isCompleted, completedAt = completedAt,
@@ -1174,10 +1068,6 @@ private fun WorkoutSetUiModel.carryOverTo(oldType: ExerciseType, newType: Exerci
         distanceMeters = if (TargetField.DISTANCE in kept) distanceMeters else null,
     )
 }
-
-private fun formatTargetNumber(value: Double): String = com.enil.logez.core.designsystem.formatTargetNumber(value)
-
-private fun formatMmSs(totalSeconds: Int): String = com.enil.logez.core.designsystem.formatMmSs(totalSeconds)
 
 /** Where an edit-mode save stands — held in the ViewModel so it survives Activity recreation. */
 sealed interface EditSaveState {
