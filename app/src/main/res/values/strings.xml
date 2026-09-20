@@ -37,6 +37,7 @@
         <item quantity="other">%1$d-day streak</item>
     </plurals>
     <string name="profile_calendar_row">Calendar</string>
+    <string name="profile_measurements_row">Measurements</string>
     <string name="history_detail_delete_title">Delete this workout?</string>
     <string name="history_detail_delete_body">This can\'t be undone.</string>
 
@@ -607,4 +608,68 @@
     <string name="measurements_camera_rationale_body">LogEZ needs camera access to take a progress photo. The photo is stored only on this device — nothing is sent anywhere.</string>
     <string name="measurements_camera_rationale_allow">Allow</string>
     <string name="measurements_capture_photo">Take photo</string>
+    <string name="measurements_title">Measurements</string>
+    <string name="measurements_add_entry">Add entry</string>
+    <string name="measurements_edit_entry">Edit entry</string>
+    <string name="measurements_date_label">Date</string>
+    <string name="measurements_change_date">Change date</string>
+    <string name="measurements_section_weight">Weight &amp; composition</string>
+    <string name="measurements_section_circumferences">Circumferences</string>
+    <string name="measurements_weight_label_kg">Weight (kg)</string>
+    <string name="measurements_weight_label_lb">Weight (lb)</string>
+    <string name="measurements_lean_mass_label_kg">Lean mass (kg)</string>
+    <string name="measurements_lean_mass_label_lb">Lean mass (lb)</string>
+    <string name="measurements_fat_percent_label">Body fat (%)</string>
+    <string name="measurements_unit_cm">cm</string>
+    <string name="measurements_unit_in">in</string>
+    <string name="measurements_neck_label">Neck (%1$s)</string>
+    <string name="measurements_shoulder_label">Shoulders (%1$s)</string>
+    <string name="measurements_chest_label">Chest (%1$s)</string>
+    <string name="measurements_left_bicep_label">Left bicep (%1$s)</string>
+    <string name="measurements_right_bicep_label">Right bicep (%1$s)</string>
+    <string name="measurements_left_forearm_label">Left forearm (%1$s)</string>
+    <string name="measurements_right_forearm_label">Right forearm (%1$s)</string>
+    <string name="measurements_abdomen_label">Abdomen (%1$s)</string>
+    <string name="measurements_waist_label">Waist (%1$s)</string>
+    <string name="measurements_hips_label">Hips (%1$s)</string>
+    <string name="measurements_left_thigh_label">Left thigh (%1$s)</string>
+    <string name="measurements_right_thigh_label">Right thigh (%1$s)</string>
+    <string name="measurements_left_calf_label">Left calf (%1$s)</string>
+    <string name="measurements_right_calf_label">Right calf (%1$s)</string>
+    <string name="measurements_invalid_number">Enter a valid number, or leave blank</string>
+    <string name="measurements_empty_title">Track your first measurement</string>
+    <string name="measurements_no_data_in_range">No data in this range</string>
+    <string name="measurements_entries_title">Entries</string>
+    <string name="measurements_delete_entry_title">Delete this entry?</string>
+    <string name="measurements_delete_entry_body">This can\'t be undone.</string>
+    <string name="measurements_photos_title">Progress photos</string>
+    <string name="measurements_photos_empty">Take your first progress photo — it helps you match angles later.</string>
+    <string name="measurements_add_photo">Add photo</string>
+    <string name="measurements_replace_photo_title">Replace today\'s photo?</string>
+    <string name="measurements_replace_photo_body">You already added a photo today. This replaces it — the old one can\'t be recovered.</string>
+    <string name="measurements_replace_photo_confirm">Replace</string>
+    <string name="measurements_delete_photo_title">Delete this photo?</string>
+    <string name="measurements_delete_photo_body">This can\'t be undone.</string>
+    <string name="measurements_capture_failed">Couldn\'t save the photo. Nothing was added — try again.</string>
+
+    <!-- Plain metric names (no unit suffix) for the metric-switcher chips and the entries list,
+         distinct from the *_label strings above, which carry a "(%1$s)" unit placeholder meant only
+         for the entry dialog's own field labels. -->
+    <string name="measurements_metric_weight">Weight</string>
+    <string name="measurements_metric_lean_mass">Lean mass</string>
+    <string name="measurements_metric_fat_percent">Body fat %</string>
+    <string name="measurements_metric_neck">Neck</string>
+    <string name="measurements_metric_shoulder">Shoulders</string>
+    <string name="measurements_metric_chest">Chest</string>
+    <string name="measurements_metric_left_bicep">Left bicep</string>
+    <string name="measurements_metric_right_bicep">Right bicep</string>
+    <string name="measurements_metric_left_forearm">Left forearm</string>
+    <string name="measurements_metric_right_forearm">Right forearm</string>
+    <string name="measurements_metric_abdomen">Abdomen</string>
+    <string name="measurements_metric_waist">Waist</string>
+    <string name="measurements_metric_hips">Hips</string>
+    <string name="measurements_metric_left_thigh">Left thigh</string>
+    <string name="measurements_metric_right_thigh">Right thigh</string>
+    <string name="measurements_metric_left_calf">Left calf</string>
+    <string name="measurements_metric_right_calf">Right calf</string>
 </resources>

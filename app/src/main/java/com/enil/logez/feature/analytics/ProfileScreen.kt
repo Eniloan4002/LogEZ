@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +68,7 @@ fun ProfileScreen(
     onExercisesClick: () -> Unit = {},
     onCalendarClick: () -> Unit = {},
     onStatisticsClick: (TrainingMetric?) -> Unit = {},
+    onMeasurementsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -90,6 +92,7 @@ fun ProfileScreen(
                 onExercisesClick = onExercisesClick,
                 onCalendarClick = onCalendarClick,
                 onStatisticsClick = onStatisticsClick,
+                onMeasurementsClick = onMeasurementsClick,
                 onSettingsClick = onSettingsClick,
             )
             profileStatsItems(uiState, onStatisticsClick, requestWellnessPermissions)
@@ -276,6 +279,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
     onExercisesClick: () -> Unit,
     onCalendarClick: () -> Unit,
     onStatisticsClick: (TrainingMetric?) -> Unit,
+    onMeasurementsClick: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
         item(key = "nav_statistics") {
@@ -292,6 +296,15 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
                 leadingContent = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+            )
+            HorizontalDivider()
+        }
+        item(key = "nav_measurements") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onMeasurementsClick),
+                leadingContent = { Icon(Icons.Filled.Straighten, contentDescription = null) },
+                headlineContent = { Text(stringResource(R.string.profile_measurements_row)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()

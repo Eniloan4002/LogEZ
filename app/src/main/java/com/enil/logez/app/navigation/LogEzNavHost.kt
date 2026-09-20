@@ -3,7 +3,9 @@ package com.enil.logez.app.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -24,6 +26,9 @@ import com.enil.logez.feature.history.CalendarScreen
 import com.enil.logez.feature.history.HistoryRoutes
 import com.enil.logez.feature.history.HistoryScreen
 import com.enil.logez.feature.history.WorkoutDetailScreen
+import com.enil.logez.feature.measurements.CameraCaptureScreen
+import com.enil.logez.feature.measurements.MeasurementsRoutes
+import com.enil.logez.feature.measurements.MeasurementsScreen
 import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
@@ -114,7 +119,33 @@ fun LogEzNavHost(
                 onExercisesClick = { navController.navigate(ExerciseRoutes.library()) },
                 onCalendarClick = { navController.navigate(HistoryRoutes.CALENDAR) },
                 onStatisticsClick = { metric -> navController.navigate(AnalyticsRoutes.dashboard(focus = metric?.name)) },
+                onMeasurementsClick = { navController.navigate(MeasurementsRoutes.MEASUREMENTS) },
                 onSettingsClick = { navController.navigate(SettingsRoutes.SETTINGS) { launchSingleTop = true } },
+            )
+        }
+
+        // M22a: the only screen so far that hands a value back to its caller rather than just
+        // popping -- CameraCaptureScreen writes the captured photo's path onto the PREVIOUS back
+        // stack entry's own SavedStateHandle, and Measurements reads it back as a StateFlow so a
+        // configuration change or process death between capture and consumption doesn't lose it.
+        composable(MeasurementsRoutes.MEASUREMENTS) { backStackEntry ->
+            val capturedPhotoPath by backStackEntry.savedStateHandle
+                .getStateFlow<String?>(MeasurementsRoutes.CAPTURED_PHOTO_URI_KEY, null)
+                .collectAsStateWithLifecycle()
+            MeasurementsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenCamera = { navController.navigate(MeasurementsRoutes.CAMERA_CAPTURE) },
+                capturedPhotoPath = capturedPhotoPath,
+                onCapturedPhotoConsumed = { backStackEntry.savedStateHandle.remove<String>(MeasurementsRoutes.CAPTURED_PHOTO_URI_KEY) },
+            )
+        }
+        composable(MeasurementsRoutes.CAMERA_CAPTURE) {
+            CameraCaptureScreen(
+                onCaptured = { uri ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set(MeasurementsRoutes.CAPTURED_PHOTO_URI_KEY, uri.toString())
+                    navController.popBackStack()
+                },
+                onCancel = { navController.popBackStack() },
             )
         }
 
