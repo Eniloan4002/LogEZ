@@ -1,8 +1,8 @@
 package com.enil.logez.fakes
 
-import com.enil.logez.core.data.entity.BodyMeasurementEntity
-import com.enil.logez.core.data.entity.ProgressPhotoEntity
+import com.enil.logez.core.domain.repository.BodyMeasurement
 import com.enil.logez.core.domain.repository.MeasurementRepository
+import com.enil.logez.core.domain.repository.ProgressPhoto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -16,15 +16,20 @@ class FakeMeasurementRepository(
     private val bodyweightKg: Double? = null,
     private val weightsByDate: Map<String, Double> = emptyMap(),
 ) : MeasurementRepository {
-    private val state = MutableStateFlow<List<BodyMeasurementEntity>>(emptyList())
-    private val photos = MutableStateFlow<List<ProgressPhotoEntity>>(emptyList())
+    private val state = MutableStateFlow<List<BodyMeasurement>>(emptyList())
+    private val photos = MutableStateFlow<List<ProgressPhoto>>(emptyList())
 
     /** Every date this fake was asked about, in call order — proves the resolution is per-workout. */
     val queriedDates = mutableListOf<String>()
 
-    override fun observeAll(): Flow<List<BodyMeasurementEntity>> = state
-    override suspend fun upsert(measurement: BodyMeasurementEntity) {
+    override fun observeAll(): Flow<List<BodyMeasurement>> = state
+    override suspend fun upsert(measurement: BodyMeasurement) {
         state.value = state.value.filterNot { it.date == measurement.date } + measurement
+    }
+
+    override suspend fun getByDate(date: String): BodyMeasurement? = state.value.find { it.date == date }
+    override suspend fun deleteByDate(date: String) {
+        state.value = state.value.filterNot { it.date == date }
     }
 
     override suspend fun getLatestWeightKgOnOrBefore(date: String): Double? {
@@ -33,10 +38,13 @@ class FakeMeasurementRepository(
         return weightsByDate.entries.filter { it.key <= date }.maxByOrNull { it.key }?.value
     }
 
-    override fun observeAllPhotos(): Flow<List<ProgressPhotoEntity>> = photos
-    override suspend fun upsertPhoto(photo: ProgressPhotoEntity) {
+    override fun observeAllPhotos(): Flow<List<ProgressPhoto>> = photos
+    override suspend fun upsertPhoto(photo: ProgressPhoto) {
         photos.value = photos.value.filterNot { it.date == photo.date } + photo
     }
 
-    override suspend fun getPhotoByDate(date: String): ProgressPhotoEntity? = photos.value.find { it.date == date }
+    override suspend fun getPhotoByDate(date: String): ProgressPhoto? = photos.value.find { it.date == date }
+    override suspend fun deletePhoto(photo: ProgressPhoto) {
+        photos.value = photos.value.filterNot { it.id == photo.id }
+    }
 }
