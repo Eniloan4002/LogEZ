@@ -175,6 +175,13 @@ dependencies {
     implementation(libs.maplibre.android.sdk)
     implementation(libs.androidx.health.connect.client)
 
+    // M22a: in-app camera capture for progress photos (no external camera-intent hand-off,
+    // no overlay compositing this pass -- see libs.versions.toml's camerax entry).
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

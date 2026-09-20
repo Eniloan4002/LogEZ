@@ -100,7 +100,7 @@ class ExerciseMediaStoreImpl @Inject constructor(
  * take AOSP's early-return-the-source path), which is what lets the caller recycle both bitmaps
  * safely with a single `!==` check.
  */
-private fun Bitmap.withExifOrientation(orientation: Int): Bitmap {
+internal fun Bitmap.withExifOrientation(orientation: Int): Bitmap {
     if (orientation == ExifInterface.ORIENTATION_NORMAL || orientation == ExifInterface.ORIENTATION_UNDEFINED) return this
     val matrix = Matrix().apply {
         when (orientation) {

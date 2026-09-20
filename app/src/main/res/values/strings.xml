@@ -601,4 +601,10 @@
     <string name="workout_plate_use">Use %1$s</string>
     <string name="workout_plate_no_plates">No plates saved yet — add some under Settings, Plate equipment.</string>
     <string name="workout_plate_enter_target">Enter a target weight to see the plates per side.</string>
+
+    <!-- M22a: Body Measurements + Progress Photos -->
+    <string name="measurements_camera_rationale_title">Allow camera access?</string>
+    <string name="measurements_camera_rationale_body">LogEZ needs camera access to take a progress photo. The photo is stored only on this device — nothing is sent anywhere.</string>
+    <string name="measurements_camera_rationale_allow">Allow</string>
+    <string name="measurements_capture_photo">Take photo</string>
 </resources>

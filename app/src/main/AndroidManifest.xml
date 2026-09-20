@@ -43,6 +43,16 @@
          permission is safe to request now, no unresolved-accessor risk. -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
 
+    <!-- M22a: in-app CameraX capture screen for Body Measurements progress photos — no other
+         camera use anywhere in this app, and the system camera app is never launched via intent.
+         required="false": a camera-less device (e.g. some tablets) must not be filtered out of the
+         Play Store listing over one optional feature — declaring the permission alone would
+         otherwise imply a required android.hardware.camera feature. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <!-- Solely for the pre-Q "Save image" path (WorkoutShareController.saveToPictures): on
          API 26–28 writing the summary PNG into the shared Pictures library still requires this
          legacy permission. API 29+ saves through scoped MediaStore inserts and requests nothing,

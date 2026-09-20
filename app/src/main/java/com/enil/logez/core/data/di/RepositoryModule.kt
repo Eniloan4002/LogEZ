@@ -2,6 +2,8 @@ package com.enil.logez.core.data.di
 
 import com.enil.logez.core.data.media.ExerciseMediaStore
 import com.enil.logez.core.data.media.ExerciseMediaStoreImpl
+import com.enil.logez.core.data.media.ProgressPhotoStore
+import com.enil.logez.core.data.media.ProgressPhotoStoreImpl
 import com.enil.logez.core.data.repository.ActiveSessionRepositoryImpl
 import com.enil.logez.core.data.repository.ActivityTrackRepositoryImpl
 import com.enil.logez.core.data.repository.ExerciseRepositoryImpl
@@ -62,6 +64,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindExerciseMediaStore(impl: ExerciseMediaStoreImpl): ExerciseMediaStore
+
+    @Binds
+    @Singleton
+    abstract fun bindProgressPhotoStore(impl: ProgressPhotoStoreImpl): ProgressPhotoStore
 
     @Binds
     @Singleton
