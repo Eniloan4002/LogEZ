@@ -1,6 +1,7 @@
 package com.enil.logez.feature.settings
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WarmupStep
@@ -54,6 +55,12 @@ class SettingsViewModelTest {
     fun `setDistanceUnit persists MILES`() = runTest {
         viewModel.setDistanceUnit(DistanceUnit.MILES)
         assertEquals(DistanceUnit.MILES, repository.settings.value.distanceUnit)
+    }
+
+    @Test
+    fun `setLengthUnit persists IN`() = runTest {
+        viewModel.setLengthUnit(LengthUnit.IN)
+        assertEquals(LengthUnit.IN, repository.settings.value.lengthUnit)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.enil.logez.core.domain.repository
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -19,6 +20,7 @@ interface SettingsRepository {
 
     suspend fun setWeightUnit(value: WeightUnit)
     suspend fun setDistanceUnit(value: DistanceUnit)
+    suspend fun setLengthUnit(value: LengthUnit)
     suspend fun setFirstDayOfWeek(value: DayOfWeek)
     suspend fun setPerExerciseUnitOverride(exerciseId: String, unit: WeightUnit?)
 

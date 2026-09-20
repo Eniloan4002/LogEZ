@@ -1,6 +1,7 @@
 package com.enil.logez.fakes
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -17,6 +18,7 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
 
     override suspend fun setWeightUnit(value: WeightUnit) { state.value = state.value.copy(weightUnit = value) }
     override suspend fun setDistanceUnit(value: DistanceUnit) { state.value = state.value.copy(distanceUnit = value) }
+    override suspend fun setLengthUnit(value: LengthUnit) { state.value = state.value.copy(lengthUnit = value) }
     override suspend fun setFirstDayOfWeek(value: DayOfWeek) { state.value = state.value.copy(firstDayOfWeek = value) }
     override suspend fun setPerExerciseUnitOverride(exerciseId: String, unit: WeightUnit?) {
         state.value = state.value.copy(

@@ -34,6 +34,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.feature.privacy.PrivacyPolicyActivity
@@ -42,7 +43,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
-private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
+private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
 
 /**
  * M16 Workout Settings (PHASE2_PLAN.md §5.2 Settings tree). Every editor writes through the
@@ -92,6 +93,13 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_distance_unit),
                     value = distanceUnitShortLabel(settings.distanceUnit),
                     onClick = { openDialog = SettingsDialog.DISTANCE_UNIT },
+                )
+            }
+            item(key = "length_unit") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_length_unit),
+                    value = lengthUnitShortLabel(settings.lengthUnit),
+                    onClick = { openDialog = SettingsDialog.LENGTH_UNIT },
                 )
             }
             item(key = "first_day") {
@@ -277,6 +285,14 @@ fun SettingsScreen(
             onSelect = viewModel::setDistanceUnit,
             onDismiss = { openDialog = null },
         )
+        SettingsDialog.LENGTH_UNIT -> SettingsRadioDialog(
+            title = stringResource(R.string.settings_length_unit),
+            options = LengthUnit.entries,
+            selected = settings.lengthUnit,
+            optionLabel = { lengthUnitLabel(it) },
+            onSelect = viewModel::setLengthUnit,
+            onDismiss = { openDialog = null },
+        )
         SettingsDialog.FIRST_DAY -> SettingsRadioDialog(
             title = stringResource(R.string.calendar_first_day_of_week),
             // §5.2 lists exactly these three — the conventional week starts (same trio as the
@@ -375,6 +391,15 @@ private fun distanceUnitLabel(unit: DistanceUnit): String = when (unit) {
 }
 
 private fun distanceUnitShortLabel(unit: DistanceUnit): String = if (unit == DistanceUnit.KM) "km" else "mi"
+
+@Composable
+private fun lengthUnitLabel(unit: LengthUnit): String = when (unit) {
+    LengthUnit.CM -> stringResource(R.string.settings_length_unit_cm)
+    LengthUnit.IN -> stringResource(R.string.settings_length_unit_in)
+}
+
+/** Matches the lowercase "cm"/"in" used everywhere values render. */
+private fun lengthUnitShortLabel(unit: LengthUnit): String = if (unit == LengthUnit.CM) "cm" else "in"
 
 @Composable
 private fun previousValuesLabel(mode: PreviousValuesMode): String = when (mode) {

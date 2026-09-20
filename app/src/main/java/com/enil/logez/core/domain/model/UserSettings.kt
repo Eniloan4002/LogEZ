@@ -7,6 +7,8 @@ data class UserSettings(
     // Preferences
     val weightUnit: WeightUnit = WeightUnit.KG,
     val distanceUnit: DistanceUnit = DistanceUnit.KM,
+    /** Body-measurement circumference display (Measurements screen) — canonical storage is always cm. */
+    val lengthUnit: LengthUnit = LengthUnit.CM,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     val perExerciseUnitOverrides: Map<String, WeightUnit> = emptyMap(),
 

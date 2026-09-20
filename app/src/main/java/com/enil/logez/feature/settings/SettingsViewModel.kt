@@ -3,6 +3,7 @@ package com.enil.logez.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -39,6 +40,7 @@ class SettingsViewModel @Inject constructor(
     // Preferences
     fun setWeightUnit(value: WeightUnit) = write { setWeightUnit(value) }
     fun setDistanceUnit(value: DistanceUnit) = write { setDistanceUnit(value) }
+    fun setLengthUnit(value: LengthUnit) = write { setLengthUnit(value) }
     fun setFirstDayOfWeek(value: DayOfWeek) = write { setFirstDayOfWeek(value) }
 
     // Workouts
