@@ -2,6 +2,7 @@ package com.enil.logez.fakes
 
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -44,4 +45,5 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     override suspend fun setMaxHeartRateBpm(value: Int?) { state.value = state.value.copy(maxHeartRateBpm = value) }
     override suspend fun setShowHeatmap(value: Boolean) { state.value = state.value.copy(showHeatmap = value) }
     override suspend fun setShowGoals(value: Boolean) { state.value = state.value.copy(showGoals = value) }
+    override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) { state.value = state.value.copy(measurementsTrackingMode = value) }
 }

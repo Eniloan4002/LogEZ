@@ -41,4 +41,8 @@ data class UserSettings(
     val showHeatmap: Boolean = true,
     /** Owner, 2026-09-03: hides the Workout tab's Goals card when off. Default on — nothing is hidden today. */
     val showGoals: Boolean = true,
+    /** Owner, 2026-09-21: which metrics the Measurements screen shows for entry/display — edited
+     * from that screen itself, not this Settings tree. Defaults to COMPLETE (preserves what
+     * shipped the day before this setting existed; no surprise regression for an existing user). */
+    val measurementsTrackingMode: MeasurementsTrackingMode = MeasurementsTrackingMode.COMPLETE,
 )

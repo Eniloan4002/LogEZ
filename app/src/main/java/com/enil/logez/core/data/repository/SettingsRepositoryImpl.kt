@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -63,6 +64,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val MAX_HEART_RATE_BPM = intPreferencesKey("maxHeartRateBpm")
         val SHOW_HEATMAP = booleanPreferencesKey("showHeatmap")
         val SHOW_GOALS = booleanPreferencesKey("showGoals")
+        val MEASUREMENTS_TRACKING_MODE = stringPreferencesKey("measurementsTrackingMode")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -106,6 +108,7 @@ class SettingsRepositoryImpl @Inject constructor(
             maxHeartRateBpm = prefs[Keys.MAX_HEART_RATE_BPM] ?: defaults.maxHeartRateBpm,
             showHeatmap = prefs[Keys.SHOW_HEATMAP] ?: defaults.showHeatmap,
             showGoals = prefs[Keys.SHOW_GOALS] ?: defaults.showGoals,
+            measurementsTrackingMode = prefs[Keys.MEASUREMENTS_TRACKING_MODE]?.let { MeasurementsTrackingMode.valueOf(it) } ?: defaults.measurementsTrackingMode,
         )
     }
 
@@ -141,6 +144,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setMaxHeartRateBpm(value: Int?) = edit { if (value != null) it[Keys.MAX_HEART_RATE_BPM] = value else it.remove(Keys.MAX_HEART_RATE_BPM) }
     override suspend fun setShowHeatmap(value: Boolean) = edit { it[Keys.SHOW_HEATMAP] = value }
     override suspend fun setShowGoals(value: Boolean) = edit { it[Keys.SHOW_GOALS] = value }
+    override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) = edit { it[Keys.MEASUREMENTS_TRACKING_MODE] = value.name }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)

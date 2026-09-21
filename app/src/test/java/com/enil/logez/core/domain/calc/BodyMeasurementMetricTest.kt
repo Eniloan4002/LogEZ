@@ -1,5 +1,6 @@
 package com.enil.logez.core.domain.calc
 
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.repository.BodyMeasurement
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -75,5 +76,20 @@ class BodyMeasurementMetricTest {
         assertEquals(MetricKind.PERCENT, BodyMeasurementMetric.FAT_PERCENT.kind)
         val lengthMetrics = BodyMeasurementMetric.entries.filter { it.kind == MetricKind.LENGTH }
         assertEquals(14, lengthMetrics.size)
+    }
+
+    @Test
+    fun `SIMPLIFIED_METRICS is exactly weight, lean mass, and fat percent`() {
+        assertEquals(
+            setOf(BodyMeasurementMetric.WEIGHT, BodyMeasurementMetric.LEAN_MASS, BodyMeasurementMetric.FAT_PERCENT),
+            SIMPLIFIED_METRICS,
+        )
+    }
+
+    @Test
+    fun `visibleMetrics returns all 17 for COMPLETE and only the Simplified 3 for SIMPLIFIED`() {
+        assertEquals(17, visibleMetrics(MeasurementsTrackingMode.COMPLETE).size)
+        assertEquals(3, visibleMetrics(MeasurementsTrackingMode.SIMPLIFIED).size)
+        assertEquals(SIMPLIFIED_METRICS, visibleMetrics(MeasurementsTrackingMode.SIMPLIFIED).toSet())
     }
 }

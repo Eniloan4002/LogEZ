@@ -1,5 +1,6 @@
 package com.enil.logez.core.domain.calc
 
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.repository.BodyMeasurement
 
 /** Which display/conversion a [BodyMeasurementMetric] needs -- lets the UI layer pick between
@@ -26,6 +27,20 @@ enum class BodyMeasurementMetric(val kind: MetricKind) {
     LEFT_CALF(MetricKind.LENGTH),
     RIGHT_CALF(MetricKind.LENGTH),
 }
+
+/** The Owner-curated "Simplified" set (2026-09-21) -- weight, body fat, and lean mass, the three
+ * body-composition metrics most people track without a tape measure. An explicit, named set, not
+ * derived from [MetricKind] -- kind and Simplified-membership are different axes that only
+ * coincidentally align today (every non-LENGTH metric happens to also be a Simplified one). */
+val SIMPLIFIED_METRICS: Set<BodyMeasurementMetric> = setOf(
+    BodyMeasurementMetric.WEIGHT,
+    BodyMeasurementMetric.LEAN_MASS,
+    BodyMeasurementMetric.FAT_PERCENT,
+)
+
+/** The metrics the Measurements screen shows for entry/display in [mode]. */
+fun visibleMetrics(mode: MeasurementsTrackingMode): List<BodyMeasurementMetric> =
+    if (mode == MeasurementsTrackingMode.COMPLETE) BodyMeasurementMetric.entries else BodyMeasurementMetric.entries.filter { it in SIMPLIFIED_METRICS }
 
 /** The one place a [BodyMeasurementMetric] maps to its field on [BodyMeasurement] -- a copy-paste
  * mistake across these 17 near-identical branches has exactly one spot to hide, and one test file

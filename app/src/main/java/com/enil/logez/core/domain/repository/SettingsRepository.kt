@@ -2,6 +2,7 @@ package com.enil.logez.core.domain.repository
 
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -43,4 +44,5 @@ interface SettingsRepository {
     suspend fun setMaxHeartRateBpm(value: Int?)
     suspend fun setShowHeatmap(value: Boolean)
     suspend fun setShowGoals(value: Boolean)
+    suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode)
 }
