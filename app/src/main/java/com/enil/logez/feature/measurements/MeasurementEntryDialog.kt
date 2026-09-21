@@ -29,6 +29,7 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.LengthDisplay
 import com.enil.logez.core.domain.calc.WeightDisplay
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.BodyMeasurement
 import java.time.Instant
@@ -49,6 +50,7 @@ fun MeasurementEntryDialog(
     defaultDate: LocalDate,
     weightUnit: WeightUnit,
     lengthUnit: LengthUnit,
+    trackingMode: MeasurementsTrackingMode,
     onConfirm: (BodyMeasurement) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -125,23 +127,30 @@ fun MeasurementEntryDialog(
                 MeasurementNumberField(stringResource(weightLabelRes(weightUnit)), weightText, { weightText = it }, weightText.isNotEmpty() && weight == null, errorText)
                 MeasurementNumberField(stringResource(leanMassLabelRes(weightUnit)), leanMassText, { leanMassText = it }, leanMassText.isNotEmpty() && leanMass == null, errorText)
                 MeasurementNumberField(stringResource(R.string.measurements_fat_percent_label), fatPercentText, { fatPercentText = it }, fatPercentText.isNotEmpty() && fatPercent == null, errorText)
-                HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
-                Text(stringResource(R.string.measurements_section_circumferences), style = MaterialTheme.typography.labelLarge)
-                val lengthLabel = stringResource(lengthLabelRes(lengthUnit))
-                MeasurementNumberField(stringResource(R.string.measurements_neck_label, lengthLabel), neckText, { neckText = it }, neckText.isNotEmpty() && neck == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_shoulder_label, lengthLabel), shoulderText, { shoulderText = it }, shoulderText.isNotEmpty() && shoulder == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_chest_label, lengthLabel), chestText, { chestText = it }, chestText.isNotEmpty() && chest == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_left_bicep_label, lengthLabel), leftBicepText, { leftBicepText = it }, leftBicepText.isNotEmpty() && leftBicep == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_right_bicep_label, lengthLabel), rightBicepText, { rightBicepText = it }, rightBicepText.isNotEmpty() && rightBicep == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_left_forearm_label, lengthLabel), leftForearmText, { leftForearmText = it }, leftForearmText.isNotEmpty() && leftForearm == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_right_forearm_label, lengthLabel), rightForearmText, { rightForearmText = it }, rightForearmText.isNotEmpty() && rightForearm == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_abdomen_label, lengthLabel), abdomenText, { abdomenText = it }, abdomenText.isNotEmpty() && abdomen == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_waist_label, lengthLabel), waistText, { waistText = it }, waistText.isNotEmpty() && waist == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_hips_label, lengthLabel), hipsText, { hipsText = it }, hipsText.isNotEmpty() && hips == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_left_thigh_label, lengthLabel), leftThighText, { leftThighText = it }, leftThighText.isNotEmpty() && leftThigh == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_right_thigh_label, lengthLabel), rightThighText, { rightThighText = it }, rightThighText.isNotEmpty() && rightThigh == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_left_calf_label, lengthLabel), leftCalfText, { leftCalfText = it }, leftCalfText.isNotEmpty() && leftCalf == null, errorText)
-                MeasurementNumberField(stringResource(R.string.measurements_right_calf_label, lengthLabel), rightCalfText, { rightCalfText = it }, rightCalfText.isNotEmpty() && rightCalf == null, errorText)
+                // Circumference fields' state/computation above and their inclusion in
+                // fieldsAndValues/hasError below stay unconditional regardless of trackingMode --
+                // only this section's rendering is gated, so a Simplified-mode edit of an entry
+                // that already has circumference data carries it through unchanged on save
+                // instead of silently nulling it out.
+                if (trackingMode == MeasurementsTrackingMode.COMPLETE) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+                    Text(stringResource(R.string.measurements_section_circumferences), style = MaterialTheme.typography.labelLarge)
+                    val lengthLabel = stringResource(lengthLabelRes(lengthUnit))
+                    MeasurementNumberField(stringResource(R.string.measurements_neck_label, lengthLabel), neckText, { neckText = it }, neckText.isNotEmpty() && neck == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_shoulder_label, lengthLabel), shoulderText, { shoulderText = it }, shoulderText.isNotEmpty() && shoulder == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_chest_label, lengthLabel), chestText, { chestText = it }, chestText.isNotEmpty() && chest == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_left_bicep_label, lengthLabel), leftBicepText, { leftBicepText = it }, leftBicepText.isNotEmpty() && leftBicep == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_right_bicep_label, lengthLabel), rightBicepText, { rightBicepText = it }, rightBicepText.isNotEmpty() && rightBicep == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_left_forearm_label, lengthLabel), leftForearmText, { leftForearmText = it }, leftForearmText.isNotEmpty() && leftForearm == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_right_forearm_label, lengthLabel), rightForearmText, { rightForearmText = it }, rightForearmText.isNotEmpty() && rightForearm == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_abdomen_label, lengthLabel), abdomenText, { abdomenText = it }, abdomenText.isNotEmpty() && abdomen == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_waist_label, lengthLabel), waistText, { waistText = it }, waistText.isNotEmpty() && waist == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_hips_label, lengthLabel), hipsText, { hipsText = it }, hipsText.isNotEmpty() && hips == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_left_thigh_label, lengthLabel), leftThighText, { leftThighText = it }, leftThighText.isNotEmpty() && leftThigh == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_right_thigh_label, lengthLabel), rightThighText, { rightThighText = it }, rightThighText.isNotEmpty() && rightThigh == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_left_calf_label, lengthLabel), leftCalfText, { leftCalfText = it }, leftCalfText.isNotEmpty() && leftCalf == null, errorText)
+                    MeasurementNumberField(stringResource(R.string.measurements_right_calf_label, lengthLabel), rightCalfText, { rightCalfText = it }, rightCalfText.isNotEmpty() && rightCalf == null, errorText)
+                }
             }
         },
         confirmButton = {

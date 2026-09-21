@@ -3,6 +3,7 @@ package com.enil.logez.feature.measurements
 import com.enil.logez.core.domain.calc.BodyMeasurementMetric
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.BodyMeasurement
@@ -133,6 +134,32 @@ class MeasurementsViewModelTest {
         vm.dismissPhotoCaptureError()
         assertFalse(vm.uiState.value.photoCaptureError)
         assertNull(vm.uiState.value.pendingPhotoReplace)
+    }
+
+    @Test
+    fun `setTrackingMode persists and is reflected in uiState`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val vm = viewModel(settingsRepo = settingsRepo)
+        assertEquals(MeasurementsTrackingMode.COMPLETE, vm.uiState.value.trackingMode)
+
+        vm.setTrackingMode(MeasurementsTrackingMode.SIMPLIFIED)
+
+        assertEquals(MeasurementsTrackingMode.SIMPLIFIED, vm.uiState.value.trackingMode)
+        assertEquals(MeasurementsTrackingMode.SIMPLIFIED, settingsRepo.settings.value.measurementsTrackingMode)
+    }
+
+    @Test
+    fun `switching to Simplified clamps a Complete-only selected metric, and switching back restores it`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val vm = viewModel(settingsRepo = settingsRepo)
+        vm.selectMetric(BodyMeasurementMetric.WAIST)
+        assertEquals(BodyMeasurementMetric.WAIST, vm.uiState.value.selectedMetric)
+
+        vm.setTrackingMode(MeasurementsTrackingMode.SIMPLIFIED)
+        assertEquals(BodyMeasurementMetric.WEIGHT, vm.uiState.value.selectedMetric)
+
+        vm.setTrackingMode(MeasurementsTrackingMode.COMPLETE)
+        assertEquals(BodyMeasurementMetric.WAIST, vm.uiState.value.selectedMetric)
     }
 
     private companion object {

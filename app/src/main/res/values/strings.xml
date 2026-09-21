@@ -672,4 +672,10 @@
     <string name="measurements_metric_right_thigh">Right thigh</string>
     <string name="measurements_metric_left_calf">Left calf</string>
     <string name="measurements_metric_right_calf">Right calf</string>
+
+    <string name="measurements_tracking_mode">Tracking mode</string>
+    <string name="measurements_tracking_mode_simplified_short">Simplified</string>
+    <string name="measurements_tracking_mode_complete_short">Complete</string>
+    <string name="measurements_tracking_mode_simplified">Simplified — weight, body fat, lean mass</string>
+    <string name="measurements_tracking_mode_complete">Complete — all 17 metrics</string>
 </resources>

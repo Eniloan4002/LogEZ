@@ -56,11 +56,15 @@ import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.LengthDisplay
 import com.enil.logez.core.domain.calc.MetricKind
 import com.enil.logez.core.domain.calc.WeightDisplay
+import com.enil.logez.core.domain.calc.visibleMetrics
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.calc.valueFor
 import com.enil.logez.core.domain.repository.BodyMeasurement
 import com.enil.logez.core.domain.repository.ProgressPhoto
+import com.enil.logez.feature.settings.SettingsRadioDialog
+import com.enil.logez.feature.settings.SettingsValueRow
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -85,6 +89,7 @@ fun MeasurementsScreen(
     var entryDialogTarget by remember { mutableStateOf<EntryDialogTarget?>(null) }
     var deletingDate by remember { mutableStateOf<String?>(null) }
     var deletingPhoto by remember { mutableStateOf<ProgressPhoto?>(null) }
+    var showTrackingModeDialog by remember { mutableStateOf(false) }
 
     val requestCameraPermission = rememberRequestCameraPermission(
         onGranted = onOpenCamera,
@@ -127,6 +132,13 @@ fun MeasurementsScreen(
         },
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            item(key = "tracking_mode") {
+                SettingsValueRow(
+                    title = stringResource(R.string.measurements_tracking_mode),
+                    value = trackingModeShortLabel(uiState.trackingMode),
+                    onClick = { showTrackingModeDialog = true },
+                )
+            }
             item(key = "range") {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
@@ -150,7 +162,7 @@ fun MeasurementsScreen(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                     modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.md),
                 ) {
-                    BodyMeasurementMetric.entries.forEach { metric ->
+                    visibleMetrics(uiState.trackingMode).forEach { metric ->
                         FilterChip(
                             selected = uiState.selectedMetric == metric,
                             onClick = { viewModel.selectMetric(metric) },
@@ -253,8 +265,20 @@ fun MeasurementsScreen(
             defaultDate = target.defaultDate,
             weightUnit = uiState.weightUnit,
             lengthUnit = uiState.lengthUnit,
+            trackingMode = uiState.trackingMode,
             onConfirm = { measurement -> viewModel.saveEntry(measurement); entryDialogTarget = null },
             onDismiss = { entryDialogTarget = null },
+        )
+    }
+
+    if (showTrackingModeDialog) {
+        SettingsRadioDialog(
+            title = stringResource(R.string.measurements_tracking_mode),
+            options = MeasurementsTrackingMode.entries,
+            selected = uiState.trackingMode,
+            optionLabel = { trackingModeDescriptiveLabel(it) },
+            onSelect = { viewModel.setTrackingMode(it); showTrackingModeDialog = false },
+            onDismiss = { showTrackingModeDialog = false },
         )
     }
 
@@ -328,6 +352,18 @@ private fun formatMetricValue(metric: BodyMeasurementMetric, value: Double, weig
     MetricKind.WEIGHT -> WeightDisplay.format(WeightDisplay.toDisplay(value, weightUnit))
     MetricKind.LENGTH -> LengthDisplay.format(LengthDisplay.toDisplay(value, lengthUnit))
     MetricKind.PERCENT -> WeightDisplay.format(value)
+}
+
+@Composable
+private fun trackingModeShortLabel(mode: MeasurementsTrackingMode): String = when (mode) {
+    MeasurementsTrackingMode.SIMPLIFIED -> stringResource(R.string.measurements_tracking_mode_simplified_short)
+    MeasurementsTrackingMode.COMPLETE -> stringResource(R.string.measurements_tracking_mode_complete_short)
+}
+
+@Composable
+private fun trackingModeDescriptiveLabel(mode: MeasurementsTrackingMode): String = when (mode) {
+    MeasurementsTrackingMode.SIMPLIFIED -> stringResource(R.string.measurements_tracking_mode_simplified)
+    MeasurementsTrackingMode.COMPLETE -> stringResource(R.string.measurements_tracking_mode_complete)
 }
 
 private fun ChartRange.labelRes(): Int = when (this) {

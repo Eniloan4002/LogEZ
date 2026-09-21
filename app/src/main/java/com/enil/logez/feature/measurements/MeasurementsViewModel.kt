@@ -9,7 +9,9 @@ import com.enil.logez.core.domain.calc.BodyMeasurementChart
 import com.enil.logez.core.domain.calc.BodyMeasurementMetric
 import com.enil.logez.core.domain.calc.BodyMeasurementPoint
 import com.enil.logez.core.domain.calc.ChartRange
+import com.enil.logez.core.domain.calc.visibleMetrics
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.BodyMeasurement
 import com.enil.logez.core.domain.repository.MeasurementRepository
@@ -61,15 +63,18 @@ class MeasurementsViewModel @Inject constructor(
         settingsRepository.settings,
         selections,
     ) { entries, photos, settings, sel ->
+        val visible = visibleMetrics(settings.measurementsTrackingMode)
+        val effectiveMetric = sel.metric.takeIf { it in visible } ?: BodyMeasurementMetric.WEIGHT
         MeasurementsUiState(
             isLoading = false,
             entries = entries,
             photos = photos,
-            selectedMetric = sel.metric,
+            selectedMetric = effectiveMetric,
             selectedRange = sel.range,
-            chartPoints = BodyMeasurementChart.points(sel.metric, entries, sel.range, today()),
+            chartPoints = BodyMeasurementChart.points(effectiveMetric, entries, sel.range, today()),
             weightUnit = settings.weightUnit,
             lengthUnit = settings.lengthUnit,
+            trackingMode = settings.measurementsTrackingMode,
             pendingPhotoReplace = sel.pendingPhotoReplace,
             photoCaptureError = sel.photoCaptureError,
         )
@@ -77,6 +82,7 @@ class MeasurementsViewModel @Inject constructor(
 
     fun selectMetric(metric: BodyMeasurementMetric) = selections.update { it.copy(metric = metric) }
     fun selectRange(range: ChartRange) = selections.update { it.copy(range = range) }
+    fun setTrackingMode(mode: MeasurementsTrackingMode) = viewModelScope.launch { settingsRepository.setMeasurementsTrackingMode(mode) }
 
     fun saveEntry(measurement: BodyMeasurement) {
         viewModelScope.launch { measurementRepository.upsert(measurement.copy(updatedAt = clock.now().toEpochMilliseconds())) }
@@ -157,6 +163,7 @@ data class MeasurementsUiState(
     val chartPoints: List<BodyMeasurementPoint> = emptyList(),
     val weightUnit: WeightUnit = WeightUnit.KG,
     val lengthUnit: LengthUnit = LengthUnit.CM,
+    val trackingMode: MeasurementsTrackingMode = MeasurementsTrackingMode.COMPLETE,
     val pendingPhotoReplace: PendingPhotoReplace? = null,
     val photoCaptureError: Boolean = false,
 )
