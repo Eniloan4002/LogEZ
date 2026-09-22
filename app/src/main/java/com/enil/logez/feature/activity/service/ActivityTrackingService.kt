@@ -20,8 +20,13 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -47,6 +52,11 @@ class ActivityTrackingService : Service() {
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(serviceJob)
     private var collectorStarted = false
+
+    // The one-shot stop-watcher armed below, kept separately from [collectorStarted] and
+    // re-armed on every onStartCommand -- see [ensureCollectorStarted]'s doc comment for why a
+    // stale watcher left over from a discarded session is a real hazard, not a hypothetical one.
+    private var stopWatcherJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -102,13 +112,30 @@ class ActivityTrackingService : Service() {
 
     private fun stopSelfCleanly() {
         collectorStarted = false
+        stopWatcherJob = null
         serviceJob.cancel()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
+    /**
+     * Called from every onStartCommand, not just the first: `startActivityTrackingService` is
+     * re-sent whenever a resume dialog's "Discard" choice immediately starts a *different*
+     * exercise's GPS session (`WorkoutTabViewModel.discardInProgressAndStartActivityTracking`),
+     * and Android redelivers that to this same Service instance rather than creating a new one.
+     * `collectorStarted` still guards the distance/notification collector -- restarting that is
+     * harmless but pointless -- but the one-shot stop-watcher below cannot share that guard: it
+     * is *watching for* the discard's `cancelTracking()` to flip `isTracking` false, and that
+     * happens on the very session boundary this method is being re-entered for. Left armed, the
+     * stale watcher fires on that transient false, tears the service down via `stopSelfCleanly()`
+     * sometime after the new session has already flipped `isTracking` back to true, and the new
+     * caller -- whose own `onStartCommand` no-opped on `collectorStarted` -- has no watcher armed
+     * to notice it just lost its foreground service. Re-arming it every call closes that: the
+     * fresh collection only starts once this session's state is already `isTracking == true`
+     * (`discardInProgressAndStartActivityTracking` always calls `startTracking` before this
+     * service is (re)started), so it can only ever fire on a real, later stop.
+     */
     private fun ensureCollectorStarted() {
-        if (collectorStarted) return
         // A cancelled SupervisorJob stays cancelled, so every later launch on it silently does
         // nothing. Android can hand a fresh start to a Service instance whose stopSelf() is still
         // pending, so the scope has to be rebuilt rather than just re-flagged.
@@ -116,10 +143,23 @@ class ActivityTrackingService : Service() {
             serviceJob = SupervisorJob()
             serviceScope = CoroutineScope(serviceJob)
         }
-        collectorStarted = true
-        serviceScope.launch {
-            controller.state.map { it.distanceMeters }.distinctUntilChanged()
-                .collect { postNotification(buildNotification(controller.state.value)) }
+
+        if (!collectorStarted) {
+            collectorStarted = true
+            serviceScope.launch {
+                controller.state.map { it.distanceMeters }.distinctUntilChanged()
+                    .collect { postNotification(buildNotification(controller.state.value)) }
+            }
+        }
+
+        // Stop with the session, not only with the screen. Every path that ends tracking --
+        // finish, cancel, and discarding the workout from any resume dialog -- clears the
+        // controller, while the only two explicit stop calls live on one screen the user may no
+        // longer be able to reach. Cancel any watcher armed for a now-superseded session first.
+        stopWatcherJob?.cancel()
+        stopWatcherJob = serviceScope.launch {
+            controller.state.map { it.isTracking }.distinctUntilChanged().filter { !it }.first()
+            withContext(Dispatchers.Main.immediate) { stopSelfCleanly() }
         }
     }
 

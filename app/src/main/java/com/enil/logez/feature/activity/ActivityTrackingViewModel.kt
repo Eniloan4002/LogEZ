@@ -7,7 +7,7 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.wellness.HealthMetricsSource
 import com.enil.logez.core.wellness.HeartRateSample
 import com.enil.logez.core.wellness.liveHeartRateFlow
-import com.enil.logez.feature.workout.WorkoutStarter
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 @HiltViewModel
 class ActivityTrackingViewModel @Inject constructor(
     private val controller: ActivityTrackingController,
-    private val workoutStarter: WorkoutStarter,
+    private val sessionDiscarder: SessionDiscarder,
     private val sessionController: WorkoutSessionController,
     private val settingsRepository: SettingsRepository,
     healthMetricsSource: HealthMetricsSource,
@@ -55,9 +55,5 @@ class ActivityTrackingViewModel @Inject constructor(
         return result
     }
 
-    suspend fun cancel() {
-        controller.cancelTracking()
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
-    }
+    suspend fun cancel() = sessionDiscarder.discardInProgress()
 }

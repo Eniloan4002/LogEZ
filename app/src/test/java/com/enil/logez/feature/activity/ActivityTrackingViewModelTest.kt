@@ -11,6 +11,7 @@ import com.enil.logez.fakes.FakeLocationSource
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import kotlinx.coroutines.CoroutineScope
@@ -67,7 +68,7 @@ class ActivityTrackingViewModelTest {
             FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
         )
         val workoutStarter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), clock)
-        val viewModel = ActivityTrackingViewModel(trackingController, workoutStarter, sessionController, FakeSettingsRepository(), FakeHealthMetricsSource())
+        val viewModel = ActivityTrackingViewModel(trackingController, SessionDiscarder(workoutStarter, sessionController, trackingController), sessionController, FakeSettingsRepository(), FakeHealthMetricsSource())
         return Fixture(viewModel, trackingController, sessionController)
     }
 

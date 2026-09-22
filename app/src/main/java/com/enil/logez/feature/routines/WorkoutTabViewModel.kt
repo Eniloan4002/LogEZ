@@ -21,6 +21,7 @@ import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.DailyStepCount
 import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -50,6 +51,7 @@ class WorkoutTabViewModel @Inject constructor(
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
     private val activityTrackingController: ActivityTrackingController,
+    private val sessionDiscarder: SessionDiscarder,
     private val healthMetricsSource: HealthMetricsSource,
     private val wellnessRepository: WellnessRepository,
     private val widgetRefresher: WidgetRefresher,
@@ -261,16 +263,14 @@ class WorkoutTabViewModel @Inject constructor(
     }
 
     suspend fun discardInProgressAndStartEmpty(): String {
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
+        sessionDiscarder.discardInProgress()
         val id = workoutStarter.startEmpty()
         sessionController.startSession(id, waitForFirstExercise = true)
         return id
     }
 
     suspend fun discardInProgressAndStartRoutine(routineId: String): String {
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
+        sessionDiscarder.discardInProgress()
         val id = workoutStarter.startFromRoutine(routineId)
         sessionController.startSession(id)
         return id
@@ -305,8 +305,7 @@ class WorkoutTabViewModel @Inject constructor(
     }
 
     suspend fun discardInProgressAndStartActivityTracking(exerciseId: String, title: String): ActivityTrackingStartResult.Started {
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
+        sessionDiscarder.discardInProgress()
         val (workoutId, workoutSetId) = workoutStarter.startActivityTracking(exerciseId, title)
         activityTrackingController.startTracking(workoutId, workoutSetId)
         sessionController.startSession(workoutId)

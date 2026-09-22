@@ -28,6 +28,7 @@ import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.core.wellness.DailyStepCount
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -72,9 +73,11 @@ class WorkoutTabViewModelTest {
         widgetRefresher: FakeWidgetRefresher = FakeWidgetRefresher(),
     ): WorkoutTabViewModel {
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
+        val workoutStarter = WorkoutStarter(workoutRepo, routineRepo, clock)
         return WorkoutTabViewModel(
             routineRepo, workoutRepo, settingsRepo, exerciseRepo,
-            WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, activityTrackingController,
+            workoutStarter, sessionController, activityTrackingController,
+            SessionDiscarder(workoutStarter, sessionController, activityTrackingController),
             healthMetricsSource, wellnessRepo, widgetRefresher, clock,
         )
     }
@@ -398,5 +401,21 @@ class WorkoutTabViewModelTest {
 
         assertNull(vm.todaySteps.value)
         assertEquals(emptyList<DailyStepCount>(), vm.recentSteps.value)
+    }
+
+    @Test
+    fun `discarding from the resume dialog also cancels a live GPS session`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val clock = FakeClock()
+        val controller = ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()))
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo, activityTrackingController = controller)
+        vm.startActivityTracking("ex-run", "Running (Outdoor)")
+        assertTrue(vm.isGpsSessionAlive())
+
+        // The path that used to leave the GPS collector and its notification running against a
+        // deleted row.
+        vm.discardInProgressAndStartEmpty()
+
+        assertFalse(vm.isGpsSessionAlive())
     }
 }
