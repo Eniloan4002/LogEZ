@@ -85,26 +85,26 @@ class SettingsRepositoryImpl @Inject constructor(
     override val settings: Flow<UserSettings> = dataStore.data.map { prefs ->
         val defaults = UserSettings()
         UserSettings(
-            weightUnit = prefs[Keys.WEIGHT_UNIT]?.let { WeightUnit.valueOf(it) } ?: defaults.weightUnit,
-            distanceUnit = prefs[Keys.DISTANCE_UNIT]?.let { DistanceUnit.valueOf(it) } ?: defaults.distanceUnit,
-            lengthUnit = prefs[Keys.LENGTH_UNIT]?.let { LengthUnit.valueOf(it) } ?: defaults.lengthUnit,
-            muscleDiagramVariant = prefs[Keys.MUSCLE_DIAGRAM_VARIANT]?.let { MuscleDiagramVariant.valueOf(it) } ?: defaults.muscleDiagramVariant,
-            firstDayOfWeek = prefs[Keys.FIRST_DAY_OF_WEEK]?.let { DayOfWeek.valueOf(it) } ?: defaults.firstDayOfWeek,
+            weightUnit = prefs[Keys.WEIGHT_UNIT]?.toEnumOrNull<WeightUnit>() ?: defaults.weightUnit,
+            distanceUnit = prefs[Keys.DISTANCE_UNIT]?.toEnumOrNull<DistanceUnit>() ?: defaults.distanceUnit,
+            lengthUnit = prefs[Keys.LENGTH_UNIT]?.toEnumOrNull<LengthUnit>() ?: defaults.lengthUnit,
+            muscleDiagramVariant = prefs[Keys.MUSCLE_DIAGRAM_VARIANT]?.toEnumOrNull<MuscleDiagramVariant>() ?: defaults.muscleDiagramVariant,
+            firstDayOfWeek = prefs[Keys.FIRST_DAY_OF_WEEK]?.toEnumOrNull<DayOfWeek>() ?: defaults.firstDayOfWeek,
             perExerciseUnitOverrides = prefs[Keys.PER_EXERCISE_UNIT_OVERRIDES]?.let {
-                json.decodeFromString<Map<String, WeightUnit>>(it)
+                runCatching { json.decodeFromString<Map<String, WeightUnit>>(it) }.getOrNull()
             } ?: defaults.perExerciseUnitOverrides,
             defaultRestTimerSeconds = prefs[Keys.DEFAULT_REST_TIMER_SECONDS] ?: defaults.defaultRestTimerSeconds,
             timerSound = prefs[Keys.TIMER_SOUND] ?: defaults.timerSound,
             timerVolume = prefs[Keys.TIMER_VOLUME] ?: legacyVolumeLevelToFloat(prefs[Keys.TIMER_VOLUME_LEGACY]) ?: defaults.timerVolume,
             setCompleteVolume = prefs[Keys.SET_COMPLETE_VOLUME] ?: legacyVolumeLevelToFloat(prefs[Keys.SET_COMPLETE_VOLUME_LEGACY]) ?: defaults.setCompleteVolume,
             prVolume = prefs[Keys.PR_VOLUME] ?: legacyVolumeLevelToFloat(prefs[Keys.PR_VOLUME_LEGACY]) ?: defaults.prVolume,
-            previousValuesMode = prefs[Keys.PREVIOUS_VALUES_MODE]?.let { PreviousValuesMode.valueOf(it) } ?: defaults.previousValuesMode,
+            previousValuesMode = prefs[Keys.PREVIOUS_VALUES_MODE]?.toEnumOrNull<PreviousValuesMode>() ?: defaults.previousValuesMode,
             warmupCalculatorEnabled = prefs[Keys.WARMUP_CALCULATOR_ENABLED] ?: defaults.warmupCalculatorEnabled,
-            warmupMethod = prefs[Keys.WARMUP_METHOD]?.let { json.decodeFromString<List<WarmupStep>>(it) } ?: defaultWarmupMethod,
+            warmupMethod = prefs[Keys.WARMUP_METHOD]?.let { runCatching { json.decodeFromString<List<WarmupStep>>(it) }.getOrNull() } ?: defaultWarmupMethod,
             includeWarmupsInStats = prefs[Keys.INCLUDE_WARMUPS_IN_STATS] ?: defaults.includeWarmupsInStats,
             keepAwake = prefs[Keys.KEEP_AWAKE] ?: defaults.keepAwake,
             plateCalculatorEnabled = prefs[Keys.PLATE_CALCULATOR_ENABLED] ?: defaults.plateCalculatorEnabled,
-            plateEquipment = prefs[Keys.PLATE_EQUIPMENT]?.let { json.decodeFromString<PlateEquipment>(it) } ?: defaultPlateEquipment,
+            plateEquipment = prefs[Keys.PLATE_EQUIPMENT]?.let { runCatching { json.decodeFromString<PlateEquipment>(it) }.getOrNull() } ?: defaultPlateEquipment,
             rpeTrackingEnabled = prefs[Keys.RPE_TRACKING_ENABLED] ?: defaults.rpeTrackingEnabled,
             smartSupersetScrolling = prefs[Keys.SMART_SUPERSET_SCROLLING] ?: defaults.smartSupersetScrolling,
             inlineTimerEnabled = prefs[Keys.INLINE_TIMER_ENABLED] ?: defaults.inlineTimerEnabled,
@@ -112,7 +112,7 @@ class SettingsRepositoryImpl @Inject constructor(
             maxHeartRateBpm = prefs[Keys.MAX_HEART_RATE_BPM] ?: defaults.maxHeartRateBpm,
             showHeatmap = prefs[Keys.SHOW_HEATMAP] ?: defaults.showHeatmap,
             showGoals = prefs[Keys.SHOW_GOALS] ?: defaults.showGoals,
-            measurementsTrackingMode = prefs[Keys.MEASUREMENTS_TRACKING_MODE]?.let { MeasurementsTrackingMode.valueOf(it) } ?: defaults.measurementsTrackingMode,
+            measurementsTrackingMode = prefs[Keys.MEASUREMENTS_TRACKING_MODE]?.toEnumOrNull<MeasurementsTrackingMode>() ?: defaults.measurementsTrackingMode,
             weeklyActiveDayTarget = prefs[Keys.WEEKLY_ACTIVE_DAY_TARGET] ?: defaults.weeklyActiveDayTarget,
         )
     }
@@ -201,6 +201,16 @@ class SettingsRepositoryImpl @Inject constructor(
             // app's seed asset, not to the user's data. The restore resets it separately.
         }
     }
+
+    /**
+     * A stored name the current enum no longer has decodes as null, so the caller falls back to
+     * the default. Throwing here would escape `dataStore.data.map` and cancel every collector of
+     * the settings Flow -- effectively the whole app -- with no way back short of clearing app
+     * data. A renamed constant is exactly the kind of change a contributor makes without knowing
+     * a data migration is required.
+     */
+    private inline fun <reified E : Enum<E>> String.toEnumOrNull(): E? =
+        runCatching { enumValueOf<E>(this) }.getOrNull()
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)
