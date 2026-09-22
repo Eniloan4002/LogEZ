@@ -254,6 +254,9 @@
     <string name="activity_tracking_zone_3">Cardio</string>
     <string name="activity_tracking_zone_4">Hard</string>
     <string name="activity_tracking_zone_5">Peak</string>
+    <string name="activity_tracking_vitals_header">Vitals</string>
+    <string name="activity_tracking_heart_rate_chart_header">Heart rate</string>
+    <string name="activity_tracking_pace_chart_header">Pace</string>
     <string name="activity_tracking_finish">Finish</string>
     <string name="activity_tracking_cancel">Cancel</string>
     <string name="activity_tracking_resumed_snackbar">Tracking resumed</string>

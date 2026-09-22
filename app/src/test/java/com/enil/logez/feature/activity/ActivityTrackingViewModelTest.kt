@@ -68,7 +68,10 @@ class ActivityTrackingViewModelTest {
             FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
         )
         val workoutStarter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), clock)
-        val viewModel = ActivityTrackingViewModel(trackingController, SessionDiscarder(workoutStarter, sessionController, trackingController), sessionController, FakeSettingsRepository(), FakeHealthMetricsSource())
+        val viewModel = ActivityTrackingViewModel(
+            trackingController, SessionDiscarder(workoutStarter, sessionController, trackingController),
+            sessionController, FakeSettingsRepository(), FakeHealthMetricsSource(), clock,
+        )
         return Fixture(viewModel, trackingController, sessionController)
     }
 

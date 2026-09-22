@@ -1,6 +1,8 @@
 package com.enil.logez.core.wellness
 
 import com.enil.logez.core.common.AppLogger
+import com.enil.logez.core.common.Clock
+import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +55,42 @@ fun liveHeartRateFlow(
             null
         }
         emit(sample)
+        delay(pollIntervalMs)
+    }
+}
+
+/**
+ * The live-tracking screen's historical heart-rate chart: every sample Health Connect has
+ * recorded since [startedAtMillis], re-queried in full on each tick rather than accumulated
+ * locally -- Health Connect (not this poll's own cadence) is the true record of what a wearable
+ * actually captured, and its multi-hop sync can backfill an earlier gap after the fact, which a
+ * locally-accumulated list would miss entirely. Same cold-flow, silent-degrade shape as
+ * [liveHeartRateFlow] -- see its own doc comment for why that matters for testability.
+ */
+fun liveHeartRateHistoryFlow(
+    healthMetricsSource: HealthMetricsSource,
+    startedAtMillis: Long,
+    clock: Clock,
+    pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS,
+    logger: AppLogger = AppLogger.NoOp,
+): Flow<List<HeartRateSample>> = flow {
+    while (true) {
+        val samples = try {
+            if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
+                healthMetricsSource.readHeartRateSamples(
+                    Instant.ofEpochMilli(startedAtMillis),
+                    Instant.ofEpochMilli(clock.now().toEpochMilliseconds()),
+                )
+            } else {
+                emptyList()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.e("LiveHeartRateMonitor", "readHeartRateSamples failed; emitting empty history for this tick", e)
+            emptyList()
+        }
+        emit(samples)
         delay(pollIntervalMs)
     }
 }

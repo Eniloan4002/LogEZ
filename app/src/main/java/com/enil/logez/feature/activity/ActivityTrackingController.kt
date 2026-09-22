@@ -30,6 +30,14 @@ data class ActivityTrackingState(
     /** Same accepted-fix sequence [finishTracking] encodes into `route_polyline` -- exposed live
      * here too so the live tracking screen's map can draw it as it grows. */
     val routePoints: List<Pair<Double, Double>> = emptyList(),
+    /**
+     * (epochMillis, cumulativeDistanceMeters) sampled roughly every [DISTANCE_HISTORY_INTERVAL_SECONDS]
+     * of elapsed time while tracking -- the live screen derives a recent-window pace trend from
+     * the deltas between consecutive samples ([PaceCalculator.paceSecondsPerUnit] called on each
+     * pair, not on the cumulative total, which would just reproduce the lifetime-average pace
+     * shown elsewhere). Not persisted, same v1 "no process-death rehydration" scope as [routePoints].
+     */
+    val distanceHistory: List<Pair<Long, Double>> = emptyList(),
 ) {
     val isTracking: Boolean get() = workoutId != null
 }
@@ -62,12 +70,16 @@ class ActivityTrackingController @Inject constructor(
     // first to avoid racing a still-landing fix. cancelTracking() throws the accumulated state away
     // entirely rather than reading it, so a plain (non-suspending) cancel() is sufficient there.
     private val routePoints = mutableListOf<Pair<Double, Double>>()
+    private val distanceHistory = mutableListOf<Pair<Long, Double>>()
+    private var lastHistorySampleElapsedSeconds = 0
     private var lastAccepted: LocationFix? = null
     private var accuracySumMeters = 0.0
     private var fixJob: Job? = null
 
     fun startTracking(workoutId: String, workoutSetId: String) {
         routePoints.clear()
+        distanceHistory.clear()
+        lastHistorySampleElapsedSeconds = 0
         lastAccepted = null
         accuracySumMeters = 0.0
         _state.value = ActivityTrackingState(
@@ -90,9 +102,31 @@ class ActivityTrackingController @Inject constructor(
         lastAccepted = fix
         routePoints += fix.latitude to fix.longitude
         accuracySumMeters += fix.accuracyMeters
-        // A defensive copy: routePoints keeps growing in place, so a stale emitted state must not
+
+        // Piggybacks on a real, externally-driven fix arrival rather than a self-ticking
+        // `delay()` loop of its own: a `scope.launch { while (true) { delay(...) } }` started here
+        // would run the instant startTracking() is called and keep running until explicitly
+        // cancelled, which hangs any test that starts tracking without also finishing/cancelling
+        // it before the test ends (runTest has no natural idle point to stop at) -- exactly the
+        // "unbounded ticker hangs the test suite" bug liveHeartRateFlow's own doc comment records
+        // happening once already, just with a Job instead of a cold Flow this time. Throttling to
+        // one sample per DISTANCE_HISTORY_INTERVAL_SECONDS of real elapsed time here costs nothing
+        // extra to test (fully driven by the same FakeLocationSource.emit() calls tests already
+        // make) and, in practice, tracks close enough to wall-clock cadence while moving -- it
+        // simply stops sampling during a full stop, which is the right behavior for a pace trend.
+        // The very first accepted fix always seeds a sample, whatever elapsedSeconds() reads at
+        // that instant (typically 0) -- the throttle below is for the samples after it, and an
+        // elapsed-time comparison against a lastHistorySampleElapsedSeconds default of 0 would
+        // otherwise silently swallow that seed sample too, since 0 - 0 is never >= the interval.
+        val nowElapsed = elapsedSeconds()
+        if (distanceHistory.isEmpty() || nowElapsed - lastHistorySampleElapsedSeconds >= DISTANCE_HISTORY_INTERVAL_SECONDS) {
+            lastHistorySampleElapsedSeconds = nowElapsed
+            distanceHistory += clock.now().toEpochMilliseconds() to _state.value.distanceMeters
+        }
+
+        // A defensive copy: both lists keep growing in place, so a stale emitted state must not
         // alias the same backing list a later fix would silently mutate out from under it.
-        _state.update { it.copy(routePoints = routePoints.toList()) }
+        _state.update { it.copy(routePoints = routePoints.toList(), distanceHistory = distanceHistory.toList()) }
     }
 
     fun elapsedSeconds(nowMillis: Long = clock.now().toEpochMilliseconds()): Int {
@@ -162,5 +196,6 @@ class ActivityTrackingController @Inject constructor(
     private companion object {
         const val MAX_ACCEPTABLE_ACCURACY_METERS = 20f
         const val MIN_MOVEMENT_METERS = 3.0
+        const val DISTANCE_HISTORY_INTERVAL_SECONDS = 15
     }
 }

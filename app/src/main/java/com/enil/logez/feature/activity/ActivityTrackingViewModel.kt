@@ -2,11 +2,13 @@ package com.enil.logez.feature.activity
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.common.Clock
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.wellness.HealthMetricsSource
 import com.enil.logez.core.wellness.HeartRateSample
 import com.enil.logez.core.wellness.liveHeartRateFlow
+import com.enil.logez.core.wellness.liveHeartRateHistoryFlow
 import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +29,8 @@ class ActivityTrackingViewModel @Inject constructor(
     private val sessionDiscarder: SessionDiscarder,
     private val sessionController: WorkoutSessionController,
     private val settingsRepository: SettingsRepository,
-    healthMetricsSource: HealthMetricsSource,
+    private val healthMetricsSource: HealthMetricsSource,
+    private val clock: Clock,
 ) : ViewModel() {
     val state: StateFlow<ActivityTrackingState> = controller.state
     val elapsedSecondsFlow: Flow<Int> = controller.elapsedSecondsFlow
@@ -35,6 +38,16 @@ class ActivityTrackingViewModel @Inject constructor(
     /** M21f: cold flow, same spine-rule shape as `elapsedSecondsFlow` -- see `liveHeartRateFlow`'s
      * own doc comment for why this must not be an eagerly-started poller. */
     val liveBpmFlow: Flow<HeartRateSample?> = liveHeartRateFlow(healthMetricsSource)
+
+    /**
+     * The vitals card's heart-rate chart. A plain function, not a property initialized once at
+     * construction time, because [ActivityTrackingState.startedAtMillis] isn't known until
+     * tracking has actually started -- the caller supplies it once `state.startedAtMillis` is
+     * non-null, keyed via `remember(startedAtMillis)` so a fresh flow (and fresh poll) starts only
+     * if a genuinely new session's start time ever appears.
+     */
+    fun heartRateHistoryFlow(startedAtMillis: Long): Flow<List<HeartRateSample>> =
+        liveHeartRateHistoryFlow(healthMetricsSource, startedAtMillis, clock)
 
     /** Distance unit (for pace) and max heart rate (for the live zone) -- the two settings the
      * screen's pace/zone display needs. */

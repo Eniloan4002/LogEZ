@@ -136,6 +136,57 @@ class ActivityTrackingControllerTest {
         assertEquals(2, controller.state.value.routePoints.size)
     }
 
+    /**
+     * Piggybacks distance-history sampling on real, externally-driven fix arrivals rather than a
+     * self-ticking `delay()` loop of its own -- a `scope.launch { while (true) { delay(...) } }`
+     * started from `startTracking()` would run the instant that method is called and keep running
+     * until explicitly cancelled, hanging any test (like several above) that starts tracking
+     * without also finishing/cancelling it before the test ends. This test's whole point is
+     * proving that risk was designed out: it starts tracking and never finishes or cancels it, and
+     * must still complete.
+     */
+    @Test
+    fun `distance history samples roughly every 15 seconds of elapsed time, piggybacking on real fixes`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+
+        // The very first accepted fix seeds a (now, 0.0) sample regardless of movement -- there's
+        // no prior point yet to diff a delta against.
+        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        assertEquals(listOf(1_000_000L to 0.0), controller.state.value.distanceHistory)
+
+        // A fix 5 seconds later, still inside the 15-second throttle window, must not add a
+        // second sample.
+        clock.currentMillis = 1_000_000L + 5_000L
+        locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 5_000L)) // ~111m south — accepted
+        assertEquals(1, controller.state.value.distanceHistory.size)
+
+        // A fix past the 15-second mark adds the next sample, carrying the cumulative distance at
+        // that point (not just the delta since the last sample).
+        clock.currentMillis = 1_000_000L + 16_000L
+        locationSource.emit(LocationFix(14.5975, 120.9842, 5f, 16_000L)) // another ~111m south — accepted
+        assertEquals(2, controller.state.value.distanceHistory.size)
+        val (secondTimestamp, secondDistance) = controller.state.value.distanceHistory[1]
+        assertEquals(1_000_000L + 16_000L, secondTimestamp)
+        assertEquals(222.6, secondDistance, 1.0)
+    }
+
+    @Test
+    fun `distance history resets between sessions, not carried over from a prior run`() = runTest {
+        val locationSource = FakeLocationSource()
+        val controller = newController(locationSource = locationSource)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        assertEquals(1, controller.state.value.distanceHistory.size)
+
+        controller.finishTracking()
+        controller.startTracking(workoutId = "w-2", workoutSetId = "set-1")
+
+        assertEquals(emptyList<Pair<Long, Double>>(), controller.state.value.distanceHistory)
+    }
+
     @Test
     fun `a previously-read routePoints snapshot does not grow after later fixes -- no shared-list aliasing`() = runTest {
         // Regression guard for the defensive copy in onFix (routePoints.toList()): without it,
