@@ -40,8 +40,12 @@ import kotlinx.coroutines.launch
 class ActivityTrackingService : Service() {
     @Inject lateinit var controller: ActivityTrackingController
 
-    private val serviceJob = SupervisorJob()
-    private val serviceScope = CoroutineScope(serviceJob)
+    // `var`, not `val`: stopSelfCleanly() cancels the job, and a cancelled SupervisorJob can never
+    // run anything again, so a reused Service instance has to rebuild both. All three are touched
+    // only from onStartCommand/onTaskRemoved/onDestroy, which are main-thread lifecycle callbacks,
+    // so they need no synchronization.
+    private var serviceJob = SupervisorJob()
+    private var serviceScope = CoroutineScope(serviceJob)
     private var collectorStarted = false
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -61,9 +65,34 @@ class ActivityTrackingService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_START -> Unit // tracking already started by the caller before startForegroundService()
-            else -> stopSelfCleanly() // no rehydration story in v1 — a bare/unrecognized redelivery just stops
+            else -> {
+                // No rehydration story for GPS — a bare/unrecognized redelivery just stops, and
+                // must not then ask the framework to start it again.
+                stopSelfCleanly()
+                return START_NOT_STICKY
+            }
         }
         return START_STICKY
+    }
+
+    /**
+     * The user swiped the task away. Without this the service survives it: being a foreground
+     * service it keeps the process alive, while its only two stop call sites live on the
+     * live-tracking screen, which is now unreachable — so it would hold GPS until reboot.
+     *
+     * `cancelTracking()` is the call that actually stops the GPS: `fixJob` runs on the
+     * controller's application scope, not [serviceScope], so cancelling the service job alone
+     * would leave the location collector running after the service is gone.
+     *
+     * Deliberately asymmetric with `WorkoutSessionService`, which has no `onTaskRemoved` and must
+     * not gain one: a typed session is recoverable, and surviving task removal is its whole
+     * recovery story. A GPS session is not recoverable, so it should stop cleanly and let the
+     * interrupted-run dialog decide what happens to the row.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        controller.cancelTracking()
+        stopSelfCleanly()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -72,6 +101,7 @@ class ActivityTrackingService : Service() {
     }
 
     private fun stopSelfCleanly() {
+        collectorStarted = false
         serviceJob.cancel()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -79,6 +109,13 @@ class ActivityTrackingService : Service() {
 
     private fun ensureCollectorStarted() {
         if (collectorStarted) return
+        // A cancelled SupervisorJob stays cancelled, so every later launch on it silently does
+        // nothing. Android can hand a fresh start to a Service instance whose stopSelf() is still
+        // pending, so the scope has to be rebuilt rather than just re-flagged.
+        if (!serviceJob.isActive) {
+            serviceJob = SupervisorJob()
+            serviceScope = CoroutineScope(serviceJob)
+        }
         collectorStarted = true
         serviceScope.launch {
             controller.state.map { it.distanceMeters }.distinctUntilChanged()
