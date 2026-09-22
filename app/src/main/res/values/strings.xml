@@ -409,8 +409,6 @@
     <string name="notification_channel_workout_ongoing_description">The persistent notification shown while a workout is being logged.</string>
     <string name="notification_channel_rest_timer_name">Rest timer</string>
     <string name="notification_channel_rest_timer_description">Alerts when your rest timer finishes.</string>
-    <string name="notification_channel_pr_alerts_name">Personal records</string>
-    <string name="notification_channel_pr_alerts_description">Alerts when you hit a personal record mid-workout.</string>
     <string name="notification_action_complete_set">Complete set</string>
     <string name="notification_action_rest_minus_15">−15s</string>
     <string name="notification_action_rest_plus_15">+15s</string>
