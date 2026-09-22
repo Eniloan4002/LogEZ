@@ -1,5 +1,6 @@
 package com.enil.logez.feature.history
 
+import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.repository.TransactionRunner
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.workout.finish.PersonalRecordsUpdater
@@ -24,6 +25,7 @@ class WorkoutDeleter @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val personalRecordsUpdater: PersonalRecordsUpdater,
     private val transactionRunner: TransactionRunner,
+    private val widgetRefresher: WidgetRefresher = WidgetRefresher.NoOp,
 ) {
     suspend fun delete(workoutId: String) {
         // DataStore, not Room — resolved before the transaction opens so it doesn't hold Room's
@@ -39,5 +41,6 @@ class WorkoutDeleter @Inject constructor(
                 personalRecordsUpdater.rebuildForExercises(touchedExerciseIds, workoutId, includeWarmups)
             }
         }
+        widgetRefresher.refresh()
     }
 }

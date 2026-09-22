@@ -22,6 +22,8 @@ import com.enil.logez.fakes.FakeLocationSource
 import com.enil.logez.fakes.FakeRoutineRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeHealthMetricsSource
+import com.enil.logez.fakes.FakeWellnessRepository
+import com.enil.logez.fakes.FakeWidgetRefresher
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
@@ -66,12 +68,14 @@ class WorkoutTabViewModelTest {
             workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()),
         ),
         healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
+        wellnessRepo: FakeWellnessRepository = FakeWellnessRepository(),
+        widgetRefresher: FakeWidgetRefresher = FakeWidgetRefresher(),
     ): WorkoutTabViewModel {
         val sessionController = WorkoutSessionController(FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()))
         return WorkoutTabViewModel(
             routineRepo, workoutRepo, settingsRepo, exerciseRepo,
             WorkoutStarter(workoutRepo, routineRepo, clock), sessionController, activityTrackingController,
-            healthMetricsSource, clock,
+            healthMetricsSource, wellnessRepo, widgetRefresher, clock,
         )
     }
 

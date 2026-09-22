@@ -8,6 +8,7 @@ import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.defaultWarmupMethod
 import com.enil.logez.fakes.FakeSettingsRepository
+import com.enil.logez.fakes.FakeWidgetRefresher
 import java.time.DayOfWeek
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,12 +35,12 @@ class SettingsViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private val repository = FakeSettingsRepository()
-    private val viewModel by lazy { SettingsViewModel(repository) }
+    private val viewModel by lazy { SettingsViewModel(repository, FakeWidgetRefresher()) }
 
     @Test
     fun `settings state mirrors the repository`() = runTest {
         val custom = UserSettings(weightUnit = WeightUnit.LB, defaultRestTimerSeconds = 120, rpeTrackingEnabled = true)
-        val vm = SettingsViewModel(FakeSettingsRepository(custom))
+        val vm = SettingsViewModel(FakeSettingsRepository(custom), FakeWidgetRefresher())
         assertEquals(custom, vm.settings.value)
     }
 

@@ -169,6 +169,16 @@
                 android:resource="@xml/weekly_progress_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".feature.widget.TimeChangeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <!-- Note: ACTION_TIME_CHANGED's action string is TIME_SET, not TIME_CHANGED. -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

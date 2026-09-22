@@ -8,7 +8,10 @@ import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.StreakCalculator
 import com.enil.logez.core.domain.model.WorkoutKind
+import com.enil.logez.core.domain.WidgetRefresher
+import com.enil.logez.core.domain.repository.DailyWellnessTotal
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.core.domain.repository.WellnessRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -26,6 +29,7 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +51,8 @@ class WorkoutTabViewModel @Inject constructor(
     private val sessionController: WorkoutSessionController,
     private val activityTrackingController: ActivityTrackingController,
     private val healthMetricsSource: HealthMetricsSource,
+    private val wellnessRepository: WellnessRepository,
+    private val widgetRefresher: WidgetRefresher,
     private val clock: Clock,
 ) : ViewModel() {
     private val _quickTrackExercises = MutableStateFlow<QuickTrackExercises?>(null)
@@ -84,6 +90,19 @@ class WorkoutTabViewModel @Inject constructor(
                 val date = start.plusDays(offset)
                 DailyStepCount(date, if (date == today) totals.steps else stepsByDate[date] ?: 0L)
             }
+
+            // This tab reads steps far more often than Profile does, and until now threw the
+            // result away. The widget cannot read Health Connect itself, so this cache is the only
+            // way its steps line ever populates.
+            wellnessRepository.upsert(
+                DailyWellnessTotal(
+                    date = today.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    steps = totals.steps,
+                    caloriesBurned = totals.caloriesBurned,
+                    updatedAt = clock.now().toEpochMilliseconds(),
+                ),
+            )
+            widgetRefresher.refresh()
         }
     }
 

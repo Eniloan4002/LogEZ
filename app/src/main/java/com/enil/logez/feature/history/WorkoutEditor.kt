@@ -5,6 +5,7 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.repository.TransactionRunner
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.workout.finish.PersonalRecordsUpdater
@@ -33,6 +34,7 @@ class WorkoutEditor @Inject constructor(
     private val personalRecordsUpdater: PersonalRecordsUpdater,
     private val transactionRunner: TransactionRunner,
     private val clock: Clock,
+    private val widgetRefresher: WidgetRefresher = WidgetRefresher.NoOp,
 ) {
     suspend fun save(
         workout: WorkoutEntity,
@@ -85,6 +87,9 @@ class WorkoutEditor @Inject constructor(
                 personalRecordsUpdater.rebuildForExercises(touched, workout.id, includeWarmups)
             }
         }
+        // A backdate can move a workout into or out of the current week, and extend or break the
+        // streak, so an edit matters to the widget as much as a finish does.
+        widgetRefresher.refresh()
     }
 
     /**

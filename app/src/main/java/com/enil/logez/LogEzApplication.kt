@@ -6,6 +6,7 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
 import com.enil.logez.core.data.seed.SeedManager
+import com.enil.logez.feature.widget.MidnightWidgetWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,9 @@ class LogEzApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         applicationScope.launch { seedManager.seedIfNeeded() }
+        // Re-armed every launch: the request is unique and REPLACE, so this converges rather than
+        // stacking, and it recovers the schedule after a reboot or a force-stop.
+        MidnightWidgetWorker.schedule(this)
     }
 
     /**

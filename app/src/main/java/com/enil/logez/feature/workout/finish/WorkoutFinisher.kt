@@ -18,6 +18,7 @@ import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.TransactionRunner
 import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
+import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
 import com.enil.logez.core.wellness.HealthConnectAvailability
@@ -62,6 +63,7 @@ class WorkoutFinisher @Inject constructor(
     private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
     private val clock: Clock,
     private val logger: AppLogger = AppLogger.NoOp,
+    private val widgetRefresher: WidgetRefresher = WidgetRefresher.NoOp,
 ) {
     suspend fun finish(
         workout: WorkoutEntity,
@@ -124,6 +126,8 @@ class WorkoutFinisher @Inject constructor(
             // silently to "no samples saved," never a failed finish -- a workout must always be
             // saveable with or without a connected wearable.
             saveHeartRateSamples(workoutId = workout.id, startedAt = effectiveStartedAt, endedAt = effectiveStartedAt + durationSeconds * 1000L)
+            // After the COMPLETED commit, or the widget would recount without this workout.
+            widgetRefresher.refresh()
         }
     }
 

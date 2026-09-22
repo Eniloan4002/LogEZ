@@ -15,6 +15,7 @@ import com.enil.logez.core.domain.model.withPlateRemoved
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.defaultWarmupMethod
+import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val widgetRefresher: WidgetRefresher,
 ) : ViewModel() {
     val settings: StateFlow<UserSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
@@ -43,8 +45,10 @@ class SettingsViewModel @Inject constructor(
     fun setDistanceUnit(value: DistanceUnit) = write { setDistanceUnit(value) }
     fun setLengthUnit(value: LengthUnit) = write { setLengthUnit(value) }
     fun setMuscleDiagramVariant(value: MuscleDiagramVariant) = write { setMuscleDiagramVariant(value) }
-    fun setWeeklyActiveDayTarget(value: Int) = write { setWeeklyActiveDayTarget(value) }
-    fun setFirstDayOfWeek(value: DayOfWeek) = write { setFirstDayOfWeek(value) }
+    // Both change what the widget renders: the target is its denominator, and the first day of
+    // week re-buckets the whole day grid and the streak with it.
+    fun setWeeklyActiveDayTarget(value: Int) = writeThenRefreshWidget { setWeeklyActiveDayTarget(value) }
+    fun setFirstDayOfWeek(value: DayOfWeek) = writeThenRefreshWidget { setFirstDayOfWeek(value) }
 
     // Workouts
     fun setDefaultRestTimerSeconds(value: Int) = write { setDefaultRestTimerSeconds(value) }
@@ -120,6 +124,13 @@ class SettingsViewModel @Inject constructor(
     fun setTimerVolume(value: Float) = write { setTimerVolume(value) }
     fun setSetCompleteVolume(value: Float) = write { setSetCompleteVolume(value) }
     fun setPrVolume(value: Float) = write { setPrVolume(value) }
+
+    private fun writeThenRefreshWidget(block: suspend SettingsRepository.() -> Unit) {
+        viewModelScope.launch {
+            settingsRepository.block()
+            widgetRefresher.refresh()
+        }
+    }
 
     private fun write(block: suspend SettingsRepository.() -> Unit) {
         viewModelScope.launch { settingsRepository.block() }
