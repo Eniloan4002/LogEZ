@@ -17,6 +17,8 @@ import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.workout.InProgressWorkout
+import com.enil.logez.feature.workout.InProgressWorkoutResolver
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -43,7 +45,11 @@ class WorkoutDetailViewModel @Inject constructor(
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
     private val activityTrackRepository: ActivityTrackRepository,
+    private val inProgressWorkoutResolver: InProgressWorkoutResolver,
 ) : ViewModel() {
+    /** Which resume path this screen's conflict dialog should take -- see [InProgressWorkoutResolver]. */
+    suspend fun inProgressWorkout(): InProgressWorkout? = inProgressWorkoutResolver.resolve()
+
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
     private val _uiState = MutableStateFlow(WorkoutDetailUiState())

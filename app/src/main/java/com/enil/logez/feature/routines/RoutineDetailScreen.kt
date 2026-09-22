@@ -40,6 +40,8 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
+import com.enil.logez.feature.activity.InterruptedTrackingDialog
+import com.enil.logez.feature.workout.InProgressWorkout
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
 
@@ -49,12 +51,15 @@ fun RoutineDetailScreen(
     onBack: () -> Unit,
     onEdit: (routineId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
+    onNavigateToActivityTracking: () -> Unit,
+    onNavigateToFinish: (workoutId: String) -> Unit,
     viewModel: RoutineDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var showResumeDialog by remember { mutableStateOf(false) }
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
+    var interruptedRun by remember { mutableStateOf<Pair<String, Long>?>(null) }
     val startSession = rememberStartWorkoutSession(onNavigateToLogger)
 
     fun start() = scope.launch {
@@ -139,13 +144,37 @@ fun RoutineDetailScreen(
         }
     }
 
+
+    interruptedRun?.let { (workoutId, startedAt) ->
+        InterruptedTrackingDialog(
+            workoutId = workoutId,
+            startedAt = startedAt,
+            onKeptTime = { id -> interruptedRun = null; onNavigateToFinish(id) },
+            onDiscarded = { interruptedRun = null },
+        )
+    }
+
     if (showResumeDialog) {
         AlertDialog(
             onDismissRequest = { showResumeDialog = false },
             title = { Text(stringResource(R.string.workout_resume_title)) },
             text = { Text(stringResource(R.string.workout_resume_body)) },
             confirmButton = {
-                TextButton(onClick = { showResumeDialog = false; inProgressWorkoutId?.let(startSession) }) {
+                TextButton(onClick = {
+                    showResumeDialog = false
+                    scope.launch {
+                        // Only the strength branch may go through startSession: it starts
+                        // WorkoutSessionService, which for a GPS run means a second foreground
+                        // service next to the location one, and the wrong screen.
+                        when (val inProgress = viewModel.inProgressWorkout()) {
+                            null -> Unit
+                            is InProgressWorkout.Strength -> startSession(inProgress.id)
+                            is InProgressWorkout.LiveGpsRun -> onNavigateToActivityTracking()
+                            is InProgressWorkout.InterruptedGpsRun ->
+                                interruptedRun = inProgress.id to inProgress.startedAt
+                        }
+                    }
+                }) {
                     Text(stringResource(R.string.workout_resume_action))
                 }
             },

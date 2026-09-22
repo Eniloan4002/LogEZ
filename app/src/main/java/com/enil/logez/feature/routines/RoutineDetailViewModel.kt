@@ -9,6 +9,8 @@ import com.enil.logez.core.data.entity.RoutineSetEntity
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
+import com.enil.logez.feature.workout.InProgressWorkout
+import com.enil.logez.feature.workout.InProgressWorkoutResolver
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -28,7 +30,11 @@ class RoutineDetailViewModel @Inject constructor(
     exerciseRepository: ExerciseRepository,
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
+    private val inProgressWorkoutResolver: InProgressWorkoutResolver,
 ) : ViewModel() {
+    /** Which resume path this screen's conflict dialog should take -- see [InProgressWorkoutResolver]. */
+    suspend fun inProgressWorkout(): InProgressWorkout? = inProgressWorkoutResolver.resolve()
+
     private val routineId: String = checkNotNull(savedStateHandle[ROUTINE_ID_ARG])
 
     suspend fun startRoutine(): StartResult {

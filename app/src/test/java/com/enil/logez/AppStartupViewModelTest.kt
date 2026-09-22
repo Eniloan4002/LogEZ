@@ -8,6 +8,7 @@ import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeLocationSource
 import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
+import com.enil.logez.feature.workout.InProgressWorkoutResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,14 +51,14 @@ class AppStartupViewModelTest {
     @Test
     fun `no in-progress workout recovers nothing`() = runTest {
         val repo = FakeWorkoutRepository()
-        val vm = AppStartupViewModel(repo, controller(repo))
+        val vm = AppStartupViewModel(InProgressWorkoutResolver(repo, controller(repo)))
         assertEquals(StartupRecovery.None, vm.recovery.value)
     }
 
     @Test
     fun `an in-progress strength workout resumes into the logger`() = runTest {
         val repo = FakeWorkoutRepository(listOf(workout("w1", WorkoutKind.STRENGTH)))
-        val vm = AppStartupViewModel(repo, controller(repo))
+        val vm = AppStartupViewModel(InProgressWorkoutResolver(repo, controller(repo)))
         assertEquals(StartupRecovery.ResumeStrength("w1"), vm.recovery.value)
     }
 
@@ -66,14 +67,14 @@ class AppStartupViewModelTest {
         val repo = FakeWorkoutRepository(listOf(workout("w1", WorkoutKind.GPS_TRACKED)))
         val controller = controller(repo)
         controller.startTracking("w1", "set1")
-        val vm = AppStartupViewModel(repo, controller)
+        val vm = AppStartupViewModel(InProgressWorkoutResolver(repo, controller))
         assertEquals(StartupRecovery.ResumeLiveTracking, vm.recovery.value)
     }
 
     @Test
     fun `a GPS run whose process died is reported as interrupted, not resumed`() = runTest {
         val repo = FakeWorkoutRepository(listOf(workout("w1", WorkoutKind.GPS_TRACKED)))
-        val vm = AppStartupViewModel(repo, controller(repo))
+        val vm = AppStartupViewModel(InProgressWorkoutResolver(repo, controller(repo)))
         assertEquals(StartupRecovery.InterruptedRun("w1", 1_000L), vm.recovery.value)
     }
 
@@ -83,14 +84,14 @@ class AppStartupViewModelTest {
         val controller = controller(repo)
         // Tracking state from an earlier, already-finished run that was never cleared.
         controller.startTracking("some-other-workout", "set9")
-        val vm = AppStartupViewModel(repo, controller)
+        val vm = AppStartupViewModel(InProgressWorkoutResolver(repo, controller))
         assertEquals(StartupRecovery.InterruptedRun("w1", 1_000L), vm.recovery.value)
     }
 
     @Test
     fun `consumeRecovery clears the decision so it does not repeat on recomposition`() = runTest {
         val repo = FakeWorkoutRepository(listOf(workout("w1", WorkoutKind.STRENGTH)))
-        val vm = AppStartupViewModel(repo, controller(repo))
+        val vm = AppStartupViewModel(InProgressWorkoutResolver(repo, controller(repo)))
         vm.consumeRecovery()
         assertEquals(StartupRecovery.None, vm.recovery.value)
     }

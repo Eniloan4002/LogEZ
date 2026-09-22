@@ -83,6 +83,8 @@ fun LogEzNavHost(
                 onSavedAsRoutine = { routineId -> navController.navigate(RoutineRoutes.builder(routineId = routineId)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
+                onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+                onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
             )
         }
         composable(HistoryRoutes.CALENDAR) {
@@ -232,6 +234,8 @@ fun LogEzNavHost(
                 onBack = { navController.popBackStack() },
                 onEdit = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
+                onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+                onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
             )
         }
         composable(

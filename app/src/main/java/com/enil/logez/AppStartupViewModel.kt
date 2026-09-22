@@ -2,9 +2,8 @@ package com.enil.logez
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.enil.logez.core.domain.model.WorkoutKind
-import com.enil.logez.core.domain.repository.WorkoutRepository
-import com.enil.logez.feature.activity.ActivityTrackingController
+import com.enil.logez.feature.workout.InProgressWorkout
+import com.enil.logez.feature.workout.InProgressWorkoutResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,22 +46,19 @@ sealed interface StartupRecovery {
  */
 @HiltViewModel
 class AppStartupViewModel @Inject constructor(
-    private val workoutRepository: WorkoutRepository,
-    private val activityTrackingController: ActivityTrackingController,
+    private val resolver: InProgressWorkoutResolver,
 ) : ViewModel() {
     private val _recovery = MutableStateFlow<StartupRecovery>(StartupRecovery.None)
     val recovery: StateFlow<StartupRecovery> = _recovery
 
     init {
         viewModelScope.launch {
-            val workout = workoutRepository.getInProgress()
-            _recovery.value = when {
-                workout == null -> StartupRecovery.None
-                workout.kind == WorkoutKind.STRENGTH -> StartupRecovery.ResumeStrength(workout.id)
-                // The id, not just isTracking: a controller left pointing at a different,
-                // already-finished workout must not be read as this row's live session.
-                activityTrackingController.state.value.workoutId == workout.id -> StartupRecovery.ResumeLiveTracking
-                else -> StartupRecovery.InterruptedRun(workout.id, workout.startedAt)
+            _recovery.value = when (val inProgress = resolver.resolve()) {
+                null -> StartupRecovery.None
+                is InProgressWorkout.Strength -> StartupRecovery.ResumeStrength(inProgress.id)
+                is InProgressWorkout.LiveGpsRun -> StartupRecovery.ResumeLiveTracking
+                is InProgressWorkout.InterruptedGpsRun ->
+                    StartupRecovery.InterruptedRun(inProgress.id, inProgress.startedAt)
             }
         }
     }
