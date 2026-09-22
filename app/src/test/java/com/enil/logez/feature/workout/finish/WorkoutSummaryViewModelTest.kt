@@ -9,8 +9,10 @@ import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
@@ -43,6 +45,15 @@ class WorkoutSummaryViewModelTest {
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
     @After fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun `muscleDiagramVariant reflects whatever the settings repository is seeded with`() = runTest {
+        val vm = viewModel(
+            FakeWorkoutRepository(workouts = listOf(workout("w1")), exercises = listOf(workoutExercise("we1", "w1")), sets = listOf(aSet("s1", "we1", 0, reps = 8))),
+            settingsRepo = FakeSettingsRepository(UserSettings(muscleDiagramVariant = MuscleDiagramVariant.FEMALE)),
+        )
+        assertEquals(MuscleDiagramVariant.FEMALE, vm.uiState.value.muscleDiagramVariant)
+    }
 
     @Test
     fun `totalReps sums included sets only — warm-ups excluded, like the Sets stat`() = runTest {
@@ -281,12 +292,13 @@ class WorkoutSummaryViewModelTest {
     private fun viewModel(
         workoutRepo: FakeWorkoutRepository,
         heartRateRepo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+        settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
     ) = WorkoutSummaryViewModel(
         savedStateHandle = SavedStateHandle(mapOf(WorkoutSummaryViewModel.WORKOUT_ID_ARG to "w1")),
         workoutRepository = workoutRepo,
         exerciseRepository = FakeExerciseRepository(listOf(exercise("ex-1"))),
         personalRecordsRepository = FakePersonalRecordsRepository(),
-        settingsRepository = FakeSettingsRepository(),
+        settingsRepository = settingsRepo,
         activityTrackRepository = FakeActivityTrackRepository(),
         heartRateSampleRepository = heartRateRepo,
     )

@@ -125,6 +125,7 @@ fun WorkoutSummaryScreen(
                 ) {
                     BodyDiagram(
                         intensity = uiState.muscleIntensity,
+                        variant = uiState.muscleDiagramVariant,
                         modifier = Modifier.weight(0.8f),
                     )
                     MuscleBalanceRadar(
@@ -194,6 +195,7 @@ fun WorkoutSummaryScreen(
                     repsText = if (uiState.hasReps) uiState.totalReps.toString() else null,
                     distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
                     muscleIntensity = uiState.muscleIntensity,
+                    muscleDiagramVariant = uiState.muscleDiagramVariant,
                     muscleBalance = uiState.muscleBalance,
                     prs = uiState.prMedals,
                     // CIRCUIT drops the "N × " prefix — the card's own rounds line already says

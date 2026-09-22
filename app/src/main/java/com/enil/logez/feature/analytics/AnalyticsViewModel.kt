@@ -13,6 +13,7 @@ import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.RegionShare
 import com.enil.logez.core.domain.calc.StatBucket
 import com.enil.logez.core.domain.calc.balanceAxes
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.ExerciseRepository
@@ -57,6 +58,7 @@ class AnalyticsViewModel @Inject constructor(
         val includeWarmups: Boolean = false,
         val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
         val weightUnit: WeightUnit = WeightUnit.KG,
+        val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
         val zone: ZoneId = ZoneId.systemDefault(),
         val today: LocalDate = LocalDate.EPOCH,
         /** M21: absent (not zero-filled) whenever Health Connect has nothing to show. */
@@ -147,6 +149,7 @@ class AnalyticsViewModel @Inject constructor(
                 includeWarmups = settings.includeWarmupsInStats,
                 firstDayOfWeek = settings.firstDayOfWeek,
                 weightUnit = settings.weightUnit,
+                muscleDiagramVariant = settings.muscleDiagramVariant,
                 zone = zone,
                 today = today,
                 stepsAvailable = stepsAvailable,
@@ -233,6 +236,7 @@ class AnalyticsViewModel @Inject constructor(
             isLoading = isLoading,
             hasAnyWorkouts = d.workouts.isNotEmpty(),
             weightUnit = d.weightUnit,
+            muscleDiagramVariant = d.muscleDiagramVariant,
             training = TrainingCardState(
                 metric = s.trainingMetric,
                 range = trainingRange,
@@ -339,6 +343,7 @@ data class AnalyticsUiState(
     val isLoading: Boolean = true,
     val hasAnyWorkouts: Boolean = false,
     val weightUnit: WeightUnit = WeightUnit.KG,
+    val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     val training: TrainingCardState = TrainingCardState(),
     val distribution: DistributionCardState = DistributionCardState(),
     val body: BodyCardState = BodyCardState(),

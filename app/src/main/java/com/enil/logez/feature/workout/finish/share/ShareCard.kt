@@ -39,6 +39,7 @@ import com.enil.logez.core.designsystem.LogEzTheme
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.feature.workout.finish.PrMedal
 import com.enil.logez.feature.workout.finish.labelRes
@@ -59,6 +60,7 @@ data class ShareCardData(
     val repsText: String?,
     val distanceText: String? = null,
     val muscleIntensity: Map<MuscleGroup, Float>,
+    val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     val muscleBalance: List<RegionShare>,
     val prs: List<PrMedal>,
     /**
@@ -142,7 +144,7 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        BodyDiagram(data.muscleIntensity, Modifier.weight(0.8f))
+                        BodyDiagram(intensity = data.muscleIntensity, variant = data.muscleDiagramVariant, modifier = Modifier.weight(0.8f))
                         MuscleBalanceRadar(data.muscleBalance, Modifier.weight(1.2f), compact = true)
                     }
                 }

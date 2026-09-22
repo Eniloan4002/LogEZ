@@ -226,7 +226,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
-                        BodyDiagram(intensity = uiState.last7Heat)
+                        BodyDiagram(intensity = uiState.last7Heat, variant = uiState.muscleDiagramVariant)
                     }
                 }
             }

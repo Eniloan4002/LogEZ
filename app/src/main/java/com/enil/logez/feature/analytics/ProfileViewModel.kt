@@ -8,6 +8,7 @@ import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.StreakCalculator
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.DailyWellnessTotal
@@ -118,6 +119,7 @@ class ProfileViewModel @Inject constructor(
                     )
                 },
                 weightUnit = settings.weightUnit,
+                muscleDiagramVariant = settings.muscleDiagramVariant,
                 wellnessAvailability = wellnessAvailability,
                 hasWellnessPermissions = hasWellnessPermissions,
                 todaySteps = todaySteps,
@@ -141,6 +143,7 @@ data class ProfileUiState(
     val last7Heat: Map<MuscleGroup, Float> = emptyMap(),
     val quickCharts: Map<TrainingMetric, List<DashboardAggregator.WeeklyBar>> = emptyMap(),
     val weightUnit: WeightUnit = WeightUnit.KG,
+    val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     /** M21e: whether Health Connect is even usable on this device -- gates whether the wellness card shows at all. */
     val wellnessAvailability: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
     val hasWellnessPermissions: Boolean = false,

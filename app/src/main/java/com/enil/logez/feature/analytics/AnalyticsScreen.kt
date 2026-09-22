@@ -592,7 +592,7 @@ private fun BodyCard(uiState: AnalyticsUiState, viewModel: AnalyticsViewModel) {
                     )
                 }
             }
-            BodyDiagram(intensity = card.intensities)
+            BodyDiagram(intensity = card.intensities, variant = uiState.muscleDiagramVariant)
             card.counts.forEach { row ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs)) {
                     Text(muscleGroupLabel(row.group), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -658,6 +658,7 @@ private fun SetCountCard(
             // the filtered library (the plan's tap-through lives on the arrow).
             BodyDiagram(
                 intensity = card.diagramIntensities,
+                variant = uiState.muscleDiagramVariant,
                 selected = card.selectedMuscles,
                 onRegionTap = { viewModel.toggleMuscle(it) },
             )

@@ -6,8 +6,10 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
@@ -86,6 +88,12 @@ class ProfileViewModelTest {
 
     // --- §5.2 Profile headline stats ---
     // (The temporary RPE toggle tests moved to SettingsViewModelTest with the M16 relocation.)
+
+    @Test
+    fun `muscleDiagramVariant reflects whatever the settings repository is seeded with`() = runTest {
+        val vm = newViewModel(settingsRepo = FakeSettingsRepository(UserSettings(muscleDiagramVariant = MuscleDiagramVariant.FEMALE)))
+        assertEquals(MuscleDiagramVariant.FEMALE, vm.uiState.value.muscleDiagramVariant)
+    }
 
     @Test
     fun `a fresh install shows honest zeros`() = runTest {

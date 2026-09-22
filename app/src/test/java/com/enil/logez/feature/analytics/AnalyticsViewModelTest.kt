@@ -9,8 +9,10 @@ import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
@@ -94,9 +96,10 @@ class AnalyticsViewModelTest {
         focus: String? = null,
         repos: Pair<FakeWorkoutRepository, FakeExerciseRepository> = fixtureRepos(),
         healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
+        settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
     ): AnalyticsViewModel = AnalyticsViewModel(
         SavedStateHandle(buildMap { focus?.let { put(AnalyticsViewModel.FOCUS_ARG, it) } }),
-        repos.first, repos.second, FakeSettingsRepository(), healthMetricsSource, FakeClock(currentMillis = nowMillis),
+        repos.first, repos.second, settingsRepo, healthMetricsSource, FakeClock(currentMillis = nowMillis),
         // The screen's RefreshOnResume drives the first load (no init load) — mirror it here.
     ).also { it.refresh() }
 
@@ -108,6 +111,12 @@ class AnalyticsViewModelTest {
         assertEquals(listOf(600.0, 1000.0), bars.map { it.value })
         assertTrue(vm.uiState.value.hasAnyWorkouts)
         assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `muscleDiagramVariant reflects whatever the settings repository is seeded with`() = runTest {
+        val vm = newViewModel(settingsRepo = FakeSettingsRepository(UserSettings(muscleDiagramVariant = MuscleDiagramVariant.FEMALE)))
+        assertEquals(MuscleDiagramVariant.FEMALE, vm.uiState.value.muscleDiagramVariant)
     }
 
     @Test

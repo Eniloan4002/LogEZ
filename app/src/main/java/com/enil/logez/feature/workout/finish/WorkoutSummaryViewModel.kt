@@ -10,6 +10,7 @@ import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.RegionShare
 import com.enil.logez.core.domain.calc.balanceAxes
 import com.enil.logez.core.domain.calc.isIncluded
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ActivityTrackRepository
@@ -172,6 +173,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 routePoints = routePoints,
                 heartRateSamples = heartRateSamples,
                 muscleIntensity = muscleIntensity,
+                muscleDiagramVariant = settings.muscleDiagramVariant,
                 muscleBalance = muscleBalance,
                 prMedals = prs,
                 exerciseLines = exerciseLines,
@@ -212,6 +214,7 @@ data class WorkoutSummaryUiState(
     /** M21f: (recordedAtMillis, bpm) pairs saved by `WorkoutFinisher` at finish time, oldest first; empty if no wearable data existed for this workout's window. */
     val heartRateSamples: List<Pair<Long, Long>> = emptyList(),
     val muscleIntensity: Map<com.enil.logez.core.domain.model.MuscleGroup, Float> = emptyMap(),
+    val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     val muscleBalance: List<RegionShare> = emptyList(),
     val prMedals: List<PrMedal> = emptyList(),
     val exerciseLines: List<SummaryExerciseLine> = emptyList(),
