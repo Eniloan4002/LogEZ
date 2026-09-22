@@ -30,6 +30,8 @@ playServicesLocation = "21.4.0" # M21a — https://developers.google.com/android
 maplibre = "13.6.1" # M21b — https://github.com/maplibre/maplibre-native/releases; classic AndroidView-wrapped MapView, not maplibre-compose (that wrapper needs Kotlin 2.4.10, ahead of our 2.3.0 pin)
 healthConnect = "1.1.0" # M21e — https://developer.android.com/jetpack/androidx/releases/health-connect; latest STABLE (not the 1.2.0-alpha06 available at the time) per this project's never-alpha/beta/rc rule. Compat spike (2026-09-10): minCompileSdk=36 (exact match), minSdk 26 (exact match), minAndroidGradlePluginVersion=8.9.1 (well under our 9.2.0), kotlin-stdlib dep floor 2.0.21 (well under our 2.3.0) -- all clean, no fallback needed, direct AAR/POM inspection per this project's own dependency-vetting discipline.
 camerax = "1.6.2" # M22a — https://developer.android.com/jetpack/androidx/releases/camera; latest STABLE (2026-08-26) per this project's never-alpha/beta/rc rule (1.7.0 is still alpha). In-app camera capture for progress photos, no overlay compositing this pass. Compat check (2026-09-20): our compileSdk 36.1/minSdk 26 comfortably clear the industry-wide minSdk-23 floor AndroidX moved to in mid-2025 and CameraX's own compileSdk-35 floor as of the 1.5.0 beta (a full minor behind this pin) -- verified empirically by a clean assembleDebug with no AAR-metadata error, same signal the coil/healthConnect pins above relied on.
+glance = "1.2.0" # M23b -- https://developer.android.com/jetpack/androidx/releases/glance; latest STABLE (2026-08-26) per this project's never-alpha/beta/rc rule. 1.3.0-alpha is NOT an option: it requires compileSdk 37 and we are pinned at 36.1 -- the exact AAR-metadata wall the coil 3.6.2 pick hit above. Compat spike (2026-09-22): AAR built against compileSdk 35, minSdk 23, minAndroidGradlePluginVersion 8.6.0, compose-runtime floor 1.7.8 -- all comfortably under our 36.1 / 26 / 9.2.0 / BOM-resolved runtime.
+work = "2.11.2" # M23b -- https://developer.android.com/jetpack/androidx/releases/work. Pinned EXPLICITLY rather than inherited: glance-appwidget's POM drags in work-runtime-ktx 2.7.1 (Oct 2021) at runtime scope, and Gradle's newest-wins resolution means this line is the only thing keeping us off a five-year-old scheduler on targetSdk 36. Do NOT delete it as "unused" -- MidnightWidgetWorker is the direct consumer, and removing it silently hands the floor back to the transitive 2.7.1.
 
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -75,6 +77,9 @@ kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime",
 
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-glance-appwidget-testing = { group = "androidx.glance", name = "glance-appwidget-testing", version.ref = "glance" }
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-core = { group = "io.coil-kt.coil3", name = "coil-core", version.ref = "coil" }
 

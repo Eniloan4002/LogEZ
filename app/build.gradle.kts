@@ -182,6 +182,14 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
 
+    // M23b: home-screen widget. Glance is Compose-for-RemoteViews -- a separate composable
+    // vocabulary, not interoperable with the app's own Compose UI. androidx.work is pinned right
+    // below because glance-appwidget's POM otherwise supplies work-runtime-ktx 2.7.1 transitively;
+    // MidnightWidgetWorker is the direct consumer. No custom WorkerFactory is introduced, so
+    // WorkManager's androidx.startup auto-init is used as-is and nothing needs disabling.
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.work.runtime.ktx)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
@@ -189,6 +197,7 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)
     testImplementation(libs.androidx.ui.test.manifest)
+    testImplementation(libs.androidx.glance.appwidget.testing)
 
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
