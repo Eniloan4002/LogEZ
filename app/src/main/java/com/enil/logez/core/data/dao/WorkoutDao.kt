@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.data.export.WorkoutCsvRow
 import com.enil.logez.core.domain.model.SetType
 import kotlinx.coroutines.flow.Flow
 
@@ -343,6 +344,32 @@ interface WorkoutDao {
         """,
     )
     suspend fun getSetsWithExerciseForCompletedWorkouts(): List<WorkoutSetWithExerciseRow>
+
+    /**
+     * Every logged set, joined with the names the CSV export needs. Distinct from
+     * [getSetsWithExerciseForCompletedWorkouts] on three counts: it carries the exercise NAME and
+     * the workout/exercise notes (which the stats query has no use for), and it orders ascending
+     * because an export reads as a chronological record rather than a feed.
+     *
+     * No filter on `is_completed`: finishing a workout already purges uncompleted sets, and every
+     * set being a row is what the target schema expects.
+     */
+    @Query(
+        """
+        SELECT w.title AS workoutTitle, w.notes AS workoutNotes, w.started_at AS startedAt,
+               w.ended_at AS endedAt, e.name AS exerciseName, we.superset_group AS supersetGroup,
+               we.notes AS exerciseNotes, ws.order_index AS setIndex, ws.set_type AS setType,
+               ws.weight_kg AS weightKg, ws.reps AS reps, ws.distance_meters AS distanceMeters,
+               ws.duration_seconds AS durationSeconds, ws.rpe AS rpe
+        FROM workout_sets ws
+        JOIN workout_exercises we ON we.id = ws.workout_exercise_id
+        JOIN workouts w ON w.id = we.workout_id
+        JOIN exercises e ON e.id = we.exercise_id
+        WHERE w.status = 'COMPLETED'
+        ORDER BY w.started_at ASC, we.order_index ASC, ws.order_index ASC
+        """,
+    )
+    suspend fun getWorkoutCsvRows(): List<WorkoutCsvRow>
 
     /**
      * Ordinal workout count for the summary's "Workout #47" line — COMPLETED only, counting this

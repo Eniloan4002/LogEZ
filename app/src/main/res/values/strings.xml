@@ -499,6 +499,27 @@
     <string name="settings_section_workouts">Workouts</string>
     <string name="settings_section_calculators">Calculators</string>
     <string name="settings_section_sounds">Sounds</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_data_row">Export &amp; backup</string>
+
+    <!-- M24: Settings -> Data. -->
+    <string name="data_section_export">Export</string>
+    <string name="data_export_workouts">Workouts (CSV)</string>
+    <string name="data_export_workouts_subtitle">One row per set, weights in kg</string>
+    <string name="data_export_measurements">Measurements (CSV)</string>
+    <string name="data_export_measurements_subtitle">One row per date, all 17 metrics</string>
+    <plurals name="data_set_count">
+        <item quantity="one">%1$d set</item>
+        <item quantity="other">%1$d sets</item>
+    </plurals>
+    <plurals name="data_entry_count">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
+    <string name="data_export_done">Exported</string>
+    <string name="data_export_failed">Couldn\'t write the file. Nothing was exported.</string>
+    <string name="data_privacy_note">Exported files are plain and unencrypted — anything that can open them can read them, including any app you share them with. Keep them somewhere you trust. LogEZ never uploads them; the only thing this app sends over the internet is map tiles, and only while a GPS route is on screen.</string>
+
     <string name="settings_section_about">About</string>
     <string name="settings_privacy_policy_row">Privacy Policy</string>
     <string name="privacy_policy_title">Privacy Policy</string>

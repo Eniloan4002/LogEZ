@@ -34,6 +34,7 @@ import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
 import com.enil.logez.feature.routines.WorkoutTabScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.enil.logez.feature.settings.DataScreen
 import com.enil.logez.feature.settings.PlateEquipmentScreen
 import com.enil.logez.feature.settings.SettingsRoutes
 import com.enil.logez.feature.settings.SettingsScreen
@@ -162,7 +163,11 @@ fun LogEzNavHost(
                 onSoundsClick = { navController.navigate(SettingsRoutes.SOUNDS) { launchSingleTop = true } },
                 onPlateEquipmentClick = { navController.navigate(SettingsRoutes.PLATE_EQUIPMENT) { launchSingleTop = true } },
                 onWarmupSetsClick = { navController.navigate(SettingsRoutes.WARMUP_SETS) { launchSingleTop = true } },
+                onDataClick = { navController.navigate(SettingsRoutes.DATA) { launchSingleTop = true } },
             )
+        }
+        composable(SettingsRoutes.DATA) {
+            DataScreen(onBack = { navController.popBackStack() })
         }
         composable(SettingsRoutes.SOUNDS) {
             SoundsSettingsScreen(onBack = { navController.popBackStack() })

@@ -10,4 +10,5 @@ object SettingsRoutes {
 
     /** M18: the Warm-up Calculator's percent × reps ladder editor (§5.1.6 "Warmup Method"). */
     const val WARMUP_SETS = "settings_warmup_sets"
+    const val DATA = "settings_data"
 }

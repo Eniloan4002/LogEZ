@@ -27,6 +27,10 @@ interface MeasurementDao {
     @Query("SELECT * FROM body_measurements ORDER BY date DESC")
     fun observeAll(): Flow<List<BodyMeasurementEntity>>
 
+    /** Ascending, for the CSV export -- a record reads chronologically, unlike the screen's feed. */
+    @Query("SELECT * FROM body_measurements ORDER BY date ASC")
+    suspend fun getAllForExport(): List<BodyMeasurementEntity>
+
     @Query("DELETE FROM body_measurements WHERE date = :date")
     suspend fun deleteByDate(date: String)
 

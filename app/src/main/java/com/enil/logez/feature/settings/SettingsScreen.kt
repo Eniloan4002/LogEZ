@@ -59,6 +59,7 @@ fun SettingsScreen(
     onSoundsClick: () -> Unit,
     onPlateEquipmentClick: () -> Unit,
     onWarmupSetsClick: () -> Unit,
+    onDataClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -272,6 +273,15 @@ fun SettingsScreen(
             }
 
             // --- ABOUT ---
+            item(key = "section_data") { SettingsSectionHeader(stringResource(R.string.settings_section_data)) }
+            item(key = "data_nav") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_data_row),
+                    value = "",
+                    onClick = onDataClick,
+                )
+            }
+
             item(key = "section_about") { SettingsSectionHeader(stringResource(R.string.settings_section_about)) }
             item(key = "privacy_policy") {
                 SettingsValueRow(
