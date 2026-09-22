@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.enil.logez.core.data.LogEzDatabase
 import com.enil.logez.core.data.dao.ActivityTrackDao
+import com.enil.logez.core.data.dao.BackupDao
 import com.enil.logez.core.data.dao.AnalyticsDao
 import com.enil.logez.core.data.dao.ExerciseDao
 import com.enil.logez.core.data.dao.GoalDao
@@ -38,6 +39,9 @@ object DataModule {
                 LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
             )
             .build()
+
+    @Provides
+    fun provideBackupDao(db: LogEzDatabase): BackupDao = db.backupDao()
 
     @Provides
     fun provideExerciseDao(db: LogEzDatabase): ExerciseDao = db.exerciseDao()

@@ -7,6 +7,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.enil.logez.core.data.dao.ActivityTrackDao
 import com.enil.logez.core.data.dao.AnalyticsDao
+import com.enil.logez.core.data.dao.BackupDao
 import com.enil.logez.core.data.dao.ExerciseDao
 import com.enil.logez.core.data.dao.GoalDao
 import com.enil.logez.core.data.dao.MeasurementDao
@@ -81,6 +82,9 @@ abstract class LogEzDatabase : RoomDatabase() {
     abstract fun activityTrackDao(): ActivityTrackDao
     abstract fun wellnessDao(): WellnessDao
     abstract fun workoutHeartRateSampleDao(): WorkoutHeartRateSampleDao
+
+    /** Backup/restore only -- whole-table reads and the app's only unscoped deletes. */
+    abstract fun backupDao(): BackupDao
 
     companion object {
         const val DATABASE_NAME = "logez.db"
