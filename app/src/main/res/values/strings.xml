@@ -258,6 +258,11 @@
     <string name="activity_tracking_zone_5">Peak</string>
     <string name="activity_tracking_finish">Finish</string>
     <string name="activity_tracking_cancel">Cancel</string>
+    <string name="activity_tracking_resumed_snackbar">Tracking resumed</string>
+    <string name="activity_tracking_interrupted_title">Tracking was interrupted</string>
+    <string name="activity_tracking_interrupted_body">LogEZ closed while a run was being tracked, so the GPS route and distance could not be recovered.\n\nStarted %1$s · %2$s ago.</string>
+    <string name="activity_tracking_interrupted_keep_time">Save time only</string>
+    <string name="activity_tracking_interrupted_discard">Discard</string>
     <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
     <string name="activity_tracking_cancel_confirm_body">Your tracked distance and route won\'t be saved.</string>
     <string name="activity_tracking_cancel_confirm_action">Discard</string>

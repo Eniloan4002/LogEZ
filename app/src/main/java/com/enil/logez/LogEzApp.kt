@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,6 +28,8 @@ import androidx.navigation.compose.rememberNavController
 import com.enil.logez.app.navigation.LogEzDestination
 import com.enil.logez.app.navigation.LogEzNavHost
 import com.enil.logez.core.designsystem.LogEzTheme
+import com.enil.logez.feature.activity.ActivityTrackingRoutes
+import com.enil.logez.feature.activity.InterruptedTrackingDialog
 import com.enil.logez.feature.workout.WorkoutMiniBar
 import com.enil.logez.feature.workout.WorkoutRoutes
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
@@ -40,17 +44,48 @@ fun LogEzApp() {
 
         // §9.5 cold-start recovery: process/service died (swipe-from-recents, force-stop, crash)
         // while a workout was IN_PROGRESS -- Room already has the data; this restarts the service
-        // and lands the user back in the Logger, exactly once per cold start.
+        // and lands the user back in the right screen, exactly once per cold start.
         val startupViewModel: AppStartupViewModel = hiltViewModel()
-        val recoveredWorkoutId by startupViewModel.recoveredWorkoutId.collectAsStateWithLifecycle()
+        val recovery by startupViewModel.recovery.collectAsStateWithLifecycle()
+        val trackingResumedMessage = stringResource(R.string.activity_tracking_resumed_snackbar)
+        var interruptedRun by remember { mutableStateOf<StartupRecovery.InterruptedRun?>(null) }
         val resumeRecoveredSession = rememberStartWorkoutSession(onNavigateToLogger = { workoutId ->
             navController.navigate(WorkoutRoutes.logger(workoutId))
         })
-        LaunchedEffect(recoveredWorkoutId) {
-            val workoutId = recoveredWorkoutId ?: return@LaunchedEffect
-            startupViewModel.consumeRecovery()
-            resumeRecoveredSession(workoutId)
-            snackbarHostState.showSnackbar(resumedSnackbarMessage)
+        LaunchedEffect(recovery) {
+            // Only the strength branch may go through rememberStartWorkoutSession -- that is what
+            // starts WorkoutSessionService, and doing it for a GPS run puts a second foreground
+            // service alongside the location one that is already running.
+            when (val r = recovery) {
+                is StartupRecovery.None -> Unit
+                is StartupRecovery.ResumeStrength -> {
+                    startupViewModel.consumeRecovery()
+                    resumeRecoveredSession(r.workoutId)
+                    snackbarHostState.showSnackbar(resumedSnackbarMessage)
+                }
+                is StartupRecovery.ResumeLiveTracking -> {
+                    startupViewModel.consumeRecovery()
+                    // Start nothing: ActivityTrackingService is already foregrounded and collecting.
+                    navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING)
+                    snackbarHostState.showSnackbar(trackingResumedMessage)
+                }
+                is StartupRecovery.InterruptedRun -> {
+                    startupViewModel.consumeRecovery()
+                    interruptedRun = r
+                }
+            }
+        }
+
+        interruptedRun?.let { run ->
+            InterruptedTrackingDialog(
+                workoutId = run.workoutId,
+                startedAt = run.startedAt,
+                onKeptTime = { workoutId ->
+                    interruptedRun = null
+                    navController.navigate(WorkoutRoutes.finish(workoutId))
+                },
+                onDiscarded = { interruptedRun = null },
+            )
         }
 
         Scaffold(
