@@ -98,6 +98,7 @@ fun LogEzNavHost(
                 onEditRoutine = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+                onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
             )
         }
         composable(ActivityTrackingRoutes.LIVE_TRACKING) {

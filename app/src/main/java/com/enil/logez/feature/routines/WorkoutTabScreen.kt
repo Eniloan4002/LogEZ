@@ -85,6 +85,8 @@ import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
 import com.enil.logez.feature.activity.rememberRequestLocationForTracking
+import com.enil.logez.core.domain.model.WorkoutKind
+import com.enil.logez.feature.activity.InterruptedTrackingDialog
 import com.enil.logez.feature.activity.startActivityTrackingService
 import com.enil.logez.core.wellness.DailyStepCount
 import com.enil.logez.feature.workout.StartResult
@@ -112,6 +114,7 @@ fun WorkoutTabScreen(
     onEditRoutine: (routineId: String) -> Unit,
     onNavigateToLogger: (workoutId: String) -> Unit,
     onNavigateToActivityTracking: () -> Unit,
+    onNavigateToFinish: (workoutId: String) -> Unit,
     viewModel: WorkoutTabViewModel = hiltViewModel(),
     goalsViewModel: GoalsViewModel = hiltViewModel(),
 ) {
@@ -523,6 +526,7 @@ fun WorkoutTabScreen(
         inProgressWorkoutId = inProgressWorkoutId,
         startSession = startSession,
         onNavigateToActivityTracking = onNavigateToActivityTracking,
+        onNavigateToFinish = onNavigateToFinish,
         scope = scope,
         context = context,
     )
@@ -549,6 +553,7 @@ private fun WorkoutTabDialogs(
     inProgressWorkoutId: String?,
     startSession: (String) -> Unit,
     onNavigateToActivityTracking: () -> Unit,
+    onNavigateToFinish: (String) -> Unit,
     scope: CoroutineScope,
     context: Context,
 ) {
@@ -558,6 +563,16 @@ private fun WorkoutTabDialogs(
     var deletingRoutineId by deletingRoutineIdState
     var movingRoutineId by movingRoutineIdState
     var pendingStart by pendingStartState
+    var interruptedRun by remember { mutableStateOf<Pair<String, Long>?>(null) }
+
+    interruptedRun?.let { (workoutId, startedAt) ->
+        InterruptedTrackingDialog(
+            workoutId = workoutId,
+            startedAt = startedAt,
+            onKeptTime = { id -> interruptedRun = null; onNavigateToFinish(id) },
+            onDiscarded = { interruptedRun = null },
+        )
+    }
 
     if (showCreateFolder) {
         TextInputDialog(
@@ -612,9 +627,18 @@ private fun WorkoutTabDialogs(
             confirmButton = {
                 TextButton(onClick = {
                     pendingStart = null
-                    // M21a: an in-progress GPS track resumes into the live-tracking screen, not
-                    // the Logger -- ActivityTrackingService is still running it in the background.
-                    if (viewModel.isActivityTrackingInProgress()) onNavigateToActivityTracking() else existingId?.let(startSession)
+                    scope.launch {
+                        val info = viewModel.inProgressWorkoutInfo()
+                        when {
+                            info == null -> Unit
+                            info.kind != WorkoutKind.GPS_TRACKED -> existingId?.let(startSession)
+                            // Still collecting: re-enter the tracking screen, start nothing.
+                            viewModel.isGpsSessionAlive() -> onNavigateToActivityTracking()
+                            // The process died mid-run: route and distance are gone, so the user
+                            // has to decide what happens to the row.
+                            else -> interruptedRun = info.id to info.startedAt
+                        }
+                    }
                 }) {
                     Text(stringResource(R.string.workout_resume_action))
                 }

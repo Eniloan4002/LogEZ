@@ -2,14 +2,16 @@ package com.enil.logez.feature.workout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -28,6 +30,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class MiniBarViewModel @Inject constructor(
     workoutRepository: WorkoutRepository,
+    activityTrackingController: ActivityTrackingController,
     private val sessionController: WorkoutSessionController,
 ) : ViewModel() {
     init {
@@ -40,13 +43,32 @@ class MiniBarViewModel @Inject constructor(
     val elapsedSecondsFlow: Flow<Long> = sessionController.elapsedSecondsFlow
     val restRemainingMillisFlow: Flow<Long?> = sessionController.restRemainingMillisFlow
 
-    val uiState: StateFlow<MiniBarUiState> = workoutRepository.observeInProgress()
-        .map { workout -> if (workout == null) MiniBarUiState() else MiniBarUiState(visible = true, workoutId = workout.id, title = workout.title) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, MiniBarUiState())
+    val uiState: StateFlow<MiniBarUiState> = combine(
+        workoutRepository.observeInProgress(),
+        activityTrackingController.state,
+    ) { workout, tracking ->
+        if (workout == null) {
+            MiniBarUiState()
+        } else {
+            MiniBarUiState(
+                visible = true,
+                workoutId = workout.id,
+                title = workout.title,
+                startedAt = workout.startedAt,
+                kind = workout.kind,
+                gpsSessionAlive = tracking.workoutId == workout.id,
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, MiniBarUiState())
 }
 
 data class MiniBarUiState(
     val visible: Boolean = false,
     val workoutId: String? = null,
     val title: String = "",
+    val startedAt: Long = 0L,
+    /** Persisted, so it survives a process death — unlike [gpsSessionAlive]. */
+    val kind: WorkoutKind = WorkoutKind.STRENGTH,
+    /** Whether tracking is still actually collecting, which only in-memory state can answer. */
+    val gpsSessionAlive: Boolean = false,
 )

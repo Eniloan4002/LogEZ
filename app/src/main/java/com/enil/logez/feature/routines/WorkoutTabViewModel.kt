@@ -7,6 +7,7 @@ import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.domain.calc.DashboardAggregator
 import com.enil.logez.core.domain.calc.StreakCalculator
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
@@ -257,11 +258,15 @@ class WorkoutTabViewModel @Inject constructor(
     }
 
     /**
-     * M21a: whether the current IN_PROGRESS workout is a GPS-tracked one — the resume dialog reads
-     * this to send "Resume" to the live-tracking screen instead of the Logger. Known v1 gap, not
-     * fixed here: the tab-root mini-bar's own "tap to resume" still always goes to the Logger.
+     * What the resume dialog needs to route correctly. [InProgressWorkoutInfo.kind] comes from the
+     * persisted marker so it still answers after a process death — `activityTrackingController`'s
+     * state does not, and reading that alone used to send recovered runs into the strength Logger.
      */
-    fun isActivityTrackingInProgress(): Boolean = activityTrackingController.state.value.isTracking
+    suspend fun inProgressWorkoutInfo(): InProgressWorkoutInfo? =
+        workoutRepository.getInProgress()?.let { InProgressWorkoutInfo(it.id, it.kind, it.startedAt) }
+
+    /** Whether tracking is still actually collecting, which only in-memory state can answer. */
+    fun isGpsSessionAlive(): Boolean = activityTrackingController.state.value.isTracking
 
     /**
      * M21a: starts the ad-hoc workout, the GPS controller, AND `WorkoutSessionController`'s shared
@@ -295,6 +300,9 @@ private const val QUICK_TRACK_RUNNING_NAME = "Running (Outdoor)"
 private const val QUICK_TRACK_WALKING_NAME = "Walking (Outdoor)"
 
 data class QuickTrackExercises(val running: Exercise, val walking: Exercise)
+
+/** Just enough about the in-progress workout to route a resume, without leaking the entity. */
+data class InProgressWorkoutInfo(val id: String, val kind: WorkoutKind, val startedAt: Long)
 
 data class WorkoutTabUiState(
     val isLoading: Boolean = true,

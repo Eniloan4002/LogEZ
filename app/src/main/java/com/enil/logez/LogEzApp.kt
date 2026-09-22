@@ -103,7 +103,15 @@ fun LogEzApp() {
 
                 if (onTabRoot) {
                     Column {
-                        WorkoutMiniBar(onExpand = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) })
+                        WorkoutMiniBar(
+                            onExpand = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
+                            onExpandLiveTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+                            // Same dialog state the startup path raises, so there is one dialog
+                            // and one resolution path regardless of how the run was reached.
+                            onInterruptedRun = { workoutId, startedAt ->
+                                interruptedRun = StartupRecovery.InterruptedRun(workoutId, startedAt)
+                            },
+                        )
                         NavigationBar {
                             LogEzDestination.entries.forEach { destination ->
                                 val selected = currentDestination?.hierarchy?.any {

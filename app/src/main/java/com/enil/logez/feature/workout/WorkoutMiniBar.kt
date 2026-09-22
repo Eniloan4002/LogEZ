@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import kotlinx.coroutines.flow.Flow
@@ -26,24 +27,34 @@ import kotlinx.coroutines.flow.Flow
 @Composable
 fun WorkoutMiniBar(
     onExpand: (workoutId: String) -> Unit,
+    onExpandLiveTracking: () -> Unit,
+    onInterruptedRun: (workoutId: String, startedAt: Long) -> Unit,
     viewModel: MiniBarViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val workoutId = uiState.workoutId
     if (!uiState.visible || workoutId == null) return
 
-    val expand = rememberStartWorkoutSession(onExpand)
+    val expandStrength = rememberStartWorkoutSession(onExpand)
+    // Only the strength branch may go through rememberStartWorkoutSession: it starts
+    // WorkoutSessionService, which for a GPS run means a second foreground service next to the
+    // location one, and the wrong screen.
+    val tap: () -> Unit = when {
+        uiState.kind == WorkoutKind.STRENGTH -> ({ expandStrength(workoutId) })
+        uiState.gpsSessionAlive -> onExpandLiveTracking
+        else -> ({ onInterruptedRun(workoutId, uiState.startedAt) })
+    }
 
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.fillMaxWidth().clickable { expand(workoutId) },
+        modifier = Modifier.fillMaxWidth().clickable(onClick = tap),
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(uiState.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 MiniBarStatsText(viewModel.elapsedSecondsFlow, viewModel.restRemainingMillisFlow)
             }
-            TextButton(onClick = { expand(workoutId) }) { Text(stringResource(R.string.workout_mini_bar_finish)) }
+            TextButton(onClick = tap) { Text(stringResource(R.string.workout_mini_bar_finish)) }
         }
     }
 }

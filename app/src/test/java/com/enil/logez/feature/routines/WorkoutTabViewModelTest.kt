@@ -10,6 +10,7 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
@@ -319,15 +320,31 @@ class WorkoutTabViewModelTest {
     }
 
     @Test
-    fun `isActivityTrackingInProgress reflects the shared GPS controller's state`() = runTest {
+    fun `isGpsSessionAlive reflects the shared GPS controller's state`() = runTest {
         val workoutRepo = FakeWorkoutRepository()
         val clock = FakeClock()
         val controller = ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()))
         val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo, activityTrackingController = controller)
 
-        assertFalse(vm.isActivityTrackingInProgress())
+        assertFalse(vm.isGpsSessionAlive())
         vm.startActivityTracking("ex-run", "Running (Outdoor)")
-        assertTrue(vm.isActivityTrackingInProgress())
+        assertTrue(vm.isGpsSessionAlive())
+    }
+
+    @Test
+    fun `inProgressWorkoutInfo reports the persisted kind, which outlives the controller's state`() = runTest {
+        val workoutRepo = FakeWorkoutRepository()
+        val clock = FakeClock()
+        val controller = ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), clock, CoroutineScope(UnconfinedTestDispatcher()))
+        val vm = newViewModel(FakeRoutineRepository(), clock = clock, workoutRepo = workoutRepo, activityTrackingController = controller)
+        vm.startActivityTracking("ex-run", "Running (Outdoor)")
+
+        // Simulates the process dying: the in-memory session is gone, the Room row is not. Reading
+        // the controller alone here used to report "not a GPS run" and send it to the Logger.
+        controller.cancelTracking()
+
+        assertFalse(vm.isGpsSessionAlive())
+        assertEquals(WorkoutKind.GPS_TRACKED, vm.inProgressWorkoutInfo()?.kind)
     }
 
     @Test
