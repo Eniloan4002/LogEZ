@@ -9,6 +9,7 @@ import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.MuscleHead
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import kotlinx.serialization.encodeToString
@@ -64,6 +65,12 @@ class Converters {
 
     @TypeConverter
     fun toWorkoutStructure(value: String): WorkoutStructure = WorkoutStructure.valueOf(value)
+
+    @TypeConverter
+    fun fromWorkoutKind(value: WorkoutKind): String = value.name
+
+    @TypeConverter
+    fun toWorkoutKind(value: String): WorkoutKind = WorkoutKind.valueOf(value)
 
     @TypeConverter
     fun fromGoalMetric(value: GoalMetric): String = value.name

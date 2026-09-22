@@ -653,6 +653,110 @@ class LogEzDatabaseMigrationTest {
     }
 
     /**
+     * v8's `workouts` plus the three tables MIGRATION_8_9's backfill joins through. Only the
+     * columns the migration touches are declared -- this helper feeds `migrate(db)` directly, not
+     * Room's validator, so a faithful-but-unused column would be noise.
+     */
+    private fun openV8(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(8) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE `workouts` (
+                        `id` TEXT NOT NULL, `routine_id` TEXT, `title` TEXT NOT NULL, `notes` TEXT,
+                        `status` TEXT NOT NULL, `started_at` INTEGER NOT NULL, `ended_at` INTEGER,
+                        `duration_seconds` INTEGER NOT NULL, `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        `structure` TEXT NOT NULL DEFAULT 'REGULAR', PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE TABLE `workout_exercises` (`id` TEXT NOT NULL, `workout_id` TEXT NOT NULL, " +
+                        "`exercise_id` TEXT NOT NULL, `order_index` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
+                db.execSQL(
+                    "CREATE TABLE `workout_sets` (`id` TEXT NOT NULL, `workout_exercise_id` TEXT NOT NULL, " +
+                        "`order_index` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
+                db.execSQL(
+                    "CREATE TABLE `activity_tracks` (`id` TEXT NOT NULL, `workout_set_id` TEXT NOT NULL, " +
+                        "`route_polyline` TEXT, `point_count` INTEGER NOT NULL, `avg_accuracy_m` REAL, PRIMARY KEY(`id`))",
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_8_9 adds a non-null kind column defaulting to STRENGTH`() {
+        val helper = openV8()
+        val db = helper.writableDatabase
+        LogEzDatabase.MIGRATION_8_9.migrate(db)
+
+        val cursor = db.query("PRAGMA table_info(`workouts`)")
+        var type: String? = null
+        var notNull = false
+        var default: String? = null
+        cursor.use {
+            val nameIdx = it.getColumnIndexOrThrow("name")
+            val typeIdx = it.getColumnIndexOrThrow("type")
+            val notNullIdx = it.getColumnIndexOrThrow("notnull")
+            val defaultIdx = it.getColumnIndexOrThrow("dflt_value")
+            while (it.moveToNext()) {
+                if (it.getString(nameIdx) == "kind") {
+                    type = it.getString(typeIdx)
+                    notNull = it.getInt(notNullIdx) == 1
+                    default = it.getString(defaultIdx)
+                }
+            }
+        }
+
+        assertEquals("TEXT", type)
+        assertEquals(true, notNull)
+        // Must stay byte-identical to WorkoutEntity.kind's @ColumnInfo(defaultValue = "'STRENGTH'")
+        // or Room's post-migration TableInfo comparison rejects the live table (the debug13.9 bug).
+        assertEquals("'STRENGTH'", default)
+
+        db.close()
+    }
+
+    @Test
+    fun `MIGRATION_8_9 backfills only workouts that have an activity_tracks row`() {
+        val helper = openV8()
+        val db = helper.writableDatabase
+        // A typed session and a finished GPS run, distinguishable at v8 only by the track row.
+        db.execSQL(
+            "INSERT INTO workouts (id, routine_id, title, notes, status, started_at, ended_at, duration_seconds, created_at, updated_at, structure) " +
+                "VALUES ('w_lift', NULL, 'Push Day', NULL, 'COMPLETED', 1000, 2000, 60, 1000, 2000, 'REGULAR')",
+        )
+        db.execSQL(
+            "INSERT INTO workouts (id, routine_id, title, notes, status, started_at, ended_at, duration_seconds, created_at, updated_at, structure) " +
+                "VALUES ('w_run', NULL, 'Morning Run', NULL, 'COMPLETED', 3000, 4000, 900, 3000, 4000, 'REGULAR')",
+        )
+        db.execSQL("INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index) VALUES ('we_run', 'w_run', 'ex1', 0)")
+        db.execSQL("INSERT INTO workout_sets (id, workout_exercise_id, order_index) VALUES ('ws_run', 'we_run', 0)")
+        db.execSQL("INSERT INTO activity_tracks (id, workout_set_id, route_polyline, point_count, avg_accuracy_m) VALUES ('t1', 'ws_run', 'abc', 12, 4.5)")
+        // A lift workout with sets but no track must stay STRENGTH -- this is the join's real test.
+        db.execSQL("INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index) VALUES ('we_lift', 'w_lift', 'ex2', 0)")
+        db.execSQL("INSERT INTO workout_sets (id, workout_exercise_id, order_index) VALUES ('ws_lift', 'we_lift', 0)")
+
+        LogEzDatabase.MIGRATION_8_9.migrate(db)
+
+        val cursor = db.query("SELECT id, kind FROM workouts ORDER BY id")
+        val kinds = mutableMapOf<String, String>()
+        cursor.use { while (it.moveToNext()) kinds[it.getString(0)] = it.getString(1) }
+        assertEquals(mapOf("w_lift" to "STRENGTH", "w_run" to "GPS_TRACKED"), kinds)
+
+        db.close()
+    }
+
+    /**
      * Same real-open technique as the historical-chain tests below: a database physically built to
      * the real v4 schema (`4.json`'s createSql), opened through [LogEzDatabase]'s own
      * `Room.databaseBuilder(...).addMigrations(...)` path — so Room's post-migration validation
@@ -681,7 +785,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                    LogEzDatabase.MIGRATION_7_8,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
                 )
                 .build()
 
@@ -725,7 +829,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                    LogEzDatabase.MIGRATION_7_8,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
                 )
                 .build()
 
@@ -768,7 +872,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                    LogEzDatabase.MIGRATION_7_8,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
                 )
                 .build()
 

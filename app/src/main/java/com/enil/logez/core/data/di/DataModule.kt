@@ -35,7 +35,7 @@ object DataModule {
             .addMigrations(
                 LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                 LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                LogEzDatabase.MIGRATION_7_8,
+                LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
             )
             .build()
 

@@ -5,6 +5,7 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -126,6 +127,11 @@ class WorkoutStarter @Inject constructor(
                 startedAt = now, endedAt = null, durationSeconds = 0, createdAt = now, updatedAt = now,
                 // M11: a copy of a circuit workout stays a circuit — same rows, same grouping.
                 structure = source.structure,
+                // `kind` is deliberately NOT copied: a repeat of a GPS run has no GPS session
+                // behind it, so it must stay STRENGTH and open in the Logger with the distance
+                // prefilled and editable. Marking it GPS_TRACKED would route the user into a live
+                // tracking screen with a dead controller.
+
             ),
             workoutExercises,
             workoutSets,
@@ -163,6 +169,9 @@ class WorkoutStarter @Inject constructor(
             WorkoutEntity(
                 id = workoutId, routineId = null, title = title, notes = null, status = WorkoutStatus.IN_PROGRESS,
                 startedAt = now, endedAt = null, durationSeconds = 0, createdAt = now, updatedAt = now,
+                // The marker that survives a process death, so recovery can tell this row apart
+                // from a typed session and route it to live tracking instead of the Logger.
+                kind = WorkoutKind.GPS_TRACKED,
             ),
             listOf(
                 WorkoutExerciseEntity(

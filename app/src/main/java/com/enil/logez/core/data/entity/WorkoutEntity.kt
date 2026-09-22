@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 
@@ -41,4 +42,7 @@ data class WorkoutEntity(
      * tables. `defaultValue` must match `MIGRATION_4_5`'s SQL default exactly (see
      * [RoutineEntity.structure]). */
     @ColumnInfo(name = "structure", defaultValue = "'REGULAR'") val structure: WorkoutStructure = WorkoutStructure.REGULAR,
+    /** Which live surface owns this row across a process death — see [WorkoutKind]. `defaultValue`
+     * must match `MIGRATION_8_9`'s SQL default exactly (see [structure]). */
+    @ColumnInfo(name = "kind", defaultValue = "'STRENGTH'") val kind: WorkoutKind = WorkoutKind.STRENGTH,
 )

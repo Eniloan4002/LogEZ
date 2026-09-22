@@ -40,7 +40,9 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
  * row), v7 adds `daily_wellness_totals` (M21e — a local cache of Health Connect's own all-day
  * steps/calories aggregate, one row per calendar day), v8 adds `workout_heart_rate_samples` (M21f —
  * a local cache of Health Connect's per-sample heart rate over a workout's own time window, read
- * once at Finish). `exportSchema = true`
+ * once at Finish), v9 adds `workouts.kind` (M23a — which live surface owns an IN_PROGRESS row once
+ * the process that was tracking it is gone; a discriminator only, no new tables).
+ * `exportSchema = true`
  * from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
  * app (project-rules.md testing expectations): this app's entire value is the historical log, so
@@ -64,7 +66,7 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         DailyWellnessTotalEntity::class,
         WorkoutHeartRateSampleEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -213,6 +215,39 @@ abstract class LogEzDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_workout_heart_rate_samples_workout_id` ON `workout_heart_rate_samples` (`workout_id`)",
+                )
+            }
+        }
+
+        /**
+         * v8 -> v9 (M23a): one defaulted column on `workouts`, plus a backfill. Additive — every
+         * pre-existing row reads back as STRENGTH, which is what it was, except the GPS runs the
+         * backfill finds. The `DEFAULT 'STRENGTH'` literal must stay byte-identical to
+         * [WorkoutEntity.kind]'s `@ColumnInfo(defaultValue = "'STRENGTH'")` or Room's
+         * post-migration validation rejects the live table on the next open — this is the first
+         * defaulted NOT NULL column since [MIGRATION_4_5], i.e. the first one back inside the
+         * exact blast radius of the debug13.9 failure.
+         *
+         * The backfill is exact rather than a guess: an `activity_tracks` row is written in
+         * exactly one place (`ActivityTrackingController.finishTracking`), for exactly one
+         * `workout_sets` row, for exactly one GPS session — so "has a track" and "was GPS-tracked"
+         * are the same set for every *finished* run. A run still in flight at upgrade time has no
+         * track row yet and stays STRENGTH; that is the one row this cannot classify, and the
+         * interrupted-run recovery path degrades it to the Logger with a blank set.
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `workouts` ADD COLUMN `kind` TEXT NOT NULL DEFAULT 'STRENGTH'")
+                db.execSQL(
+                    """
+                    UPDATE `workouts` SET `kind` = 'GPS_TRACKED'
+                    WHERE `id` IN (
+                        SELECT we.`workout_id`
+                        FROM `activity_tracks` t
+                        JOIN `workout_sets` ws ON ws.`id` = t.`workout_set_id`
+                        JOIN `workout_exercises` we ON we.`id` = ws.`workout_exercise_id`
+                    )
+                    """.trimIndent(),
                 )
             }
         }
