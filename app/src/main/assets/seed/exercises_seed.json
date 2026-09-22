@@ -1,5 +1,5 @@
 {
-  "seedVersion": 2,
+  "seedVersion": 3,
   "_note": "PHASE2_PLAN.md §7.9 frozen 400-exercise library (see docs/seed-skeleton-400.json and docs/SEED_SKELETON_400_REVIEW.md), Owner-approved 2026-08-24 (P-018). Names/taxonomy only — instruction text is a follow-up pass; `instructions: []` here is intentional, not missing data. Supersedes the 21-exercise placeholder shipped at seedVersion 1; SeedManager's prune step retires those old seed- ids on upgrade (soft-deleted, not hard-deleted — any workout history logged against them stays intact and readable by id).",
   "exercises": [
     {

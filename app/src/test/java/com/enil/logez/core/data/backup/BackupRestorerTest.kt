@@ -117,7 +117,7 @@ class BackupRestorerTest : RoomDatabaseTestBase() {
             val dir = filesDir()
             val store = dataStore(dir)
             val settings = FakeSettingsRepository(UserSettings(weeklyActiveDayTarget = 6))
-            val seedManager = SeedManager(context, database.exerciseDao(), store, AppLogger.NoOp)
+            val seedManager = SeedManager(context, database.exerciseDao(), store, RoomTransactionRunner(database), AppLogger.NoOp)
             val widget = FakeWidgetRefresher()
 
             seedOneWorkout()
@@ -148,7 +148,7 @@ class BackupRestorerTest : RoomDatabaseTestBase() {
             val dir = filesDir()
             val store = dataStore(dir)
             val settings = FakeSettingsRepository()
-            val seedManager = SeedManager(context, database.exerciseDao(), store, AppLogger.NoOp)
+            val seedManager = SeedManager(context, database.exerciseDao(), store, RoomTransactionRunner(database), AppLogger.NoOp)
 
             seedOneWorkout()
             val archive = ByteArrayOutputStream()

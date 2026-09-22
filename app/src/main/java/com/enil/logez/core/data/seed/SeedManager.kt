@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.data.dao.ExerciseDao
+import com.enil.logez.core.domain.repository.TransactionRunner
 import com.enil.logez.core.data.entity.ExerciseEntity
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
@@ -36,6 +37,7 @@ class SeedManager @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val exerciseDao: ExerciseDao,
     private val dataStore: DataStore<Preferences>,
+    private val transactionRunner: TransactionRunner,
     private val logger: AppLogger = AppLogger.NoOp,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -65,25 +67,31 @@ class SeedManager @Inject constructor(
 
             val now = System.currentTimeMillis()
             val entities = file.exercises.map { it.toEntity(now) }
-            val insertResults = exerciseDao.insertIgnore(entities)
 
-            entities.forEachIndexed { index, entity ->
-                if (insertResults[index] == -1L) {
-                    exerciseDao.updateSeedFields(
-                        id = entity.id,
-                        name = entity.name,
-                        primaryMuscleGroup = entity.primaryMuscleGroup,
-                        secondaryMuscleGroups = entity.secondaryMuscleGroups,
-                        equipment = entity.equipment,
-                        instructions = entity.instructions,
-                        isBodyweightVolumeEligible = entity.isBodyweightVolumeEligible,
-                        isDeleted = false,
-                        updatedAt = now,
-                    )
+            // One transaction, not one per row: on an existing install nearly every row takes the
+            // UPDATE branch, and 400 autocommitted updates take several seconds on slow storage --
+            // long enough to be visible as a hang after a restore, which re-runs this.
+            transactionRunner.runInTransaction {
+                val insertResults = exerciseDao.insertIgnore(entities)
+
+                entities.forEachIndexed { index, entity ->
+                    if (insertResults[index] == -1L) {
+                        exerciseDao.updateSeedFields(
+                            id = entity.id,
+                            name = entity.name,
+                            primaryMuscleGroup = entity.primaryMuscleGroup,
+                            secondaryMuscleGroups = entity.secondaryMuscleGroups,
+                            equipment = entity.equipment,
+                            instructions = entity.instructions,
+                            isBodyweightVolumeEligible = entity.isBodyweightVolumeEligible,
+                            isDeleted = false,
+                            updatedAt = now,
+                        )
+                    }
                 }
-            }
 
-            exerciseDao.pruneRetiredSeeds(entities.map { it.id }, now)
+                exerciseDao.pruneRetiredSeeds(entities.map { it.id }, now)
+            }
 
             dataStore.edit { it[lastAppliedSeedVersionKey] = file.seedVersion }
         } catch (e: CancellationException) {
