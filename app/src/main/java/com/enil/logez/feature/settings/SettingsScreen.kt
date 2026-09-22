@@ -35,6 +35,7 @@ import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.feature.privacy.PrivacyPolicyActivity
@@ -43,7 +44,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
-private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
+private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
 
 /**
  * M16 Workout Settings (PHASE2_PLAN.md §5.2 Settings tree). Every editor writes through the
@@ -100,6 +101,13 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_length_unit),
                     value = lengthUnitShortLabel(settings.lengthUnit),
                     onClick = { openDialog = SettingsDialog.LENGTH_UNIT },
+                )
+            }
+            item(key = "body_diagram_variant") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_body_diagram_variant),
+                    value = bodyDiagramVariantShortLabel(settings.muscleDiagramVariant),
+                    onClick = { openDialog = SettingsDialog.BODY_DIAGRAM_VARIANT },
                 )
             }
             item(key = "first_day") {
@@ -293,6 +301,14 @@ fun SettingsScreen(
             onSelect = viewModel::setLengthUnit,
             onDismiss = { openDialog = null },
         )
+        SettingsDialog.BODY_DIAGRAM_VARIANT -> SettingsRadioDialog(
+            title = stringResource(R.string.settings_body_diagram_variant),
+            options = MuscleDiagramVariant.entries,
+            selected = settings.muscleDiagramVariant,
+            optionLabel = { bodyDiagramVariantLabel(it) },
+            onSelect = viewModel::setMuscleDiagramVariant,
+            onDismiss = { openDialog = null },
+        )
         SettingsDialog.FIRST_DAY -> SettingsRadioDialog(
             title = stringResource(R.string.calendar_first_day_of_week),
             // §5.2 lists exactly these three — the conventional week starts (same trio as the
@@ -400,6 +416,15 @@ private fun lengthUnitLabel(unit: LengthUnit): String = when (unit) {
 
 /** Matches the lowercase "cm"/"in" used everywhere values render. */
 private fun lengthUnitShortLabel(unit: LengthUnit): String = if (unit == LengthUnit.CM) "cm" else "in"
+
+@Composable
+private fun bodyDiagramVariantLabel(variant: MuscleDiagramVariant): String = when (variant) {
+    MuscleDiagramVariant.MALE -> stringResource(R.string.settings_body_diagram_variant_male)
+    MuscleDiagramVariant.FEMALE -> stringResource(R.string.settings_body_diagram_variant_female)
+}
+
+@Composable
+private fun bodyDiagramVariantShortLabel(variant: MuscleDiagramVariant): String = bodyDiagramVariantLabel(variant)
 
 @Composable
 private fun previousValuesLabel(mode: PreviousValuesMode): String = when (mode) {

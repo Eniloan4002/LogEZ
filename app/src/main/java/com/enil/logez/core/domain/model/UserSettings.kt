@@ -9,6 +9,9 @@ data class UserSettings(
     val distanceUnit: DistanceUnit = DistanceUnit.KM,
     /** Body-measurement circumference display (Measurements screen) — canonical storage is always cm. */
     val lengthUnit: LengthUnit = LengthUnit.CM,
+    /** Which body the muscle diagram (Analytics/Profile/Workout recap/Share) renders. Male default
+     * matches the single body type every prior version of the diagram implicitly rendered. */
+    val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     val perExerciseUnitOverrides: Map<String, WeightUnit> = emptyMap(),
 

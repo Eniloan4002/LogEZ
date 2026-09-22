@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MeasurementsTrackingMode
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -33,6 +34,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val WEIGHT_UNIT = stringPreferencesKey("weightUnit")
         val DISTANCE_UNIT = stringPreferencesKey("distanceUnit")
         val LENGTH_UNIT = stringPreferencesKey("lengthUnit")
+        val MUSCLE_DIAGRAM_VARIANT = stringPreferencesKey("muscleDiagramVariant")
         val FIRST_DAY_OF_WEEK = stringPreferencesKey("firstDayOfWeek")
         val PER_EXERCISE_UNIT_OVERRIDES = stringPreferencesKey("perExerciseUnitOverrides")
 
@@ -85,6 +87,7 @@ class SettingsRepositoryImpl @Inject constructor(
             weightUnit = prefs[Keys.WEIGHT_UNIT]?.let { WeightUnit.valueOf(it) } ?: defaults.weightUnit,
             distanceUnit = prefs[Keys.DISTANCE_UNIT]?.let { DistanceUnit.valueOf(it) } ?: defaults.distanceUnit,
             lengthUnit = prefs[Keys.LENGTH_UNIT]?.let { LengthUnit.valueOf(it) } ?: defaults.lengthUnit,
+            muscleDiagramVariant = prefs[Keys.MUSCLE_DIAGRAM_VARIANT]?.let { MuscleDiagramVariant.valueOf(it) } ?: defaults.muscleDiagramVariant,
             firstDayOfWeek = prefs[Keys.FIRST_DAY_OF_WEEK]?.let { DayOfWeek.valueOf(it) } ?: defaults.firstDayOfWeek,
             perExerciseUnitOverrides = prefs[Keys.PER_EXERCISE_UNIT_OVERRIDES]?.let {
                 json.decodeFromString<Map<String, WeightUnit>>(it)
@@ -115,6 +118,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setWeightUnit(value: WeightUnit) = edit { it[Keys.WEIGHT_UNIT] = value.name }
     override suspend fun setDistanceUnit(value: DistanceUnit) = edit { it[Keys.DISTANCE_UNIT] = value.name }
     override suspend fun setLengthUnit(value: LengthUnit) = edit { it[Keys.LENGTH_UNIT] = value.name }
+    override suspend fun setMuscleDiagramVariant(value: MuscleDiagramVariant) = edit { it[Keys.MUSCLE_DIAGRAM_VARIANT] = value.name }
     override suspend fun setFirstDayOfWeek(value: DayOfWeek) = edit { it[Keys.FIRST_DAY_OF_WEEK] = value.name }
 
     override suspend fun setPerExerciseUnitOverride(exerciseId: String, unit: WeightUnit?) {

@@ -510,6 +510,9 @@
     <string name="settings_length_unit">Body measurement unit</string>
     <string name="settings_length_unit_cm">Centimeters (cm)</string>
     <string name="settings_length_unit_in">Inches (in)</string>
+    <string name="settings_body_diagram_variant">Body diagram</string>
+    <string name="settings_body_diagram_variant_male">Male</string>
+    <string name="settings_body_diagram_variant_female">Female</string>
     <string name="settings_rest_timer">Default rest timer</string>
     <string name="settings_rest_timer_subtitle">Runs after each completed set. A rest timer set on a routine exercise overrides this.</string>
     <string name="settings_previous_values">Previous workout values</string>
