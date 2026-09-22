@@ -118,15 +118,20 @@ private fun WeeklyProgressContent(snapshot: WidgetSnapshot?) {
     }
 }
 
-/** One dot per day of the week, filled for days trained. Today's is always at least visible. */
+/**
+ * One dot per day of the week, filled for days trained. Today's is drawn larger.
+ *
+ * Spacing comes from each dot's own padding rather than Spacer siblings: a Glance Row rejects more
+ * than ten children at inflation time, and seven dots interleaved with six spacers is thirteen.
+ */
 @Composable
 private fun WeekDots(snapshot: WidgetSnapshot) {
     Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
         snapshot.weekDayStates.forEachIndexed { index, trained ->
-            if (index > 0) Spacer(GlanceModifier.width(5.dp))
             val isToday = index == snapshot.todayIndexInWeek
             Column(
                 modifier = GlanceModifier
+                    .padding(horizontal = 2.dp)
                     .size(if (isToday) 12.dp else 10.dp)
                     .cornerRadius(6.dp)
                     .background(if (trained) WidgetColors.accent else WidgetColors.emptyTrack),
