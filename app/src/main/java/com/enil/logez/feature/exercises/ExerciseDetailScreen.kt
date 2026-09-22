@@ -58,6 +58,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.formatTwoDecimals
 import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.ChartMetric
@@ -512,7 +513,10 @@ private fun formatHistorySet(entry: ExerciseHistoryEntry, weightUnit: WeightUnit
     entry.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
     entry.reps?.let { parts.add("${it} reps") }
     entry.durationSeconds?.let { parts.add("${it}s") }
-    entry.distanceMeters?.let { parts.add("${it}m") }
+    // This literal-interpolated the raw Double with zero formatting -- a GPS-accumulated
+    // distance routinely carries a long floating-point tail (e.g. "3247.8921336m"). Capped at
+    // two decimals to match the walk/run precision convention (Owner request, 2026-09-23).
+    entry.distanceMeters?.let { parts.add("${formatTwoDecimals(it)}m") }
     entry.rpe?.let { parts.add("@$it") }
     return if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 }

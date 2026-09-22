@@ -14,12 +14,40 @@ import java.util.Locale
 object Formatting {
     /**
      * Formats a [Double] as a whole number when possible, otherwise with one decimal place.
-     * Used for weight cells, target values, and set-table displays.
+     * Used for weight cells, target values, and set-table displays -- the Statistics-page
+     * precision convention (Owner request, 2026-09-23): every decimal statistic there stops at
+     * tenths.
      *
      * Examples: `152.0` → `"152"`, `152.5` → `"152.5"`, `0.0` → `"0"`
+     *
+     * The non-whole branch used to fall back to the raw `Double.toString()`, which only ever
+     * *looked* like one decimal place for values a user had typed directly (e.g. "152.5" parsed
+     * back to `152.5`) -- any value that had gone through actual floating-point arithmetic first
+     * (a unit conversion, a sum) could carry a long tail (`152.53000000001`) straight to the
+     * screen. Rounds explicitly instead, matching [AnalyticsFormatters.oneDecimal]/
+     * [SummaryFormatters.oneDecimal]'s already-correct shape.
      */
-    fun wholeOrOneDecimal(value: Double): String =
-        if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+    fun wholeOrOneDecimal(value: Double): String {
+        val rounded = Math.round(value * 10.0) / 10.0
+        return if (rounded == Math.floor(rounded)) rounded.toLong().toString() else "%.1f".format(Locale.ROOT, rounded)
+    }
+
+    /**
+     * Formats a [Double] as a whole number when possible, otherwise with up to two decimal places
+     * (trailing zeros trimmed) -- the walk/run precision convention (Owner request, 2026-09-23),
+     * one decimal place more permissive than [wholeOrOneDecimal]'s Statistics-page convention,
+     * since a GPS-accumulated distance is naturally noisier than a typed strength target.
+     *
+     * Examples: `152.0` → `"152"`, `152.5` → `"152.5"`, `152.539` → `"152.54"`
+     */
+    fun twoDecimals(value: Double): String {
+        val rounded = Math.round(value * 100.0) / 100.0
+        return if (rounded == Math.floor(rounded)) {
+            rounded.toLong().toString()
+        } else {
+            "%.2f".format(Locale.ROOT, rounded).trimEnd('0').trimEnd('.')
+        }
+    }
 
     /**
      * Formats a weight in kg with the "kg" suffix.
@@ -70,6 +98,7 @@ object Formatting {
 
 /** Convenience top-level aliases so call sites read naturally. */
 fun formatTargetNumber(value: Double): String = Formatting.wholeOrOneDecimal(value)
+fun formatTwoDecimals(value: Double): String = Formatting.twoDecimals(value)
 fun formatWeightKg(kg: Double): String = Formatting.weightKg(kg)
 fun formatWeightKgShort(kg: Double): String = Formatting.weightKgShort(kg)
 fun formatWeight(kg: Double, unit: WeightUnit): String = Formatting.weight(kg, unit)

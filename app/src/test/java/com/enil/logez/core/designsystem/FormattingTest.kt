@@ -65,4 +65,49 @@ class FormattingTest {
     fun `formatDistanceKm the top-level alias delegates to the same result`() {
         assertEquals(Formatting.distanceKm(1234.0), formatDistanceKm(1234.0))
     }
+
+    /**
+     * wholeOrOneDecimal's non-whole branch used to fall back to the raw Double.toString(), which
+     * only ever looked like one decimal place for a value a user had typed directly -- anything
+     * that had gone through real floating-point arithmetic first (summed, converted) could carry
+     * a long tail straight to a Statistics-page/target-value cell. Found during a 2026-09-23
+     * decimal-precision sweep of the Statistics page and the walk/run screens.
+     */
+    @Test
+    fun `wholeOrOneDecimal rounds a long floating-point tail down to one decimal`() {
+        assertEquals("152.5", Formatting.wholeOrOneDecimal(152.5))
+        assertEquals("152.5", Formatting.wholeOrOneDecimal(152.50000000001))
+        assertEquals("152.5", Formatting.wholeOrOneDecimal(152.5399))
+        assertEquals("152", Formatting.wholeOrOneDecimal(152.0))
+    }
+
+    @Test
+    fun `wholeOrOneDecimal uses a dot decimal separator whatever the device locale`() {
+        withDefaultLocale(Locale.GERMANY) {
+            assertEquals("12.5", Formatting.wholeOrOneDecimal(12.5))
+        }
+    }
+
+    /** [Formatting.twoDecimals] is the walk/run precision convention -- one decimal place more
+     * permissive than [Formatting.wholeOrOneDecimal]'s Statistics-page convention, since a
+     * GPS-accumulated distance is naturally noisier than a typed strength target. */
+    @Test
+    fun `twoDecimals rounds a long floating-point tail down to two decimals`() {
+        assertEquals("152", Formatting.twoDecimals(152.0))
+        assertEquals("152.5", Formatting.twoDecimals(152.5))
+        assertEquals("3247.89", Formatting.twoDecimals(3247.8921336))
+        assertEquals("152.54", Formatting.twoDecimals(152.539))
+    }
+
+    @Test
+    fun `twoDecimals uses a dot decimal separator whatever the device locale`() {
+        withDefaultLocale(Locale.GERMANY) {
+            assertEquals("3247.89", Formatting.twoDecimals(3247.8921336))
+        }
+    }
+
+    @Test
+    fun `formatTwoDecimals the top-level alias delegates to the same result`() {
+        assertEquals(Formatting.twoDecimals(3247.8921336), formatTwoDecimals(3247.8921336))
+    }
 }

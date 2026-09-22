@@ -67,6 +67,7 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
+import com.enil.logez.core.designsystem.formatTwoDecimals
 import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WeightUnit
@@ -472,8 +473,11 @@ private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType:
     return if (positionLabel) "Set $position: ${parts.joinToString(" · ")}" else parts.joinToString(" · ")
 }
 
-private fun formatDetailNum(value: Double): String =
-    if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+// Used to fall back to the raw Double.toString() for a non-whole value -- harmless for a set's
+// typed-in customMetric, but a GPS-accumulated distanceMeters sum routinely carries a long
+// floating-point tail (e.g. "3247.8921336m"), which shipped straight to this per-set row. Capped
+// at two decimals to match the walk/run precision convention (Owner request, 2026-09-23).
+private fun formatDetailNum(value: Double): String = formatTwoDecimals(value)
 
 private fun formatDetailMmSs(totalSeconds: Int): String = "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 
