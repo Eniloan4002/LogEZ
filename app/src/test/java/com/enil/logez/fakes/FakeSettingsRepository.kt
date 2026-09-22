@@ -48,4 +48,5 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     override suspend fun setShowHeatmap(value: Boolean) { state.value = state.value.copy(showHeatmap = value) }
     override suspend fun setShowGoals(value: Boolean) { state.value = state.value.copy(showGoals = value) }
     override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) { state.value = state.value.copy(measurementsTrackingMode = value) }
+    override suspend fun setWeeklyActiveDayTarget(value: Int) { state.value = state.value.copy(weeklyActiveDayTarget = value) }
 }

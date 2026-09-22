@@ -43,6 +43,7 @@ class SettingsViewModel @Inject constructor(
     fun setDistanceUnit(value: DistanceUnit) = write { setDistanceUnit(value) }
     fun setLengthUnit(value: LengthUnit) = write { setLengthUnit(value) }
     fun setMuscleDiagramVariant(value: MuscleDiagramVariant) = write { setMuscleDiagramVariant(value) }
+    fun setWeeklyActiveDayTarget(value: Int) = write { setWeeklyActiveDayTarget(value) }
     fun setFirstDayOfWeek(value: DayOfWeek) = write { setFirstDayOfWeek(value) }
 
     // Workouts

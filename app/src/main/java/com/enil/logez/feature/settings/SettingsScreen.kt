@@ -44,7 +44,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
-private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
+private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, WEEKLY_ACTIVE_DAY_TARGET, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
 
 /**
  * M16 Workout Settings (PHASE2_PLAN.md §5.2 Settings tree). Every editor writes through the
@@ -108,6 +108,13 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_body_diagram_variant),
                     value = bodyDiagramVariantShortLabel(settings.muscleDiagramVariant),
                     onClick = { openDialog = SettingsDialog.BODY_DIAGRAM_VARIANT },
+                )
+            }
+            item(key = "weekly_active_day_target") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_weekly_active_day_target),
+                    value = pluralStringResource(R.plurals.settings_weekly_active_day_target_value, settings.weeklyActiveDayTarget, settings.weeklyActiveDayTarget),
+                    onClick = { openDialog = SettingsDialog.WEEKLY_ACTIVE_DAY_TARGET },
                 )
             }
             item(key = "first_day") {
@@ -307,6 +314,16 @@ fun SettingsScreen(
             selected = settings.muscleDiagramVariant,
             optionLabel = { bodyDiagramVariantLabel(it) },
             onSelect = viewModel::setMuscleDiagramVariant,
+            onDismiss = { openDialog = null },
+        )
+        SettingsDialog.WEEKLY_ACTIVE_DAY_TARGET -> SettingsRadioDialog(
+            title = stringResource(R.string.settings_weekly_active_day_target),
+            // 1-7: a seven-day target is reachable but not the point -- rest days are training,
+            // which is the whole reason the widget counts days per week rather than a daily streak.
+            options = (1..7).toList(),
+            selected = settings.weeklyActiveDayTarget,
+            optionLabel = { pluralStringResource(R.plurals.settings_weekly_active_day_target_value, it, it) },
+            onSelect = viewModel::setWeeklyActiveDayTarget,
             onDismiss = { openDialog = null },
         )
         SettingsDialog.FIRST_DAY -> SettingsRadioDialog(

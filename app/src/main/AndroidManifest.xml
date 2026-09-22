@@ -153,6 +153,22 @@
             </intent-filter>
         </activity-alias>
 
+
+        <!-- M23b. exported="false" is correct: the system sends APPWIDGET_UPDATE with an explicit
+             component. Verify on an API 26-28 image before shipping — some older third-party
+             launchers historically broadcast the update themselves. -->
+        <receiver
+            android:name=".feature.widget.WeeklyProgressWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_weekly_progress_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weekly_progress_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>

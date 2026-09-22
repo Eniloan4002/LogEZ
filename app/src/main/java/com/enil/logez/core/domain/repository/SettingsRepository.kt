@@ -47,4 +47,5 @@ interface SettingsRepository {
     suspend fun setShowHeatmap(value: Boolean)
     suspend fun setShowGoals(value: Boolean)
     suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode)
+    suspend fun setWeeklyActiveDayTarget(value: Int)
 }

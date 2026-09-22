@@ -48,4 +48,8 @@ data class UserSettings(
      * from that screen itself, not this Settings tree. Defaults to COMPLETE (preserves what
      * shipped the day before this setting existed; no surprise regression for an existing user). */
     val measurementsTrackingMode: MeasurementsTrackingMode = MeasurementsTrackingMode.COMPLETE,
+    /** How many days a week the home-screen widget counts toward. Deliberately not the WEEKLY /
+     * WORKOUT_COUNT goal: goals are user-authored and usually absent, so most widgets would have
+     * no denominator, and that metric counts sessions rather than days. */
+    val weeklyActiveDayTarget: Int = 4,
 )

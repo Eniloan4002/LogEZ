@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  minWidth/minHeight are the API 26-30 sizing path; targetCellWidth/Height and description are
+  API 31+. Both sets are present because minSdk is 26.
+
+  updatePeriodMillis is 0 on purpose: the platform clamps it to 30 minutes and fires an inexact
+  alarm that Doze defers anyway. Updates are pushed instead — from the app when training data
+  changes, and from a worker at local midnight.
+
+  initialLayout ships inside glance-appwidget; there is no local layout to write.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="360dp"
+    android:maxResizeHeight="200dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:description="@string/widget_weekly_progress_description" />

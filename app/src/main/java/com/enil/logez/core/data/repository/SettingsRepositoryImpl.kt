@@ -67,6 +67,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val SHOW_HEATMAP = booleanPreferencesKey("showHeatmap")
         val SHOW_GOALS = booleanPreferencesKey("showGoals")
         val MEASUREMENTS_TRACKING_MODE = stringPreferencesKey("measurementsTrackingMode")
+        val WEEKLY_ACTIVE_DAY_TARGET = intPreferencesKey("weeklyActiveDayTarget")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -112,6 +113,7 @@ class SettingsRepositoryImpl @Inject constructor(
             showHeatmap = prefs[Keys.SHOW_HEATMAP] ?: defaults.showHeatmap,
             showGoals = prefs[Keys.SHOW_GOALS] ?: defaults.showGoals,
             measurementsTrackingMode = prefs[Keys.MEASUREMENTS_TRACKING_MODE]?.let { MeasurementsTrackingMode.valueOf(it) } ?: defaults.measurementsTrackingMode,
+            weeklyActiveDayTarget = prefs[Keys.WEEKLY_ACTIVE_DAY_TARGET] ?: defaults.weeklyActiveDayTarget,
         )
     }
 
@@ -149,6 +151,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setShowHeatmap(value: Boolean) = edit { it[Keys.SHOW_HEATMAP] = value }
     override suspend fun setShowGoals(value: Boolean) = edit { it[Keys.SHOW_GOALS] = value }
     override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) = edit { it[Keys.MEASUREMENTS_TRACKING_MODE] = value.name }
+    override suspend fun setWeeklyActiveDayTarget(value: Int) = edit { it[Keys.WEEKLY_ACTIVE_DAY_TARGET] = value }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)

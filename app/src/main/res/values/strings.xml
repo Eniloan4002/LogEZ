@@ -514,6 +514,15 @@
     <string name="settings_length_unit">Body measurement unit</string>
     <string name="settings_length_unit_cm">Centimeters (cm)</string>
     <string name="settings_length_unit_in">Inches (in)</string>
+    <!-- M23b: home-screen widget. -->
+    <string name="widget_weekly_progress_label">Weekly progress</string>
+    <string name="widget_weekly_progress_description">Training days this week, your week streak, and today\'s steps.</string>
+
+    <string name="settings_weekly_active_day_target">Weekly training target</string>
+    <plurals name="settings_weekly_active_day_target_value">
+        <item quantity="one">%1$d day a week</item>
+        <item quantity="other">%1$d days a week</item>
+    </plurals>
     <string name="settings_body_diagram_variant">Body diagram</string>
     <string name="settings_body_diagram_variant_male">Male</string>
     <string name="settings_body_diagram_variant_female">Female</string>
