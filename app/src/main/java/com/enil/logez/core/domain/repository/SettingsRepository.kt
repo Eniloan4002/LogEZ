@@ -48,4 +48,14 @@ interface SettingsRepository {
     suspend fun setShowGoals(value: Boolean)
     suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode)
     suspend fun setWeeklyActiveDayTarget(value: Int)
+
+    /**
+     * Overwrites every setting this app owns, in one edit — for restoring a backup.
+     *
+     * Deliberately not a wipe-and-rewrite of the whole preferences file: the seed library's
+     * applied-version marker lives in the same store and is owned by the installed app rather than
+     * by the user's data, so clearing it would either re-run a full seed pass or strand the
+     * library at a stale version.
+     */
+    suspend fun replaceAll(settings: UserSettings)
 }

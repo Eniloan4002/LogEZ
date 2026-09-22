@@ -41,6 +41,22 @@ class SeedManager @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
     private val lastAppliedSeedVersionKey = intPreferencesKey("lastAppliedSeedVersion")
 
+    /** Recorded in a backup's manifest, for diagnostics. */
+    suspend fun lastAppliedSeedVersion(): Int = dataStore.data.first()[lastAppliedSeedVersionKey] ?: 0
+
+    /**
+     * Forgets which seed version has been applied, so the next [seedIfNeeded] runs in full.
+     *
+     * A restore needs this. The seed version lives in the same preferences store the backup
+     * replaces, and a backup taken at an older version would otherwise leave the device convinced
+     * it was already up to date — so the seed pass would return early forever and the user would
+     * silently keep the older exercise library. Re-running it is safe: existing rows are left
+     * alone, and a row the user has edited is exempt from seed updates entirely.
+     */
+    suspend fun resetSeedVersion() {
+        dataStore.edit { it.remove(lastAppliedSeedVersionKey) }
+    }
+
     suspend fun seedIfNeeded() {
         try {
             val file = readSeedFile()

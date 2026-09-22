@@ -153,6 +153,55 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) = edit { it[Keys.MEASUREMENTS_TRACKING_MODE] = value.name }
     override suspend fun setWeeklyActiveDayTarget(value: Int) = edit { it[Keys.WEEKLY_ACTIVE_DAY_TARGET] = value }
 
+    override suspend fun replaceAll(settings: UserSettings) {
+        dataStore.edit { prefs ->
+            prefs[Keys.WEIGHT_UNIT] = settings.weightUnit.name
+            prefs[Keys.DISTANCE_UNIT] = settings.distanceUnit.name
+            prefs[Keys.LENGTH_UNIT] = settings.lengthUnit.name
+            prefs[Keys.MUSCLE_DIAGRAM_VARIANT] = settings.muscleDiagramVariant.name
+            prefs[Keys.FIRST_DAY_OF_WEEK] = settings.firstDayOfWeek.name
+            prefs[Keys.PER_EXERCISE_UNIT_OVERRIDES] =
+                json.encodeToString(settings.perExerciseUnitOverrides.mapValues { it.value.name })
+            prefs[Keys.DEFAULT_REST_TIMER_SECONDS] = settings.defaultRestTimerSeconds
+            prefs[Keys.TIMER_SOUND] = settings.timerSound
+            prefs[Keys.TIMER_VOLUME] = settings.timerVolume
+            prefs[Keys.SET_COMPLETE_VOLUME] = settings.setCompleteVolume
+            prefs[Keys.PR_VOLUME] = settings.prVolume
+            prefs[Keys.PREVIOUS_VALUES_MODE] = settings.previousValuesMode.name
+            prefs[Keys.WARMUP_CALCULATOR_ENABLED] = settings.warmupCalculatorEnabled
+            prefs[Keys.WARMUP_METHOD] = json.encodeToString(settings.warmupMethod)
+            prefs[Keys.INCLUDE_WARMUPS_IN_STATS] = settings.includeWarmupsInStats
+            prefs[Keys.KEEP_AWAKE] = settings.keepAwake
+            prefs[Keys.PLATE_CALCULATOR_ENABLED] = settings.plateCalculatorEnabled
+            prefs[Keys.PLATE_EQUIPMENT] = json.encodeToString(settings.plateEquipment)
+            prefs[Keys.RPE_TRACKING_ENABLED] = settings.rpeTrackingEnabled
+            prefs[Keys.SMART_SUPERSET_SCROLLING] = settings.smartSupersetScrolling
+            prefs[Keys.INLINE_TIMER_ENABLED] = settings.inlineTimerEnabled
+            prefs[Keys.LIVE_PR_NOTIFICATION_ENABLED] = settings.livePrNotificationEnabled
+            prefs[Keys.SHOW_HEATMAP] = settings.showHeatmap
+            prefs[Keys.SHOW_GOALS] = settings.showGoals
+            prefs[Keys.MEASUREMENTS_TRACKING_MODE] = settings.measurementsTrackingMode.name
+            prefs[Keys.WEEKLY_ACTIVE_DAY_TARGET] = settings.weeklyActiveDayTarget
+
+            // Removed, not skipped: dataStore.edit merges, so restoring a backup with no max heart
+            // rate over a device that has one would otherwise silently keep the device's value.
+            if (settings.maxHeartRateBpm != null) {
+                prefs[Keys.MAX_HEART_RATE_BPM] = settings.maxHeartRateBpm
+            } else {
+                prefs.remove(Keys.MAX_HEART_RATE_BPM)
+            }
+
+            // The float keys above supersede these. Left behind, the backfill that reads them
+            // could resurrect a stale volume if a float key were ever cleared.
+            prefs.remove(Keys.TIMER_VOLUME_LEGACY)
+            prefs.remove(Keys.SET_COMPLETE_VOLUME_LEGACY)
+            prefs.remove(Keys.PR_VOLUME_LEGACY)
+
+            // lastAppliedSeedVersion is deliberately untouched here -- it belongs to the installed
+            // app's seed asset, not to the user's data. The restore resets it separately.
+        }
+    }
+
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }
