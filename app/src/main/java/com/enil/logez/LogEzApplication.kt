@@ -5,6 +5,7 @@ import android.content.Context
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
+import com.enil.logez.core.data.backup.BackupRestorer
 import com.enil.logez.core.data.seed.SeedManager
 import com.enil.logez.feature.widget.MidnightWidgetWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -18,12 +19,19 @@ import kotlinx.coroutines.launch
 class LogEzApplication : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var seedManager: SeedManager
 
+    @Inject lateinit var backupRestorer: BackupRestorer
+
     /** PHASE2_PLAN.md §7.7: seeding runs from an application-scoped coroutine at startup. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
-        applicationScope.launch { seedManager.seedIfNeeded() }
+        applicationScope.launch {
+            // Before seeding, deliberately: recovering a restore ends by re-running the seeder,
+            // and the two must not race.
+            runCatching { backupRestorer.resumeIfInterrupted(filesDir) }
+            seedManager.seedIfNeeded()
+        }
         // Re-armed every launch: the request is unique and REPLACE, so this converges rather than
         // stacking, and it recovers the schedule after a reboot or a force-stop.
         MidnightWidgetWorker.schedule(this)

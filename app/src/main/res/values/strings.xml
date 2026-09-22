@@ -516,6 +516,23 @@
         <item quantity="one">%1$d entry</item>
         <item quantity="other">%1$d entries</item>
     </plurals>
+    <string name="data_exporting">Exporting…</string>
+    <string name="data_backing_up">Creating backup…</string>
+    <string name="data_export_backup">Full backup (.zip)</string>
+    <string name="data_export_backup_subtitle">Everything, including photos</string>
+    <string name="data_section_restore">Restore</string>
+    <string name="data_restore">Restore from a backup</string>
+    <string name="data_restore_subtitle">Replaces everything currently in LogEZ</string>
+    <string name="data_restore_reading">Reading the backup…</string>
+    <string name="data_restore_restoring">Restoring…</string>
+    <string name="data_restore_confirm_title">Replace everything?</string>
+    <string name="data_restore_confirm_body">This permanently replaces everything in LogEZ with this backup: %1$d workouts, %2$d exercises, %3$d routines, %4$d measurement entries, %5$d goals and %6$d photos.\n\nWhat you have now cannot be recovered afterwards.</string>
+    <string name="data_restore_confirm_action">Replace everything</string>
+    <string name="data_restore_done">Restored</string>
+    <string name="data_restore_failed">Restore failed. Your data is unchanged.</string>
+    <string name="data_restore_unreadable">That file isn\'t a LogEZ backup, or it\'s incomplete.</string>
+    <string name="data_restore_too_new">That backup was made by a newer version of LogEZ.</string>
+    <string name="data_restore_blocked_in_progress">Finish or discard your current workout before restoring.</string>
     <string name="data_export_done">Exported</string>
     <string name="data_export_failed">Couldn\'t write the file. Nothing was exported.</string>
     <string name="data_privacy_note">Exported files are plain and unencrypted — anything that can open them can read them, including any app you share them with. Keep them somewhere you trust. LogEZ never uploads them; the only thing this app sends over the internet is map tiles, and only while a GPS route is on screen.</string>
