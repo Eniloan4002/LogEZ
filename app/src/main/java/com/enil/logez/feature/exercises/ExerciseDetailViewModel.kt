@@ -11,9 +11,12 @@ import com.enil.logez.core.domain.calc.ChartPoint
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.SetRecordCalculator
 import com.enil.logez.core.domain.calc.StatSet
+import com.enil.logez.core.domain.calc.WorkoutMuscleTargetCalculator
 import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
+import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.Exercise
@@ -100,6 +103,10 @@ class ExerciseDetailViewModel @Inject constructor(
                         isLoading = false,
                         exercise = exercise,
                         history = history,
+                        muscleDiagramVariant = settings.muscleDiagramVariant,
+                        muscleIntensity = WorkoutMuscleTargetCalculator.intensities(
+                            listOf(WorkoutMuscleTargetCalculator.TargetSet(exercise.primaryMuscleGroup, exercise.secondaryMuscleGroups)),
+                        ),
                         summary = buildSummary(
                             exercise = exercise,
                             metrics = metrics,
@@ -232,6 +239,9 @@ data class ExerciseDetailUiState(
     val isLoading: Boolean = true,
     val exercise: Exercise? = null,
     val history: List<ExerciseHistoryEntry> = emptyList(),
+    /** Which muscles this exercise (its primary + secondary groups) targets, keyed for [com.enil.logez.core.designsystem.BodyDiagram] -- primary=1.0f, each secondary=0.5f, via [WorkoutMuscleTargetCalculator]. */
+    val muscleIntensity: Map<MuscleGroup, Float> = emptyMap(),
+    val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     val summary: SummaryUiState = SummaryUiState(),
 )
 

@@ -48,6 +48,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.BodyDiagram
+import com.enil.logez.core.designsystem.BodyDiagramRegions
 import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LineChart
@@ -60,7 +62,10 @@ import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
+import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
+import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.workout.finish.labelRes
 import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
 import com.mohamedrejeb.richeditor.model.RichTextState
@@ -157,6 +162,9 @@ fun ExerciseDetailScreen(
             when (DetailTab.entries[selectedTab]) {
                 DetailTab.SUMMARY -> SummaryTab(
                     isLoading = uiState.isLoading,
+                    exercise = uiState.exercise,
+                    muscleIntensity = uiState.muscleIntensity,
+                    muscleDiagramVariant = uiState.muscleDiagramVariant,
                     summary = uiState.summary,
                     onRangeSelected = viewModel::selectRange,
                     onMetricSelected = viewModel::selectMetric,
@@ -190,6 +198,9 @@ fun ExerciseDetailScreen(
 @Composable
 private fun SummaryTab(
     isLoading: Boolean,
+    exercise: Exercise?,
+    muscleIntensity: Map<MuscleGroup, Float>,
+    muscleDiagramVariant: MuscleDiagramVariant,
     summary: SummaryUiState,
     onRangeSelected: (ChartRange) -> Unit,
     onMetricSelected: (ChartMetric) -> Unit,
@@ -198,14 +209,6 @@ private fun SummaryTab(
     // never-logged claim on every open of an exercise that HAS history. Render nothing until the
     // first load lands — the load is a few Room point-queries, so this is a single-frame blank.
     if (isLoading) return
-    if (!summary.hasAnyLoggedSets) {
-        EmptyState(
-            icon = Icons.Filled.BarChart,
-            title = stringResource(R.string.exercise_detail_summary_empty_title),
-            subtitle = stringResource(R.string.exercise_detail_summary_empty_subtitle),
-        )
-        return
-    }
 
     // Selection resets whenever the plotted series changes — a stale index into a new list would
     // read out the wrong point.
@@ -215,137 +218,168 @@ private fun SummaryTab(
     fun dateOf(millis: Long): String =
         Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFormatter)
 
-    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.md)) {
-        item(key = "range") {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ChartRange.entries.forEach { range ->
-                    FilterChip(
-                        selected = summary.selectedRange == range,
-                        onClick = { onRangeSelected(range) },
-                        label = { Text(stringResource(range.labelRes())) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    )
-                }
-            }
-        }
-
-        item(key = "chart") {
-            Column(modifier = Modifier.padding(top = Spacing.sm)) {
-                val selected = selectedPointIndex?.let { summary.points.getOrNull(it) }
-                if (selected != null && summary.selectedMetric != null) {
-                    Text(
-                        SummaryFormatters.formatMetricValue(summary.selectedMetric, selected.value, summary.weightUnit, summary.distanceUnit),
-                        style = LogEzMono.dataLarge,
-                    )
-                    Text(
-                        dateOf(selected.startedAt),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (summary.points.isEmpty()) {
-                    Text(
-                        stringResource(R.string.exercise_detail_summary_no_data_in_range),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = Spacing.xl),
-                    )
-                } else if (summary.selectedMetric != null) {
-                    LineChart(
-                        points = summary.points.map { LineChartPoint(it.startedAt, it.value) },
-                        yLabel = { SummaryFormatters.axisLabel(summary.selectedMetric, it, summary.weightUnit, summary.distanceUnit) },
-                        xLabel = { dateOf(it) },
-                        selectedIndex = selectedPointIndex,
-                        onPointTap = { selectedPointIndex = it },
-                        modifier = Modifier.padding(top = Spacing.sm),
-                    )
-                }
-            }
-        }
-
-        item(key = "metrics") {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(top = Spacing.sm),
-            ) {
-                summary.metrics.forEach { metric ->
-                    FilterChip(
-                        selected = summary.selectedMetric == metric,
-                        onClick = { onMetricSelected(metric) },
-                        label = { Text(stringResource(metric.labelRes())) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    )
-                }
-            }
-        }
-
-        if (summary.personalRecords.isNotEmpty()) {
-            item(key = "prs-header") {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Which muscles this exercise targets — static metadata, not a stat, so it renders above
+        // the never-logged gate below: an exercise the user has never done is exactly when knowing
+        // what it trains is most useful. Same MAPPABLE guard WorkoutSummaryScreen uses — CARDIO/
+        // FULL_BODY/OTHER have no drawable region, so they'd render an all-grey body that reads as
+        // broken rather than intentional.
+        if (exercise != null && exercise.primaryMuscleGroup in BodyDiagramRegions.MAPPABLE) {
+            Column(modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Text(
-                    stringResource(R.string.exercise_detail_summary_prs_header),
+                    stringResource(R.string.exercise_detail_summary_muscles_worked_header),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.xs),
+                )
+                BodyDiagram(
+                    intensity = muscleIntensity,
+                    variant = muscleDiagramVariant,
+                    modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
-            items(items = summary.personalRecords, key = { "pr-${it.prType}" }) { pr ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(pr.prType.labelRes()), style = MaterialTheme.typography.bodyMedium)
+        }
+
+        if (!summary.hasAnyLoggedSets) {
+            EmptyState(
+                icon = Icons.Filled.BarChart,
+                title = stringResource(R.string.exercise_detail_summary_empty_title),
+                subtitle = stringResource(R.string.exercise_detail_summary_empty_subtitle),
+                modifier = Modifier.weight(1f),
+            )
+            return@Column
+        }
+
+        LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(Spacing.md)) {
+            item(key = "range") {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    ChartRange.entries.forEach { range ->
+                        FilterChip(
+                            selected = summary.selectedRange == range,
+                            onClick = { onRangeSelected(range) },
+                            label = { Text(stringResource(range.labelRes())) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            item(key = "chart") {
+                Column(modifier = Modifier.padding(top = Spacing.sm)) {
+                    val selected = selectedPointIndex?.let { summary.points.getOrNull(it) }
+                    if (selected != null && summary.selectedMetric != null) {
                         Text(
-                            dateOf(pr.achievedAt),
+                            SummaryFormatters.formatMetricValue(summary.selectedMetric, selected.value, summary.weightUnit, summary.distanceUnit),
+                            style = LogEzMono.dataLarge,
+                        )
+                        Text(
+                            dateOf(selected.startedAt),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text(
-                        SummaryFormatters.formatPrValue(pr.prType, pr.value, summary.weightUnit, summary.distanceUnit),
-                        style = LogEzMono.dataMedium,
-                    )
-                }
-            }
-        }
-
-        if (summary.setRecords.isNotEmpty()) {
-            item(key = "set-records-header") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { setRecordsExpanded = !setRecordsExpanded }
-                        .padding(top = Spacing.lg, bottom = Spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.exercise_detail_summary_set_records_header),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        if (setRecordsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = null,
-                    )
-                }
-            }
-            if (setRecordsExpanded) {
-                items(items = summary.setRecords, key = { "sr-${it.reps}" }) { record ->
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs)) {
+                    if (summary.points.isEmpty()) {
                         Text(
-                            pluralStringResource(R.plurals.exercise_detail_summary_set_records_reps, record.reps, record.reps),
+                            stringResource(R.string.exercise_detail_summary_no_data_in_range),
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = Spacing.xl),
                         )
+                    } else if (summary.selectedMetric != null) {
+                        LineChart(
+                            points = summary.points.map { LineChartPoint(it.startedAt, it.value) },
+                            yLabel = { SummaryFormatters.axisLabel(summary.selectedMetric, it, summary.weightUnit, summary.distanceUnit) },
+                            xLabel = { dateOf(it) },
+                            selectedIndex = selectedPointIndex,
+                            onPointTap = { selectedPointIndex = it },
+                            modifier = Modifier.padding(top = Spacing.sm),
+                        )
+                    }
+                }
+            }
+
+            item(key = "metrics") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()).padding(top = Spacing.sm),
+                ) {
+                    summary.metrics.forEach { metric ->
+                        FilterChip(
+                            selected = summary.selectedMetric == metric,
+                            onClick = { onMetricSelected(metric) },
+                            label = { Text(stringResource(metric.labelRes())) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            if (summary.personalRecords.isNotEmpty()) {
+                item(key = "prs-header") {
+                    Text(
+                        stringResource(R.string.exercise_detail_summary_prs_header),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.xs),
+                    )
+                }
+                items(items = summary.personalRecords, key = { "pr-${it.prType}" }) { pr ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(pr.prType.labelRes()), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                dateOf(pr.achievedAt),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         Text(
-                            SummaryFormatters.formatPrValue(PrType.HEAVIEST_WEIGHT, record.weightKg, summary.weightUnit, summary.distanceUnit),
+                            SummaryFormatters.formatPrValue(pr.prType, pr.value, summary.weightUnit, summary.distanceUnit),
                             style = LogEzMono.dataMedium,
                         )
+                    }
+                }
+            }
+
+            if (summary.setRecords.isNotEmpty()) {
+                item(key = "set-records-header") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { setRecordsExpanded = !setRecordsExpanded }
+                            .padding(top = Spacing.lg, bottom = Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.exercise_detail_summary_set_records_header),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            if (setRecordsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                        )
+                    }
+                }
+                if (setRecordsExpanded) {
+                    items(items = summary.setRecords, key = { "sr-${it.reps}" }) { record ->
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs)) {
+                            Text(
+                                pluralStringResource(R.plurals.exercise_detail_summary_set_records_reps, record.reps, record.reps),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                SummaryFormatters.formatPrValue(PrType.HEAVIEST_WEIGHT, record.weightKg, summary.weightUnit, summary.distanceUnit),
+                                style = LogEzMono.dataMedium,
+                            )
+                        }
                     }
                 }
             }

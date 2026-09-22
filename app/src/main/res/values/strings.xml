@@ -186,6 +186,7 @@
     <string name="exercise_detail_summary_empty_title">No data logged yet</string>
     <string name="exercise_detail_summary_empty_subtitle">Log this exercise to see your progress.</string>
     <string name="exercise_detail_summary_no_data_in_range">No data in this window</string>
+    <string name="exercise_detail_summary_muscles_worked_header">Muscles worked</string>
     <string name="exercise_detail_summary_prs_header">Personal records</string>
     <string name="exercise_detail_summary_set_records_header">Set records</string>
     <plurals name="exercise_detail_summary_set_records_reps">

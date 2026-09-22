@@ -5,11 +5,14 @@ import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.StatSet
+import com.enil.logez.core.designsystem.BodyDiagramRegions
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
@@ -155,13 +158,14 @@ class ExerciseDetailViewModelTest {
         exercise: Exercise,
         statSets: List<StatSet> = emptyList(),
         records: List<PersonalRecordEntity> = emptyList(),
+        settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
     ) = ExerciseDetailViewModel(
         SavedStateHandle(mapOf("exerciseId" to exercise.id)),
         FakeExerciseRepository(listOf(exercise)),
         FakeWorkoutRepository(statSetsByExercise = mapOf(exercise.id to statSets)),
         FakePersonalRecordsRepository(records),
         FakeMeasurementRepository(),
-        FakeSettingsRepository(),
+        settingsRepo,
         FakeClock(currentMillis = nowMillis),
     )
 
@@ -244,5 +248,60 @@ class ExerciseDetailViewModelTest {
         val warmupOnly = listOf(statSet("s1", 60.0, 10, workoutId = "w1", startedAt = nowMillis - dayMillis, setType = SetType.WARMUP))
         val vm = summaryViewModel(seedExercise(), statSets = warmupOnly)
         assertFalse(vm.uiState.value.summary.hasAnyLoggedSets)
+    }
+
+    // --- Muscles-worked diagram (per-exercise body diagram on the Summary tab) ---
+
+    @Test
+    fun `muscleIntensity weights the primary group full and every secondary group half`() = runTest {
+        val exercise = seedExercise().copy(
+            primaryMuscleGroup = MuscleGroup.CHEST,
+            secondaryMuscleGroups = listOf(MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
+        )
+        val vm = summaryViewModel(exercise)
+
+        assertEquals(
+            mapOf(MuscleGroup.CHEST to 1.0f, MuscleGroup.TRICEPS to 0.5f, MuscleGroup.SHOULDERS to 0.5f),
+            vm.uiState.value.muscleIntensity,
+        )
+    }
+
+    @Test
+    fun `an exercise with no secondary groups lights only its primary`() = runTest {
+        val exercise = seedExercise().copy(primaryMuscleGroup = MuscleGroup.BICEPS, secondaryMuscleGroups = emptyList())
+        val vm = summaryViewModel(exercise)
+        assertEquals(mapOf(MuscleGroup.BICEPS to 1.0f), vm.uiState.value.muscleIntensity)
+    }
+
+    /**
+     * The diagram is metadata about the exercise, not a stat derived from history — so it must be
+     * populated even when the Summary tab is otherwise showing its never-logged empty state (that
+     * is exactly when "what does this train?" is most useful).
+     */
+    @Test
+    fun `muscleIntensity is populated even for an exercise that has never been logged`() = runTest {
+        val vm = summaryViewModel(seedExercise().copy(primaryMuscleGroup = MuscleGroup.LATS))
+        assertFalse(vm.uiState.value.summary.hasAnyLoggedSets)
+        assertEquals(mapOf(MuscleGroup.LATS to 1.0f), vm.uiState.value.muscleIntensity)
+    }
+
+    @Test
+    fun `muscleDiagramVariant reflects whatever the settings repository is seeded with`() = runTest {
+        val vm = summaryViewModel(
+            seedExercise(),
+            settingsRepo = FakeSettingsRepository(UserSettings(muscleDiagramVariant = MuscleDiagramVariant.FEMALE)),
+        )
+        assertEquals(MuscleDiagramVariant.FEMALE, vm.uiState.value.muscleDiagramVariant)
+    }
+
+    /**
+     * CARDIO/FULL_BODY/OTHER have no drawable region, so the screen skips the whole section for
+     * them ([com.enil.logez.core.designsystem.BodyDiagramRegions.MAPPABLE]) — this pins the
+     * ViewModel half of that contract: nothing in the intensity map is renderable.
+     */
+    @Test
+    fun `a cardio exercise produces no mappable muscle regions to highlight`() = runTest {
+        val vm = summaryViewModel(seedExercise().copy(primaryMuscleGroup = MuscleGroup.CARDIO, secondaryMuscleGroups = emptyList()))
+        assertTrue(vm.uiState.value.muscleIntensity.keys.none { it in BodyDiagramRegions.MAPPABLE })
     }
 }
