@@ -616,9 +616,9 @@
       "id": "2ccabdb4-d0f8-5802-865f-e8ffe0a8ad1e",
       "name": "Chin Up",
       "exerciseType": "REPS_ONLY",
-      "primaryMuscleGroup": "BICEPS",
+      "primaryMuscleGroup": "LATS",
       "secondaryMuscleGroups": [
-        "LATS",
+        "BICEPS",
         "UPPER_BACK",
         "FOREARMS"
       ],
@@ -630,9 +630,9 @@
       "id": "c6e37785-3b5d-5bb6-bd24-1849bff71a89",
       "name": "Chin Up (Assisted)",
       "exerciseType": "BODYWEIGHT_ASSISTED",
-      "primaryMuscleGroup": "BICEPS",
+      "primaryMuscleGroup": "LATS",
       "secondaryMuscleGroups": [
-        "LATS",
+        "BICEPS",
         "UPPER_BACK",
         "FOREARMS"
       ],
@@ -644,9 +644,9 @@
       "id": "47fd89cd-4b20-55f4-9b07-3ea182b76c8f",
       "name": "Chin Up (Weighted)",
       "exerciseType": "BODYWEIGHT_WEIGHTED",
-      "primaryMuscleGroup": "BICEPS",
+      "primaryMuscleGroup": "LATS",
       "secondaryMuscleGroups": [
-        "LATS",
+        "BICEPS",
         "UPPER_BACK",
         "FOREARMS"
       ],
@@ -778,9 +778,9 @@
       "id": "5c8b0cbc-5cc2-5d29-b2d1-dc1344f586b4",
       "name": "Reverse Curl (Barbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "BICEPS",
+      "primaryMuscleGroup": "FOREARMS",
       "secondaryMuscleGroups": [
-        "FOREARMS"
+        "BICEPS"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -790,9 +790,9 @@
       "id": "113ca837-d545-5d50-b1a4-fde6e46a2c31",
       "name": "Reverse Curl (Cable)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "BICEPS",
+      "primaryMuscleGroup": "FOREARMS",
       "secondaryMuscleGroups": [
-        "FOREARMS"
+        "BICEPS"
       ],
       "equipment": "MACHINE",
       "instructions": [],
@@ -966,7 +966,7 @@
       "id": "dfce956e-9841-5f0e-8617-bdb10ab735a3",
       "name": "Battle Ropes",
       "exerciseType": "DURATION",
-      "primaryMuscleGroup": "CARDIO",
+      "primaryMuscleGroup": "FULL_BODY",
       "secondaryMuscleGroups": [
         "SHOULDERS",
         "FOREARMS"
@@ -1132,6 +1132,7 @@
       "primaryMuscleGroup": "CARDIO",
       "secondaryMuscleGroups": [
         "QUADRICEPS",
+        "HAMSTRINGS",
         "CALVES"
       ],
       "equipment": "NONE",
@@ -1183,7 +1184,7 @@
       "id": "05726559-6ed3-5c94-8186-6f6f614c03ba",
       "name": "Sled Pull (Distance)",
       "exerciseType": "DISTANCE_DURATION",
-      "primaryMuscleGroup": "CARDIO",
+      "primaryMuscleGroup": "FULL_BODY",
       "secondaryMuscleGroups": [
         "HAMSTRINGS",
         "GLUTES",
@@ -1197,7 +1198,7 @@
       "id": "cdbc2c0e-a24a-5855-ae8e-f936386ff48f",
       "name": "Sled Push (Distance)",
       "exerciseType": "DISTANCE_DURATION",
-      "primaryMuscleGroup": "CARDIO",
+      "primaryMuscleGroup": "FULL_BODY",
       "secondaryMuscleGroups": [
         "QUADRICEPS",
         "GLUTES",
@@ -1419,9 +1420,9 @@
       "id": "04d9c089-c6b2-5395-bc2d-73b450156f22",
       "name": "Close Grip Bench Press (Barbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "CHEST",
+      "primaryMuscleGroup": "TRICEPS",
       "secondaryMuscleGroups": [
-        "TRICEPS",
+        "CHEST",
         "SHOULDERS"
       ],
       "equipment": "BARBELL",
@@ -1634,9 +1635,9 @@
       "id": "5f879f0b-d52d-5fe3-b888-fa576b0b7306",
       "name": "Pullover (Machine)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "CHEST",
+      "primaryMuscleGroup": "LATS",
       "secondaryMuscleGroups": [
-        "LATS"
+        "CHEST"
       ],
       "equipment": "MACHINE",
       "instructions": [],
@@ -1848,9 +1849,8 @@
       "id": "5d6f6778-935a-5c7a-ae36-18debbd62936",
       "name": "Broad Jump",
       "exerciseType": "REPS_ONLY",
-      "primaryMuscleGroup": "FULL_BODY",
+      "primaryMuscleGroup": "QUADRICEPS",
       "secondaryMuscleGroups": [
-        "QUADRICEPS",
         "GLUTES",
         "HAMSTRINGS"
       ],
@@ -1916,9 +1916,8 @@
       "id": "34ba7d64-c5db-5e89-854e-2719e151bcdd",
       "name": "Farmer's Walk (Dumbbell)",
       "exerciseType": "WEIGHT_DISTANCE",
-      "primaryMuscleGroup": "FULL_BODY",
+      "primaryMuscleGroup": "FOREARMS",
       "secondaryMuscleGroups": [
-        "FOREARMS",
         "TRAPS"
       ],
       "equipment": "DUMBBELL",
@@ -1929,9 +1928,8 @@
       "id": "145d5a39-6793-59a6-986f-696a2ed1c557",
       "name": "Farmer's Walk (Kettlebell)",
       "exerciseType": "WEIGHT_DISTANCE",
-      "primaryMuscleGroup": "FULL_BODY",
+      "primaryMuscleGroup": "FOREARMS",
       "secondaryMuscleGroups": [
-        "FOREARMS",
         "TRAPS"
       ],
       "equipment": "KETTLEBELL",
@@ -1968,9 +1966,8 @@
       "id": "e720b028-0acd-5162-befc-aee44d51ae5e",
       "name": "Kettlebell Swing (Kettlebell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "FULL_BODY",
+      "primaryMuscleGroup": "GLUTES",
       "secondaryMuscleGroups": [
-        "GLUTES",
         "HAMSTRINGS",
         "LOWER_BACK"
       ],
@@ -2062,10 +2059,10 @@
       "id": "3585e889-5f36-5d38-af6e-30c3c340f6a2",
       "name": "Suitcase Carry (Dumbbell)",
       "exerciseType": "WEIGHT_DISTANCE",
-      "primaryMuscleGroup": "FULL_BODY",
+      "primaryMuscleGroup": "ABDOMINALS",
       "secondaryMuscleGroups": [
-        "ABDOMINALS",
-        "FOREARMS"
+        "FOREARMS",
+        "TRAPS"
       ],
       "equipment": "DUMBBELL",
       "instructions": [],
@@ -2204,9 +2201,9 @@
       "id": "a8432f58-f55b-5876-a8bb-b33e01efb279",
       "name": "Fire Hydrant",
       "exerciseType": "REPS_ONLY",
-      "primaryMuscleGroup": "GLUTES",
+      "primaryMuscleGroup": "ABDUCTORS",
       "secondaryMuscleGroups": [
-        "ABDUCTORS"
+        "GLUTES"
       ],
       "equipment": "NONE",
       "instructions": [],
@@ -2374,9 +2371,9 @@
       "id": "2d4082c4-bb8b-540a-b92e-0a4c86903524",
       "name": "Step Up (Kettlebell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "GLUTES",
+      "primaryMuscleGroup": "QUADRICEPS",
       "secondaryMuscleGroups": [
-        "QUADRICEPS"
+        "GLUTES"
       ],
       "equipment": "KETTLEBELL",
       "instructions": [],
@@ -2590,9 +2587,9 @@
       "id": "53867d25-7786-5eb8-8cba-87ded45aa59c",
       "name": "Seated Good Morning (Barbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "HAMSTRINGS",
+      "primaryMuscleGroup": "LOWER_BACK",
       "secondaryMuscleGroups": [
-        "LOWER_BACK"
+        "HAMSTRINGS"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -2702,9 +2699,9 @@
       "id": "1296c748-5e91-556d-9bde-91eada267ee3",
       "name": "Chest Supported Row (Machine)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LATS",
+      "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
-        "UPPER_BACK",
+        "LATS",
         "BICEPS"
       ],
       "equipment": "MACHINE",
@@ -2740,9 +2737,9 @@
       "id": "71c97ed1-8291-5613-b4fe-e5942a98e82c",
       "name": "High Row (Machine)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LATS",
+      "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
-        "UPPER_BACK",
+        "LATS",
         "BICEPS"
       ],
       "equipment": "MACHINE",
@@ -2753,9 +2750,9 @@
       "id": "2dbe28f0-ecd9-5921-a135-ec754a5361bf",
       "name": "Inverted Row",
       "exerciseType": "REPS_ONLY",
-      "primaryMuscleGroup": "LATS",
+      "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
-        "UPPER_BACK",
+        "LATS",
         "BICEPS"
       ],
       "equipment": "NONE",
@@ -2767,7 +2764,9 @@
       "name": "Kneeling Lat Pulldown (Band)",
       "exerciseType": "WEIGHT_REPS",
       "primaryMuscleGroup": "LATS",
-      "secondaryMuscleGroups": [],
+      "secondaryMuscleGroups": [
+        "BICEPS"
+      ],
       "equipment": "RESISTANCE_BAND",
       "instructions": [],
       "isBodyweightVolumeEligible": false
@@ -2776,9 +2775,9 @@
       "id": "e6a70076-743f-5e47-9e08-59d277937852",
       "name": "Landmine Row (Barbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LATS",
+      "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
-        "UPPER_BACK",
+        "LATS",
         "BICEPS"
       ],
       "equipment": "BARBELL",
@@ -2967,9 +2966,9 @@
       "id": "d3612d5d-150b-5e86-b79d-152e3c007502",
       "name": "Seated Row (Cable)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LATS",
+      "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
-        "UPPER_BACK",
+        "LATS",
         "BICEPS"
       ],
       "equipment": "MACHINE",
@@ -3056,9 +3055,9 @@
       "id": "a6ec72c7-beea-50b8-8788-63fd5dd1f4ba",
       "name": "Wide Grip Seated Row (Cable)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LATS",
+      "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
-        "UPPER_BACK",
+        "LATS",
         "BICEPS"
       ],
       "equipment": "MACHINE",
@@ -3082,10 +3081,10 @@
       "id": "47bc2a73-cb21-521f-aec9-a7e475c11d65",
       "name": "Deadlift (Barbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LOWER_BACK",
+      "primaryMuscleGroup": "GLUTES",
       "secondaryMuscleGroups": [
-        "GLUTES",
-        "HAMSTRINGS"
+        "HAMSTRINGS",
+        "LOWER_BACK"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -3095,10 +3094,10 @@
       "id": "27c7717c-abc2-5c4e-97ef-c7cf3197a927",
       "name": "Deadlift (Dumbbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LOWER_BACK",
+      "primaryMuscleGroup": "GLUTES",
       "secondaryMuscleGroups": [
-        "GLUTES",
-        "HAMSTRINGS"
+        "HAMSTRINGS",
+        "LOWER_BACK"
       ],
       "equipment": "DUMBBELL",
       "instructions": [],
@@ -3108,10 +3107,10 @@
       "id": "d46f50ad-1c0d-5b34-bcd3-17ffe4791684",
       "name": "Good Morning (Smith Machine)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LOWER_BACK",
+      "primaryMuscleGroup": "HAMSTRINGS",
       "secondaryMuscleGroups": [
-        "HAMSTRINGS",
-        "GLUTES"
+        "GLUTES",
+        "LOWER_BACK"
       ],
       "equipment": "MACHINE",
       "instructions": [],
@@ -3133,10 +3132,10 @@
       "id": "581fb38c-964d-5223-9cef-5dcb380fe258",
       "name": "Rack Pull (Barbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "LOWER_BACK",
+      "primaryMuscleGroup": "GLUTES",
       "secondaryMuscleGroups": [
         "HAMSTRINGS",
-        "GLUTES"
+        "LOWER_BACK"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -3227,7 +3226,7 @@
       "id": "2fe833b9-a607-55ff-a490-3c16ae31212b",
       "name": "Atlas Stone Lift",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "OTHER",
+      "primaryMuscleGroup": "FULL_BODY",
       "secondaryMuscleGroups": [
         "GLUTES",
         "QUADRICEPS"
@@ -3240,9 +3239,8 @@
       "id": "c1c51fbe-e2d6-5f29-bbb9-b63ca9d70f1d",
       "name": "Log Press (Other)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "OTHER",
+      "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
-        "SHOULDERS",
         "TRICEPS"
       ],
       "equipment": "OTHER",
@@ -3265,7 +3263,7 @@
       "id": "4d152cfc-2f9c-5cad-aab8-a1814853e762",
       "name": "Sandbag Carry",
       "exerciseType": "WEIGHT_DISTANCE",
-      "primaryMuscleGroup": "OTHER",
+      "primaryMuscleGroup": "FULL_BODY",
       "secondaryMuscleGroups": [
         "FOREARMS",
         "ABDOMINALS"
@@ -3291,7 +3289,7 @@
       "id": "38101e4b-7e73-5e07-9eaf-63e99a0e3a13",
       "name": "Tire Flip",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "OTHER",
+      "primaryMuscleGroup": "FULL_BODY",
       "secondaryMuscleGroups": [
         "GLUTES",
         "QUADRICEPS"
@@ -3592,7 +3590,8 @@
       "exerciseType": "WEIGHT_REPS",
       "primaryMuscleGroup": "QUADRICEPS",
       "secondaryMuscleGroups": [
-        "GLUTES"
+        "GLUTES",
+        "HAMSTRINGS"
       ],
       "equipment": "DUMBBELL",
       "instructions": [],
@@ -3783,7 +3782,7 @@
       "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
         "TRICEPS",
-        "UPPER_BACK"
+        "TRAPS"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -3858,7 +3857,7 @@
       "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
         "TRICEPS",
-        "UPPER_BACK"
+        "TRAPS"
       ],
       "equipment": "NONE",
       "instructions": [],
@@ -3934,7 +3933,7 @@
       "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
         "TRICEPS",
-        "UPPER_BACK"
+        "TRAPS"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -4214,10 +4213,10 @@
       "id": "4d3c5586-b4c2-5cb7-a550-0162eb9ee8cd",
       "name": "Rack Pull (Trap Bar)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "TRAPS",
+      "primaryMuscleGroup": "LOWER_BACK",
       "secondaryMuscleGroups": [
-        "LOWER_BACK",
-        "HAMSTRINGS"
+        "HAMSTRINGS",
+        "TRAPS"
       ],
       "equipment": "BARBELL",
       "instructions": [],
@@ -4627,9 +4626,9 @@
       "id": "164659ba-8aa1-5c5d-9b09-103bc07e8cc9",
       "name": "Face Pull (Resistance Band)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "UPPER_BACK",
+      "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
-        "SHOULDERS",
+        "UPPER_BACK",
         "TRAPS"
       ],
       "equipment": "RESISTANCE_BAND",
@@ -4732,10 +4731,10 @@
       "id": "510fd74a-7a40-59af-b01c-1b49d48bd2c2",
       "name": "Prone Y-Raise (Dumbbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "UPPER_BACK",
+      "primaryMuscleGroup": "TRAPS",
       "secondaryMuscleGroups": [
         "SHOULDERS",
-        "TRAPS"
+        "UPPER_BACK"
       ],
       "equipment": "DUMBBELL",
       "instructions": [],
@@ -4745,9 +4744,9 @@
       "id": "98099c82-bb3f-5a42-ba62-b79e7abff066",
       "name": "Rear Delt Fly (Cable)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "UPPER_BACK",
+      "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
-        "SHOULDERS"
+        "UPPER_BACK"
       ],
       "equipment": "MACHINE",
       "instructions": [],
@@ -4757,9 +4756,9 @@
       "id": "beccc2e1-543e-5b79-8845-68446dc45a48",
       "name": "Rear Delt Fly (Dumbbell)",
       "exerciseType": "WEIGHT_REPS",
-      "primaryMuscleGroup": "UPPER_BACK",
+      "primaryMuscleGroup": "SHOULDERS",
       "secondaryMuscleGroups": [
-        "SHOULDERS"
+        "UPPER_BACK"
       ],
       "equipment": "DUMBBELL",
       "instructions": [],
@@ -4771,6 +4770,8 @@
       "exerciseType": "WEIGHT_REPS",
       "primaryMuscleGroup": "UPPER_BACK",
       "secondaryMuscleGroups": [
+        "LATS",
+        "BICEPS",
         "ABDOMINALS",
         "SHOULDERS",
         "TRICEPS"
