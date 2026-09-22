@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Legacy (API 26-30) Auto-Backup rules. Owner decision 2026-08-23: no LogEZ data is eligible
-    for Google's cloud Auto-Backup transport — the manual zip backup (PHASE2_PLAN.md §9.9) is
-    the sole off-device copy. This file currently excludes nothing because it has nothing to
-    exclude: on API 26-30 the <full-backup-content> allowlist model means simply not listing
-    any path here already yields zero data backed up. Revisit if a future path needs including.
+    for Google's cloud Auto-Backup transport — the manual zip backup (Settings > Data) is the
+    sole off-device copy.
+
+    Every domain is excluded EXPLICITLY. An earlier version of this file was empty on the belief
+    that "not listing a path yields zero data backed up" — that is backwards. With no <include>
+    element, full-backup-content backs up the DEFAULT set (databases, shared_prefs, files, and
+    the app's root), and <exclude> only subtracts from it. An empty file therefore backed up all
+    of the user's data to the cloud on every pre-31 device, which is the opposite of the
+    decision above. (data_extraction_rules.xml already states the correct rule for API 31+.)
+
+    Pre-31 Android has no cloud-vs-device-transfer distinction, so excluding everything here also
+    disables device-to-device transfer on those versions; that is the accepted cost of the
+    no-cloud posture, and the zip backup covers the move.
 -->
 <full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
 </full-backup-content>
