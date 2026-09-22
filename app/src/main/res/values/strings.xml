@@ -210,8 +210,6 @@
     <string name="chart_metric_best_pace">Best Pace</string>
     <string name="exercise_detail_history_empty_title">No sessions logged yet</string>
     <string name="exercise_detail_history_empty_subtitle">Log this exercise in a workout to see it here.</string>
-    <string name="exercise_detail_how_to_empty_title">No instructions for this exercise</string>
-    <string name="exercise_detail_how_to_empty_subtitle">Add instructions by editing this exercise.</string>
     <string name="exercise_delete_confirm_title">Delete this exercise?</string>
     <string name="exercise_delete_confirm_body">Past workouts that used it are kept, but you won\'t be able to log it again.</string>
 

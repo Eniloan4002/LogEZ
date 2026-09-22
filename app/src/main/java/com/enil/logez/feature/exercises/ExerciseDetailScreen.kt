@@ -2,6 +2,7 @@ package com.enil.logez.feature.exercises
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,7 +75,34 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
-private enum class DetailTab { SUMMARY, HISTORY, HOW_TO }
+internal enum class DetailTab(@StringRes val labelRes: Int) {
+    SUMMARY(R.string.exercise_detail_tab_summary),
+    HISTORY(R.string.exercise_detail_tab_history),
+    HOW_TO(R.string.exercise_detail_tab_how_to),
+}
+
+/**
+ * An exercise with no instructions has no How-to tab at all, rather than a tab that only ever
+ * renders an empty state — the same absence-beats-a-zeroed-state rule the rest of the app follows.
+ * Every one of the 400 seeded exercises ships without instructions, so the tab was empty almost
+ * everywhere; it comes back for any exercise the user has written steps for.
+ *
+ * Empty while loading, deliberately: the exercise is null before the first load lands, and reading
+ * that as "no instructions" would build a two-tab row and then pop a third tab in a frame later.
+ */
+internal fun detailTabsFor(isLoading: Boolean, instructions: String?): List<DetailTab> = when {
+    isLoading -> emptyList()
+    instructions.isNullOrBlank() -> listOf(DetailTab.SUMMARY, DetailTab.HISTORY)
+    else -> DetailTab.entries
+}
+
+/**
+ * Derived rather than corrected after the fact: clearing an exercise's instructions elsewhere
+ * shrinks the tab list under a HOW_TO selection on the next resume. Falling back here means there
+ * is never a frame where TabRow is handed the -1 that indexOf returns for an absent tab.
+ */
+internal fun selectedDetailTab(requested: DetailTab, tabs: List<DetailTab>): DetailTab =
+    if (requested in tabs) requested else DetailTab.SUMMARY
 
 private data class HistorySession(val workoutId: String, val workoutTitle: String, val sets: List<ExerciseHistoryEntry>)
 
@@ -89,7 +116,7 @@ fun ExerciseDetailScreen(
     viewModel: ExerciseDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var selectedTab by remember { mutableIntStateOf(DetailTab.SUMMARY.ordinal) }
+    var requestedTab by remember { mutableStateOf(DetailTab.SUMMARY) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -141,36 +168,35 @@ fun ExerciseDetailScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == DetailTab.SUMMARY.ordinal,
-                    onClick = { selectedTab = DetailTab.SUMMARY.ordinal },
-                    text = { Text(stringResource(R.string.exercise_detail_tab_summary)) },
-                )
-                Tab(
-                    selected = selectedTab == DetailTab.HISTORY.ordinal,
-                    onClick = { selectedTab = DetailTab.HISTORY.ordinal },
-                    text = { Text(stringResource(R.string.exercise_detail_tab_history)) },
-                )
-                Tab(
-                    selected = selectedTab == DetailTab.HOW_TO.ordinal,
-                    onClick = { selectedTab = DetailTab.HOW_TO.ordinal },
-                    text = { Text(stringResource(R.string.exercise_detail_tab_how_to)) },
-                )
-            }
+            val tabs = detailTabsFor(uiState.isLoading, uiState.exercise?.instructions)
+            val selectedTab = selectedDetailTab(requestedTab, tabs)
 
-            when (DetailTab.entries[selectedTab]) {
-                DetailTab.SUMMARY -> SummaryTab(
-                    isLoading = uiState.isLoading,
-                    exercise = uiState.exercise,
-                    muscleIntensity = uiState.muscleIntensity,
-                    muscleDiagramVariant = uiState.muscleDiagramVariant,
-                    summary = uiState.summary,
-                    onRangeSelected = viewModel::selectRange,
-                    onMetricSelected = viewModel::selectMetric,
-                )
-                DetailTab.HISTORY -> HistoryTab(entries = uiState.history)
-                DetailTab.HOW_TO -> HowToTab(instructions = uiState.exercise?.instructions.orEmpty())
+            // Nothing renders until the first load lands, matching what this screen already does
+            // with its title and overflow menu in that same frame.
+            if (tabs.isNotEmpty()) {
+                TabRow(selectedTabIndex = tabs.indexOf(selectedTab)) {
+                    tabs.forEach { tab ->
+                        Tab(
+                            selected = tab == selectedTab,
+                            onClick = { requestedTab = tab },
+                            text = { Text(stringResource(tab.labelRes)) },
+                        )
+                    }
+                }
+
+                when (selectedTab) {
+                    DetailTab.SUMMARY -> SummaryTab(
+                        isLoading = uiState.isLoading,
+                        exercise = uiState.exercise,
+                        muscleIntensity = uiState.muscleIntensity,
+                        muscleDiagramVariant = uiState.muscleDiagramVariant,
+                        summary = uiState.summary,
+                        onRangeSelected = viewModel::selectRange,
+                        onMetricSelected = viewModel::selectMetric,
+                    )
+                    DetailTab.HISTORY -> HistoryTab(entries = uiState.history)
+                    DetailTab.HOW_TO -> HowToTab(instructions = uiState.exercise?.instructions.orEmpty())
+                }
             }
         }
     }
@@ -461,14 +487,7 @@ private fun formatHistorySet(entry: ExerciseHistoryEntry): String {
 @OptIn(ExperimentalRichTextApi::class)
 @Composable
 private fun HowToTab(instructions: String) {
-    if (instructions.isBlank()) {
-        EmptyState(
-            icon = Icons.Filled.BarChart,
-            title = stringResource(R.string.exercise_detail_how_to_empty_title),
-            subtitle = stringResource(R.string.exercise_detail_how_to_empty_subtitle),
-        )
-        return
-    }
+    // No blank guard: the tab itself is absent when there is nothing to show (see detailTabsFor).
     Column(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
         instructions.split("\n").filter { it.isNotBlank() }.forEachIndexed { index, step ->
             // M20g: the step's own text is parsed as Markdown for inline **bold**/*italic* --
