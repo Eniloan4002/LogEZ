@@ -246,27 +246,22 @@ private fun SummaryTab(
     fun dateOf(millis: Long): String =
         Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFormatter)
 
+    // Which muscles this exercise targets — static metadata, not a stat, so it can render above
+    // the never-logged gate below: an exercise the user has never done is exactly when knowing
+    // what it trains is most useful. Same MAPPABLE guard WorkoutSummaryScreen uses — CARDIO/
+    // FULL_BODY/OTHER have no drawable region, so they'd render an all-grey body that reads as
+    // broken rather than intentional.
+    val showDiagram = exercise != null && exercise.primaryMuscleGroup in BodyDiagramRegions.MAPPABLE
+
     Column(modifier = Modifier.fillMaxSize()) {
-        // Which muscles this exercise targets — static metadata, not a stat, so it renders above
-        // the never-logged gate below: an exercise the user has never done is exactly when knowing
-        // what it trains is most useful. Same MAPPABLE guard WorkoutSummaryScreen uses — CARDIO/
-        // FULL_BODY/OTHER have no drawable region, so they'd render an all-grey body that reads as
-        // broken rather than intentional.
-        if (exercise != null && exercise.primaryMuscleGroup in BodyDiagramRegions.MAPPABLE) {
-            Column(modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                Text(
-                    stringResource(R.string.exercise_detail_summary_muscles_worked_header),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                BodyDiagram(
-                    intensity = muscleIntensity,
-                    variant = muscleDiagramVariant,
-                    modifier = Modifier.padding(top = Spacing.xs),
+        if (!summary.hasAnyLoggedSets) {
+            if (showDiagram) {
+                MuscleDiagramSection(
+                    muscleIntensity = muscleIntensity,
+                    muscleDiagramVariant = muscleDiagramVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                 )
             }
-        }
-
-        if (!summary.hasAnyLoggedSets) {
             EmptyState(
                 icon = Icons.Filled.BarChart,
                 title = stringResource(R.string.exercise_detail_summary_empty_title),
@@ -276,7 +271,24 @@ private fun SummaryTab(
             return@Column
         }
 
+        // The diagram is the LazyColumn's own first item, not a sibling fixed above it — it used
+        // to be a plain Column rendered before the LazyColumn started, which pinned it in place
+        // while the chart/PRs/set records scrolled underneath (Owner-reported 2026-09-22).
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(Spacing.md)) {
+            if (showDiagram) {
+                item(key = "muscles") {
+                    // Restores the pre-extraction gap to "range" below (this item's own bottom
+                    // padding used to be paired with the LazyColumn's contentPadding.top, which
+                    // only ever applies once at the very top of the list, not between items, now
+                    // that the diagram itself occupies that top slot -- adversarial review, 2026-09-22).
+                    MuscleDiagramSection(
+                        muscleIntensity = muscleIntensity,
+                        muscleDiagramVariant = muscleDiagramVariant,
+                        modifier = Modifier.padding(bottom = Spacing.sm + Spacing.md),
+                    )
+                }
+            }
+
             item(key = "range") {
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     ChartRange.entries.forEach { range ->
@@ -412,6 +424,25 @@ private fun SummaryTab(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MuscleDiagramSection(
+    muscleIntensity: Map<MuscleGroup, Float>,
+    muscleDiagramVariant: MuscleDiagramVariant,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            stringResource(R.string.exercise_detail_summary_muscles_worked_header),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        BodyDiagram(
+            intensity = muscleIntensity,
+            variant = muscleDiagramVariant,
+            modifier = Modifier.padding(top = Spacing.xs),
+        )
     }
 }
 
