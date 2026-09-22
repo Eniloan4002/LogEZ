@@ -51,8 +51,11 @@ class WorkoutSessionService : Service() {
     @Inject lateinit var hapticsPlayer: WorkoutHapticsPlayer
     @Inject lateinit var elapsedRealtimeClock: ElapsedRealtimeClock
 
-    private val serviceJob = SupervisorJob()
-    private val serviceScope = CoroutineScope(serviceJob)
+    // `var`, not `val`: stopSelfCleanly() cancels the job, and a cancelled SupervisorJob can never
+    // run anything again, so a reused Service instance has to rebuild both. Unlike [wakeLock]
+    // below these are touched only from main-thread lifecycle callbacks, so they need no guard.
+    private var serviceJob = SupervisorJob()
+    private var serviceScope = CoroutineScope(serviceJob)
     private var collectorsStarted = false
     private var wakeLock: PowerManager.WakeLock? = null
     /** Guards [wakeLock]: the wake-lock collector runs on [serviceScope]'s (non-main) dispatcher
@@ -122,6 +125,7 @@ class WorkoutSessionService : Service() {
      * for a session that's being stopped, since Android may not call [onDestroy] for a while.
      */
     private fun stopSelfCleanly() {
+        collectorsStarted = false
         serviceJob.cancel()
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -130,6 +134,12 @@ class WorkoutSessionService : Service() {
 
     private fun ensureCollectorsStarted() {
         if (collectorsStarted) return
+        // A cancelled SupervisorJob stays cancelled, so a Service instance reused after a
+        // stopSelf() has to rebuild the scope or every collector below silently never runs.
+        if (!serviceJob.isActive) {
+            serviceJob = SupervisorJob()
+            serviceScope = CoroutineScope(serviceJob)
+        }
         collectorsStarted = true
 
         // Re-post only on an actual content/mode change (§9.3) — the chronometer itself renders
@@ -204,6 +214,11 @@ class WorkoutSessionService : Service() {
         val notification = NotificationCompat.Builder(this, WorkoutNotificationChannels.REST_TIMER)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(getString(R.string.workout_rest_timer_label))
+            // The one notification whose entire job is reaching the user mid-set, on a screen that
+            // is almost certainly locked. Without this it defaults to VISIBILITY_PRIVATE and is
+            // redacted on a secure lock screen, unlike both ongoing notifications.
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setAutoCancel(true)
             .setContentIntent(openAppPendingIntent())
             .setTimeoutAfter(REST_END_HEADS_UP_TIMEOUT_MS)
