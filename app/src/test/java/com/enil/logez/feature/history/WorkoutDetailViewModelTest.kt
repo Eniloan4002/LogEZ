@@ -15,6 +15,7 @@ import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeActivityTrackRepository
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.InProgressWorkoutResolver
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.fakes.FakeLocationSource
@@ -206,6 +207,11 @@ class WorkoutDetailViewModelTest {
                 FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(dispatcher),
             ),
             activityTrackRepository = trackRepo,
+            sessionDiscarder = SessionDiscarder(
+                WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock()),
+                WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(dispatcher)),
+                ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), FakeClock(), CoroutineScope(dispatcher)),
+            ),
             inProgressWorkoutResolver = InProgressWorkoutResolver(
                 workoutRepo,
                 ActivityTrackingController(

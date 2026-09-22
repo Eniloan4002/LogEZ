@@ -130,7 +130,7 @@ fun RoutineDetailScreen(
                                     stringResource(
                                         if (isCircuit) R.string.routine_detail_round_line else R.string.routine_detail_set_line,
                                         index + 1,
-                                        formatDetailSetTargets(set),
+                                        formatDetailSetTargets(set, uiState.weightUnit),
                                     ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -187,9 +187,9 @@ fun RoutineDetailScreen(
     }
 }
 
-private fun formatDetailSetTargets(set: com.enil.logez.core.data.entity.RoutineSetEntity): String {
+private fun formatDetailSetTargets(set: com.enil.logez.core.data.entity.RoutineSetEntity, unit: com.enil.logez.core.domain.model.WeightUnit): String {
     val parts = mutableListOf<String>()
-    set.targetWeightKg?.let { parts.add("${formatNum(it)}kg") }
+    set.targetWeightKg?.let { parts.add(com.enil.logez.core.designsystem.formatWeight(it, unit)) }
     if (set.targetRepRangeMin != null) {
         parts.add("${set.targetRepRangeMin}-${set.targetRepRangeMax} reps")
     } else {

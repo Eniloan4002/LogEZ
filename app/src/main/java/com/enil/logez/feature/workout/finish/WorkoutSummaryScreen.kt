@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.BodyDiagram
@@ -104,7 +105,7 @@ fun WorkoutSummaryScreen(
                 // Only a metric this workout actually logged gets a cell -- a GPS-tracked walk has
                 // no weight/reps concept, so showing "0kg"/"0 Reps" next to its real distance would
                 // be noise, not data (each cell is independently gated, not tied to workout type).
-                if (uiState.hasVolume) StatCell(value = formatVolume(uiState.totalVolumeKg), label = stringResource(R.string.summary_volume), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
+                if (uiState.hasVolume) StatCell(value = formatVolume(uiState.totalVolumeKg, uiState.weightUnit), label = stringResource(R.string.summary_volume), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
                 StatCell(value = uiState.completedSetCount.toString(), label = stringResource(R.string.summary_sets), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
                 if (uiState.hasReps) StatCell(value = uiState.totalReps.toString(), label = stringResource(R.string.summary_reps), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
                 if (uiState.hasDistance) StatCell(value = formatDistance(uiState.totalDistanceMeters), label = stringResource(R.string.summary_distance), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
@@ -170,7 +171,7 @@ fun WorkoutSummaryScreen(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.sm).fillMaxWidth(),
                 )
-                uiState.prMedals.forEach { medal -> PrMedalCard(medal) }
+                uiState.prMedals.forEach { medal -> PrMedalCard(medal, uiState.weightUnit) }
             }
 
             OutlinedButton(
@@ -190,7 +191,7 @@ fun WorkoutSummaryScreen(
                     title = uiState.title,
                     dateLine = formatCardDateTime(uiState.startedAtMillis),
                     durationText = formatDuration(uiState.durationSeconds),
-                    volumeText = if (uiState.hasVolume) formatVolume(uiState.totalVolumeKg) else null,
+                    volumeText = if (uiState.hasVolume) formatVolume(uiState.totalVolumeKg, uiState.weightUnit) else null,
                     setsText = uiState.completedSetCount.toString(),
                     repsText = if (uiState.hasReps) uiState.totalReps.toString() else null,
                     distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
@@ -219,7 +220,7 @@ fun WorkoutSummaryScreen(
  * banner is untouched).
  */
 @Composable
-private fun PrMedalCard(medal: PrMedal) {
+private fun PrMedalCard(medal: PrMedal, weightUnit: WeightUnit) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
         colors = CardDefaults.cardColors(
@@ -237,7 +238,7 @@ private fun PrMedalCard(medal: PrMedal) {
                 Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)
             }
-            Text(formatPrValue(medal), style = LogEzMono.dataLarge)
+            Text(formatPrValue(medal, weightUnit), style = LogEzMono.dataLarge)
         }
     }
 }
@@ -246,7 +247,7 @@ private fun PrMedalCard(medal: PrMedal) {
 /** Whole numbers stay whole ("8"); fractional averages keep one honest decimal ("6.5"). */
 private fun formatAvgReps(value: Double): String = formatSummaryNumber(value)
 
-private fun formatVolume(kg: Double): String = formatSummaryVolume(kg)
+private fun formatVolume(kg: Double, unit: WeightUnit): String = formatSummaryVolume(kg, unit)
 
 private fun formatDistance(meters: Double): String = formatSummaryDistance(meters)
 
@@ -264,13 +265,13 @@ private fun formatChartElapsed(totalSeconds: Long): String {
 }
 
 /** Reps-based records are whole numbers; time is m:ss; everything else carries a unit. */
-private fun formatPrValue(medal: PrMedal): String = when (medal.prType) {
+private fun formatPrValue(medal: PrMedal, unit: WeightUnit): String = when (medal.prType) {
     com.enil.logez.core.domain.model.PrType.MOST_REPS_SET,
     com.enil.logez.core.domain.model.PrType.MOST_SESSION_REPS,
     -> medal.value.toInt().toString()
     com.enil.logez.core.domain.model.PrType.BEST_TIME,
     com.enil.logez.core.domain.model.PrType.LONGEST_TIME,
-    -> "%d:%02d".format(medal.value.toInt() / 60, medal.value.toInt() % 60)
+    -> "%d:%02d".format(java.util.Locale.ROOT, medal.value.toInt() / 60, medal.value.toInt() % 60)
     com.enil.logez.core.domain.model.PrType.LONGEST_DISTANCE -> "${formatSummaryNumber(medal.value)}m"
-    else -> formatVolume(medal.value)
+    else -> formatVolume(medal.value, unit)
 }

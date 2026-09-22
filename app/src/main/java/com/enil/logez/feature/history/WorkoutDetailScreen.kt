@@ -67,7 +67,9 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
+import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStructure
@@ -201,7 +203,7 @@ fun WorkoutDetailScreen(
                         DetailStatCell(stringResource(R.string.summary_duration), formatDetailDuration(uiState.durationSeconds))
                         // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise
                         // next to its real distance, so the cell is gated on whether it was tracked.
-                        if (uiState.hasVolume) DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg))
+                        if (uiState.hasVolume) DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg, uiState.weightUnit))
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
                         if (uiState.hasDistance) DetailStatCell(stringResource(R.string.summary_distance), formatDetailDistance(uiState.distanceMeters))
                         if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
@@ -221,11 +223,11 @@ fun WorkoutDetailScreen(
             if (isCircuit) {
                 // M11: round-grouped record — mirrors the circuit logger's view of the same rows.
                 items(items = detailRounds, key = { it.roundNumber }) { round ->
-                    DetailRoundCard(round, onExerciseClick)
+                    DetailRoundCard(round, uiState.weightUnit, onExerciseClick)
                 }
             } else {
                 items(items = uiState.exerciseBlocks, key = { it.workoutExercise.id }) { block ->
-                    ExerciseBlockCard(block, onExerciseClick)
+                    ExerciseBlockCard(block, uiState.weightUnit, onExerciseClick)
                 }
             }
         }
@@ -323,7 +325,7 @@ private fun buildDetailRounds(blocks: List<DetailExerciseBlock>): List<DetailRou
 }
 
 @Composable
-private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Unit) {
+private fun DetailRoundCard(round: DetailRound, weightUnit: WeightUnit, onExerciseClick: (String) -> Unit) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -346,7 +348,7 @@ private fun DetailRoundCard(round: DetailRound, onExerciseClick: (String) -> Uni
                     // Defensive slot: no surviving row for this exercise in this round.
                     Text("—", style = LogEzMono.dataMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    DetailSetRowView(round.roundNumber, set, exercise?.exerciseType, positionLabel = false)
+                    DetailSetRowView(round.roundNumber, set, exercise?.exerciseType, weightUnit, positionLabel = false)
                 }
             }
         }
@@ -369,7 +371,7 @@ private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
 }
 
 @Composable
-private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (String) -> Unit) {
+private fun ExerciseBlockCard(block: DetailExerciseBlock, weightUnit: WeightUnit, onExerciseClick: (String) -> Unit) {
     val supersetColor = block.workoutExercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
@@ -393,7 +395,7 @@ private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (Stri
                     )
                 }
                 block.sets.forEachIndexed { index, set ->
-                    DetailSetRowView(index + 1, set, block.exercise?.exerciseType)
+                    DetailSetRowView(index + 1, set, block.exercise?.exerciseType, weightUnit)
                 }
             }
         }
@@ -401,7 +403,7 @@ private fun ExerciseBlockCard(block: DetailExerciseBlock, onExerciseClick: (Stri
 }
 
 @Composable
-private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, positionLabel: Boolean = true) {
+private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, weightUnit: WeightUnit, positionLabel: Boolean = true) {
     val (badgeLabel, badgeColor) = when (set.setType) {
         SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
         SetType.WARMUP -> "W" to Warning500
@@ -421,7 +423,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
             }
         }
         Text(
-            formatDetailSetValue(position, set, exerciseType, positionLabel),
+            formatDetailSetValue(position, set, exerciseType, weightUnit, positionLabel),
             style = LogEzMono.dataMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = Spacing.sm).weight(1f),
@@ -437,12 +439,12 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
     }
 }
 
-private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, positionLabel: Boolean = true): String {
+private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, weightUnit: WeightUnit, positionLabel: Boolean = true): String {
     if (!set.isCompleted) return "—"
     val parts = mutableListOf<String>()
     when (exerciseType) {
         ExerciseType.WEIGHT_REPS, ExerciseType.BODYWEIGHT_WEIGHTED, ExerciseType.BODYWEIGHT_ASSISTED -> {
-            set.weightKg?.let { parts.add("${formatDetailNum(it)}kg") }
+            set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
             set.reps?.let { parts.add("$it reps") }
         }
         ExerciseType.REPS_ONLY -> set.reps?.let { parts.add("$it reps") }
@@ -451,7 +453,7 @@ private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType:
             set.customMetric?.let { parts.add(formatDetailNum(it)) }
         }
         ExerciseType.WEIGHT_DURATION -> {
-            set.weightKg?.let { parts.add("${formatDetailNum(it)}kg") }
+            set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
             set.durationSeconds?.let { parts.add(formatDetailMmSs(it)) }
         }
         ExerciseType.DISTANCE_DURATION -> {
@@ -459,7 +461,7 @@ private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType:
             set.durationSeconds?.let { parts.add(formatDetailMmSs(it)) }
         }
         ExerciseType.WEIGHT_DISTANCE -> {
-            set.weightKg?.let { parts.add("${formatDetailNum(it)}kg") }
+            set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
             set.distanceMeters?.let { parts.add("${formatDetailNum(it)}m") }
         }
         null -> Unit
@@ -481,6 +483,6 @@ private fun formatDetailDuration(totalSeconds: Int): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-private fun formatDetailVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
+private fun formatDetailVolume(kg: Double, unit: WeightUnit): String = formatWeight(kg, unit)
 
 private fun formatDetailDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)

@@ -1,5 +1,7 @@
 package com.enil.logez.core.designsystem
 
+import com.enil.logez.core.domain.calc.WeightDisplay
+import com.enil.logez.core.domain.model.WeightUnit
 import java.util.Locale
 
 /**
@@ -26,7 +28,7 @@ object Formatting {
      * Examples: `152.0` → `"152kg"`, `152.5` → `"152.5kg"`
      */
     fun weightKg(kg: Double): String =
-        if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(kg)
+        if (kg == kg.toLong().toDouble()) "${kg.toLong()}kg" else "%.1fkg".format(Locale.ROOT, kg)
 
     /**
      * Formats a weight in kg with the "kg" suffix — identical to [weightKg].
@@ -35,11 +37,20 @@ object Formatting {
     fun weightKgShort(kg: Double): String = weightKg(kg)
 
     /**
+     * A weight in the user's display unit, suffixed. Storage is always kg; this is where a stored
+     * figure becomes text a user reads. A "kg" suffix on a value shown to a pounds user was a 2.2x
+     * discrepancy that read as a wrong total — worst in the logger, where the set cells already
+     * showed pounds two rows below a header still in kilograms.
+     */
+    fun weight(kg: Double, unit: WeightUnit): String =
+        WeightDisplay.format(WeightDisplay.toDisplay(kg, unit)) + if (unit == WeightUnit.KG) "kg" else "lb"
+
+    /**
      * Formats total seconds as `M:SS` (e.g., `90` → `"1:30"`, `0` → `"0:00"`).
      * Used for rest timers, duration displays, and time cells.
      */
     fun mmSs(totalSeconds: Int): String =
-        "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+        "%d:%02d".format(Locale.ROOT, totalSeconds / 60, totalSeconds % 60)
 
     /**
      * Formats a distance in meters as kilometers with a "km" suffix, `Locale.ROOT`-safe (unlike
@@ -61,6 +72,7 @@ object Formatting {
 fun formatTargetNumber(value: Double): String = Formatting.wholeOrOneDecimal(value)
 fun formatWeightKg(kg: Double): String = Formatting.weightKg(kg)
 fun formatWeightKgShort(kg: Double): String = Formatting.weightKgShort(kg)
+fun formatWeight(kg: Double, unit: WeightUnit): String = Formatting.weight(kg, unit)
 fun formatMmSs(totalSeconds: Int): String = Formatting.mmSs(totalSeconds)
 fun formatDistanceKm(meters: Double): String = Formatting.distanceKm(meters)
 fun formatPace(secondsPerUnit: Double): String = Formatting.pace(secondsPerUnit)

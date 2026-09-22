@@ -58,6 +58,7 @@ import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
@@ -65,6 +66,7 @@ import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.workout.finish.labelRes
 import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
@@ -194,7 +196,7 @@ fun ExerciseDetailScreen(
                         onRangeSelected = viewModel::selectRange,
                         onMetricSelected = viewModel::selectMetric,
                     )
-                    DetailTab.HISTORY -> HistoryTab(entries = uiState.history)
+                    DetailTab.HISTORY -> HistoryTab(entries = uiState.history, weightUnit = uiState.summary.weightUnit)
                     DetailTab.HOW_TO -> HowToTab(instructions = uiState.exercise?.instructions.orEmpty())
                 }
             }
@@ -435,7 +437,7 @@ private fun ChartMetric.labelRes(): Int = when (this) {
 }
 
 @Composable
-private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
+private fun HistoryTab(entries: List<ExerciseHistoryEntry>, weightUnit: WeightUnit) {
     if (entries.isEmpty()) {
         EmptyState(
             icon = Icons.Filled.BarChart,
@@ -462,7 +464,7 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
                     )
                     session.sets.forEach { set ->
                         Text(
-                            formatHistorySet(set),
+                            formatHistorySet(set, weightUnit),
                             style = LogEzMono.dataMedium,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = Spacing.xxs),
@@ -474,9 +476,9 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>) {
     }
 }
 
-private fun formatHistorySet(entry: ExerciseHistoryEntry): String {
+private fun formatHistorySet(entry: ExerciseHistoryEntry, weightUnit: WeightUnit): String {
     val parts = mutableListOf<String>()
-    entry.weightKg?.let { parts.add("${it}kg") }
+    entry.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
     entry.reps?.let { parts.add("${it} reps") }
     entry.durationSeconds?.let { parts.add("${it}s") }
     entry.distanceMeters?.let { parts.add("${it}m") }

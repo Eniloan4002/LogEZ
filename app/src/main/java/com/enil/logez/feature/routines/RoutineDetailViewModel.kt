@@ -6,11 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.data.entity.RoutineEntity
 import com.enil.logez.core.data.entity.RoutineExerciseEntity
 import com.enil.logez.core.data.entity.RoutineSetEntity
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
+import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.feature.workout.InProgressWorkout
 import com.enil.logez.feature.workout.InProgressWorkoutResolver
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -31,6 +34,8 @@ class RoutineDetailViewModel @Inject constructor(
     private val workoutStarter: WorkoutStarter,
     private val sessionController: WorkoutSessionController,
     private val inProgressWorkoutResolver: InProgressWorkoutResolver,
+    private val sessionDiscarder: SessionDiscarder,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
     /** Which resume path this screen's conflict dialog should take -- see [InProgressWorkoutResolver]. */
     suspend fun inProgressWorkout(): InProgressWorkout? = inProgressWorkoutResolver.resolve()
@@ -44,8 +49,7 @@ class RoutineDetailViewModel @Inject constructor(
     }
 
     suspend fun discardInProgressAndStart(): String {
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
+        sessionDiscarder.discardInProgress()
         val id = workoutStarter.startFromRoutine(routineId)
         sessionController.startSession(id)
         return id
@@ -54,9 +58,10 @@ class RoutineDetailViewModel @Inject constructor(
     val uiState: StateFlow<RoutineDetailUiState> = combine(
         routineRepository.observeRoutineById(routineId),
         routineRepository.observeExercisesForRoutine(routineId),
-        exerciseRepository.observeActive(),
-    ) { routine, routineExercises, exercises -> Triple(routine, routineExercises, exercises) }
-        .map { (routine, routineExercises, exercises) ->
+        combine(exerciseRepository.observeActive(), settingsRepository.settings) { exercises, settings -> exercises to settings.weightUnit },
+    ) { routine, routineExercises, exercisesAndUnit -> Triple(routine, routineExercises, exercisesAndUnit) }
+        .map { (routine, routineExercises, exercisesAndUnit) ->
+            val (exercises, weightUnit) = exercisesAndUnit
             val exerciseById = exercises.associateBy { it.id }
             val rows = routineExercises.sortedBy { it.orderIndex }.map { re ->
                 RoutineDetailExerciseRow(
@@ -65,7 +70,7 @@ class RoutineDetailViewModel @Inject constructor(
                     sets = routineRepository.getSetsForRoutineExercise(re.id).sortedBy { it.orderIndex },
                 )
             }
-            RoutineDetailUiState(isLoading = false, routine = routine, exercises = rows)
+            RoutineDetailUiState(isLoading = false, routine = routine, exercises = rows, weightUnit = weightUnit)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RoutineDetailUiState())
 
@@ -76,6 +81,7 @@ class RoutineDetailViewModel @Inject constructor(
 
 data class RoutineDetailUiState(
     val isLoading: Boolean = true,
+    val weightUnit: WeightUnit = WeightUnit.KG,
     val routine: RoutineEntity? = null,
     val exercises: List<RoutineDetailExerciseRow> = emptyList(),
 )

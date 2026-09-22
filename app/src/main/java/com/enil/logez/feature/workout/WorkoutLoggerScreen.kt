@@ -114,7 +114,9 @@ fun WorkoutLoggerScreen(
     val pickerModeState = remember { mutableStateOf<ExercisePickerMode?>(null) }
     var pickerMode by pickerModeState
     val replaceTargetIdState = remember { mutableStateOf<String?>(null) }
+    val pendingReplaceTargetIdState = remember { mutableStateOf<String?>(null) }
     var replaceTargetId by replaceTargetIdState
+    var pendingReplaceTargetId by pendingReplaceTargetIdState
     var menuExpanded by remember { mutableStateOf(false) }
     var timerMenuExpanded by remember { mutableStateOf(false) }
     val showDiscardConfirmState = remember { mutableStateOf(false) }
@@ -247,7 +249,7 @@ fun WorkoutLoggerScreen(
                         // count, and date/duration become editable rows in the body instead.
                         if (uiState.isEditMode) {
                             Text(
-                                stringResource(R.string.workout_edit_stats, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg)),
+                                stringResource(R.string.workout_edit_stats, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg, uiState.weightUnit)),
                                 style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                                 maxLines = 1,
                             )
@@ -366,6 +368,7 @@ fun WorkoutLoggerScreen(
                         onExerciseClick = onExerciseClick,
                         pickerModeState = pickerModeState,
                         replaceTargetIdState = replaceTargetIdState,
+                        pendingReplaceTargetIdState = pendingReplaceTargetIdState,
                         pendingRemoveRoundIndexState = pendingRemoveRoundIndexState,
                     )
                 } else {
@@ -377,6 +380,7 @@ fun WorkoutLoggerScreen(
                         onExerciseClick = onExerciseClick,
                         pickerModeState = pickerModeState,
                         replaceTargetIdState = replaceTargetIdState,
+                        pendingReplaceTargetIdState = pendingReplaceTargetIdState,
                     )
                 }
             }
@@ -389,6 +393,7 @@ fun WorkoutLoggerScreen(
         workoutCallbacks = workoutCallbacks,
         pickerModeState = pickerModeState,
         replaceTargetIdState = replaceTargetIdState,
+                        pendingReplaceTargetIdState = pendingReplaceTargetIdState,
         onCreateExercise = onCreateExercise,
         plateTargetState = plateTargetState,
         showEditDatePickerState = showEditDatePickerState,
@@ -418,6 +423,7 @@ private fun WorkoutLoggerDialogs(
     workoutCallbacks: WorkoutCallbacks,
     pickerModeState: MutableState<ExercisePickerMode?>,
     replaceTargetIdState: MutableState<String?>,
+    pendingReplaceTargetIdState: MutableState<String?>,
     onCreateExercise: (prefillName: String?) -> Unit,
     plateTargetState: MutableState<PlateTarget?>,
     showEditDatePickerState: MutableState<Boolean>,
@@ -432,6 +438,7 @@ private fun WorkoutLoggerDialogs(
 ) {
     var pickerMode by pickerModeState
     var replaceTargetId by replaceTargetIdState
+    var pendingReplaceTargetId by pendingReplaceTargetIdState
     var plateTarget by plateTargetState
     var showEditDatePicker by showEditDatePickerState
     var showEditIncompleteConfirm by showEditIncompleteConfirmState
@@ -525,6 +532,20 @@ private fun WorkoutLoggerDialogs(
         )
     }
 
+    // Replace uncompletes every set on the exercise — write-through, no undo — and finishing then
+    // purges whatever is still uncompleted. So a replace over logged sets gets the same confirm
+    // Remove Round already has; an exercise with nothing logged goes straight to the picker.
+    pendingReplaceTargetId?.let { targetId ->
+        ConfirmDialog(
+            onDismissRequest = { pendingReplaceTargetId = null },
+            title = stringResource(R.string.workout_replace_confirm_title),
+            body = stringResource(R.string.workout_replace_confirm_body),
+            confirmLabel = stringResource(R.string.workout_replace_confirm_action),
+            onConfirm = { replaceTargetId = targetId; pickerMode = ExercisePickerMode.REPLACE },
+            dismissLabel = stringResource(R.string.action_cancel),
+        )
+    }
+
     if (showDiscardConfirm) {
         ConfirmDialog(
             onDismissRequest = { showDiscardConfirm = false },
@@ -557,10 +578,12 @@ private fun ColumnScope.CircuitWorkoutBody(
     onExerciseClick: (exerciseId: String) -> Unit,
     pickerModeState: MutableState<ExercisePickerMode?>,
     replaceTargetIdState: MutableState<String?>,
+    pendingReplaceTargetIdState: MutableState<String?>,
     pendingRemoveRoundIndexState: MutableState<Int?>,
 ) {
     var pickerMode by pickerModeState
     var replaceTargetId by replaceTargetIdState
+    var pendingReplaceTargetId by pendingReplaceTargetIdState
     var pendingRemoveRoundIndex by pendingRemoveRoundIndexState
     val displayConfig = WorkoutLoggerDisplayConfig(
         rpeTrackingEnabled = uiState.rpeTrackingEnabled,
@@ -586,7 +609,7 @@ private fun ColumnScope.CircuitWorkoutBody(
                 round = round,
                 callbacks = workoutCallbacks,
                 onExerciseClick = onExerciseClick,
-                onOpenReplacePicker = { weId -> replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE },
+                onOpenReplacePicker = { weId -> if (uiState.exercises.hasCompletedSets(weId)) pendingReplaceTargetId = weId else { replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE } },
                 onRemoveRound = {
                     val roundIndex = round.roundNumber - 1
                     if (viewModel.roundHasLoggedValues(roundIndex)) {
@@ -645,9 +668,11 @@ private fun ColumnScope.RegularWorkoutBody(
     onExerciseClick: (exerciseId: String) -> Unit,
     pickerModeState: MutableState<ExercisePickerMode?>,
     replaceTargetIdState: MutableState<String?>,
+    pendingReplaceTargetIdState: MutableState<String?>,
 ) {
     var pickerMode by pickerModeState
     var replaceTargetId by replaceTargetIdState
+    var pendingReplaceTargetId by pendingReplaceTargetIdState
     val displayConfig = WorkoutLoggerDisplayConfig(
         rpeTrackingEnabled = uiState.rpeTrackingEnabled,
         inlineTimerEnabled = uiState.inlineTimerEnabled,
@@ -700,7 +725,7 @@ private fun ColumnScope.RegularWorkoutBody(
                     isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
                     callbacks = workoutCallbacks,
                     onExerciseClick = { onExerciseClick(exercise.exerciseId) },
-                    onOpenReplacePicker = { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE },
+                    onOpenReplacePicker = { if (uiState.exercises.hasCompletedSets(exercise.id)) pendingReplaceTargetId = exercise.id else { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE } },
                     onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
                     inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
                     inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
@@ -791,7 +816,6 @@ private fun formatElapsed(totalSeconds: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
-private fun formatVolume(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKg(kg)
 
 /**
  * §5.1.10's replacement for the live stopwatch: the workout's date and duration, both editable.
@@ -846,4 +870,7 @@ private fun formatEditDate(millis: Long): String =
 private fun formatEditDateTime(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
 
-private fun formatVolumeShort(kg: Double): String = com.enil.logez.core.designsystem.formatWeightKgShort(kg)
+private fun formatVolumeShort(kg: Double, unit: com.enil.logez.core.domain.model.WeightUnit): String = com.enil.logez.core.designsystem.formatWeight(kg, unit)
+
+private fun List<WorkoutExerciseUiModel>.hasCompletedSets(workoutExerciseId: String): Boolean =
+    any { it.id == workoutExerciseId && it.sets.any { s -> s.isCompleted } }

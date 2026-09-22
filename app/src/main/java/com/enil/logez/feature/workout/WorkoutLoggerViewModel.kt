@@ -382,7 +382,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             // simply holds until the Logger (and this collector) is alive again.
             viewModelScope.launch {
                 combine(exercises, sessionController.state.map { it.restExerciseId }.distinctUntilChanged()) { ex, restId -> ex to restId }
-                    .collect { (ex, restId) -> notificationContentBuilder.push(ex, restId) }
+                    .collect { (ex, restId) -> notificationContentBuilder.push(ex, restId, weightUnit.value) }
             }
 
             // Mirrors a notification-driven "Complete set" action (§9.3 — the Service persists to
@@ -802,9 +802,9 @@ class WorkoutLoggerViewModel @Inject constructor(
 
     /**
      * §5.1.9 Replace mode: "completed sets are discarded after confirm — re-attribution is NOT
-     * offered." The confirm dialog itself is deferred (M4a scope trim, noted in the class doc);
-     * the underlying reset (uncomplete every set) is spec-mandated data behavior, not UI polish,
-     * so it's unconditional here regardless of whether a dialog warned the user first.
+     * offered." The confirm lives in WorkoutLoggerScreen and is shown only when the exercise has
+     * completed sets; the underlying reset (uncomplete every set) is spec-mandated data behavior,
+     * not UI polish, so it's unconditional here regardless of whether a dialog warned the user.
      */
     fun replaceExercise(exerciseId: String, newExercise: Exercise) {
         val replacedStartingExercise = exercises.value.firstOrNull()?.id == exerciseId

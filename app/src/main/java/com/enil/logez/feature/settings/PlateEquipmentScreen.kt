@@ -208,6 +208,6 @@ private fun AddWeightDialog(
 
 /** "20 kg", "1.25 kg" — the editor is kg-native (plates are physical kg denominations). */
 private fun formatEquipmentKg(kg: Double): String {
-    val number = if (kg == Math.floor(kg)) kg.toLong().toString() else "%.2f".format(kg).trimEnd('0').trimEnd('.')
+    val number = if (kg == Math.floor(kg)) kg.toLong().toString() else "%.2f".format(java.util.Locale.ROOT, kg).trimEnd('0').trimEnd('.')
     return "$number kg"
 }

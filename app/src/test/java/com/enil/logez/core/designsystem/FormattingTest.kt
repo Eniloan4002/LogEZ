@@ -1,15 +1,46 @@
 package com.enil.logez.core.designsystem
 
+import com.enil.logez.core.domain.model.WeightUnit
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Scoped to [Formatting.distanceKm] only -- the one new formatter this diff added, and the only
- * one with zero direct or indirect coverage (adversarial review, 2026-09-10). The pre-existing
- * [Formatting.weightKg]/[Formatting.mmSs] have a separately-tracked, unfixed locale bug (they
- * format with the default locale, not `Locale.ROOT`) that a passing test here shouldn't paper over.
+ * [Formatting.weightKg] and [Formatting.mmSs] formatted with the default locale until 2026-09-22,
+ * so a comma-decimal device read "12,5kg" and "0:05" became "0:05" only by luck of the format
+ * string. The locale tests below pin the default locale to one that would expose that and
+ * restore it afterwards, so a regression fails here and not on a German phone.
  */
 class FormattingTest {
+    private fun <T> withDefaultLocale(locale: Locale, block: () -> T): T {
+        val previous = Locale.getDefault()
+        Locale.setDefault(locale)
+        return try { block() } finally { Locale.setDefault(previous) }
+    }
+
+    @Test
+    fun `weightKg uses a dot decimal separator whatever the device locale`() {
+        withDefaultLocale(Locale.GERMANY) {
+            assertEquals("12.5kg", Formatting.weightKg(12.5))
+            assertEquals("100kg", Formatting.weightKg(100.0))
+        }
+    }
+
+    @Test
+    fun `mmSs pads seconds independent of the device locale`() {
+        withDefaultLocale(Locale.GERMANY) {
+            assertEquals("1:05", Formatting.mmSs(65))
+            assertEquals("0:00", Formatting.mmSs(0))
+        }
+    }
+
+    @Test
+    fun `weight converts a stored kg figure to the display unit and suffixes it`() {
+        assertEquals("100kg", Formatting.weight(100.0, WeightUnit.KG))
+        assertEquals("220.46lb", Formatting.weight(100.0, WeightUnit.LB))
+        assertEquals("0lb", Formatting.weight(0.0, WeightUnit.LB))
+        assertEquals(Formatting.weight(60.0, WeightUnit.LB), formatWeight(60.0, WeightUnit.LB))
+    }
     @Test
     fun `a whole number of kilometers has no decimal point`() {
         assertEquals("2km", Formatting.distanceKm(2000.0))

@@ -16,6 +16,7 @@ import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ActivityTrackRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -152,6 +153,7 @@ class WorkoutSummaryViewModel @Inject constructor(
 
             _uiState.value = WorkoutSummaryUiState(
                 isLoading = false,
+                weightUnit = settings.weightUnit,
                 title = workout.title,
                 startedAtMillis = workout.startedAt,
                 durationSeconds = workout.durationSeconds,
@@ -197,6 +199,7 @@ data class SummaryExerciseLine(val name: String, val setCount: Int, val avgReps:
 
 data class WorkoutSummaryUiState(
     val isLoading: Boolean = true,
+    val weightUnit: WeightUnit = WeightUnit.KG,
     val title: String = "",
     val startedAtMillis: Long = 0L,
     val durationSeconds: Int = 0,

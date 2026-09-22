@@ -15,10 +15,12 @@ import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.workout.InProgressWorkout
 import com.enil.logez.feature.workout.InProgressWorkoutResolver
+import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
@@ -46,6 +48,7 @@ class WorkoutDetailViewModel @Inject constructor(
     private val sessionController: WorkoutSessionController,
     private val activityTrackRepository: ActivityTrackRepository,
     private val inProgressWorkoutResolver: InProgressWorkoutResolver,
+    private val sessionDiscarder: SessionDiscarder,
 ) : ViewModel() {
     /** Which resume path this screen's conflict dialog should take -- see [InProgressWorkoutResolver]. */
     suspend fun inProgressWorkout(): InProgressWorkout? = inProgressWorkoutResolver.resolve()
@@ -74,7 +77,8 @@ class WorkoutDetailViewModel @Inject constructor(
             return
         }
 
-        val includeWarmups = settingsRepository.settings.first().includeWarmupsInStats
+        val settings = settingsRepository.settings.first()
+        val includeWarmups = settings.includeWarmupsInStats
         val routineName = workout.routineId?.let { routineRepository.getRoutineById(it)?.name }
 
         val workoutExercises = workoutRepository.getExercisesForWorkout(workoutId).sortedBy { it.orderIndex }
@@ -138,6 +142,7 @@ class WorkoutDetailViewModel @Inject constructor(
             workout = workout,
             routineName = routineName,
             durationSeconds = workout.durationSeconds,
+            weightUnit = settings.weightUnit,
             volumeKg = volumeKg,
             // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise next to
             // its real distance, so the cell is gated on whether it was actually tracked (same
@@ -172,8 +177,7 @@ class WorkoutDetailViewModel @Inject constructor(
     }
 
     suspend fun discardInProgressAndStartCopy(): String {
-        workoutStarter.discardInProgress()
-        sessionController.endSession()
+        sessionDiscarder.discardInProgress()
         val id = workoutStarter.startFromWorkout(workoutId)
         sessionController.startSession(id)
         return id
@@ -197,6 +201,7 @@ class WorkoutDetailViewModel @Inject constructor(
 
 data class WorkoutDetailUiState(
     val isLoading: Boolean = true,
+    val weightUnit: WeightUnit = WeightUnit.KG,
     val isMissing: Boolean = false,
     val workout: WorkoutEntity? = null,
     val routineName: String? = null,

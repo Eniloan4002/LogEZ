@@ -343,6 +343,9 @@
     <!-- M18 §5.1.6: exercise-card overflow item that inserts the warm-up ladder. -->
     <string name="workout_add_warmup_sets">Add warm-up sets</string>
     <string name="workout_add_round">+ Add Round</string>
+    <string name="workout_replace_confirm_title">Replace this exercise?</string>
+    <string name="workout_replace_confirm_body">Its completed sets will be marked incomplete, and any still incomplete when you finish are removed. This can\'t be undone.</string>
+    <string name="workout_replace_confirm_action">Replace</string>
     <string name="workout_remove_round">Remove Round</string>
     <string name="workout_remove_round_title">Remove round %1$d?</string>
     <string name="workout_remove_round_body">This can\'t be undone — anything logged in this round is deleted from every exercise.</string>
