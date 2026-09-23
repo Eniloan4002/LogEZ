@@ -1,6 +1,8 @@
 package com.enil.logez.core.designsystem
 
+import com.enil.logez.core.domain.calc.DistanceDisplay
 import com.enil.logez.core.domain.calc.WeightDisplay
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import java.util.Locale
 
@@ -92,6 +94,19 @@ object Formatting {
         return if (km == km.toLong().toDouble()) "${km.toLong()}km" else "%.2fkm".format(Locale.ROOT, km)
     }
 
+    /**
+     * A distance in the user's display unit, suffixed -- [distanceKm]'s shape, unit-aware. Storage
+     * is always meters; this is where a stored figure becomes text a user reads. Every
+     * distance surface off the live tracking screen (History card, workout detail, Finish summary)
+     * used to render km for a miles user while the pace right next to it said "/mi" (adversarial
+     * review, 2026-09-23) -- the same 2.2x-style discrepancy [weight] closed for kg/lb the day before.
+     */
+    fun distance(meters: Double, unit: DistanceUnit): String {
+        val display = DistanceDisplay.toDisplay(meters, unit)
+        val suffix = if (unit == DistanceUnit.KM) "km" else "mi"
+        return if (display == display.toLong().toDouble()) "${display.toLong()}$suffix" else "%.2f$suffix".format(Locale.ROOT, display)
+    }
+
     /** `M:SS` per km/mile from [PaceCalculator.paceSecondsPerUnit] -- reuses [mmSs]'s exact shape. */
     fun pace(secondsPerUnit: Double): String = mmSs(secondsPerUnit.toLong().toInt())
 }
@@ -104,4 +119,5 @@ fun formatWeightKgShort(kg: Double): String = Formatting.weightKgShort(kg)
 fun formatWeight(kg: Double, unit: WeightUnit): String = Formatting.weight(kg, unit)
 fun formatMmSs(totalSeconds: Int): String = Formatting.mmSs(totalSeconds)
 fun formatDistanceKm(meters: Double): String = Formatting.distanceKm(meters)
+fun formatDistance(meters: Double, unit: DistanceUnit): String = Formatting.distance(meters, unit)
 fun formatPace(secondsPerUnit: Double): String = Formatting.pace(secondsPerUnit)

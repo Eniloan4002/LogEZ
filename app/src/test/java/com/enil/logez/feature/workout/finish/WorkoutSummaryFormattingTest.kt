@@ -1,5 +1,6 @@
 package com.enil.logez.feature.workout.finish
 
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -13,7 +14,9 @@ class WorkoutSummaryFormattingTest {
 
     @Test fun `summary units use the same two-decimal rule`() {
         assertEquals("1234.57kg", formatSummaryVolume(1234.567, WeightUnit.KG))
-        assertEquals("2.35km", formatSummaryDistance(2345.0))
+        assertEquals("2.35km", formatSummaryDistance(2345.0, DistanceUnit.KM))
+        // 1609.344m is exactly one mile; a miles user reads "1mi" here, not "1.61km".
+        assertEquals("1mi", formatSummaryDistance(1609.344, DistanceUnit.MILES))
     }
 
     @Test fun `summary volume converts to pounds for a pounds user`() {

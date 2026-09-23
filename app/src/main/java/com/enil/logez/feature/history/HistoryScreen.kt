@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.em
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.CircuitChip
@@ -88,14 +89,14 @@ fun HistoryScreen(
 
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.md)) {
             items(items = uiState.cards, key = { it.workoutId }) { card ->
-                WorkoutHistoryCard(card, weightUnit = uiState.weightUnit, onClick = { onWorkoutClick(card.workoutId) })
+                WorkoutHistoryCard(card, weightUnit = uiState.weightUnit, distanceUnit = uiState.distanceUnit, onClick = { onWorkoutClick(card.workoutId) })
             }
         }
     }
 }
 
 @Composable
-private fun WorkoutHistoryCard(card: WorkoutCardModel, weightUnit: WeightUnit, onClick: () -> Unit) {
+private fun WorkoutHistoryCard(card: WorkoutCardModel, weightUnit: WeightUnit, distanceUnit: DistanceUnit, onClick: () -> Unit) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm).clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +131,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, weightUnit: WeightUnit, o
                 // its real distance, so the cell is gated on whether it was actually tracked.
                 if (card.hasVolume) StatCell(label = stringResource(R.string.summary_volume), value = formatCardVolume(card.volumeKg, weightUnit), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
                 StatCell(label = stringResource(R.string.summary_sets), value = card.setCount.toString(), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
-                if (card.hasDistance) StatCell(label = stringResource(R.string.summary_distance), value = formatCardDistance(card.distanceMeters), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
+                if (card.hasDistance) StatCell(label = stringResource(R.string.summary_distance), value = formatCardDistance(card.distanceMeters, distanceUnit), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
                 // M11: circuit cards report their round count alongside the shared stats.
                 if (card.structure == WorkoutStructure.CIRCUIT) {
                     StatCell(label = stringResource(R.string.routine_rounds_label), value = card.rounds.toString(), valueColor = MaterialTheme.colorScheme.onSurface, labelColor = MaterialTheme.colorScheme.onSurface)
@@ -199,4 +200,4 @@ private fun formatCardDuration(totalSeconds: Int): String {
 
 private fun formatCardVolume(kg: Double, unit: WeightUnit): String = com.enil.logez.core.designsystem.formatWeight(kg, unit)
 
-private fun formatCardDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)
+private fun formatCardDistance(meters: Double, unit: DistanceUnit): String = com.enil.logez.core.designsystem.formatDistance(meters, unit)

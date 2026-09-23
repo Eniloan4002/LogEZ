@@ -1,6 +1,8 @@
 package com.enil.logez.feature.workout.finish
 
+import com.enil.logez.core.domain.calc.DistanceDisplay
 import com.enil.logez.core.domain.calc.WeightDisplay
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import java.math.RoundingMode
 import java.text.DecimalFormat
@@ -16,4 +18,5 @@ internal fun formatSummaryNumber(value: Double): String = DecimalFormat(
 internal fun formatSummaryVolume(kg: Double, unit: WeightUnit): String =
     formatSummaryNumber(WeightDisplay.toDisplay(kg, unit)) + if (unit == WeightUnit.KG) "kg" else "lb"
 
-internal fun formatSummaryDistance(meters: Double): String = "${formatSummaryNumber(meters / 1_000.0)}km"
+internal fun formatSummaryDistance(meters: Double, unit: DistanceUnit): String =
+    formatSummaryNumber(DistanceDisplay.toDisplay(meters, unit)) + if (unit == DistanceUnit.KM) "km" else "mi"

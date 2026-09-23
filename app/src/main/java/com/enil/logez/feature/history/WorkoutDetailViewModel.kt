@@ -15,6 +15,7 @@ import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -143,6 +144,7 @@ class WorkoutDetailViewModel @Inject constructor(
             routineName = routineName,
             durationSeconds = workout.durationSeconds,
             weightUnit = settings.weightUnit,
+            distanceUnit = settings.distanceUnit,
             volumeKg = volumeKg,
             // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise next to
             // its real distance, so the cell is gated on whether it was actually tracked (same
@@ -202,6 +204,7 @@ class WorkoutDetailViewModel @Inject constructor(
 data class WorkoutDetailUiState(
     val isLoading: Boolean = true,
     val weightUnit: WeightUnit = WeightUnit.KG,
+    val distanceUnit: DistanceUnit = DistanceUnit.KM,
     val isMissing: Boolean = false,
     val workout: WorkoutEntity? = null,
     val routineName: String? = null,

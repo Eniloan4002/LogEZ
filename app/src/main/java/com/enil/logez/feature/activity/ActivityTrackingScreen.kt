@@ -2,6 +2,7 @@ package com.enil.logez.feature.activity
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,16 +40,21 @@ import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzCard
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.formatMmSs
 import com.enil.logez.core.designsystem.formatPace
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.domain.calc.DistanceDisplay
 import com.enil.logez.core.domain.calc.HeartRateZone
 import com.enil.logez.core.domain.calc.HeartRateZoneCalculator
 import com.enil.logez.core.domain.calc.PaceCalculator
 import com.enil.logez.core.domain.model.DistanceUnit
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.enil.logez.core.wellness.HeartRateSample
 import com.enil.logez.feature.activity.map.MapTilerView
 import java.time.Instant
@@ -99,7 +105,6 @@ fun ActivityTrackingScreen(
     val paceChartPoints = state.distanceHistory.zipWithNext { (t1, d1), (t2, d2) ->
         PaceCalculator.windowedPaceSecondsPerUnit(d2 - d1, ((t2 - t1) / 1000).toInt(), settings.distanceUnit)?.let { LineChartPoint(x = t2, y = it) }
     }.filterNotNull()
-    val showVitalsCard = liveBpm != null || heartRateChartPoints.isNotEmpty() || paceChartPoints.isNotEmpty()
     // Keyed on the point list, not a bare `remember {}`: liveHeartRateHistoryFlow re-queries the
     // whole window every poll specifically so a delayed Health Connect sync can backfill an
     // earlier sample into the middle of the list, which shifts every later sample's index -- the
@@ -140,49 +145,6 @@ fun ActivityTrackingScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Timer, distance and pace share one row (Owner request, 2026-09-11 extended
-            // 2026-09-12 with pace) rather than stacking above/below the map -- each stat is its
-            // own centered column so the row reads the same as a two- or three-up stat card.
-            // Pace's own column is omitted entirely, not shown as "--:--", before enough distance
-            // has accumulated to mean anything (PaceCalculator.MIN_METERS_FOR_PACE) -- same
-            // honest-absence rule the BPM/zone row below already followed.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(formatElapsed(elapsedSeconds), style = MaterialTheme.typography.displayMedium)
-                    Text(
-                        stringResource(R.string.activity_tracking_elapsed_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        stringResource(R.string.activity_tracking_distance_value, formatKm(state.distanceMeters)),
-                        style = MaterialTheme.typography.displayMedium,
-                    )
-                    Text(
-                        stringResource(R.string.activity_tracking_distance_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (paceSecondsPerUnit != null) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(formatPace(paceSecondsPerUnit), style = MaterialTheme.typography.displayMedium)
-                        Text(
-                            stringResource(
-                                if (settings.distanceUnit == DistanceUnit.MILES) R.string.activity_tracking_pace_label_mi else R.string.activity_tracking_pace_label_km,
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
             // M21c: the real offline map, camera following the newest GPS fix as it arrives --
             // upgraded from the framework-free Canvas sketch (RouteSketchGeometry) once that spike
             // proved the concept, per the Owner's explicit choice (P-125/decisions.md 2026-09-10).
@@ -200,106 +162,178 @@ fun ActivityTrackingScreen(
             // (adversarial review, 2026-09-22). Giving the map a fixed, non-scrolling slot and the
             // card below it its own independent scroll region keeps both gestures unambiguous: a
             // drag on the map always pans the map, a drag on the card always scrolls the card.
-            Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = Spacing.lg)) {
+            // BoxWithConstraints, not a fixed 280dp: everything else in this column is fixed-size
+            // (app bar, stat row, buttons, paddings -- ~560dp together), so on a 640dp-tall budget
+            // phone or in landscape a fixed map left the weighted card below it a hairline sliver
+            // (adversarial review, 2026-09-23). The map takes up to 280dp but never more than
+            // 45% of the space actually available to this block, so the card always keeps the
+            // majority of what's left.
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                val mapHeight = minOf(280.dp, maxHeight * 0.45f)
+                Column(modifier = Modifier.fillMaxSize()) {
                 MapTilerView(
                     routePoints = state.routePoints,
                     followLatest = true,
-                    modifier = Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(Radius.sm)),
+                    modifier = Modifier.fillMaxWidth().height(mapHeight).clip(RoundedCornerShape(Radius.sm)),
                 )
 
-                // BPM, its live zone, and their two historical charts, all one card below the map,
-                // scrolling within its own bounded space rather than sharing the map's ancestor --
-                // see the comment above. Omitted entirely (not shown empty/dashed), same graceful-
-                // degrade rule as the Profile wellness card and the Logger's HeartRateChip,
-                // whenever there's genuinely nothing yet to show (Health Connect has no BPM and
-                // not enough distance/time has passed for either chart to have a point).
-                if (showVitalsCard) {
-                    LogEzCard(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = Spacing.lg)) {
-                        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(Spacing.md)) {
-                            Text(stringResource(R.string.activity_tracking_vitals_header), style = MaterialTheme.typography.titleMedium)
+                // Timer, distance and pace share one row (Owner request, 2026-09-11, extended
+                // 2026-09-12 with pace), moved from above the map to directly below it on
+                // 2026-09-23 (Owner request). Same session: the three used to be free-width
+                // `displayMedium` columns under `SpaceEvenly`, and at that size the figures ran
+                // into each other ("1:250.06 km23:38"); each is now an equal-width StatCell at
+                // the recap screen's `dataLarge`, the same three-up shape the Finish summary uses.
+                // Pace reads "—" rather than disappearing before enough distance has accumulated
+                // (PaceCalculator.MIN_METERS_FOR_PACE), so the row never reflows mid-run. The
+                // unit lives in the Distance *label* ("Distance (km)"), like Pace's "/km": a cell
+                // is only 96dp on a 360dp phone, and "10.00 km" at dataLarge is exactly 96dp --
+                // it wrapped at any larger system font size and reflowed the card below.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    LiveStat(
+                        value = formatElapsed(elapsedSeconds),
+                        label = stringResource(R.string.activity_tracking_elapsed_label),
+                        modifier = Modifier.weight(1f),
+                    )
+                    LiveStat(
+                        value = formatDistanceNumber(state.distanceMeters, settings.distanceUnit),
+                        label = stringResource(
+                            if (settings.distanceUnit == DistanceUnit.MILES) R.string.activity_tracking_distance_label_mi else R.string.activity_tracking_distance_label_km,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    LiveStat(
+                        value = paceSecondsPerUnit?.let(::formatPace) ?: PLACEHOLDER,
+                        label = stringResource(
+                            if (settings.distanceUnit == DistanceUnit.MILES) R.string.activity_tracking_pace_label_mi else R.string.activity_tracking_pace_label_km,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
 
-                            // The zone label needs its own further condition -- a max heart rate
-                            // set in Settings -- so BPM alone (no zone) is a real, common state
-                            // too, not a bug.
-                            if (liveBpm != null) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            stringResource(R.string.workout_bpm_value, liveBpm!!.bpm),
-                                            style = MaterialTheme.typography.displayMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
-                                        Text(
-                                            stringResource(R.string.activity_tracking_bpm_label),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        // Owner-reported 2026-09-12: a wearable's readings reach
-                                        // Health Connect through a multi-hop sync (watch -> its
-                                        // companion app -> Health Connect), not in real time, so
-                                        // this can genuinely be several minutes old even while the
-                                        // watch face itself shows something fresher. Labeling it
-                                        // honestly beats implying live-instant accuracy it can't
-                                        // actually guarantee.
-                                        Text(
-                                            stringResource(R.string.activity_tracking_bpm_as_of, formatClockTime(liveBpm!!.time)),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    if (heartRateZone != null) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                stringResource(R.string.activity_tracking_zone_value, heartRateZone.number),
-                                                style = MaterialTheme.typography.displayMedium,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
-                                            Text(
-                                                heartRateZoneLabel(heartRateZone),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
+                // BPM, its live zone, and their two historical charts, all one card below the
+                // stats, scrolling within its own bounded space rather than sharing the map's
+                // ancestor -- see the comment above. Every section is always present (Owner
+                // request, 2026-09-23): this screen used to follow the app-wide honest-absence rule
+                // (omit a stat with no data rather than show a dash), which here meant the whole
+                // heart-rate half of the card was invisible until a watch was connected -- so a
+                // user couldn't tell the feature existed. Each section instead shows a placeholder
+                // that says what it's waiting on.
+                LogEzCard(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = Spacing.md)) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(Spacing.md)) {
+                        Text(stringResource(R.string.activity_tracking_vitals_header), style = MaterialTheme.typography.titleMedium)
+
+                        // The zone needs its own further condition -- a max heart rate set in
+                        // Settings -- so BPM alone (no zone) is a real, common state too, not a bug.
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            // dataLarge, not displayMedium (45sp): each of these two columns is half
+                            // a card, ~134dp on a 360dp phone, and "165 bpm" at 45sp is ~175dp --
+                            // it wrapped to "165" / "bpm" on every common phone and left the two
+                            // columns different heights (adversarial review, 2026-09-23).
+                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                // A display-sized em dash in the brand green reads as a solid bar,
+                                // not an empty slot -- the placeholder takes the muted label color.
+                                Text(
+                                    liveBpm?.let { stringResource(R.string.workout_bpm_value, it.bpm) } ?: PLACEHOLDER,
+                                    style = LogEzMono.dataLarge,
+                                    color = if (liveBpm != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    stringResource(R.string.activity_tracking_bpm_label),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                // Owner-reported 2026-09-12: a wearable's readings reach Health
+                                // Connect through a multi-hop sync (watch -> its companion app ->
+                                // Health Connect), not in real time, so this can genuinely be
+                                // several minutes old even while the watch face itself shows
+                                // something fresher. Labeling it honestly beats implying
+                                // live-instant accuracy it can't actually guarantee.
+                                if (liveBpm != null) {
+                                    Text(
+                                        stringResource(R.string.activity_tracking_bpm_as_of, formatClockTime(liveBpm!!.time)),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
-
-                            if (heartRateChartPoints.isNotEmpty()) {
+                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    stringResource(R.string.activity_tracking_heart_rate_chart_header),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(top = Spacing.md),
+                                    heartRateZone?.let { stringResource(R.string.activity_tracking_zone_value, it.number) } ?: PLACEHOLDER,
+                                    style = LogEzMono.dataLarge,
+                                    color = if (heartRateZone != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
-                                LineChart(
-                                    points = heartRateChartPoints,
-                                    yLabel = { "${it.toInt()}" },
-                                    xLabel = ::elapsedLabel,
-                                    selectedIndex = selectedHrIndex,
-                                    onPointTap = { selectedHrIndex = it },
-                                    modifier = Modifier.padding(top = Spacing.sm),
-                                )
-                            }
-
-                            if (paceChartPoints.isNotEmpty()) {
                                 Text(
-                                    stringResource(R.string.activity_tracking_pace_chart_header),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(top = Spacing.md),
-                                )
-                                LineChart(
-                                    points = paceChartPoints,
-                                    yLabel = { formatPace(it) },
-                                    xLabel = ::elapsedLabel,
-                                    selectedIndex = selectedPaceIndex,
-                                    onPointTap = { selectedPaceIndex = it },
-                                    modifier = Modifier.padding(top = Spacing.sm),
+                                    heartRateZone?.let { heartRateZoneLabel(it) } ?: stringResource(R.string.activity_tracking_zone_label),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
+                        // Two different "no number" states: liveBpm only looks back 5 minutes
+                        // (HealthMetricsSource.readLatestHeartRate's window) while the chart
+                        // covers the whole session, and a watch's sync gap routinely exceeds
+                        // that window -- so "connect a watch" above a populated chart would be
+                        // wrong; that case says the reading is late instead (adversarial review,
+                        // 2026-09-23).
+                        if (liveBpm == null) {
+                            Text(
+                                stringResource(
+                                    if (heartRateChartPoints.isEmpty()) R.string.activity_tracking_heart_rate_empty else R.string.activity_tracking_heart_rate_stale,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+                            )
+                        }
+
+                        Text(
+                            stringResource(R.string.activity_tracking_heart_rate_chart_header),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = Spacing.md),
+                        )
+                        if (heartRateChartPoints.isNotEmpty()) {
+                            LineChart(
+                                points = heartRateChartPoints,
+                                yLabel = { "${it.toInt()}" },
+                                xLabel = ::elapsedLabel,
+                                selectedIndex = selectedHrIndex,
+                                onPointTap = { selectedHrIndex = it },
+                                modifier = Modifier.padding(top = Spacing.sm),
+                            )
+                        } else {
+                            ChartPlaceholder(stringResource(R.string.activity_tracking_heart_rate_chart_empty))
+                        }
+
+                        Text(
+                            stringResource(R.string.activity_tracking_pace_chart_header),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = Spacing.md),
+                        )
+                        if (paceChartPoints.isNotEmpty()) {
+                            LineChart(
+                                points = paceChartPoints,
+                                yLabel = { formatPace(it) },
+                                xLabel = ::elapsedLabel,
+                                selectedIndex = selectedPaceIndex,
+                                onPointTap = { selectedPaceIndex = it },
+                                modifier = Modifier.padding(top = Spacing.sm),
+                            )
+                        } else {
+                            ChartPlaceholder(stringResource(R.string.activity_tracking_pace_chart_empty))
+                        }
                     }
+                }
                 }
             }
 
@@ -347,11 +381,47 @@ private fun formatElapsed(totalSeconds: Int): String {
     return if (h > 0) "%d:%02d:%02d".format(Locale.ROOT, h, m, s) else "%d:%02d".format(Locale.ROOT, m, s)
 }
 
+/** What a stat reads while it has nothing to show yet -- the same dash every other stat surface uses. */
+private const val PLACEHOLDER = "—"
+
+/** One cell of the three-up live stat row: the recap screen's StatCell shape, centered. */
+@Composable
+private fun LiveStat(value: String, label: String, modifier: Modifier = Modifier) {
+    StatCell(
+        value = value,
+        label = label,
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        valueStyle = LogEzMono.dataLarge,
+        valueTextAlign = TextAlign.Center,
+        // A numeric run has no break opportunity, so an over-wide "1:02:30" at a large system
+        // font would otherwise be emergency-broken mid-number onto a second line.
+        valueMaxLines = 1,
+        valueOverflow = TextOverflow.Ellipsis,
+        labelStyle = MaterialTheme.typography.bodyMedium,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        labelTextAlign = TextAlign.Center,
+    )
+}
+
+@Composable
+private fun ChartPlaceholder(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs, bottom = Spacing.xs),
+    )
+}
+
 // Locale.ROOT: the default-locale overload renders "1,20" on comma-decimal devices. Returns just
-// the number -- the "km" unit lives in R.string.activity_tracking_distance_value, not hardcoded here.
-private fun formatKm(distanceMeters: Double): String {
-    val km = distanceMeters / 1000.0
-    return "%.2f".format(Locale.ROOT, (km * 100).roundToInt() / 100.0)
+// the number in the user's distance unit -- the "km"/"mi" lives in the cell's label, not here.
+// Always two decimals while it ticks ("0.00", then "0.05"), matching the walk/run hundredths
+// convention (Owner request, 2026-09-23); the recap's trimmed "0.##" would read as a jumpy
+// "0" -> "0.1" -> "0.15" here.
+private fun formatDistanceNumber(distanceMeters: Double, unit: DistanceUnit): String {
+    val display = DistanceDisplay.toDisplay(distanceMeters, unit)
+    return "%.2f".format(Locale.ROOT, (display * 100).roundToInt() / 100.0)
 }
 
 /** "7:44 PM" -- same `h:mm a` clock-time convention `HistoryScreen.formatCardDateTime` uses for its own time-of-day portion. */

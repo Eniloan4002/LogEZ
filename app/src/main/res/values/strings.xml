@@ -241,8 +241,13 @@
     <string name="activity_tracking_location_rationale_allow">Allow</string>
     <string name="activity_tracking_location_denied">Location permission is needed to track a run or walk.</string>
     <string name="activity_tracking_screen_title">Tracking</string>
-    <string name="activity_tracking_distance_label">Distance</string>
-    <string name="activity_tracking_distance_value">%1$s km</string>
+    <string name="activity_tracking_distance_label_km">Distance (km)</string>
+    <string name="activity_tracking_distance_label_mi">Distance (mi)</string>
+    <string name="activity_tracking_zone_label">Zone</string>
+    <string name="activity_tracking_heart_rate_empty">No heart rate yet. Connect a watch through Health Connect and readings show up here as they sync.</string>
+    <string name="activity_tracking_heart_rate_stale">No new reading in the last 5 minutes. Your watch is probably still syncing.</string>
+    <string name="activity_tracking_heart_rate_chart_empty">Your heart rate over this session charts here as readings come in.</string>
+    <string name="activity_tracking_pace_chart_empty">Your pace trend charts here once you\'ve covered some distance.</string>
     <string name="activity_tracking_elapsed_label">Time</string>
     <string name="activity_tracking_bpm_label">Heart Rate</string>
     <string name="activity_tracking_bpm_as_of">as of %1$s</string>
@@ -422,6 +427,7 @@
     <!-- M21a: GPS run/walk tracking notification -->
     <string name="activity_tracking_notification_title">Tracking your run/walk</string>
     <string name="activity_tracking_notification_text">%1$s km so far</string>
+    <string name="activity_tracking_notification_text_mi">%1$s mi so far</string>
     <string name="notification_workout_fgs_subtype">Ongoing live workout session: rest-timer countdown and set-logging notification actions</string>
 
     <!-- M4c: finish flow, live PRs, summary -->

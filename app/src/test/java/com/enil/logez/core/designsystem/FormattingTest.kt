@@ -1,5 +1,6 @@
 package com.enil.logez.core.designsystem
 
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -64,6 +65,14 @@ class FormattingTest {
     @Test
     fun `formatDistanceKm the top-level alias delegates to the same result`() {
         assertEquals(Formatting.distanceKm(1234.0), formatDistanceKm(1234.0))
+    }
+
+    @Test
+    fun `distance converts a stored meters figure to the display unit and suffixes it`() {
+        assertEquals("2.35km", Formatting.distance(2350.0, DistanceUnit.KM))
+        assertEquals("1mi", Formatting.distance(1609.344, DistanceUnit.MILES))
+        assertEquals("3.11mi", Formatting.distance(5000.0, DistanceUnit.MILES))
+        assertEquals(Formatting.distance(5000.0, DistanceUnit.MILES), formatDistance(5000.0, DistanceUnit.MILES))
     }
 
     /**

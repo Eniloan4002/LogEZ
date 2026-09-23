@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Gold500
@@ -108,7 +109,7 @@ fun WorkoutSummaryScreen(
                 if (uiState.hasVolume) StatCell(value = formatVolume(uiState.totalVolumeKg, uiState.weightUnit), label = stringResource(R.string.summary_volume), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
                 StatCell(value = uiState.completedSetCount.toString(), label = stringResource(R.string.summary_sets), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
                 if (uiState.hasReps) StatCell(value = uiState.totalReps.toString(), label = stringResource(R.string.summary_reps), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
-                if (uiState.hasDistance) StatCell(value = formatDistance(uiState.totalDistanceMeters), label = stringResource(R.string.summary_distance), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
+                if (uiState.hasDistance) StatCell(value = formatDistance(uiState.totalDistanceMeters, uiState.distanceUnit), label = stringResource(R.string.summary_distance), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
                 StatCell(value = formatDuration(uiState.durationSeconds), label = stringResource(R.string.summary_duration), modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, valueStyle = LogEzMono.dataLarge, labelColor = MaterialTheme.colorScheme.onSurfaceVariant, labelTextAlign = TextAlign.Center)
             }
 
@@ -194,7 +195,7 @@ fun WorkoutSummaryScreen(
                     volumeText = if (uiState.hasVolume) formatVolume(uiState.totalVolumeKg, uiState.weightUnit) else null,
                     setsText = uiState.completedSetCount.toString(),
                     repsText = if (uiState.hasReps) uiState.totalReps.toString() else null,
-                    distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters) else null,
+                    distanceText = if (uiState.hasDistance) formatDistance(uiState.totalDistanceMeters, uiState.distanceUnit) else null,
                     muscleIntensity = uiState.muscleIntensity,
                     muscleDiagramVariant = uiState.muscleDiagramVariant,
                     muscleBalance = uiState.muscleBalance,
@@ -249,7 +250,7 @@ private fun formatAvgReps(value: Double): String = formatSummaryNumber(value)
 
 private fun formatVolume(kg: Double, unit: WeightUnit): String = formatSummaryVolume(kg, unit)
 
-private fun formatDistance(meters: Double): String = formatSummaryDistance(meters)
+private fun formatDistance(meters: Double, unit: DistanceUnit): String = formatSummaryDistance(meters, unit)
 
 private fun formatDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600

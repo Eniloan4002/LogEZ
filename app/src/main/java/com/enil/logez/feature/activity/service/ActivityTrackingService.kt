@@ -12,6 +12,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.enil.logez.MainActivity
 import com.enil.logez.R
+import com.enil.logez.core.domain.calc.DistanceDisplay
+import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingState
 import com.enil.logez.feature.workout.service.WorkoutNotificationChannels
@@ -22,6 +25,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -44,6 +48,14 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class ActivityTrackingService : Service() {
     @Inject lateinit var controller: ActivityTrackingController
+    @Inject lateinit var settingsRepository: SettingsRepository
+
+    // The unit the notification's distance renders in. KM until the settings collector's first
+    // emission lands (the very first onStartCommand notification), then whatever Settings says --
+    // the tracking screen's Distance cell started honouring Settings > Distance unit on
+    // 2026-09-23, and this notification is the other live distance readout for the same run
+    // (adversarial review, same day). Written only from the collector below, on serviceScope.
+    @Volatile private var distanceUnit: DistanceUnit = DistanceUnit.KM
 
     // `var`, not `val`: stopSelfCleanly() cancels the job, and a cancelled SupervisorJob can never
     // run anything again, so a reused Service instance has to rebuild both. All three are touched
@@ -147,8 +159,13 @@ class ActivityTrackingService : Service() {
         if (!collectorStarted) {
             collectorStarted = true
             serviceScope.launch {
-                controller.state.map { it.distanceMeters }.distinctUntilChanged()
-                    .collect { postNotification(buildNotification(controller.state.value)) }
+                combine(
+                    controller.state.map { it.distanceMeters }.distinctUntilChanged(),
+                    settingsRepository.settings.map { it.distanceUnit }.distinctUntilChanged(),
+                ) { _, unit -> unit }.collect { unit ->
+                    distanceUnit = unit
+                    postNotification(buildNotification(controller.state.value))
+                }
             }
         }
 
@@ -177,8 +194,11 @@ class ActivityTrackingService : Service() {
     }
 
     private fun buildNotification(state: ActivityTrackingState): Notification {
-        val km = state.distanceMeters / 1000.0
-        val text = getString(R.string.activity_tracking_notification_text, formatKm(km))
+        val unit = distanceUnit
+        val text = getString(
+            if (unit == DistanceUnit.MILES) R.string.activity_tracking_notification_text_mi else R.string.activity_tracking_notification_text,
+            formatDistanceNumber(DistanceDisplay.toDisplay(state.distanceMeters, unit)),
+        )
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -199,8 +219,9 @@ class ActivityTrackingService : Service() {
             .build()
     }
 
-    // Locale.ROOT: the default-locale overload renders "1,20" on comma-decimal devices.
-    private fun formatKm(km: Double): String = "%.2f".format(Locale.ROOT, (km * 100).roundToInt() / 100.0)
+    // Locale.ROOT: the default-locale overload renders "1,20" on comma-decimal devices. Two fixed
+    // decimals, same as the tracking screen's Distance cell.
+    private fun formatDistanceNumber(display: Double): String = "%.2f".format(Locale.ROOT, (display * 100).roundToInt() / 100.0)
 
     companion object {
         const val ACTION_START = "com.enil.logez.action.ACTIVITY_TRACKING_START"

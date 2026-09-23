@@ -70,6 +70,7 @@ import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.designsystem.formatTwoDecimals
 import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
@@ -206,7 +207,7 @@ fun WorkoutDetailScreen(
                         // next to its real distance, so the cell is gated on whether it was tracked.
                         if (uiState.hasVolume) DetailStatCell(stringResource(R.string.summary_volume), formatDetailVolume(uiState.volumeKg, uiState.weightUnit))
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
-                        if (uiState.hasDistance) DetailStatCell(stringResource(R.string.summary_distance), formatDetailDistance(uiState.distanceMeters))
+                        if (uiState.hasDistance) DetailStatCell(stringResource(R.string.summary_distance), formatDetailDistance(uiState.distanceMeters, uiState.distanceUnit))
                         if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
                         if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Filled.EmojiEvents)
                     }
@@ -489,4 +490,4 @@ private fun formatDetailDuration(totalSeconds: Int): String {
 
 private fun formatDetailVolume(kg: Double, unit: WeightUnit): String = formatWeight(kg, unit)
 
-private fun formatDetailDistance(meters: Double): String = com.enil.logez.core.designsystem.formatDistanceKm(meters)
+private fun formatDetailDistance(meters: Double, unit: DistanceUnit): String = com.enil.logez.core.designsystem.formatDistance(meters, unit)

@@ -8,6 +8,7 @@ import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -38,8 +39,15 @@ class HistoryViewModel @Inject constructor(
     val uiState: StateFlow<HistoryUiState> = combine(
         workoutRepository.observeCompleted(),
         settingsRepository.settings,
-    ) { workouts, settings -> Triple(workouts, settings.includeWarmupsInStats, settings.weightUnit) }
-        .map { (workouts, includeWarmups, weightUnit) -> HistoryUiState(isLoading = false, cards = buildCards(workouts, includeWarmups), weightUnit = weightUnit) }
+    ) { workouts, settings -> workouts to settings }
+        .map { (workouts, settings) ->
+            HistoryUiState(
+                isLoading = false,
+                cards = buildCards(workouts, settings.includeWarmupsInStats),
+                weightUnit = settings.weightUnit,
+                distanceUnit = settings.distanceUnit,
+            )
+        }
         .stateIn(viewModelScope, SharingStarted.Eagerly, HistoryUiState(isLoading = true))
 
     /**
@@ -122,6 +130,7 @@ data class HistoryUiState(
     val isLoading: Boolean = true,
     val cards: List<WorkoutCardModel> = emptyList(),
     val weightUnit: WeightUnit = WeightUnit.KG,
+    val distanceUnit: DistanceUnit = DistanceUnit.KM,
 )
 
 data class WorkoutCardModel(
