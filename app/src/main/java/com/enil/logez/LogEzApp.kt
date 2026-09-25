@@ -119,7 +119,14 @@ fun LogEzApp() {
                                 interruptedRun = StartupRecovery.InterruptedRun(workoutId, startedAt)
                             },
                         )
-                        NavigationBar {
+                        // Owner, 2026-09-26: the bar is page black, not the grey card tone.
+                        // NavigationBar defaults to surfaceContainer, which Theme.kt maps to the
+                        // card colour, so a grey block sat under every tab. The app draws edge to
+                        // edge, so this colour also fills the area behind the gesture handle.
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.background,
+                            tonalElevation = 0.dp,
+                        ) {
                             LogEzDestination.entries.forEach { destination ->
                                 val selected = currentDestination?.hierarchy?.any {
                                     it.route == destination.route

@@ -242,7 +242,9 @@ fun WorkoutTabScreen(
             // NavHost above the WorkoutMiniBar and the bottom NavigationBar, so this bar docks on
             // top of them rather than over them — and the mini-bar still owns "in-progress
             // workout, tap to resume" (§5.1.3), which is why no resume banner belongs here.
-            Surface(color = MaterialTheme.colorScheme.surface) {
+            // Page black to match the NavigationBar it docks on (2026-09-26); in the card tone it
+            // read as a grey band between the list and the bar.
+            Surface(color = MaterialTheme.colorScheme.background) {
                 // Plain Button, not FilledTonalButton -- Owner: the CTA's own fill should be the
                 // vibrant primary green, not FilledTonalButton's muted secondaryContainer default.
                 val ctaShape = RoundedCornerShape(Radius.pill)
