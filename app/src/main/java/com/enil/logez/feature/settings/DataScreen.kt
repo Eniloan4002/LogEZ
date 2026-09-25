@@ -89,6 +89,9 @@ fun DataScreen(
     // the screen and leave a truncated file that looks valid.
     BackHandler(enabled = uiState.job is DataJob.Working) { }
 
+    val busy = uiState.job is DataJob.Working
+    fun ifIdle(action: () -> Unit): () -> Unit = { if (!busy) action() }
+
     LaunchedEffect(uiState.job) {
         val job = uiState.job
         val messageRes = when (job) {
@@ -192,7 +195,9 @@ fun DataScreen(
                 colors = logEzTopAppBarColors(),
                 title = { ScreenTitle(stringResource(R.string.settings_section_data)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    // Disabled mid-job like the system back gesture above: leaving would clear the
+                    // ViewModel and cancel an export or restore halfway.
+                    IconButton(onClick = onBack, enabled = uiState.job !is DataJob.Working) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
@@ -222,7 +227,7 @@ fun DataScreen(
                     value = uiState.workoutSetCount?.let {
                         pluralStringResource(R.plurals.data_set_count, it, it)
                     }.orEmpty(),
-                    onClick = { startExport(ExportKind.WORKOUTS_CSV, fileName("logez_workouts", "csv")) },
+                    onClick = ifIdle { startExport(ExportKind.WORKOUTS_CSV, fileName("logez_workouts", "csv")) },
                 )
             }
 
@@ -233,7 +238,7 @@ fun DataScreen(
                     value = uiState.measurementCount?.let {
                         pluralStringResource(R.plurals.data_entry_count, it, it)
                     }.orEmpty(),
-                    onClick = { startExport(ExportKind.MEASUREMENTS_CSV, fileName("logez_measurements", "csv")) },
+                    onClick = ifIdle { startExport(ExportKind.MEASUREMENTS_CSV, fileName("logez_measurements", "csv")) },
                 )
             }
 
@@ -242,7 +247,7 @@ fun DataScreen(
                     title = stringResource(R.string.data_export_backup),
                     subtitle = stringResource(R.string.data_export_backup_subtitle),
                     value = "",
-                    onClick = { startExport(ExportKind.BACKUP_ZIP, fileName("logez_backup", "zip")) },
+                    onClick = ifIdle { startExport(ExportKind.BACKUP_ZIP, fileName("logez_backup", "zip")) },
                 )
             }
 
@@ -253,7 +258,7 @@ fun DataScreen(
                     title = stringResource(R.string.data_restore),
                     subtitle = stringResource(R.string.data_restore_subtitle),
                     value = "",
-                    onClick = { openDocument.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
+                    onClick = ifIdle { openDocument.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
                 )
             }
 
@@ -265,7 +270,7 @@ fun DataScreen(
                         title = stringResource(R.string.data_health_manage),
                         subtitle = stringResource(R.string.data_health_manage_subtitle),
                         value = "",
-                        onClick = { openHealthConnectSettings(context) },
+                        onClick = ifIdle { openHealthConnectSettings(context) },
                     )
                 }
             }
@@ -275,7 +280,7 @@ fun DataScreen(
                     title = stringResource(R.string.data_health_disconnect),
                     subtitle = stringResource(R.string.data_health_disconnect_subtitle),
                     value = "",
-                    onClick = { confirmHealthDisconnect = true },
+                    onClick = ifIdle { confirmHealthDisconnect = true },
                 )
             }
 
@@ -286,7 +291,7 @@ fun DataScreen(
                     title = stringResource(R.string.data_delete_all),
                     subtitle = stringResource(R.string.data_delete_all_subtitle),
                     value = "",
-                    onClick = { confirmDeleteAll = true },
+                    onClick = ifIdle { confirmDeleteAll = true },
                 )
             }
 

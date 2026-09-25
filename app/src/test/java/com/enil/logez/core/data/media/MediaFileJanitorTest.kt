@@ -93,4 +93,18 @@ class MediaFileJanitorTest {
         assertTrue(database.exists())
         assertTrue(outside.exists())
     }
+
+    @Test
+    fun `the sweep clears stale camera captures from the cache but not fresh ones`() = runTest {
+        val cache = temp.newFolder("cache")
+        val stale = File(cache, "${MediaFileJanitor.CAMERA_CAPTURE_PREFIX}old.jpg").apply { writeText("x"); setLastModified(old) }
+        val inUse = File(cache, "${MediaFileJanitor.CAMERA_CAPTURE_PREFIX}new.jpg").apply { writeText("x"); setLastModified(fresh) }
+        val other = File(cache, "shared_images.png").apply { writeText("x"); setLastModified(old) }
+
+        MediaFileJanitor(temp.root, { emptySet() }, { now }, AppLogger.NoOp, cacheDir = cache).sweepOrphans()
+
+        assertFalse(stale.exists())
+        assertTrue(inUse.exists())
+        assertTrue("only camera captures are swept from the cache", other.exists())
+    }
 }

@@ -87,7 +87,13 @@ class BackupRestorer @Inject constructor(
     /** Finishes a restore whose file swap was interrupted. Safe to call when there is nothing to do. */
     suspend fun resumeIfInterrupted(filesDir: File) {
         val marker = RestoreMarker(filesDir)
-        val phase = marker.read() ?: return
+        val phase = marker.read()
+        if (phase == null) {
+            // No restore was running, so anything still staged belongs to a confirm dialog that died
+            // with its process. It is a full copy of a backup, photos included; do not keep it.
+            RestoreMarker.stagingDirIn(filesDir).deleteRecursively()
+            return
+        }
         logger.e(TAG, "Recovering an interrupted restore (phase $phase)", null)
         when (phase) {
             RestoreMarker.Phase.DATABASE -> {
@@ -97,8 +103,15 @@ class BackupRestorer @Inject constructor(
                 marker.clear()
             }
             RestoreMarker.Phase.MEDIA -> {
+                // The database already holds the backup; finish everything that follows it, in the
+                // same order restore() uses: media, then settings, then the seed reset.
                 val staging = marker.stagingDir()
-                if (staging != null && staging.isDirectory) swapMedia(staging, filesDir)
+                if (staging != null && staging.isDirectory) {
+                    swapMedia(staging, filesDir)
+                    reader.stagedSettings(staging)?.let { settingsRepository.replaceAll(it.toUserSettings()) }
+                }
+                // The caller runs seedIfNeeded() straight after this, which re-seeds in full now.
+                seedManager.resetSeedVersion()
                 staging?.deleteRecursively()
                 marker.clear()
                 widgetRefresher.refresh()
@@ -116,16 +129,19 @@ class BackupRestorer @Inject constructor(
             val staged = File(stagingDir, "${BackupFormat.MEDIA_PREFIX}$name")
             val old = File(filesDir, "$name.old")
 
+            // BackupReader.stage always creates both staged folders, so a missing one means an
+            // earlier, interrupted run already moved it into place: the live folder IS the restored
+            // media. Swapping again would move it aside and delete it.
+            if (!staged.isDirectory) {
+                live.mkdirs()
+                return@forEach
+            }
+
             old.deleteRecursively()
             if (live.exists() && !live.renameTo(old)) live.deleteRecursively()
-
-            if (staged.isDirectory) {
-                if (!staged.renameTo(live)) staged.copyRecursively(live, overwrite = true)
-            } else {
-                // The backup had no media of this kind; a row whose file is missing renders as a
-                // placeholder rather than failing the restore.
-                live.mkdirs()
-            }
+            // A copy (when rename fails) leaves the staged folder behind, so a resume re-runs this
+            // swap; that is harmless because the result is the same files.
+            if (!staged.renameTo(live)) staged.copyRecursively(live, overwrite = true)
             old.deleteRecursively()
         }
     }

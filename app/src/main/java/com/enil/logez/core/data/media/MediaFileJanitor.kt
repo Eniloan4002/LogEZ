@@ -50,12 +50,14 @@ class MediaFileJanitor(
     private val referencedPaths: suspend () -> Set<String>,
     private val nowMillis: () -> Long,
     private val logger: AppLogger,
+    /** Where the camera screen writes its temporary full-size captures; null skips that sweep. */
+    private val cacheDir: File? = null,
 ) : MediaFileCleaner {
     @Inject constructor(
         @ApplicationContext context: Context,
         backupDao: BackupDao,
         logger: AppLogger,
-    ) : this(context.filesDir, { backupDao.referencedMediaPaths().toSet() }, System::currentTimeMillis, logger)
+    ) : this(context.filesDir, { backupDao.referencedMediaPaths().toSet() }, System::currentTimeMillis, logger, context.cacheDir)
 
     override suspend fun deleteIfUnreferenced(relativePath: String) {
         withContext(Dispatchers.IO) {
@@ -82,6 +84,11 @@ class MediaFileJanitor(
                 if (file.isFile && relative !in referenced && file.lastModified() < cutoff && file.delete()) deleted++
             }
         }
+        // Full-size camera captures wait in the cache until they are copied or discarded; a process
+        // death during the "replace today's photo?" dialog orphaned them there.
+        cacheDir?.listFiles()?.forEach { file ->
+            if (file.isFile && file.name.startsWith(CAMERA_CAPTURE_PREFIX) && file.lastModified() < cutoff && file.delete()) deleted++
+        }
         if (deleted > 0) logger.e(TAG, "Removed $deleted unreferenced media file(s)", null)
         deleted
     }
@@ -98,6 +105,9 @@ class MediaFileJanitor(
     companion object {
         private const val TAG = "MediaFileJanitor"
         private val MEDIA_DIRS = setOf(BackupWriter.PROGRESS_PHOTOS_DIR, BackupWriter.EXERCISE_MEDIA_DIR)
+
+        /** Must match the temp-file name CameraCaptureScreen writes. */
+        const val CAMERA_CAPTURE_PREFIX = "progress_photo_capture_"
 
         /** An hour comfortably covers a capture, its copy and its insert, even on a slow phone. */
         const val GRACE_MILLIS = 60 * 60 * 1000L

@@ -167,4 +167,69 @@ class BackupRestorerTest : RoomDatabaseTestBase() {
             assertTrue("seed marker should have been reset and re-applied, was $after", after != 99)
         }
     }
+
+    /**
+     * 2026-09-25 review: a restore interrupted after its photo swap but before the marker was
+     * cleared used to move the (already restored) live photos aside and delete them on resume,
+     * because nothing was left staged. Staging now always creates both media folders, so a
+     * missing one means "already swapped" and the live folder is left alone.
+     */
+    @Test
+    fun `resuming after the photo swap already happened keeps the restored photos`() = runBlocking {
+        withTimeout(60_000) {
+            val dir = filesDir()
+            val store = dataStore(dir)
+            val settings = FakeSettingsRepository()
+            val seedManager = SeedManager(context, database.exerciseDao(), store, RoomTransactionRunner(database), AppLogger.NoOp)
+
+            // State after swapMedia moved both staged folders into place: live photos present,
+            // the staging dir left with no media folders, the marker still at MEDIA.
+            val livePhoto = File(dir, "progress_photos/p1.jpg").apply { parentFile!!.mkdirs(); writeText("restored") }
+            File(dir, "exercise_media").mkdirs()
+            val staging = RestoreMarker.stagingDirIn(dir).apply { mkdirs() }
+            RestoreMarker(dir).write(RestoreMarker.Phase.MEDIA, staging)
+
+            restorer(settings, seedManager, FakeWidgetRefresher()).resumeIfInterrupted(dir)
+
+            assertTrue("restored photo must survive the resume", livePhoto.isFile)
+            assertEquals("restored", livePhoto.readText())
+            assertFalse(File(dir, "restore.marker").exists())
+        }
+    }
+
+    @Test
+    fun `staging always creates both media folders, even for a backup without photos`() = runBlocking {
+        withTimeout(60_000) {
+            val dir = filesDir()
+            val store = dataStore(dir)
+            val settings = FakeSettingsRepository()
+            val seedManager = SeedManager(context, database.exerciseDao(), store, RoomTransactionRunner(database), AppLogger.NoOp)
+            seedOneWorkout()
+            val archive = ByteArrayOutputStream()
+                .also { BackupWriter(database.backupDao(), settings, seedManager, FakeClock()).write(it, dir, "0.1.0", 1) }
+                .toByteArray()
+
+            val staging = RestoreMarker.stagingDirIn(dir)
+            BackupReader().stage(ByteArrayInputStream(archive), staging)
+
+            assertTrue(File(staging, "media/progress_photos").isDirectory)
+            assertTrue(File(staging, "media/exercise_media").isDirectory)
+        }
+    }
+
+    @Test
+    fun `a leftover staged restore with no marker is deleted at launch`() = runBlocking {
+        withTimeout(60_000) {
+            val dir = filesDir()
+            val store = dataStore(dir)
+            val settings = FakeSettingsRepository()
+            val seedManager = SeedManager(context, database.exerciseDao(), store, RoomTransactionRunner(database), AppLogger.NoOp)
+            val staging = RestoreMarker.stagingDirIn(dir).apply { mkdirs() }
+            File(staging, "media/progress_photos/p1.jpg").apply { parentFile!!.mkdirs(); writeText("x") }
+
+            restorer(settings, seedManager, FakeWidgetRefresher()).resumeIfInterrupted(dir)
+
+            assertFalse(staging.exists())
+        }
+    }
 }

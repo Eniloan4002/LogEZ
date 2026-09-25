@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 enum class ExportKind { WORKOUTS_CSV, MEASUREMENTS_CSV, BACKUP_ZIP }
 
@@ -66,6 +68,13 @@ class DataViewModel @Inject constructor(
 
     private val stagingDir get() = RestoreMarker.stagingDirIn(context.filesDir)
 
+    /**
+     * One data job at a time (2026-09-25 review): a backup racing a delete-all exported a zip whose
+     * row counts no longer matched its contents, and a delete-all racing a restore let restored
+     * photos survive the delete. The screen also disables its rows and back arrow while busy.
+     */
+    private val busy: Boolean get() = _uiState.value.job is DataJob.Working
+
     init {
         viewModelScope.launch {
             _uiState.update {
@@ -79,6 +88,7 @@ class DataViewModel @Inject constructor(
     }
 
     fun export(kind: ExportKind, uri: Uri) {
+        if (busy) return
         viewModelScope.launch {
             _uiState.update { it.copy(job = DataJob.Working(labelRes(kind))) }
             try {
@@ -112,6 +122,7 @@ class DataViewModel @Inject constructor(
      * they confirm — staging is deliberately the whole first half of a restore.
      */
     fun prepareRestore(uri: Uri) {
+        if (busy) return
         viewModelScope.launch {
             if (workoutRepository.getInProgress() != null) {
                 _uiState.update { it.copy(job = DataJob.Failed(R.string.data_restore_blocked_in_progress)) }
@@ -141,10 +152,13 @@ class DataViewModel @Inject constructor(
 
     /** The destructive half. Only reachable from [DataJob.ConfirmRestore]. */
     fun confirmRestore(manifest: BackupManifest) {
+        if (busy) return
         viewModelScope.launch {
             _uiState.update { it.copy(job = DataJob.Working(R.string.data_restore_restoring)) }
             try {
-                backupRestorer.restore(stagingDir, context.filesDir, manifest)
+                // NonCancellable: leaving the screen mid-restore used to cancel it between the
+                // database commit and the photo swap.
+                withContext(NonCancellable) { backupRestorer.restore(stagingDir, context.filesDir, manifest) }
                 _uiState.update {
                     it.copy(
                         job = DataJob.Done(R.string.data_restore_done),
@@ -171,10 +185,11 @@ class DataViewModel @Inject constructor(
      * saved from it. Workouts, routes and measurements are untouched. Confirmed by the screen.
      */
     fun disconnectHealthConnect() {
+        if (busy) return
         viewModelScope.launch {
             _uiState.update { it.copy(job = DataJob.Working(R.string.data_health_disconnecting)) }
             try {
-                healthConnectDisconnector.disconnectAndDelete()
+                withContext(NonCancellable) { healthConnectDisconnector.disconnectAndDelete() }
                 _uiState.update { it.copy(job = DataJob.Done(R.string.data_health_disconnected)) }
             } catch (t: Throwable) {
                 logger.e(TAG, "Deleting Health Connect data failed", t)
@@ -188,6 +203,7 @@ class DataViewModel @Inject constructor(
      * progress, for the same reason restore is: the live session points at rows this deletes.
      */
     fun deleteAllData() {
+        if (busy) return
         viewModelScope.launch {
             if (workoutRepository.getInProgress() != null) {
                 _uiState.update { it.copy(job = DataJob.Failed(R.string.data_delete_all_blocked_in_progress)) }

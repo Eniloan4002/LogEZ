@@ -81,6 +81,13 @@ class BackupReader @Inject constructor() {
         }
 
         val read = manifest ?: throw NotABackupException("This does not look like a LogEZ backup")
+        // Both media folders always exist once staged, even for a backup without photos. The
+        // restore's media swap relies on this: after an interruption, a staged folder that is
+        // missing can only mean it was already moved into place, so resuming must leave the live
+        // folder alone (2026-09-25 review: resuming used to throw the restored photos away).
+        listOf(BackupWriter.PROGRESS_PHOTOS_DIR, BackupWriter.EXERCISE_MEDIA_DIR).forEach { name ->
+            File(stagingDir, "${BackupFormat.MEDIA_PREFIX}$name").mkdirs()
+        }
         verifyRowCounts(stagingDir, read)
         return read
     }

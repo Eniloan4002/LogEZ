@@ -31,6 +31,7 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import java.io.File
 import java.util.UUID
+import com.enil.logez.core.data.media.MediaFileJanitor
 
 /**
  * M22a: in-app camera capture for progress photos. No overlay of a previous photo this pass (a
@@ -87,7 +88,7 @@ fun CameraCaptureScreen(onCaptured: (Uri) -> Unit, onCancel: () -> Unit) {
         FloatingActionButton(
             onClick = {
                 val capture = imageCaptureState.value ?: return@FloatingActionButton
-                val tempFile = File(context.cacheDir, "progress_photo_capture_${UUID.randomUUID()}.jpg")
+                val tempFile = File(context.cacheDir, "${MediaFileJanitor.CAMERA_CAPTURE_PREFIX}${UUID.randomUUID()}.jpg")
                 capture.takePicture(
                     ImageCapture.OutputFileOptions.Builder(tempFile).build(),
                     mainExecutor,

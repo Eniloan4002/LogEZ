@@ -78,7 +78,10 @@ interface ExerciseDao {
      * writes `is_custom = 1` on save, which *does* permanently exempt a row from seed-sync) — a
      * bare delete with no edit does not get that same exemption.
      */
-    @Query("UPDATE exercises SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id")
+    // media_path cleared too (2026-09-25 review): a deleted custom exercise kept its photo
+    // forever, because the row still referenced it, so neither the orphan sweep nor the backup
+    // ever let it go. Once unreferenced, MediaFileJanitor's next launch sweep deletes the file.
+    @Query("UPDATE exercises SET is_deleted = 1, media_path = NULL, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: String, updatedAt: Long)
 
     /**
