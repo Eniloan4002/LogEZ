@@ -55,7 +55,7 @@ val Danger500 = Color(0xFFFF5A50)
 val Warning500 = Color(0xFF68894D)
 
 /**
- * Personal records only — the trophy icon (`Icons.Filled.EmojiEvents`) in `RecordsChip`,
+ * Personal records only — the trophy icon (`Icons.Outlined.EmojiEvents`) in `RecordsChip`,
  * `DetailStatCell`'s PR branch, the completed-set PR badge, and `PrMedalCard`. Every one of those
  * currently reuses [NeonGreen] via `colorScheme.primary`, the same color as every ordinary CTA and
  * active state — so hitting a lifetime PR looks identical to just tapping a button. A deliberate

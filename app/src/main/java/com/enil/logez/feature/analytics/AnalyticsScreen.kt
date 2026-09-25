@@ -20,8 +20,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -69,7 +69,7 @@ import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.RegionShare
 import com.enil.logez.core.domain.calc.StatBucket
 import com.enil.logez.core.domain.model.MuscleGroup
-import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.outlined.BarChart
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -103,7 +103,7 @@ fun AnalyticsScreen(
                 title = { ScreenTitle(stringResource(R.string.analytics_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -113,7 +113,7 @@ fun AnalyticsScreen(
         if (!uiState.hasAnyWorkouts) {
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 EmptyState(
-                    icon = Icons.Filled.BarChart,
+                    icon = Icons.Outlined.BarChart,
                     title = stringResource(R.string.profile_empty_title),
                     subtitle = stringResource(R.string.profile_empty_subtitle),
                 )
@@ -684,7 +684,7 @@ private fun SetCountCard(
                     )
                     IconButton(onClick = { onMuscleClick(row.group) }) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowForward,
+                            Icons.AutoMirrored.Outlined.ArrowForward,
                             contentDescription = muscleGroupLabel(row.group),
                             modifier = Modifier.width(16.dp),
                         )
@@ -747,7 +747,7 @@ private fun MonthlyReportEntryCard(onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
         }
     }
 }

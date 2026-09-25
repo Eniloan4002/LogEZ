@@ -13,7 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -234,7 +234,7 @@ private fun PrMedalCard(medal: PrMedal, weightUnit: WeightUnit) {
             modifier = Modifier.fillMaxWidth().padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = Gold500)
+            Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = Gold500)
             Column(modifier = Modifier.weight(1f).padding(start = Spacing.sm)) {
                 Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)

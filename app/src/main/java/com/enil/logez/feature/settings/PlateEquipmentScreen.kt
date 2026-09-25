@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -65,7 +65,7 @@ fun PlateEquipmentScreen(
                 title = { ScreenTitle(stringResource(R.string.settings_plate_equipment_row)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -147,7 +147,7 @@ private fun EquipmentWeightRow(label: String, removable: Boolean, onRemove: () -
             if (removable) {
                 IconButton(onClick = onRemove) {
                     Icon(
-                        Icons.Filled.Close,
+                        Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.settings_plate_remove),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

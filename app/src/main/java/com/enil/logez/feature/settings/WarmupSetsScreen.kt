@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -72,7 +72,7 @@ fun WarmupSetsScreen(
                 title = { ScreenTitle(stringResource(R.string.settings_warmup_method_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -153,14 +153,14 @@ private fun WarmupStepRow(
         trailingContent = {
             Row {
                 IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                    Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.workout_move_up))
+                    Icon(Icons.Outlined.ArrowUpward, contentDescription = stringResource(R.string.workout_move_up))
                 }
                 IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                    Icon(Icons.Filled.ArrowDownward, contentDescription = stringResource(R.string.workout_move_down))
+                    Icon(Icons.Outlined.ArrowDownward, contentDescription = stringResource(R.string.workout_move_down))
                 }
                 IconButton(onClick = onRemove) {
                     Icon(
-                        Icons.Filled.Close,
+                        Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.settings_warmup_remove_step),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

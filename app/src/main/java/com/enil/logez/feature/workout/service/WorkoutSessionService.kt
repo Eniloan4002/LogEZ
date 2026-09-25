@@ -251,7 +251,7 @@ class WorkoutSessionService : Service() {
     @SuppressLint("MissingPermission")
     private fun postRestEndHeadsUp() {
         val notification = NotificationCompat.Builder(this, WorkoutNotificationChannels.REST_TIMER)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_logez)
             .setContentTitle(getString(R.string.workout_rest_timer_label))
             // The one notification whose entire job is reaching the user mid-set, on a screen that
             // is almost certainly locked. Without this it defaults to VISIBILITY_PRIVATE and is
@@ -268,7 +268,7 @@ class WorkoutSessionService : Service() {
     private fun buildNotification(state: WorkoutSessionState): Notification {
         val content = state.notificationContent
         val builder = NotificationCompat.Builder(this, WorkoutNotificationChannels.WORKOUT_ONGOING)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_logez)
             .setContentTitle(content?.title ?: getString(R.string.notification_workout_fallback_title))
             .setContentText(content?.text.orEmpty())
             .setOngoing(true)

@@ -21,9 +21,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -117,7 +117,7 @@ fun RoutineBuilderScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = ::handleBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -489,11 +489,11 @@ private fun RoundsStepperCard(rounds: Int, onAddRound: () -> Unit, onRemoveRound
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onRemoveRound, enabled = rounds > 1) {
-                Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.routine_builder_remove_round))
+                Icon(Icons.Outlined.Remove, contentDescription = stringResource(R.string.routine_builder_remove_round))
             }
             Text(rounds.toString(), style = LogEzMono.dataLarge, modifier = Modifier.padding(horizontal = Spacing.sm))
             IconButton(onClick = onAddRound) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.routine_builder_add_round))
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.routine_builder_add_round))
             }
         }
     }

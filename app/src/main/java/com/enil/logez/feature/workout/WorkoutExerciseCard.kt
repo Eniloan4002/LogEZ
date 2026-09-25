@@ -27,12 +27,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -148,7 +148,7 @@ internal fun WorkoutExerciseCard(
                 )
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
@@ -446,7 +446,7 @@ internal fun SetRow(
                     modifier = Modifier.size(SetTable.plateCalcCell),
                 ) {
                     Icon(
-                        Icons.Filled.Calculate,
+                        Icons.Outlined.Calculate,
                         contentDescription = stringResource(R.string.workout_plate_calc_open),
                         tint = if (fieldsEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
@@ -470,7 +470,7 @@ internal fun SetRow(
             if (showInlineTimer && !set.isCompleted) {
                 IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        if (inlineTimerRunning) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                        if (inlineTimerRunning) Icons.Outlined.Stop else Icons.Outlined.PlayArrow,
                         contentDescription = stringResource(if (inlineTimerRunning) R.string.workout_inline_timer_stop else R.string.workout_inline_timer_start),
                     )
                 }
@@ -495,7 +495,7 @@ internal fun SetRow(
         }
         IconButton(onClick = onToggleCheck, modifier = Modifier.width(SetTable.checkCell)) {
             Icon(
-                Icons.Filled.Check,
+                Icons.Outlined.Check,
                 contentDescription = stringResource(R.string.workout_check_set),
                 tint = if (set.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )

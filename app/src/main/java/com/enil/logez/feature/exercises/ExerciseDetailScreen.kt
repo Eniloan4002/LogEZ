@@ -15,12 +15,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -139,14 +139,14 @@ fun ExerciseDetailScreen(
                 title = { ScreenTitle(uiState.exercise?.name.orEmpty()) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     val exercise = uiState.exercise
                     if (exercise != null) {
                         IconButton(onClick = { menuExpanded = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                             DropdownMenuItem(
@@ -264,7 +264,7 @@ private fun SummaryTab(
                 )
             }
             EmptyState(
-                icon = Icons.Filled.BarChart,
+                icon = Icons.Outlined.BarChart,
                 title = stringResource(R.string.exercise_detail_summary_empty_title),
                 subtitle = stringResource(R.string.exercise_detail_summary_empty_subtitle),
                 modifier = Modifier.weight(1f),
@@ -403,7 +403,7 @@ private fun SummaryTab(
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
-                            if (setRecordsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            if (setRecordsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                             contentDescription = null,
                         )
                     }
@@ -472,7 +472,7 @@ private fun ChartMetric.labelRes(): Int = when (this) {
 private fun HistoryTab(entries: List<ExerciseHistoryEntry>, weightUnit: WeightUnit) {
     if (entries.isEmpty()) {
         EmptyState(
-            icon = Icons.Filled.BarChart,
+            icon = Icons.Outlined.BarChart,
             title = stringResource(R.string.exercise_detail_history_empty_title),
             subtitle = stringResource(R.string.exercise_detail_history_empty_subtitle),
         )

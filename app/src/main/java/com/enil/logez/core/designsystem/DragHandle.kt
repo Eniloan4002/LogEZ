@@ -2,7 +2,7 @@ package com.enil.logez.core.designsystem
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -51,7 +51,7 @@ fun DragHandle(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            Icons.Filled.DragHandle,
+            Icons.Outlined.DragHandle,
             contentDescription = stringResource(R.string.drag_handle_content_description),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

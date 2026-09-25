@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -59,7 +59,7 @@ fun GoalsSection(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.goal_section_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 IconButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.goal_add))
+                    Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.goal_add))
                 }
             }
             if (!uiState.isLoading) {
@@ -114,7 +114,7 @@ private fun GoalItem(row: GoalRow, weightUnit: WeightUnit, onDelete: () -> Unit,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_delete))
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_delete))
             }
         }
         // Material3 draws a trailing "stop indicator" dot at the end of the track by default;

@@ -19,10 +19,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.FormatBold
-import androidx.compose.material.icons.filled.FormatItalic
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AddAPhoto
+import androidx.compose.material.icons.outlined.FormatBold
+import androidx.compose.material.icons.outlined.FormatItalic
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -124,7 +124,7 @@ fun CustomExerciseEditorScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -158,7 +158,7 @@ fun CustomExerciseEditorScreen(
                             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(Radius.md)),
                         )
                     } else {
-                        Icon(Icons.Filled.AddAPhoto, contentDescription = stringResource(R.string.exercise_editor_add_photo))
+                        Icon(Icons.Outlined.AddAPhoto, contentDescription = stringResource(R.string.exercise_editor_add_photo))
                     }
                 }
             }
@@ -262,13 +262,13 @@ fun CustomExerciseEditorScreen(
                 StyleToggle(
                     checked = { instructionsState.currentSpanStyle.fontWeight == FontWeight.Bold },
                     onToggle = { instructionsState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) },
-                    icon = Icons.Filled.FormatBold,
+                    icon = Icons.Outlined.FormatBold,
                     contentDescription = stringResource(R.string.exercise_editor_bold),
                 )
                 StyleToggle(
                     checked = { instructionsState.currentSpanStyle.fontStyle == FontStyle.Italic },
                     onToggle = { instructionsState.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) },
-                    icon = Icons.Filled.FormatItalic,
+                    icon = Icons.Outlined.FormatItalic,
                     contentDescription = stringResource(R.string.exercise_editor_italic),
                 )
             }

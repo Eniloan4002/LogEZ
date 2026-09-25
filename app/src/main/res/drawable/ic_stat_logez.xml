@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Notification small icon: the brand mark cropped to fill a 24dp status-bar slot. Android draws
+    small icons from alpha only, so this is flat white. The launcher foreground used to double as
+    this icon, which left the mark tiny inside its 108dp adaptive canvas.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="72"
+    android:viewportHeight="72">
+    <group
+        android:translateX="-18"
+        android:translateY="-18">
+        <path
+            android:pathData="M54,20.5 L83,37.25 L83,70.75 L54,87.5 L25,70.75 L25,37.25 Z"
+            android:strokeWidth="6"
+            android:strokeLineJoin="round"
+            android:strokeColor="#FFFFFFFF" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M46,36 L53.5,36 L53.5,62.5 L68,62.5 L68,68.5 L63.5,73 L41.5,73 L41.5,40.5 Z" />
+    </group>
+</vector>

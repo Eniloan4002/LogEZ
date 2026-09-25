@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -346,7 +346,7 @@ fun RouteMapView(
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Icon(
-                        Icons.Filled.MyLocation,
+                        Icons.Outlined.MyLocation,
                         contentDescription = stringResource(R.string.map_recenter),
                         tint = MaterialTheme.colorScheme.primary,
                     )

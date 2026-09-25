@@ -16,10 +16,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AddAPhoto
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -120,12 +120,12 @@ fun MeasurementsScreen(
                 title = { Text(stringResource(R.string.measurements_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { entryDialogTarget = EntryDialogTarget(initial = null, defaultDate = LocalDate.now()) }) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.measurements_add_entry))
+                        Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.measurements_add_entry))
                     }
                 },
             )
@@ -209,7 +209,7 @@ fun MeasurementsScreen(
                 ) {
                     item(key = "add_photo") {
                         IconButton(onClick = { requestCameraPermission() }, modifier = Modifier.size(72.dp)) {
-                            Icon(Icons.Filled.AddAPhoto, contentDescription = stringResource(R.string.measurements_add_photo))
+                            Icon(Icons.Outlined.AddAPhoto, contentDescription = stringResource(R.string.measurements_add_photo))
                         }
                     }
                     items(items = uiState.photos, key = { it.id }) { photo ->
@@ -221,7 +221,7 @@ fun MeasurementsScreen(
                             )
                             IconButton(onClick = { deletingPhoto = photo }, modifier = Modifier.size(24.dp)) {
                                 Icon(
-                                    Icons.Filled.Delete,
+                                    Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.action_delete),
                                     tint = MaterialTheme.colorScheme.onSurface,
                                 )
@@ -335,7 +335,7 @@ private fun MeasurementEntryRow(
         supportingContent = if (value != null) { { Text(formatMetricValue(metric, value, weightUnit, lengthUnit)) } } else null,
         trailingContent = {
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
     )

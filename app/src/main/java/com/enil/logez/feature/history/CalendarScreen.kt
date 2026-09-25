@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarViewWeek
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CalendarViewWeek
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -153,12 +153,12 @@ fun CalendarScreen(
                 title = { ScreenTitle(stringResource(R.string.calendar_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { firstDayMenuExpanded = true }) {
-                        Icon(Icons.Filled.CalendarViewWeek, contentDescription = stringResource(R.string.calendar_first_day_of_week))
+                        Icon(Icons.Outlined.CalendarViewWeek, contentDescription = stringResource(R.string.calendar_first_day_of_week))
                     }
                     DropdownMenu(expanded = firstDayMenuExpanded, onDismissRequest = { firstDayMenuExpanded = false }) {
                         // §5.2 lists exactly these three — the conventional week starts, not all seven.
@@ -206,7 +206,7 @@ fun CalendarScreen(
                     onClick = viewModel::showPreviousMonth,
                     enabled = uiState.displayedMonth > uiState.monthRangeStart,
                 ) {
-                    Icon(Icons.Filled.ChevronLeft, contentDescription = stringResource(R.string.calendar_previous_month))
+                    Icon(Icons.Outlined.ChevronLeft, contentDescription = stringResource(R.string.calendar_previous_month))
                 }
                 Text(
                     uiState.displayedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
@@ -217,7 +217,7 @@ fun CalendarScreen(
                     onClick = viewModel::showNextMonth,
                     enabled = uiState.displayedMonth < uiState.monthRangeEnd,
                 ) {
-                    Icon(Icons.Filled.ChevronRight, contentDescription = stringResource(R.string.calendar_next_month))
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = stringResource(R.string.calendar_next_month))
                 }
             }
 

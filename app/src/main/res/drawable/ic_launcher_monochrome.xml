@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer (Android 13+): the brand mark as one flat colour, which the system tints. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Scaled about the centre so the stroked hexagon, vertex plus half-stroke, stays inside
+         the 66dp safe circle every launcher mask keeps (it touched the edge at full size). -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.86"
+        android:scaleY="0.86">
+        <path
+            android:pathData="M54,20.5 L83,37.25 L83,70.75 L54,87.5 L25,70.75 L25,37.25 Z"
+            android:strokeWidth="5"
+            android:strokeLineJoin="round"
+            android:strokeColor="#FFFFFFFF" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M46,36 L53.5,36 L53.5,62.5 L68,62.5 L68,68.5 L63.5,73 L41.5,73 L41.5,40.5 Z" />
+    </group>
+</vector>

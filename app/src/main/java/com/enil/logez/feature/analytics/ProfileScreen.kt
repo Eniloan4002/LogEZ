@@ -11,11 +11,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -320,27 +320,27 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_statistics") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(null) },
-                leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.BarChart, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_nav_statistics)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }
         item(key = "nav_calendar") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
-                leadingContent = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }
         item(key = "nav_measurements") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onMeasurementsClick),
-                leadingContent = { Icon(Icons.Filled.Straighten, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.Straighten, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_measurements_row)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }
@@ -349,16 +349,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
                 leadingContent = { Icon(LogEzIcons.Workout, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }
         item(key = "nav_settings") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onSettingsClick),
-                leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.Settings, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.settings_title)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }

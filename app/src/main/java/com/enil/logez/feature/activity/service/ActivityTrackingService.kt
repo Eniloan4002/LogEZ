@@ -226,7 +226,7 @@ class ActivityTrackingService : Service() {
             this, REQUEST_OPEN_APP, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, WorkoutNotificationChannels.WORKOUT_ONGOING)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_logez)
             .setContentTitle(getString(R.string.activity_tracking_notification_title))
             .setContentText(text)
             .setOngoing(true)

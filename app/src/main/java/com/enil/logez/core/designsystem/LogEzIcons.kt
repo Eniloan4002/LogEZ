@@ -5,81 +5,100 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 /**
  * M9b (Neon Lab, docs/adr/0003-neon-lab-rebrand.md) — custom lab-signage-styled line icons for the
- * app's nav tabs, replacing default Material icons. Deliberately scoped: universal UI chrome
- * (back arrows, close, check, chevrons, search, ...) stays default Material — those are
- * conventions users already read instantly, and redesigning them buys no brand payoff. Personal
- * records use the default Material trophy (`Icons.Filled.EmojiEvents`), not a custom glyph.
- * Per-[com.enil.logez.core.domain.model.MuscleGroup] illustrations remain the separate,
- * already-deferred §7.5 placeholder ([muscleGroupIcon]) -- not touched here.
+ * app's nav tabs, replacing default Material icons. Personal records use the Material trophy
+ * (`Icons.Outlined.EmojiEvents`), not a custom glyph. Per-[com.enil.logez.core.domain.model.MuscleGroup]
+ * illustrations remain the separate, already-deferred §7.5 placeholder ([muscleGroupIcon]).
+ *
+ * 2026-09-25 (Owner: "more premium feeling icons"): the whole app moved to one line-icon style.
+ * Every Material icon switched from Filled to Outlined, so these three were redrawn to match it:
+ * a 2-unit stroke on the 24-unit grid (the Outlined set's own weight, up from 1.8), rounded
+ * joins and caps, and rounded corners instead of the old hard rectangles. Before this, line-art
+ * tab icons sat beside heavy filled chrome icons, which read as two different apps.
  *
  * `Icon(imageVector = ..., tint = ...)` recolors whatever is drawn regardless of the stroke color
  * set below, so these use a plain black stroke -- what matters is that each path is drawn as a
  * STROKE (fill = null), not a filled shape, so the icon reads as line art at any tint.
  */
 object LogEzIcons {
-    private const val STROKE_WIDTH = 1.8f
+    private const val STROKE_WIDTH = 2f
 
-    /** Replaces every `Icons.Filled.FitnessCenter` call site (nav tab, empty states, generic exercise fallback). */
+    private fun icon(name: String, block: ImageVector.Builder.() -> Unit): ImageVector =
+        ImageVector.Builder(name = name, defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f)
+            .apply(block)
+            .build()
+
+    private fun ImageVector.Builder.line(pathBuilder: PathBuilder.() -> Unit) {
+        path(
+            fill = null,
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = STROKE_WIDTH,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            pathBuilder = pathBuilder,
+        )
+    }
+
+    /** A closed rectangle from ([left], [top]) to ([right], [bottom]) with corner radius [r]. */
+    private fun PathBuilder.roundedRect(left: Float, top: Float, right: Float, bottom: Float, r: Float) {
+        moveTo(left + r, top)
+        lineTo(right - r, top)
+        arcTo(r, r, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = right, y1 = top + r)
+        lineTo(right, bottom - r)
+        arcTo(r, r, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = right - r, y1 = bottom)
+        lineTo(left + r, bottom)
+        arcTo(r, r, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = left, y1 = bottom - r)
+        lineTo(left, top + r)
+        arcTo(r, r, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = left + r, y1 = top)
+        close()
+    }
+
+    /** Workout tab, empty states and the generic exercise fallback: a loaded barbell, two plates a side. */
     val Workout: ImageVector by lazy {
-        ImageVector.Builder(name = "LogEzWorkout", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                // left plate
-                moveTo(2f, 7f); lineTo(6f, 7f); lineTo(6f, 17f); lineTo(2f, 17f); close()
-            }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                // right plate
-                moveTo(18f, 7f); lineTo(22f, 7f); lineTo(22f, 17f); lineTo(18f, 17f); close()
-            }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round) {
-                // bar
-                moveTo(6f, 12f); lineTo(18f, 12f)
-            }
-        }.build()
+        icon("LogEzWorkout") {
+            line { roundedRect(5f, 6f, 8f, 18f, 1.2f) } // inner left plate
+            line { roundedRect(16f, 6f, 19f, 18f, 1.2f) } // inner right plate
+            line { roundedRect(2f, 8.5f, 5f, 15.5f, 1f) } // outer left plate
+            line { roundedRect(19f, 8.5f, 22f, 15.5f, 1f) } // outer right plate
+            line { moveTo(8f, 12f); lineTo(16f, 12f) } // bar
+        }
     }
 
-    /** Replaces every `Icons.Filled.History` call site (nav tab, History screen header). */
+    /** History tab and screen header: a lab-log clipboard. */
     val History: ImageVector by lazy {
-        ImageVector.Builder(name = "LogEzHistory", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                // clip tab
-                moveTo(9f, 2f); lineTo(15f, 2f); lineTo(15f, 4.5f); lineTo(9f, 4.5f); close()
+        icon("LogEzHistory") {
+            line { roundedRect(5f, 4f, 19f, 21f, 2.2f) } // board
+            line { roundedRect(9f, 2.5f, 15f, 6f, 1.2f) } // clip
+            line {
+                moveTo(8.5f, 10.5f); lineTo(15.5f, 10.5f)
+                moveTo(8.5f, 14f); lineTo(15.5f, 14f)
+                moveTo(8.5f, 17.5f); lineTo(12.5f, 17.5f)
             }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                // clipboard body
-                moveTo(5f, 3.5f); lineTo(19f, 3.5f); lineTo(19f, 21f); lineTo(5f, 21f); close()
-            }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round) {
-                // log lines
-                moveTo(8f, 9f); lineTo(16f, 9f)
-                moveTo(8f, 13f); lineTo(16f, 13f)
-                moveTo(8f, 17f); lineTo(13f, 17f)
-            }
-        }.build()
+        }
     }
 
-    /** Replaces `Icons.Filled.Person` (Profile nav tab). */
+    /** Profile tab: a specimen-ID badge. */
     val Profile: ImageVector by lazy {
-        ImageVector.Builder(name = "LogEzProfile", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                // ID badge outline
-                moveTo(4f, 3f); lineTo(20f, 3f); lineTo(20f, 21f); lineTo(4f, 21f); close()
-            }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+        icon("LogEzProfile") {
+            line { roundedRect(4f, 3f, 20f, 21f, 2.5f) } // badge
+            line {
                 // head
-                moveTo(9f, 9f)
-                arcTo(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 15f, y1 = 9f)
-                arcTo(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 9f, y1 = 9f)
+                moveTo(9.25f, 9.5f)
+                arcTo(2.75f, 2.75f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 14.75f, y1 = 9.5f)
+                arcTo(2.75f, 2.75f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 9.25f, y1 = 9.5f)
                 close()
             }
-            path(fill = null, stroke = SolidColor(Color.Black), strokeLineWidth = STROKE_WIDTH, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+            line {
                 // shoulders
-                moveTo(7f, 19f); lineTo(9f, 14.5f); lineTo(15f, 14.5f); lineTo(17f, 19f)
+                moveTo(7.5f, 17.5f)
+                curveTo(8.2f, 15.2f, 9.9f, 14f, 12f, 14f)
+                curveTo(14.1f, 14f, 15.8f, 15.2f, 16.5f, 17.5f)
             }
-        }.build()
+        }
     }
 }

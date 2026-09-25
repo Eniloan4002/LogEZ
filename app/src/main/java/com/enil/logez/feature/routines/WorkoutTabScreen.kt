@@ -18,11 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -209,10 +209,10 @@ fun WorkoutTabScreen(
                 colors = logEzTopAppBarColors(),
                 actions = {
                     IconButton(onClick = { showCreateFolder = true }) {
-                        Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.workout_new_folder))
+                        Icon(Icons.Outlined.CreateNewFolder, contentDescription = stringResource(R.string.workout_new_folder))
                     }
                     IconButton(onClick = { onCreateRoutine(null) }) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.workout_new_routine))
+                        Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.workout_new_routine))
                     }
                 },
             )
@@ -686,10 +686,10 @@ private fun FolderHeaderRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             dragHandle()
-            Icon(if (isCollapsed) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess, contentDescription = null)
+            Icon(if (isCollapsed) Icons.Outlined.ExpandMore else Icons.Outlined.ExpandLess, contentDescription = null)
             Text(folder.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = Spacing.xs))
             Box {
-                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
+                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options)) }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_rename)) }, onClick = { menuExpanded = false; onRename() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.workout_add_routine_to_folder)) }, onClick = { menuExpanded = false; onAddRoutine() })
@@ -792,7 +792,7 @@ private fun RoutineCard(
             Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = onStart) { Text(stringResource(R.string.workout_start_routine)) }
                 Box(modifier = Modifier.weight(1f))
-                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options)) }
+                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options)) }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_edit)) }, onClick = { menuExpanded = false; onEdit() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_duplicate)) }, onClick = { menuExpanded = false; onDuplicate() })

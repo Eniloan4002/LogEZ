@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Camera
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Camera
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,7 +82,7 @@ fun CameraCaptureScreen(onCaptured: (Uri) -> Unit, onCancel: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
         IconButton(onClick = onCancel, modifier = Modifier.align(Alignment.TopStart).padding(Spacing.md)) {
-            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel))
+            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_cancel))
         }
         FloatingActionButton(
             onClick = {
@@ -105,7 +105,7 @@ fun CameraCaptureScreen(onCaptured: (Uri) -> Unit, onCancel: () -> Unit) {
             },
             modifier = Modifier.align(Alignment.BottomCenter).padding(Spacing.xl),
         ) {
-            Icon(Icons.Filled.Camera, contentDescription = stringResource(R.string.measurements_capture_photo))
+            Icon(Icons.Outlined.Camera, contentDescription = stringResource(R.string.measurements_capture_photo))
         }
     }
 }

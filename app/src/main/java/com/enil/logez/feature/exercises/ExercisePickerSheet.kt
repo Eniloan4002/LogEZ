@@ -13,9 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -91,7 +91,7 @@ fun ExercisePickerSheet(
                 onValueChange = viewModel::onSearchQueryChange,
                 modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
                 placeholder = { Text(stringResource(R.string.exercise_library_search_hint)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 singleLine = true,
             )
 
@@ -108,7 +108,7 @@ fun ExercisePickerSheet(
             Box(modifier = Modifier.weight(1f)) {
                 if (uiState.exercises.isEmpty() && !uiState.isLoading) {
                     EmptyState(
-                        icon = Icons.Filled.Search,
+                        icon = Icons.Outlined.Search,
                         title = stringResource(R.string.exercise_library_no_results_title),
                         subtitle = stringResource(R.string.exercise_library_no_results_subtitle),
                         ctaLabel = if (uiState.searchQuery.isNotBlank()) {
@@ -123,7 +123,7 @@ fun ExercisePickerSheet(
                         item {
                             ListItem(
                                 modifier = Modifier.clickable { onCreateExercise(null) },
-                                leadingContent = { Icon(Icons.Filled.Add, contentDescription = null) },
+                                leadingContent = { Icon(Icons.Outlined.Add, contentDescription = null) },
                                 headlineContent = { Text(stringResource(R.string.exercise_picker_create_row)) },
                             )
                         }
@@ -200,7 +200,7 @@ private fun PickerRow(
         trailingContent = if (mode == ExercisePickerMode.ADD) {
             {
                 if (isSelected) {
-                    Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Outlined.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 } else {
                     Checkbox(checked = false, onCheckedChange = { onClick() })
                 }

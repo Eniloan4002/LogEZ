@@ -14,10 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -80,12 +80,12 @@ fun ExerciseLibraryScreen(
                 title = { Text(stringResource(R.string.exercise_library_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { onCreateExercise(null) }) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.exercise_library_create))
+                        Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.exercise_library_create))
                     }
                 },
             )
@@ -97,7 +97,7 @@ fun ExerciseLibraryScreen(
                 onValueChange = viewModel::onSearchQueryChange,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
                 placeholder = { Text(stringResource(R.string.exercise_library_search_hint)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 singleLine = true,
             )
 
@@ -119,7 +119,7 @@ fun ExerciseLibraryScreen(
 
             if (uiState.exercises.isEmpty() && !uiState.isLoading) {
                 EmptyState(
-                    icon = Icons.Filled.Search,
+                    icon = Icons.Outlined.Search,
                     title = stringResource(R.string.exercise_library_no_results_title),
                     subtitle = stringResource(R.string.exercise_library_no_results_subtitle),
                     ctaLabel = if (uiState.searchQuery.isNotBlank()) {
@@ -197,7 +197,7 @@ private fun ExerciseRow(
         trailingContent = {
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                    Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.action_edit)) }, onClick = { menuExpanded = false; onEdit() })

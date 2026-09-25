@@ -18,9 +18,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -140,14 +140,14 @@ fun WorkoutDetailScreen(
                 title = { Text(uiState.workout?.title.orEmpty(), color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     val loadedWorkoutId = uiState.workout?.id
                     if (loadedWorkoutId != null) {
                         IconButton(onClick = { menuExpanded = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                             DropdownMenuItem(
@@ -210,7 +210,7 @@ fun WorkoutDetailScreen(
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
                         if (uiState.hasDistance) DetailStatCell(stringResource(R.string.summary_distance), formatDetailDistance(uiState.distanceMeters, uiState.distanceUnit))
                         if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
-                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Filled.EmojiEvents)
+                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Outlined.EmojiEvents)
                     }
                 }
             }
@@ -433,7 +433,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
         )
         if (set.pr != null) {
             Icon(
-                Icons.Filled.EmojiEvents,
+                Icons.Outlined.EmojiEvents,
                 contentDescription = stringResource(set.pr.prType.labelRes()),
                 tint = Gold500,
                 modifier = Modifier.size(18.dp),

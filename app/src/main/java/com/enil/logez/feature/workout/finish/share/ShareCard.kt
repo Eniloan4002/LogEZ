@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.outlined.EmojiEvents
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.MuscleBalanceRadar
 import com.enil.logez.core.domain.calc.RegionShare
@@ -227,7 +227,7 @@ private fun PrLine(pr: PrMedal, style: TextStyle) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Filled.EmojiEvents,
+            imageVector = Icons.Outlined.EmojiEvents,
             contentDescription = null,
             tint = Gold500,
             modifier = Modifier.size(16.dp),

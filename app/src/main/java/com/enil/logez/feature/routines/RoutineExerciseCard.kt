@@ -17,8 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -122,7 +122,7 @@ internal fun RoutineExerciseCard(
                 )
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
@@ -299,7 +299,7 @@ private fun SetRow(
             Spacer(modifier = Modifier.width(SetTable.checkCell))
         } else {
             IconButton(onClick = onRemove, modifier = Modifier.width(SetTable.checkCell)) {
-                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_delete), modifier = Modifier.size(16.dp))
             }
         }
     }

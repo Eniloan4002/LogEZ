@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -168,7 +168,7 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, weightUnit: WeightUnit, d
 private fun RecordsChip() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            Icons.Filled.EmojiEvents,
+            Icons.Outlined.EmojiEvents,
             contentDescription = stringResource(R.string.history_card_records_chip),
             tint = Gold500,
             modifier = Modifier.padding(end = Spacing.xxs),

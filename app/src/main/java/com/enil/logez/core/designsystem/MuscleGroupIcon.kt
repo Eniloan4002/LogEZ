@@ -1,11 +1,11 @@
 package com.enil.logez.core.designsystem
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.Accessibility
-import androidx.compose.material.icons.filled.QuestionMark
-import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
+import androidx.compose.material.icons.outlined.Accessibility
+import androidx.compose.material.icons.outlined.QuestionMark
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.enil.logez.core.domain.model.MuscleGroup
 
@@ -17,12 +17,12 @@ import com.enil.logez.core.domain.model.MuscleGroup
  * real illustrations later touches zero data, exactly as §7.5 intends.
  */
 fun muscleGroupIcon(group: MuscleGroup): ImageVector = when (group) {
-    MuscleGroup.CARDIO -> Icons.AutoMirrored.Filled.DirectionsRun
-    MuscleGroup.FULL_BODY -> Icons.AutoMirrored.Filled.DirectionsWalk
-    MuscleGroup.OTHER -> Icons.Filled.QuestionMark
-    MuscleGroup.ABDOMINALS -> Icons.Filled.SelfImprovement
+    MuscleGroup.CARDIO -> Icons.AutoMirrored.Outlined.DirectionsRun
+    MuscleGroup.FULL_BODY -> Icons.AutoMirrored.Outlined.DirectionsWalk
+    MuscleGroup.OTHER -> Icons.Outlined.QuestionMark
+    MuscleGroup.ABDOMINALS -> Icons.Outlined.SelfImprovement
     else -> LogEzIcons.Workout
 }
 
 /** A generic fallback used only where no muscle group is known yet (should not normally occur). */
-val genericExerciseIcon: ImageVector = Icons.Filled.Accessibility
+val genericExerciseIcon: ImageVector = Icons.Outlined.Accessibility
