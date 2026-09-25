@@ -56,9 +56,9 @@ object PrivacyPolicyContent {
                     listOf(
                         PolicyBlock.Bullets(
                             listOf(
-                                "LogEZ has no account, no server, no ads and no analytics. We never receive your data.",
+                                "LogEZ has no account, no server, no ads and no analytics. We never receive your data unless you email us.",
                                 "Everything you log stays on your phone.",
-                                "The only thing LogEZ sends over the internet is requests for map images, and only while a map is on screen.",
+                                "The only thing LogEZ sends over the internet is requests for map data, and only while a map is on screen.",
                                 "You can delete any of your data in the app, or all of it at once.",
                             ),
                         ),
@@ -70,11 +70,12 @@ object PrivacyPolicyContent {
                         PolicyBlock.Paragraph("LogEZ keeps the following in its private storage on your device, which other apps cannot read:"),
                         PolicyBlock.Bullets(
                             listOf(
-                                "Your workouts, routines, sets, notes, goals and settings.",
+                                "Your workouts, routines, sets, notes, goals and settings, including a maximum heart rate if you enter one.",
                                 "Exercises you create, including any photo you attach to one.",
                                 "Body measurements and progress photos.",
                                 "The route, distance and pace of each walk or run you track with GPS.",
                                 "If you connect Health Connect: daily step and calorie totals, and heart-rate readings taken during your workouts.",
+                                "Map data for the areas you have viewed, kept so maps load faster.",
                             ),
                         ),
                         PolicyBlock.Paragraph("None of this is uploaded, synced or sent to us."),
@@ -85,8 +86,9 @@ object PrivacyPolicyContent {
                     listOf(
                         PolicyBlock.Paragraph(
                             "When you track a walk or run, LogEZ uses your precise location to measure its distance, pace and route. " +
-                                "It keeps doing so while the screen is off or you are in another app, until you tap Finish or Cancel, " +
-                                "and an ongoing notification shows the whole time. LogEZ does not use your location at any other time.",
+                                "It keeps doing so while the screen is off or you are in another app, until you tap Finish or Cancel. " +
+                                "Android shows that LogEZ is running the whole time: as an ongoing notification if you allow LogEZ's " +
+                                "notifications, and otherwise in its list of active apps. LogEZ does not use your location at any other time.",
                         ),
                         PolicyBlock.Paragraph(
                             "The route is saved only on your phone. Your phone's own location service (Google Play services on most " +
@@ -100,18 +102,19 @@ object PrivacyPolicyContent {
                     listOf(
                         PolicyBlock.Paragraph(
                             "LogEZ shows a map while you track a walk or run, on its summary, and when you open it later in History. " +
-                                "To draw that map it downloads map images (tiles) from OpenFreeMap, a free map service run by " +
-                                "Hyperknot Software Kft. in Hungary, over an encrypted HTTPS connection.",
+                                "To draw that map it downloads map data (map tiles, labels and icons) from OpenFreeMap, a free map " +
+                                "service run by Hyperknot Software Kft. in Hungary, over an encrypted HTTPS connection.",
                         ),
                         PolicyBlock.Paragraph(
-                            "Like any web request, each tile request reveals your phone's IP address, basic technical details such as " +
-                                "the app and Android version, and the area of the map on screen. While you are tracking, that area is " +
-                                "roughly where you are. The requests carry no account, no identifier and none of your workout data.",
+                            "Like any web request, each request reveals your phone's IP address, basic technical details such as the " +
+                                "app and Android version, and the area of the map on screen. While you are tracking, that area is " +
+                                "roughly where you are; when you open a past walk or run, it is where that route was. The requests " +
+                                "carry no account, no identifier and none of your workout data.",
                         ),
                         PolicyBlock.Paragraph(
-                            "OpenFreeMap says it does not store IP addresses in its normal logs and keeps them for up to 30 days only " +
-                                "while investigating abuse, and that it may deliver tiles through Cloudflare. Its privacy policy is at " +
-                                "https://openfreemap.org/privacy/",
+                            "OpenFreeMap says it does not store IP addresses in its normal logs, keeps them for up to 30 days only " +
+                                "while investigating a security incident, and may deliver tiles through Cloudflare. Its privacy policy " +
+                                "is at https://openfreemap.org/privacy/",
                         ),
                     ),
                 ),
@@ -124,20 +127,21 @@ object PrivacyPolicyContent {
                         ),
                         PolicyBlock.Bullets(
                             listOf(
-                                "Steps and calories burned are shown on the Profile tab, the Workout tab, the Statistics screen and the home-screen widget.",
-                                "Heart rate is shown live during workouts and walk/run tracking, and as a chart on each finished workout.",
+                                "Steps are shown on the Profile tab, the Workout tab (today and the last 7 days), the Statistics screen (the last 30 days) and the home-screen widget. Calories burned are shown on the Profile tab.",
+                                "Heart rate is shown live during workouts and walk/run tracking, and as a chart on the summary shown when you finish. LogEZ keeps those readings with the workout, and they are included in full backups.",
                                 "LogEZ keeps a copy of daily step and calorie totals, and of the heart-rate readings for each workout, on your phone.",
                             ),
                         ),
                         PolicyBlock.Paragraph(
                             "Data from Health Connect is used only to show your own figures back to you. It is never used for " +
                                 "advertising, never sold, never shared with anyone, and never leaves your phone except inside a backup " +
-                                "file you create yourself. LogEZ's use of Health Connect data follows the Health Connect Permissions " +
-                                "policy, including its Limited Use requirements.",
+                                "file you create yourself, or when you move LogEZ's data to a new phone with Android's phone-to-phone " +
+                                "transfer. LogEZ's use of Health Connect data follows the Health Connect Permissions policy, including its " +
+                                "Limited Use requirements.",
                         ),
                         PolicyBlock.Paragraph(
-                            "To stop sharing and delete LogEZ's copy, use Settings > Data > Disconnect and delete Health Connect data. " +
-                                "The data in Health Connect itself is not touched.",
+                            "To stop sharing and delete LogEZ's copy, use Settings > Export & backup > Disconnect and delete Health " +
+                                "Connect data. The data in Health Connect itself is not touched.",
                         ),
                     ),
                 ),
@@ -167,6 +171,7 @@ object PrivacyPolicyContent {
                                 "Saving a summary image puts it in your phone's Pictures folder.",
                                 "Exporting workouts or measurements creates a CSV file where you choose.",
                                 "A full backup creates a .zip file where you choose. It contains everything in LogEZ, including photos, GPS routes and Health Connect readings.",
+                                "Settings > Send feedback opens your email app with a message to us whose subject contains your LogEZ and Android versions. If you send it, we receive your email address and what you write, and keep it only as long as needed to reply.",
                             ),
                         ),
                         PolicyBlock.Paragraph(
@@ -181,7 +186,7 @@ object PrivacyPolicyContent {
                         PolicyBlock.Paragraph(
                             "Android's cloud backup is turned off for LogEZ. On Android 12 and newer, a direct phone-to-phone transfer " +
                                 "(for example when setting up a new phone with a cable) can copy LogEZ's data to the new phone. On older " +
-                                "Android versions, use Settings > Data > Full backup to move your data.",
+                                "Android versions, use Settings > Export & backup > Full backup to move your data.",
                         ),
                     ),
                 ),
@@ -193,7 +198,7 @@ object PrivacyPolicyContent {
                                 "No accounts or sign-in.",
                                 "No advertising, and no use of the advertising ID.",
                                 "No analytics, crash-reporting or tracking tools.",
-                                "No selling, renting or sharing of your data.",
+                                "No selling or renting of your data. The only data another company receives is the map request described above.",
                             ),
                         ),
                     ),
@@ -205,15 +210,16 @@ object PrivacyPolicyContent {
                         PolicyBlock.Bullets(
                             listOf(
                                 "Deleting a workout also deletes its sets, route and heart-rate readings.",
-                                "Deleting a measurement or photo deletes it, including the photo file.",
-                                "Settings > Data > Disconnect and delete Health Connect data deletes LogEZ's copy of Health Connect data.",
-                                "Settings > Data > Delete all data erases everything in LogEZ.",
-                                "Uninstalling LogEZ, or clearing its storage in Android's settings, also deletes everything.",
+                                "Deleting a measurement entry deletes it. Deleting a progress photo also deletes the photo file.",
+                                "Deleting an exercise you created hides it and deletes its photo; it stays listed in past workouts that used it.",
+                                "Settings > Export & backup > Disconnect and delete Health Connect data deletes LogEZ's copy of Health Connect data.",
+                                "Settings > Export & backup > Delete all data erases everything in LogEZ, including cached map data. It does not disconnect Health Connect; use the option above for that.",
+                                "Uninstalling LogEZ, or clearing its storage in Android's settings, also deletes everything, except files you exported, images saved to Pictures, and any copy moved to another phone.",
                             ),
                         ),
                         PolicyBlock.Paragraph(
-                            "We hold no copy of your data, so there is nothing for us to delete on our side. You are still welcome to " +
-                                "contact us with any question.",
+                            "Apart from emails you send us, we hold no copy of your data, so there is nothing for us to delete on our " +
+                                "side. You are still welcome to contact us with any question.",
                         ),
                     ),
                 ),

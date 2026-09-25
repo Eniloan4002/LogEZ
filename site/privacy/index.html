@@ -25,37 +25,38 @@ li { margin: 4px 0; }
 <p>LogEZ is a workout logging app made by Enil (Linus William Tabanao), an independent developer in the Philippines. In this policy, &quot;we&quot; means the developer. Questions about this policy or your data: [contact email not set: add logez.contactEmail to gradle.properties].</p>
 <h2>The short version</h2>
 <ul>
-<li>LogEZ has no account, no server, no ads and no analytics. We never receive your data.</li>
+<li>LogEZ has no account, no server, no ads and no analytics. We never receive your data unless you email us.</li>
 <li>Everything you log stays on your phone.</li>
-<li>The only thing LogEZ sends over the internet is requests for map images, and only while a map is on screen.</li>
+<li>The only thing LogEZ sends over the internet is requests for map data, and only while a map is on screen.</li>
 <li>You can delete any of your data in the app, or all of it at once.</li>
 </ul>
 <h2>What LogEZ stores on your phone</h2>
 <p>LogEZ keeps the following in its private storage on your device, which other apps cannot read:</p>
 <ul>
-<li>Your workouts, routines, sets, notes, goals and settings.</li>
+<li>Your workouts, routines, sets, notes, goals and settings, including a maximum heart rate if you enter one.</li>
 <li>Exercises you create, including any photo you attach to one.</li>
 <li>Body measurements and progress photos.</li>
 <li>The route, distance and pace of each walk or run you track with GPS.</li>
 <li>If you connect Health Connect: daily step and calorie totals, and heart-rate readings taken during your workouts.</li>
+<li>Map data for the areas you have viewed, kept so maps load faster.</li>
 </ul>
 <p>None of this is uploaded, synced or sent to us.</p>
 <h2>Location</h2>
-<p>When you track a walk or run, LogEZ uses your precise location to measure its distance, pace and route. It keeps doing so while the screen is off or you are in another app, until you tap Finish or Cancel, and an ongoing notification shows the whole time. LogEZ does not use your location at any other time.</p>
+<p>When you track a walk or run, LogEZ uses your precise location to measure its distance, pace and route. It keeps doing so while the screen is off or you are in another app, until you tap Finish or Cancel. Android shows that LogEZ is running the whole time: as an ongoing notification if you allow LogEZ's notifications, and otherwise in its list of active apps. LogEZ does not use your location at any other time.</p>
 <p>The route is saved only on your phone. Your phone's own location service (Google Play services on most Android phones) supplies the position to LogEZ; how that service works is set by your device settings and Google's policies.</p>
 <h2>Maps, the only thing that uses the internet</h2>
-<p>LogEZ shows a map while you track a walk or run, on its summary, and when you open it later in History. To draw that map it downloads map images (tiles) from OpenFreeMap, a free map service run by Hyperknot Software Kft. in Hungary, over an encrypted HTTPS connection.</p>
-<p>Like any web request, each tile request reveals your phone's IP address, basic technical details such as the app and Android version, and the area of the map on screen. While you are tracking, that area is roughly where you are. The requests carry no account, no identifier and none of your workout data.</p>
-<p>OpenFreeMap says it does not store IP addresses in its normal logs and keeps them for up to 30 days only while investigating abuse, and that it may deliver tiles through Cloudflare. Its privacy policy is at <a href="https://openfreemap.org/privacy/">https://openfreemap.org/privacy/</a></p>
+<p>LogEZ shows a map while you track a walk or run, on its summary, and when you open it later in History. To draw that map it downloads map data (map tiles, labels and icons) from OpenFreeMap, a free map service run by Hyperknot Software Kft. in Hungary, over an encrypted HTTPS connection.</p>
+<p>Like any web request, each request reveals your phone's IP address, basic technical details such as the app and Android version, and the area of the map on screen. While you are tracking, that area is roughly where you are; when you open a past walk or run, it is where that route was. The requests carry no account, no identifier and none of your workout data.</p>
+<p>OpenFreeMap says it does not store IP addresses in its normal logs, keeps them for up to 30 days only while investigating a security incident, and may deliver tiles through Cloudflare. Its privacy policy is at <a href="https://openfreemap.org/privacy/">https://openfreemap.org/privacy/</a></p>
 <h2>Health Connect</h2>
 <p>Connecting Health Connect is optional. If you connect it, LogEZ reads only the types you allow: steps, calories burned and heart rate. It never writes anything to Health Connect.</p>
 <ul>
-<li>Steps and calories burned are shown on the Profile tab, the Workout tab, the Statistics screen and the home-screen widget.</li>
-<li>Heart rate is shown live during workouts and walk/run tracking, and as a chart on each finished workout.</li>
+<li>Steps are shown on the Profile tab, the Workout tab (today and the last 7 days), the Statistics screen (the last 30 days) and the home-screen widget. Calories burned are shown on the Profile tab.</li>
+<li>Heart rate is shown live during workouts and walk/run tracking, and as a chart on the summary shown when you finish. LogEZ keeps those readings with the workout, and they are included in full backups.</li>
 <li>LogEZ keeps a copy of daily step and calorie totals, and of the heart-rate readings for each workout, on your phone.</li>
 </ul>
-<p>Data from Health Connect is used only to show your own figures back to you. It is never used for advertising, never sold, never shared with anyone, and never leaves your phone except inside a backup file you create yourself. LogEZ's use of Health Connect data follows the Health Connect Permissions policy, including its Limited Use requirements.</p>
-<p>To stop sharing and delete LogEZ's copy, use Settings &gt; Data &gt; Disconnect and delete Health Connect data. The data in Health Connect itself is not touched.</p>
+<p>Data from Health Connect is used only to show your own figures back to you. It is never used for advertising, never sold, never shared with anyone, and never leaves your phone except inside a backup file you create yourself, or when you move LogEZ's data to a new phone with Android's phone-to-phone transfer. LogEZ's use of Health Connect data follows the Health Connect Permissions policy, including its Limited Use requirements.</p>
+<p>To stop sharing and delete LogEZ's copy, use Settings &gt; Export &amp; backup &gt; Disconnect and delete Health Connect data. The data in Health Connect itself is not touched.</p>
 <h2>Camera and photos</h2>
 <p>LogEZ uses the camera only when you take a progress photo. A photo you attach to an exercise is copied from your gallery into LogEZ. Both stay in LogEZ's private storage and are never uploaded.</p>
 <h2>Notifications</h2>
@@ -66,27 +67,29 @@ li { margin: 4px 0; }
 <li>Saving a summary image puts it in your phone's Pictures folder.</li>
 <li>Exporting workouts or measurements creates a CSV file where you choose.</li>
 <li>A full backup creates a .zip file where you choose. It contains everything in LogEZ, including photos, GPS routes and Health Connect readings.</li>
+<li>Settings &gt; Send feedback opens your email app with a message to us whose subject contains your LogEZ and Android versions. If you send it, we receive your email address and what you write, and keep it only as long as needed to reply.</li>
 </ul>
 <p>These files are not encrypted, so anyone who can open them can read them. What happens to a file after you save or share it is up to you and the app or service you give it to.</p>
 <h2>Device backup and transfer</h2>
-<p>Android's cloud backup is turned off for LogEZ. On Android 12 and newer, a direct phone-to-phone transfer (for example when setting up a new phone with a cable) can copy LogEZ's data to the new phone. On older Android versions, use Settings &gt; Data &gt; Full backup to move your data.</p>
+<p>Android's cloud backup is turned off for LogEZ. On Android 12 and newer, a direct phone-to-phone transfer (for example when setting up a new phone with a cable) can copy LogEZ's data to the new phone. On older Android versions, use Settings &gt; Export &amp; backup &gt; Full backup to move your data.</p>
 <h2>What LogEZ does not do</h2>
 <ul>
 <li>No accounts or sign-in.</li>
 <li>No advertising, and no use of the advertising ID.</li>
 <li>No analytics, crash-reporting or tracking tools.</li>
-<li>No selling, renting or sharing of your data.</li>
+<li>No selling or renting of your data. The only data another company receives is the map request described above.</li>
 </ul>
 <h2>How long data is kept, and how to delete it</h2>
 <p>Your data stays on your phone until you delete it:</p>
 <ul>
 <li>Deleting a workout also deletes its sets, route and heart-rate readings.</li>
-<li>Deleting a measurement or photo deletes it, including the photo file.</li>
-<li>Settings &gt; Data &gt; Disconnect and delete Health Connect data deletes LogEZ's copy of Health Connect data.</li>
-<li>Settings &gt; Data &gt; Delete all data erases everything in LogEZ.</li>
-<li>Uninstalling LogEZ, or clearing its storage in Android's settings, also deletes everything.</li>
+<li>Deleting a measurement entry deletes it. Deleting a progress photo also deletes the photo file.</li>
+<li>Deleting an exercise you created hides it and deletes its photo; it stays listed in past workouts that used it.</li>
+<li>Settings &gt; Export &amp; backup &gt; Disconnect and delete Health Connect data deletes LogEZ's copy of Health Connect data.</li>
+<li>Settings &gt; Export &amp; backup &gt; Delete all data erases everything in LogEZ, including cached map data. It does not disconnect Health Connect; use the option above for that.</li>
+<li>Uninstalling LogEZ, or clearing its storage in Android's settings, also deletes everything, except files you exported, images saved to Pictures, and any copy moved to another phone.</li>
 </ul>
-<p>We hold no copy of your data, so there is nothing for us to delete on our side. You are still welcome to contact us with any question.</p>
+<p>Apart from emails you send us, we hold no copy of your data, so there is nothing for us to delete on our side. You are still welcome to contact us with any question.</p>
 <h2>Security</h2>
 <p>Your data is kept in LogEZ's private app storage. Map requests use encrypted HTTPS, and LogEZ blocks unencrypted connections entirely.</p>
 <h2>Children</h2>
