@@ -4,11 +4,11 @@
     to blocking cleartext HTTP for apps targeting API 28+ — on a real API 26/27 device (this app's
     minSdk), the OS's own framework code predates that default and permits cleartext regardless of
     targetSdk. Without this file nothing at the platform level would stop a cleartext request if the
-    hardcoded https:// URL in MapTilerView.kt were ever changed to http://, or if a future
+    hardcoded https:// URL in RouteMapView.kt were ever changed to http://, or if a future
     dependency made its own cleartext request. There is no equivalent platform mechanism to restrict
     which domain the app talks to (Android's network security config controls cleartext/trust
     anchors, not a domain allowlist) — that scope is enforced by there being exactly one hardcoded
-    HTTPS URL in the codebase (MAPTILER_STYLE_URL), not by this file.
+    HTTPS URL in the codebase (MAP_STYLE_URL, OpenFreeMap since 2026-09-25), not by this file.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />

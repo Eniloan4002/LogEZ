@@ -56,7 +56,7 @@ import com.enil.logez.core.domain.model.DistanceUnit
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.enil.logez.core.wellness.HeartRateSample
-import com.enil.logez.feature.activity.map.MapTilerView
+import com.enil.logez.feature.activity.map.RouteMapView
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -153,7 +153,7 @@ fun ActivityTrackingScreen(
             // that space too. The Finish-summary and History Detail Route cards keep their own
             // fixed, smaller aspect-ratio sizing, untouched by this.
             //
-            // Deliberately NOT wrapped in a shared verticalScroll with the card below: MapTilerView
+            // Deliberately NOT wrapped in a shared verticalScroll with the card below: RouteMapView
             // is a native AndroidView with its own pan/zoom/scroll gestures fully enabled (a prior,
             // deliberate fix for a "can't move the map" report), and an embedded platform View's
             // touch handling claims the gesture stream ahead of an ancestor Compose scroll with no
@@ -171,7 +171,7 @@ fun ActivityTrackingScreen(
             BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 val mapHeight = minOf(280.dp, maxHeight * 0.45f)
                 Column(modifier = Modifier.fillMaxSize()) {
-                MapTilerView(
+                RouteMapView(
                     routePoints = state.routePoints,
                     followLatest = true,
                     modifier = Modifier.fillMaxWidth().height(mapHeight).clip(RoundedCornerShape(Radius.sm)),

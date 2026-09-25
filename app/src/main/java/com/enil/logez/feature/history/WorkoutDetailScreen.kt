@@ -76,7 +76,7 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStructure
-import com.enil.logez.feature.activity.map.MapTilerView
+import com.enil.logez.feature.activity.map.RouteMapView
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.finish.labelRes
 import com.enil.logez.feature.activity.InterruptedTrackingDialog
@@ -364,7 +364,7 @@ private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Text(stringResource(R.string.workout_detail_route_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-            MapTilerView(
+            RouteMapView(
                 routePoints = routePoints,
                 followLatest = false,
                 modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.sm).clip(RoundedCornerShape(Radius.sm)),

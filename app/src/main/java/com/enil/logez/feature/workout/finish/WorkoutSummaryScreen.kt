@@ -52,7 +52,7 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.domain.model.WorkoutStructure
-import com.enil.logez.feature.activity.map.MapTilerView
+import com.enil.logez.feature.activity.map.RouteMapView
 import com.enil.logez.feature.history.formatCardDateTime
 import com.enil.logez.feature.workout.finish.share.ShareCardData
 import com.enil.logez.feature.workout.finish.share.ShareSummaryDialog
@@ -141,7 +141,7 @@ fun WorkoutSummaryScreen(
             if (uiState.routePoints.isNotEmpty()) {
                 // M21c: upgraded from the Canvas sketch spike to the real offline map, per the
                 // Owner's explicit choice once the spike proved the concept (decisions.md 2026-09-10).
-                MapTilerView(
+                RouteMapView(
                     routePoints = uiState.routePoints,
                     followLatest = false,
                     modifier = Modifier.fillMaxWidth().height(180.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),

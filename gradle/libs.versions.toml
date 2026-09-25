@@ -27,7 +27,7 @@ composeUnstyled = "2.9.0" # M20e — https://github.com/composablehorizons/compo
 calendar = "2.10.1" # M20f — https://github.com/kizitonwose/Calendar/releases; java.time artifact; compat table maps Compose UI 1.11.x -> Calendar 2.10.x (our resolved 1.11.3 is in-table)
 richeditor = "1.0.0-rc14" # M20g — https://github.com/MohamedRejeb/compose-rich-editor/releases; the only Kotlin-2.3 row (2.3.21) in the compat table, one Compose minor behind ours (1.10.3) -- spike on our pinned 2.3.0
 playServicesLocation = "21.4.0" # M21a — https://developers.google.com/android/guides/releases; verified by direct AAR manifest inspection (2026-09-09) to declare zero permissions, including no INTERNET -- see decisions.md
-maplibre = "13.6.1" # M21b — https://github.com/maplibre/maplibre-native/releases; classic AndroidView-wrapped MapView, not maplibre-compose (that wrapper needs Kotlin 2.4.10, ahead of our 2.3.0 pin)
+maplibre = "13.6.1" # M21b — https://github.com/maplibre/maplibre-native/releases; classic AndroidView-wrapped MapView, not maplibre-compose (that wrapper needs Kotlin 2.4.10, ahead of our 2.3.0 pin). 2026-09-25: the OpenGL ES build of the same release (see the library entry below), not the default Vulkan one.
 healthConnect = "1.1.0" # M21e — https://developer.android.com/jetpack/androidx/releases/health-connect; latest STABLE (not the 1.2.0-alpha06 available at the time) per this project's never-alpha/beta/rc rule. Compat spike (2026-09-10): minCompileSdk=36 (exact match), minSdk 26 (exact match), minAndroidGradlePluginVersion=8.9.1 (well under our 9.2.0), kotlin-stdlib dep floor 2.0.21 (well under our 2.3.0) -- all clean, no fallback needed, direct AAR/POM inspection per this project's own dependency-vetting discipline.
 camerax = "1.6.2" # M22a — https://developer.android.com/jetpack/androidx/releases/camera; latest STABLE (2026-08-26) per this project's never-alpha/beta/rc rule (1.7.0 is still alpha). In-app camera capture for progress photos, no overlay compositing this pass. Compat check (2026-09-20): our compileSdk 36.1/minSdk 26 comfortably clear the industry-wide minSdk-23 floor AndroidX moved to in mid-2025 and CameraX's own compileSdk-35 floor as of the 1.5.0 beta (a full minor behind this pin) -- verified empirically by a clean assembleDebug with no AAR-metadata error, same signal the coil/healthConnect pins above relied on.
 glance = "1.2.0" # M23b -- https://developer.android.com/jetpack/androidx/releases/glance; latest STABLE (2026-08-26) per this project's never-alpha/beta/rc rule. 1.3.0-alpha is NOT an option: it requires compileSdk 37 and we are pinned at 36.1 -- the exact AAR-metadata wall the coil 3.6.2 pick hit above. Compat spike (2026-09-22): AAR built against compileSdk 35, minSdk 23, minAndroidGradlePluginVersion 8.6.0, compose-runtime floor 1.7.8 -- all comfortably under our 36.1 / 26 / 9.2.0 / BOM-resolved runtime.
@@ -96,7 +96,11 @@ richeditor-compose = { group = "com.mohamedrejeb.richeditor", name = "richeditor
 
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
-maplibre-android-sdk = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
+# 2026-09-25 (Play-readiness audit): MapLibre 13's default `android-sdk` artifact renders with Vulkan
+# and its manifest adds a REQUIRED android.hardware.vulkan.version feature, so Play would hide the
+# app from every phone without Vulkan 1.0 just to draw a route map. `android-sdk-opengl` is the same
+# release and the same API on the OpenGL ES backend, with no Vulkan requirement.
+maplibre-android-sdk = { group = "org.maplibre.gl", name = "android-sdk-opengl", version.ref = "maplibre" }
 androidx-health-connect-client = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }

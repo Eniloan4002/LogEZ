@@ -4,7 +4,8 @@
 
     <!--
         M21 (2026-09-12, Owner directive, decisions.md same date): the app's long-standing
-        "no INTERNET, ever" rule is narrowly reversed for online map tiles (MapTiler), replacing
+        "no INTERNET, ever" rule is narrowly reversed for online map tiles (MapTiler at first,
+        OpenFreeMap since 2026-09-25), replacing
         the bundled offline Metro-Manila-only map — this is LogEZ's first real network access.
         Map tile/style requests are the only thing that ever leaves the device; GPS tracking,
         workouts, Health Connect reads, and everything else stay fully local, unaffected. See
@@ -13,7 +14,13 @@
     -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- 2026-09-25 (Play-readiness audit): MapLibre's own manifest declares ACCESS_WIFI_STATE, but
+         its code only reads ConnectivityManager, which ACCESS_NETWORK_STATE covers, and nothing in
+         this app touches WifiManager. Play asks apps to request only what they use, so the merged
+         copy is stripped rather than merely left out of this file. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_WIFI_STATE"
+        tools:node="remove" />
 
     <!-- M4b (PHASE2_PLAN.md §9.2/§9.3/§9.4/§9.7): live-workout foreground service, its ongoing
          notification, and the rest-timer's bounded doze-insurance wake lock. -->
@@ -182,6 +189,14 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- 2026-09-25 (Play-readiness audit): the calendar library declares Compose's ui-tooling
+             at runtime scope, which merged an EXPORTED PreviewActivity into the release manifest.
+             It exists only for Android Studio previews and must not be launchable by other apps
+             on a shipped build; this app lists ui-tooling as debugImplementation only. -->
+        <activity
+            android:name="androidx.compose.ui.tooling.PreviewActivity"
+            tools:node="remove" />
 
     </application>
 

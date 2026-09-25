@@ -29,12 +29,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.enil.logez.BuildConfig
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
 import org.maplibre.android.MapLibre
@@ -53,12 +58,23 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-/** M21 (2026-09-12): MapTiler's own style URL -- a single fetch, its JSON already embeds the API
- * key into every sub-resource (tiles.json, sprite, glyphs), confirmed by inspecting a fetched copy
- * of this exact style. `streets-v2-dark` is a genuine native dark cartography style (not a runtime
- * color-inversion hack), confirmed via a fetched copy showing dark paint colors throughout. */
-private val MAPTILER_STYLE_URL =
-    "https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${BuildConfig.MAPTILER_API_KEY}"
+/**
+ * OpenFreeMap's hosted "Dark" style (Owner decision, 2026-09-25). It replaced MapTiler's
+ * `streets-v2-dark`, whose free plan forbids commercial use; a paid listing would have needed
+ * MapTiler's paid tier. OpenFreeMap allows commercial use with no API key and no request limits,
+ * so nothing secret ships in the APK and a fresh clone renders maps with no setup.
+ *
+ * Checked on 2026-09-25 by fetching this exact URL: one style JSON whose tile source, glyphs and
+ * sprite all live on tiles.openfreemap.org over HTTPS, with a native dark palette (background
+ * rgb(12,12,12), close to the app's Neutral950), not a runtime colour inversion. OpenFreeMap
+ * offers no SLA, which the retry state below already handles.
+ */
+private const val MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
+
+/** The credit OpenFreeMap, OpenMapTiles and OpenStreetMap each require, part by part with its link. */
+private const val OPENFREEMAP_URL = "https://openfreemap.org"
+private const val OPENMAPTILES_URL = "https://www.openmaptiles.org/"
+private const val OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright"
 
 /** Fallback camera center used only until the first real route point arrives. No longer tied to any
  * bundled data region now that tiles are fetched live for any location -- kept as a stable, familiar
@@ -113,19 +129,19 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
     LatLng(points.sumOf { it.first } / points.size, points.sumOf { it.second } / points.size)
 
 /**
- * M21b, switched to live MapTiler tiles M21 (2026-09-12). A classic `MapView` wrapped in
- * `AndroidView`, not `maplibre-compose` (that wrapper needs Kotlin 2.4.10, ahead of this project's
- * 2.3.0 pin — decisions.md/gradle/libs.versions.toml). The style is fetched live from MapTiler
- * (`MAPTILER_STYLE_URL` above) rather than loaded from a bundled `.mbtiles` + local style/glyphs/
- * sprites -- this is LogEZ's first-ever real network access (Owner directive, decisions.md
+ * M21b, switched to live online tiles M21 (2026-09-12), from MapTiler to OpenFreeMap 2026-09-25.
+ * A classic `MapView` wrapped in `AndroidView`, not `maplibre-compose` (that wrapper needs Kotlin
+ * 2.4.10, ahead of this project's 2.3.0 pin — decisions.md/gradle/libs.versions.toml). The style is
+ * fetched live ([MAP_STYLE_URL] above) rather than loaded from a bundled `.mbtiles` + local
+ * style/glyphs/sprites -- this is LogEZ's only network access (Owner directive, decisions.md
  * 2026-09-12), narrowly scoped to map tile/style/glyph/sprite requests only. GPS tracking, workout
  * data, and Health Connect reads all stay fully local, unaffected. Replacing the old
  * Metro-Manila-only bundled map means the map now renders anywhere in the world, not just one city.
  *
  * The persistent, always-visible attribution text is deliberate, not decorative: MapLibre's own
- * default tap-to-reveal "(i)" control does not, on its own, satisfy OpenStreetMap's (and MapTiler's)
- * requirement that attribution be visible without requiring a tap (M21b research, a real open
- * MapLibre issue; MapTiler's own copyright page states the same requirement for its own credit).
+ * default tap-to-reveal "(i)" control does not, on its own, satisfy OpenStreetMap's requirement
+ * that attribution be visible without requiring a tap (M21b research, a real open MapLibre issue).
+ * Each part of the credit is also a link to its source, as the OSM attribution guidelines ask.
  *
  * M21c: [routePoints] draws the GPS track as a line layer once 2+ points exist. [followLatest]
  * chooses how the camera reacts to it -- `true` (live tracking) keeps centering on the newest
@@ -145,7 +161,7 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
  * app (Strava, Nike Run Club, Google Maps' own blue-dot follow mode) uses for this same conflict.
  */
 @Composable
-fun MapTilerView(
+fun RouteMapView(
     modifier: Modifier = Modifier,
     routePoints: List<Pair<Double, Double>> = emptyList(),
     followLatest: Boolean = false,
@@ -167,7 +183,7 @@ fun MapTilerView(
     fun loadStyle(map: MapLibreMap) {
         loadError = null
         val initialTarget = if (routePoints.size >= 2) routeCentroid(routePoints) else METRO_MANILA_CENTER
-        map.setStyle(Style.Builder().fromUri(MAPTILER_STYLE_URL)) { style ->
+        map.setStyle(Style.Builder().fromUri(MAP_STYLE_URL)) { style ->
             style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
             style.addLayer(
                 LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
@@ -237,7 +253,7 @@ fun MapTilerView(
                 maplibreMap = map
                 // No OnDidFailLoadingMapListener existed before this milestone because the bundled
                 // local style/mbtiles could never fail this way. A live network fetch genuinely can
-                // (no connectivity, an invalid/missing API key, a MapTiler outage) -- without this,
+                // (no connectivity, a tile-server outage) -- without this,
                 // `styleReady` would simply never flip and the loading spinner below would spin
                 // forever with no way out, including for a past workout's route that used to render
                 // 100% offline.
@@ -269,7 +285,7 @@ fun MapTilerView(
 
         // Shown until the style has fetched over the network and the zoom-dance above has settled --
         // MapView itself renders a blank tile grid underneath while that's in flight. A failure
-        // (no connectivity, bad API key, MapTiler outage) shows a retry affordance instead of
+        // (no connectivity, a tile-server outage) shows a retry affordance instead of
         // spinning forever -- see loadStyle()'s and the failure listener's own comments above.
         if (loadError != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -293,8 +309,18 @@ fun MapTilerView(
             }
         }
 
+        val linkStyles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
+        val openFreeMap = stringResource(R.string.map_attribution_openfreemap)
+        val openMapTiles = stringResource(R.string.map_attribution_openmaptiles)
+        val openStreetMap = stringResource(R.string.map_attribution_osm)
         Text(
-            stringResource(R.string.map_attribution),
+            buildAnnotatedString {
+                withLink(LinkAnnotation.Url(OPENFREEMAP_URL, linkStyles)) { append(openFreeMap) }
+                append(" ")
+                withLink(LinkAnnotation.Url(OPENMAPTILES_URL, linkStyles)) { append(openMapTiles) }
+                append(" ")
+                withLink(LinkAnnotation.Url(OSM_COPYRIGHT_URL, linkStyles)) { append(openStreetMap) }
+            },
             style = MaterialTheme.typography.labelSmall,
             color = Color.Black,
             modifier = Modifier

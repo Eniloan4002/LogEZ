@@ -18,7 +18,7 @@ Offline-first fitness logger for Android — routines, live workout tracking, GP
 **Requirements:** Android Studio (latest stable) or a terminal with the Android SDK installed, and a JDK 17–21 (JDK 25+ breaks the Robolectric-based unit tests — point `JAVA_HOME` or Android Studio's bundled JBR at 17–21).
 
 1. Clone the repo and open it in Android Studio, or work from the terminal with the Gradle wrapper (`./gradlew`, `gradlew.bat` on Windows) — never install Gradle globally.
-2. Copy [`local.properties.example`](local.properties.example) to `local.properties` and fill in your Android SDK path and a [MapTiler](https://www.maptiler.com/) API key (free tier is fine). Without a valid key the app still builds and runs — the map component just shows a "couldn't load the map" retry state instead of tiles.
+2. Copy [`local.properties.example`](local.properties.example) to `local.properties` and fill in your Android SDK path. No map API key is needed: route maps load [OpenFreeMap](https://openfreemap.org/) tiles, which need no key or account.
 3. For a signed release build only (not needed for debug or tests), copy [`keystore.properties.example`](keystore.properties.example) to `keystore.properties` and point it at your own keystore.
 
 ### Build & run

@@ -18,17 +18,6 @@ val keystoreProperties = Properties().apply {
     }
 }
 
-// M21 (2026-09-12): the MapTiler API key lives in the gitignored local.properties, same pattern
-// as keystore.properties above -- never in this file or in source control. Missing on a fresh
-// clone means an empty BuildConfig string, which MapTiler's API rejects with a clear 401 rather
-// than silently loading a wrong map.
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
-    }
-}
-
 android {
     namespace = "com.enil.logez"
     compileSdk {
@@ -45,15 +34,6 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Escaped before splicing into the generated BuildConfig source -- buildConfigField's value
-        // argument is spliced verbatim as Kotlin source text, so an unescaped `"` or `\` in a pasted
-        // key (stray quoting from a dashboard copy-paste) would otherwise break the generated file
-        // with a confusing compile error instead of just being part of the string.
-        val mapTilerApiKey = localProperties.getProperty("MAPTILER_API_KEY", "")
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-        buildConfigField("String", "MAPTILER_API_KEY", "\"$mapTilerApiKey\"")
     }
 
     signingConfigs {

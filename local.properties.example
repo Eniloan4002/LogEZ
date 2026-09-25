@@ -4,8 +4,5 @@
 # only needed manually for a command-line-only build.
 sdk.dir=/path/to/your/Android/sdk
 
-# MapTiler API key, used for online map tiles when viewing/tracking a GPS route (see
-# feature/activity/map/MapTilerView.kt). Sign up for a free-tier key at https://www.maptiler.com/
-# and paste it below. Without a valid key, the app builds and runs fine — the map component just
-# shows a "couldn't load the map" state with a Retry button instead of tiles.
-MAPTILER_API_KEY=your_maptiler_api_key_here
+# No map API key is needed: route maps load OpenFreeMap tiles, which require no key (see
+# feature/activity/map/RouteMapView.kt). An old MAPTILER_API_KEY line here is unused and can go.
