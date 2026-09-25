@@ -64,6 +64,7 @@ fun DataScreen(
     // was created but never written.
     var pendingKind by rememberSaveable { mutableStateOf<ExportKind?>(null) }
     var confirmHealthDisconnect by rememberSaveable { mutableStateOf(false) }
+    var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
 
     val createDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -149,6 +150,30 @@ fun DataScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmHealthDisconnect = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text(stringResource(R.string.data_delete_all_confirm_title)) },
+            text = { Text(stringResource(R.string.data_delete_all_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteAll = false
+                    viewModel.deleteAllData()
+                }) {
+                    Text(
+                        text = stringResource(R.string.data_delete_all_confirm_action),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteAll = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },
@@ -247,6 +272,17 @@ fun DataScreen(
                     subtitle = stringResource(R.string.data_health_disconnect_subtitle),
                     value = "",
                     onClick = { confirmHealthDisconnect = true },
+                )
+            }
+
+            item(key = "section_delete") { SettingsSectionHeader(stringResource(R.string.data_section_delete)) }
+
+            item(key = "delete_all") {
+                SettingsValueRow(
+                    title = stringResource(R.string.data_delete_all),
+                    subtitle = stringResource(R.string.data_delete_all_subtitle),
+                    value = "",
+                    onClick = { confirmDeleteAll = true },
                 )
             }
 

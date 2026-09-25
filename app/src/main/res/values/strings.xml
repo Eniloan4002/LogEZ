@@ -566,6 +566,16 @@
     <string name="data_health_disconnecting">Disconnecting…</string>
     <string name="data_health_disconnected">Health Connect disconnected and its readings deleted</string>
     <string name="data_health_disconnect_failed">Couldn\'t delete the Health Connect readings. Nothing was changed.</string>
+    <string name="data_section_delete">Delete</string>
+    <string name="data_delete_all">Delete all data</string>
+    <string name="data_delete_all_subtitle">Erases every workout, routine, measurement, photo and setting</string>
+    <string name="data_delete_all_confirm_title">Delete everything?</string>
+    <string name="data_delete_all_confirm_body">This permanently erases everything in LogEZ: workouts, routes, routines, custom exercises, measurements, progress photos, goals, saved Health Connect readings and your settings. The exercise library is restored to its original state.\n\nFiles you already exported or saved to Pictures are not affected. Make a full backup first if you might want this data back.</string>
+    <string name="data_delete_all_confirm_action">Delete everything</string>
+    <string name="data_delete_all_working">Deleting…</string>
+    <string name="data_delete_all_done">All data deleted</string>
+    <string name="data_delete_all_failed">Couldn\'t delete your data. Nothing was changed.</string>
+    <string name="data_delete_all_blocked_in_progress">Finish or discard your current workout before deleting all data.</string>
     <string name="data_privacy_note">Exported files are plain and unencrypted — anything that can open them can read them, including any app you share them with. Keep them somewhere you trust. LogEZ never uploads them; the only thing this app sends over the internet is map tiles, and only while a GPS route is on screen.</string>
 
     <string name="settings_section_about">About</string>

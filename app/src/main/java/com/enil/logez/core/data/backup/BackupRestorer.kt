@@ -60,7 +60,7 @@ class BackupRestorer @Inject constructor(
         marker.write(RestoreMarker.Phase.DATABASE, stagingDir)
 
         transactionRunner.runInTransaction {
-            BackupTables.WIPE_ORDER.forEach { wipe(it) }
+            BackupTables.WIPE_ORDER.forEach { backupDao.wipe(it) }
             BackupTables.EXPORT_ORDER.forEach { insertTable(stagingDir, it) }
 
             val touched = backupDao.exerciseIdsWithCompletedHistory()
@@ -128,25 +128,6 @@ class BackupRestorer @Inject constructor(
             }
             old.deleteRecursively()
         }
-    }
-
-    private suspend fun wipe(table: String) = when (table) {
-        BackupTables.PERSONAL_RECORDS -> backupDao.deleteAllPersonalRecords()
-        BackupTables.ACTIVITY_TRACKS -> backupDao.deleteAllActivityTracks()
-        BackupTables.WORKOUT_HEART_RATE_SAMPLES -> backupDao.deleteAllHeartRateSamples()
-        BackupTables.WORKOUT_SETS -> backupDao.deleteAllWorkoutSets()
-        BackupTables.WORKOUT_EXERCISES -> backupDao.deleteAllWorkoutExercises()
-        BackupTables.WORKOUTS -> backupDao.deleteAllWorkouts()
-        BackupTables.ROUTINE_SETS -> backupDao.deleteAllRoutineSets()
-        BackupTables.ROUTINE_EXERCISES -> backupDao.deleteAllRoutineExercises()
-        BackupTables.ROUTINES -> backupDao.deleteAllRoutines()
-        BackupTables.ROUTINE_FOLDERS -> backupDao.deleteAllRoutineFolders()
-        BackupTables.PROGRESS_PHOTOS -> backupDao.deleteAllProgressPhotos()
-        BackupTables.BODY_MEASUREMENTS -> backupDao.deleteAllBodyMeasurements()
-        BackupTables.GOAL_DEFINITIONS -> backupDao.deleteAllGoals()
-        BackupTables.DAILY_WELLNESS_TOTALS -> backupDao.deleteAllWellnessTotals()
-        BackupTables.EXERCISES -> backupDao.deleteAllExercises()
-        else -> error("no wipe for table $table")
     }
 
     private suspend fun insertTable(stagingDir: File, table: String) {

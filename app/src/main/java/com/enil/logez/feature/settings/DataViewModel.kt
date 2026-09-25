@@ -12,6 +12,7 @@ import com.enil.logez.core.data.backup.BackupManifest
 import com.enil.logez.core.data.backup.BackupReader
 import com.enil.logez.core.data.backup.BackupRestorer
 import com.enil.logez.core.data.backup.BackupWriter
+import com.enil.logez.core.data.backup.LocalDataEraser
 import com.enil.logez.core.data.backup.RestoreMarker
 import com.enil.logez.core.data.export.CsvExporter
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -57,6 +58,7 @@ class DataViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val healthMetricsSource: HealthMetricsSource,
     private val healthConnectDisconnector: HealthConnectDisconnector,
+    private val localDataEraser: LocalDataEraser,
     private val logger: AppLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DataUiState())
@@ -177,6 +179,33 @@ class DataViewModel @Inject constructor(
             } catch (t: Throwable) {
                 logger.e(TAG, "Deleting Health Connect data failed", t)
                 _uiState.update { it.copy(job = DataJob.Failed(R.string.data_health_disconnect_failed)) }
+            }
+        }
+    }
+
+    /**
+     * Erases everything LogEZ holds and restores default settings. Refused while a workout is in
+     * progress, for the same reason restore is: the live session points at rows this deletes.
+     */
+    fun deleteAllData() {
+        viewModelScope.launch {
+            if (workoutRepository.getInProgress() != null) {
+                _uiState.update { it.copy(job = DataJob.Failed(R.string.data_delete_all_blocked_in_progress)) }
+                return@launch
+            }
+            _uiState.update { it.copy(job = DataJob.Working(R.string.data_delete_all_working)) }
+            try {
+                localDataEraser.eraseEverything()
+                _uiState.update {
+                    it.copy(
+                        job = DataJob.Done(R.string.data_delete_all_done),
+                        workoutSetCount = csvExporter.workoutSetCount(),
+                        measurementCount = csvExporter.measurementCount(),
+                    )
+                }
+            } catch (t: Throwable) {
+                logger.e(TAG, "Deleting all data failed", t)
+                _uiState.update { it.copy(job = DataJob.Failed(R.string.data_delete_all_failed)) }
             }
         }
     }
