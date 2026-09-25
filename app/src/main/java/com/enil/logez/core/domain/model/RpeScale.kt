@@ -9,8 +9,8 @@ package com.enil.logez.core.domain.model
  * value outside it by construction, so there is no separate runtime validator to keep in sync.
  *
  * The reserve-reps mapping below is the standard RPE/RIR correlation used across strength
- * training generally (Renaissance Periodization and others publish the same table) — not
- * Hevy-specific copy, and phrased in our own words rather than any app's exact wording.
+ * training generally (Renaissance Periodization and others publish the same table), phrased in
+ * our own words rather than any app's exact wording.
  */
 object RpeScale {
     val VALUES: List<Double> = listOf(6.0, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0)

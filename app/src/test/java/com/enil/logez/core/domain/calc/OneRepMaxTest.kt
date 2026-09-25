@@ -9,7 +9,7 @@ import org.junit.Test
  * Every factor is asserted as a literal, never recomputed with the production formula (§10.1).
  */
 class OneRepMaxTest {
-    /** reps -> Hevy's percentage factor, transcribed independently from §8.2 / research/followup-0.md. */
+    /** reps -> percentage-of-1RM factor, transcribed independently from PHASE2_PLAN.md §8.2. */
     private val expectedFactors = mapOf(
         1 to 1.00, 2 to 0.97, 3 to 0.94, 4 to 0.92, 5 to 0.89,
         6 to 0.86, 7 to 0.83, 8 to 0.81, 9 to 0.78, 10 to 0.75,

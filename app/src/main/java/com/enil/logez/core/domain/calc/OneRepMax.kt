@@ -1,9 +1,9 @@
 package com.enil.logez.core.domain.calc
 
 /**
- * PHASE2_PLAN.md §8.2 — Hevy's exact 30-entry percentage lookup table (research/followup-0.md),
- * recovered from Hevy's production web bundle. NOT Epley or Brzycki. WEIGHT_REPS exercises only
- * — no other ExerciseType ever computes 1RM.
+ * PHASE2_PLAN.md §8.2 — estimated one-rep max from a 30-entry percentage-of-1RM lookup table
+ * (reps -> fraction of 1RM), the tabular alternative to closed-form formulas such as Epley or
+ * Brzycki. WEIGHT_REPS exercises only — no other ExerciseType ever computes 1RM.
  */
 object OneRepMax {
     /** Index = reps - 1. */

@@ -15,9 +15,9 @@ import kotlinx.coroutines.flow.callbackFlow
 
 /**
  * M21a. Talks to `FusedLocationProviderClient` over local Binder IPC to the already-installed,
- * already-networked Play services process — this app's own process never opens a socket
+ * already-networked Play services process — the location path never opens a socket from this app
  * (verified by direct AAR manifest inspection, decisions.md 2026-09-09: zero permissions declared
- * by `play-services-location`, including no INTERNET).
+ * by `play-services-location`, including no INTERNET). The app's only network use is map tiles.
  */
 class FusedLocationSource @Inject constructor(
     private val fusedLocationClient: FusedLocationProviderClient,

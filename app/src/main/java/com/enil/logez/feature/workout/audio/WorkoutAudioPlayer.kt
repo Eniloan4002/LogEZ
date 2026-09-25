@@ -11,7 +11,7 @@ import javax.inject.Singleton
 /**
  * PHASE2_PLAN.md §9.7 — a platform side-effect component, injected into `WorkoutSessionService`
  * and never into a ViewModel (spine testing rule). Original, procedurally-generated short tones
- * in `res/raw` (§7.5 placeholder-media precedent: no Hevy assets). `USAGE_ASSISTANCE_SONIFICATION`
+ * in `res/raw` (§7.5: original assets only, no third-party audio). `USAGE_ASSISTANCE_SONIFICATION`
  * mixes over the user's own audio (gym music) without claiming audio focus.
  *
  * Volume is a plain 0f-1f [Float] (Owner, 2026-09-03: was the OFF/LOW/NORMAL/HIGH `VolumeLevel`

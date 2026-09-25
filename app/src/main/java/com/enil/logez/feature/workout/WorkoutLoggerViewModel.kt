@@ -1039,7 +1039,7 @@ data class WorkoutLoggerUiState(
     val editedDurationSeconds: Int = 0,
     /** §5.1.10: "Removing every exercise blocks Save ('Delete the workout instead')." */
     val canSaveEdit: Boolean = false,
-    /** §5.1.7: column + picker exist only when this is true — off by default (Hevy default). */
+    /** §5.1.7: column + picker exist only when this is true — off by default. */
     val rpeTrackingEnabled: Boolean = false,
     /** M17 §5.1.5: Plate Calculator gate, owned equipment, and display unit for the set tables. */
     val plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),

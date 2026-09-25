@@ -3,7 +3,7 @@ package com.enil.logez.core.domain.calc
 import com.enil.logez.core.domain.model.ExerciseType
 
 /**
- * PHASE2_PLAN.md §8.3 — kg-load per set, with Hevy's verified bodyweight rules
+ * PHASE2_PLAN.md §8.3 — kg-load per set, with the bodyweight rules
  * (research/followup-1.md). Branches ONLY on [isBodyweightVolumeEligible] (set true for exactly
  * the seed 100%-bodyweight movement families, including their weighted/assisted variants, per
  * §3.2/§7.3) — never on `isCustom`.

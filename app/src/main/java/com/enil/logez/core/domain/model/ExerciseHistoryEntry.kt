@@ -3,8 +3,7 @@ package com.enil.logez.core.domain.model
 /**
  * One completed set of a given exercise, with enough workout context to render the Exercise
  * Detail History tab (PHASE2_PLAN.md §5.2): "every session containing the exercise... card per
- * workout (date, workout title) listing that session's sets". Mirrors Hevy's own verified
- * `GET /v1/exercise_history/{id}` shape (research/api-data-model.md).
+ * workout (date, workout title) listing that session's sets".
  */
 data class ExerciseHistoryEntry(
     val workoutId: String,

@@ -1,0 +1,41 @@
+# Unit tests and release lint on every push and pull request (Play-readiness audit, 2026-09-25:
+# the project had strong unit coverage but nothing ran it automatically). Release lint matters
+# because the build now fails on any NewApi error, the class of bug that crashed Android 8-13.
+#
+# No signing secrets are needed: lint and tests never package a release, and the release-only
+# contact-email guard is hooked on packaging tasks.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      # JDK 21: Robolectric cannot read class files from JDK 25+ (see gradle.properties).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain
+      - name: Release lint
+        run: ./gradlew :app:lintRelease --console=plain
+      - name: Upload reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            app/build/reports/
+            app/build/test-results/

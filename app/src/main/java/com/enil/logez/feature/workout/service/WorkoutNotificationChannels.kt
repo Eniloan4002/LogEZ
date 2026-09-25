@@ -8,7 +8,7 @@ import com.enil.logez.R
 /**
  * PHASE2_PLAN.md §9.3 — created once at app start (idempotent — `createNotificationChannels` is a
  * no-op for channels that already exist). Both are deliberately silent at the channel level:
- * Hevy's independent Timer/Set-Complete/PR volume settings are incompatible with system-managed
+ * independent Timer/Set-Complete/PR volume settings are incompatible with system-managed
  * channel sounds, so audio is app-rendered via [com.enil.logez.feature.workout.audio.WorkoutAudioPlayer] instead.
  */
 object WorkoutNotificationChannels {

@@ -38,7 +38,7 @@ interface RoutineDao {
     @Query("UPDATE routine_folders SET name = :name, updated_at = :updatedAt WHERE id = :id")
     suspend fun renameFolder(id: String, name: String, updatedAt: Long)
 
-    /** New folders insert at index 0 (Hevy parity, entity doc comment) — shifts existing folders down. */
+    /** New folders insert at index 0 (see the entity doc comment) — shifts existing folders down. */
     @Transaction
     suspend fun createFolderAtTop(folder: RoutineFolderEntity) {
         getAllFoldersOnce().forEach { updateFolderOrderIndex(it.id, it.orderIndex + 1) }

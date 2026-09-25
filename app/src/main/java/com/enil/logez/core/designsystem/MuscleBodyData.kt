@@ -8,8 +8,8 @@ import com.enil.logez.core.domain.model.MuscleGroup
  * `LucaWahlen/vue-human-muscle-anatomy` GitHub repository has been deleted; this data was fetched
  * 2026-09-22 from the `sebmaynard/vue-human-muscle-anatomy` fork
  * (github.com/sebmaynard/vue-human-muscle-anatomy), whose `LICENSE` file confirms MIT,
- * Copyright (c) 2025 Luca Wahlen. Used under the MIT terms -- not a Hevy asset (standing
- * no-Hevy-copy rule is unaffected). Replaces the prior vulovix/body-muscles (Apache-2.0) data.
+ * Copyright (c) 2025 Luca Wahlen. Used under the MIT terms, with the notice shipped on the
+ * Open-source licences screen. Replaces the prior vulovix/body-muscles (Apache-2.0) data.
  *
  * Unlike the prior data, front and back are already combined in ONE shared
  * [MUSCLE_BODY_VIEW_BOX]x[MUSCLE_BODY_VIEW_BOX] coordinate space per gender (front figure roughly

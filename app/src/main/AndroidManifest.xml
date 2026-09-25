@@ -195,8 +195,10 @@
              at runtime scope, which merged an EXPORTED PreviewActivity into the release manifest.
              It exists only for Android Studio previews and must not be launchable by other apps
              on a shipped build; this app lists ui-tooling as debugImplementation only. -->
+        <!-- tools:ignore: lint's MissingClass cannot resolve a class this very directive strips. -->
         <activity
             android:name="androidx.compose.ui.tooling.PreviewActivity"
+            tools:ignore="MissingClass"
             tools:node="remove" />
 
     </application>

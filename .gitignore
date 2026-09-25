@@ -31,3 +31,9 @@ generated-images/
 /.idea/
 *.local-bak
 *.disabled-by-claude
+
+# Assistant session notes, rewritten automatically by a local tooling plugin. They were removed from
+# the repo at the Owner's decision (2026-09-18) but re-added by accident in e4f43f5 and pushed;
+# ignoring them keeps the plugin's rewrites out of the public history (2026-09-25 audit).
+/AGENTS.md
+/CLAUDE.md

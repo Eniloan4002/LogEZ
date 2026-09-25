@@ -51,8 +51,8 @@ import com.enil.logez.core.designsystem.currentLocale
 
 /**
  * PHASE2_PLAN.md §5.2 History tab — the landing destination, a reverse-chronological feed of
- * completed workouts. The plan's own framing: "exactly what Hevy's Home feed degenerates to with
- * zero followed users" — no Discover toggle, no likes, no comments, none of which exist here.
+ * completed workouts. A personal log, not a social feed: no Discover toggle, no likes, no
+ * comments, none of which exist here.
  *
  * The plan specifies a long-press-on-card shortcut into the same overflow menu Workout Detail
  * carries; that menu's three-dot button is a more discoverable path to the same actions than an

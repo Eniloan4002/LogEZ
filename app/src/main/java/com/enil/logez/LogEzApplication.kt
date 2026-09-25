@@ -45,7 +45,8 @@ class LogEzApplication : Application(), SingletonImageLoader.Factory {
     /**
      * M20b: the app-wide Coil `ImageLoader` for [com.enil.logez.core.designsystem.LocalImage].
      * No network fetcher is registered anywhere -- every model is a local `File` (custom-exercise
-     * photos), and the app has no INTERNET permission (ADR-0008 posture). No transition is set, so
+     * photos); the only network use in the app is MapLibre's map tiles, which never go through
+     * Coil. No transition is set, so
      * loads render instantly with no crossfade (near-zero-motion rule).
      */
     override fun newImageLoader(context: Context): ImageLoader =

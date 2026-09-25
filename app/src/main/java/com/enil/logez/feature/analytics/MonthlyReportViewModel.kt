@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * PHASE2_PLAN.md §5.2 card 6 — the Monthly Report for any completed calendar month. LogEZ extends
- * Hevy here (Hevy offers only the last completed month; an archive is free once the aggregates
- * exist), so the picker spans first-workout-month through the current month. Same single-snapshot
+ * PHASE2_PLAN.md §5.2 card 6 — the Monthly Report for any completed calendar month. An archive
+ * is free once the aggregates exist, so the picker spans first-workout-month through the current
+ * month. Same single-snapshot
  * refresh discipline as [AnalyticsViewModel], plus a cancel-and-restart rebuild job: unlike that
  * class's fully-synchronous rebuild, this one suspends mid-rebuild (the PR read), so without the
  * guard a stale in-flight rebuild could publish after — and silently revert — a newer selection.
@@ -114,7 +114,7 @@ class MonthlyReportViewModel @Inject constructor(
         }
     }
 
-    /** Hevy's default is the last completed month; an archive month stays selected once picked. */
+    /** Defaults to the last completed month; an archive month stays selected once picked. */
     private fun resolveMonth(d: ReportData, months: List<YearMonth>): YearMonth =
         selectedMonth?.takeIf { it in months }
             ?: d.currentMonth.minusMonths(1).takeIf { it in months }
