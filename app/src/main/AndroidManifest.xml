@@ -143,7 +143,7 @@
              permission; the image leaves the device only through that explicit user choice. -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.enil.logez.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

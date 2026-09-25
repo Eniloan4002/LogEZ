@@ -59,7 +59,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 on (Play-readiness audit, 2026-09-25): the release APK carried 77 MB of
+            // unshrunk dex, 11,400 of its classes Material icons the app never uses. Shrinking,
+            // optimisation and obfuscation also speed up startup. The mapping file travels inside
+            // the AAB, so Play de-obfuscates crash reports automatically. See proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -67,6 +72,17 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+        // The release build exactly as Play will get it (R8, resource shrinking, release
+        // resources), but installable beside a debug or release copy and signed with the debug
+        // key, so the shrunk app can be regression-tested without the upload keystore:
+        //   ./gradlew :app:assembleStaging
+        create("staging") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {

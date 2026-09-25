@@ -53,7 +53,7 @@ class WorkoutShareController @Inject constructor(
         file.outputStream().use { out ->
             if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) throw IOException("PNG encoding failed")
         }
-        FileProvider.getUriForFile(context, AUTHORITY, file)
+        FileProvider.getUriForFile(context, "${context.packageName}$AUTHORITY_SUFFIX", file)
     }
 
     /**
@@ -152,7 +152,10 @@ class WorkoutShareController @Inject constructor(
 
     companion object {
         private const val TAG = "WorkoutShareController"
-        private const val AUTHORITY = "com.enil.logez.fileprovider"
+        // Derived from the package name (2026-09-25) so the staging build, installed beside the
+        // release one under its own application id, does not collide on a hardcoded authority.
+        // Must match the manifest's ${applicationId}.fileprovider.
+        private const val AUTHORITY_SUFFIX = ".fileprovider"
         private const val SHARED_IMAGES_DIR = "shared_images"
         private const val MIME_TYPE_PNG = "image/png"
         private const val SAVE_SUBDIR = "logEZ"
