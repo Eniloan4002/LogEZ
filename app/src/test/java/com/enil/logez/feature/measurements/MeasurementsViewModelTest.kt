@@ -25,6 +25,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.enil.logez.fakes.FakeMediaFileCleaner
 
 /**
  * The Uri-touching methods (attachPhotoFromCapture / confirmReplaceTodaysPhoto /
@@ -84,6 +85,20 @@ class MeasurementsViewModelTest {
         vm.saveEntry(entry("2026-08-21", weightKg = 81.0))
         vm.deleteEntry("2026-08-20")
         assertEquals(listOf("2026-08-21"), vm.uiState.value.entries.map { it.date })
+    }
+
+    @Test
+    fun `deletePhoto deletes the photo file after the row`() = runTest {
+        val repo = FakeMeasurementRepository()
+        val cleaner = FakeMediaFileCleaner()
+        val vm = MeasurementsViewModel(repo, FakeSettingsRepository(), FakeProgressPhotoStore(), FakeClock(currentMillis = 0L), cleaner)
+        val photo = ProgressPhoto(id = "p1", date = "2026-08-20", filePath = "progress_photos/p1.jpg", createdAt = 0L)
+        repo.upsertPhoto(photo)
+
+        vm.deletePhoto(photo)
+
+        assertTrue(vm.uiState.value.photos.isEmpty())
+        assertEquals(listOf("progress_photos/p1.jpg"), cleaner.requested)
     }
 
     @Test

@@ -14,12 +14,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import com.enil.logez.core.data.media.MediaFileJanitor
 
 @HiltAndroidApp
 class LogEzApplication : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var seedManager: SeedManager
 
     @Inject lateinit var backupRestorer: BackupRestorer
+
+    @Inject lateinit var mediaFileJanitor: MediaFileJanitor
 
     /** PHASE2_PLAN.md §7.7: seeding runs from an application-scoped coroutine at startup. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -31,6 +34,8 @@ class LogEzApplication : Application(), SingletonImageLoader.Factory {
             // and the two must not race.
             runCatching { backupRestorer.resumeIfInterrupted(filesDir) }
             seedManager.seedIfNeeded()
+            // After the restore check: the sweep must never see a half-swapped photo directory.
+            runCatching { mediaFileJanitor.sweepOrphans() }
         }
         // Re-armed every launch: the request is unique and REPLACE, so this converges rather than
         // stacking, and it recovers the schedule after a reboot or a force-stop.

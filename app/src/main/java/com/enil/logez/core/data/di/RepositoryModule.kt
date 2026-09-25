@@ -70,6 +70,9 @@ abstract class RepositoryModule {
     abstract fun bindProgressPhotoStore(impl: ProgressPhotoStoreImpl): ProgressPhotoStore
 
     @Binds
+    abstract fun bindMediaFileCleaner(impl: com.enil.logez.core.data.media.MediaFileJanitor): com.enil.logez.core.data.media.MediaFileCleaner
+
+    @Binds
     @Singleton
     abstract fun bindActiveSessionRepository(impl: ActiveSessionRepositoryImpl): ActiveSessionRepository
 

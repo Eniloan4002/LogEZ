@@ -39,6 +39,8 @@ espressoCore = "3.5.1"
 robolectric = "4.13"
 androidxTestCore = "1.6.1"
 
+exifinterface = "1.4.2" # 2026-09-25 (Play-readiness audit, lint ExifInterface warning): the framework android.media.ExifInterface has known bugs on older Android releases; this is the AndroidX replacement. Exactly the version camera-core 1.6.2 already pulls in at runtime scope (checked in its POM), so declaring it adds nothing to the APK -- it only makes the API visible at compile time.
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
@@ -103,6 +105,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 maplibre-android-sdk = { group = "org.maplibre.gl", name = "android-sdk-opengl", version.ref = "maplibre" }
 androidx-health-connect-client = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }

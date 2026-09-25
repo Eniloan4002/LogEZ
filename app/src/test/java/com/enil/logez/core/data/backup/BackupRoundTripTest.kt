@@ -63,6 +63,19 @@ class BackupRoundTripTest : RoomDatabaseTestBase() {
         deprecatedPrimaryMuscleHead = null,
     )
 
+    /** The backup's media list and the orphan sweep both trust this query, so it runs against real SQL. */
+    @Test
+    fun `referencedMediaPaths lists photo and exercise media paths and nothing else`() = runTest {
+        val dao = database.backupDao()
+        dao.insertExercises(listOf(exercise("e1").copy(mediaPath = "exercise_media/e1.jpg"), exercise("e2")))
+        dao.insertProgressPhotos(listOf(ProgressPhotoEntity("p1", "2026-09-22", "progress_photos/a.jpg", 600)))
+
+        assertEquals(
+            setOf("exercise_media/e1.jpg", "progress_photos/a.jpg"),
+            dao.referencedMediaPaths().toSet(),
+        )
+    }
+
     /** Populates one row in every backed-up table, wired together so the foreign keys are real. */
     private suspend fun seedEverything() {
         val dao = database.backupDao()

@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.enil.logez.core.data.media.MediaFileCleaner
 
 /**
  * PHASE2_PLAN.md §5.2 "Measurements" (Profile → Measurements). Reactive, not refresh-driven — both
@@ -46,6 +47,7 @@ class MeasurementsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val progressPhotoStore: ProgressPhotoStore,
     private val clock: Clock,
+    private val mediaFileCleaner: MediaFileCleaner = MediaFileCleaner.NoOp,
 ) : ViewModel() {
 
     private data class Selections(
@@ -120,8 +122,12 @@ class MeasurementsViewModel @Inject constructor(
         deleteCacheFile(pending.newCacheUri)
     }
 
+    /** Deletes the row, then the JPEG itself; until 2026-09-25 the file outlived its row forever. */
     fun deletePhoto(photo: ProgressPhoto) {
-        viewModelScope.launch { measurementRepository.deletePhoto(photo) }
+        viewModelScope.launch {
+            measurementRepository.deletePhoto(photo)
+            mediaFileCleaner.deleteIfUnreferenced(photo.filePath)
+        }
     }
 
     fun dismissPhotoCaptureError() = selections.update { it.copy(photoCaptureError = false) }
@@ -136,7 +142,10 @@ class MeasurementsViewModel @Inject constructor(
             measurementRepository.upsertPhoto(
                 ProgressPhoto(id = UUID.randomUUID().toString(), date = date, filePath = path, createdAt = clock.now().toEpochMilliseconds()),
             )
-            replacing?.let { measurementRepository.deletePhoto(it) }
+            replacing?.let {
+                measurementRepository.deletePhoto(it)
+                mediaFileCleaner.deleteIfUnreferenced(it.filePath)
+            }
         } finally {
             deleteCacheFile(cacheUri)
         }

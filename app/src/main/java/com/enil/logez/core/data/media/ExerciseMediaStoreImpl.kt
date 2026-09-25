@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.media.ExifInterface
+import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import com.enil.logez.core.common.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,8 +35,8 @@ class ExerciseMediaStoreImpl @Inject constructor(
             // M20b re-encodes into a fresh JPEG with no EXIF block of its own, so the source's
             // orientation tag has to be baked into the pixels here or it is lost for good -- the
             // picked-file grant is transient, so there is no second chance to read it once this
-            // call returns. android.media.ExifInterface is the platform class (API 24+); minSdk 26
-            // is already above that floor, so this needs no new dependency.
+            // call returns. AndroidX's ExifInterface since 2026-09-25 (was the platform class, which
+            // lint flags for bugs on older releases); CameraX already shipped the same artifact.
             val upright = decoded.withExifOrientation(readExifOrientation(uri))
             try {
                 var encoded = false

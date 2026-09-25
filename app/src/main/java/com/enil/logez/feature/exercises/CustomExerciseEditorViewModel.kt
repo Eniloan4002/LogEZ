@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.enil.logez.core.data.media.MediaFileCleaner
 
 /**
  * PHASE2_PLAN.md §5.2 "Custom exercise creation" / "Edit". [exerciseId] absent (or the value is
@@ -43,12 +44,15 @@ class CustomExerciseEditorViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val mediaStore: ExerciseMediaStore,
     private val clock: Clock,
+    private val mediaFileCleaner: MediaFileCleaner = MediaFileCleaner.NoOp,
 ) : ViewModel() {
     private val editingId: String? = savedStateHandle.get<String>(EXERCISE_ID_ARG)
     val isEditMode: Boolean = editingId != null
 
     private var loadedCreatedAt: Long = clock.now().toEpochMilliseconds()
     private var loadedIsBodyweightVolumeEligible: Boolean = false
+    /** The image the exercise had when the editor opened, so a replaced one can be deleted on save. */
+    private var loadedMediaPath: String? = null
 
     private val _uiState = MutableStateFlow(
         CustomExerciseEditorUiState(
@@ -67,6 +71,7 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 if (existing != null) {
                     loadedCreatedAt = existing.createdAt
                     loadedIsBodyweightVolumeEligible = existing.isBodyweightVolumeEligible
+                    loadedMediaPath = existing.mediaPath
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -155,6 +160,9 @@ class CustomExerciseEditorViewModel @Inject constructor(
                 muscleHeads = state.muscleHeads.filter { it in state.primaryMuscleGroup.availableHeads },
             )
             exerciseRepository.upsertCustom(exercise)
+            // The replaced image is unreferenced once the new row has committed. Images picked and
+            // then abandoned before saving are left to the launch-time orphan sweep.
+            loadedMediaPath?.takeIf { it != state.mediaPath }?.let { mediaFileCleaner.deleteIfUnreferenced(it) }
             onSaved()
         }
     }

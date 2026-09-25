@@ -54,6 +54,13 @@ interface BackupDao {
     @Query("DELETE FROM exercises")
     suspend fun deleteAllExercises()
 
+    /**
+     * Every media path a row still points at, relative to filesDir. Drives both the backup's
+     * media list and MediaFileJanitor, so an orphaned file is neither kept nor exported.
+     */
+    @Query("SELECT file_path FROM progress_photos UNION SELECT media_path FROM exercises WHERE media_path IS NOT NULL")
+    suspend fun referencedMediaPaths(): List<String>
+
     // ---- routine_folders ----
     @Query("SELECT * FROM routine_folders WHERE id > :after ORDER BY id ASC LIMIT :limit")
     suspend fun pageRoutineFolders(after: String, limit: Int): List<RoutineFolderEntity>

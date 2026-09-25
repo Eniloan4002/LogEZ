@@ -3,7 +3,7 @@ package com.enil.logez.core.data.media
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.ExifInterface
+import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import com.enil.logez.core.common.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext

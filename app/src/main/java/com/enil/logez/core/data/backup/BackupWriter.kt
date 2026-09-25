@@ -34,8 +34,13 @@ class BackupWriter @Inject constructor(
     /** @param mediaRoot the app's filesDir; photo paths in the rows are relative to it. */
     suspend fun write(out: OutputStream, mediaRoot: File, appVersionName: String, appVersionCode: Long): BackupManifest {
         val counts = countsPerTable()
+        // Only files a row still references (2026-09-25). Zipping the whole directory also shipped
+        // every photo the user had deleted, since deleting a row used to leave its file behind.
+        val referenced = backupDao.referencedMediaPaths().toSet()
         val mediaFiles = mediaDirectories(mediaRoot).flatMap { dir ->
-            dir.walkTopDown().filter { it.isFile }.map { dir.name to it }.toList()
+            dir.listFiles().orEmpty()
+                .filter { it.isFile && "${dir.name}/${it.name}" in referenced }
+                .map { dir.name to it }
         }
 
         val manifest = BackupManifest(
