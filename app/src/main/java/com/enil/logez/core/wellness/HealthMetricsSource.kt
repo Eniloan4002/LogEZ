@@ -15,7 +15,18 @@ sealed interface HealthConnectAvailability {
     data object Available : HealthConnectAvailability
 }
 
-/** Today's all-day totals, as Health Connect's own aggregate already reports them. */
+/**
+ * The three Health Connect record types LogEZ reads. Health Connect's permission screen lets the
+ * user tick any subset of them, so every feature checks the one type it needs rather than
+ * requiring all three (see [HealthMetricsSource.grantedTypes]).
+ */
+enum class HealthDataType { STEPS, CALORIES, HEART_RATE }
+
+/**
+ * Today's all-day totals, as Health Connect's own aggregate already reports them. [steps] is 0
+ * and [caloriesBurned] null for a type the user has not granted, so callers gate on
+ * [HealthMetricsSource.grantedTypes] before showing either.
+ */
 data class DailyTotals(val steps: Long, val caloriesBurned: Double?)
 
 /** One Health-Connect-sourced heart-rate reading, plain-typed (no `Energy`-style unit wrapper -- `bpm` is already a beats-per-minute count). */
@@ -37,9 +48,20 @@ interface HealthMetricsSource {
 
     fun availability(): HealthConnectAvailability
 
-    suspend fun hasAllPermissions(): Boolean
+    /**
+     * Which of the three data types the user has granted. Replaced an all-three-or-nothing check
+     * on 2026-09-25 (Play-readiness audit): a user who granted only steps saw nothing at all,
+     * and Health Connect's own screen offers exactly that choice. Empty when Health Connect is
+     * not [HealthConnectAvailability.Available].
+     */
+    suspend fun grantedTypes(): Set<HealthDataType>
 
-    /** Today's local-calendar-day totals. Zero steps / null calories if Health Connect has nothing for today yet. */
+    /**
+     * Today's local-calendar-day totals, reading only the granted types: Health Connect rejects
+     * an aggregate that names a metric the app may not read, so asking for both with one granted
+     * failed the whole call. Zero steps / null calories if a type is not granted or has nothing
+     * for today yet.
+     */
     suspend fun readTodayTotals(): DailyTotals
 
     /**
@@ -65,4 +87,14 @@ interface HealthMetricsSource {
      * the past 30 days"), so callers should not ask for a wider range expecting more to come back.
      */
     suspend fun readStepsHistory(start: LocalDate, end: LocalDate): List<DailyStepCount>
+
+    /**
+     * Withdraws every Health Connect permission LogEZ holds, the "Disconnect" half of Settings >
+     * Data's disconnect-and-delete action. A no-op when Health Connect is not available.
+     */
+    suspend fun revokeAllPermissions()
 }
+
+/** True when Health Connect is usable and the user has granted [type]. */
+suspend fun HealthMetricsSource.canRead(type: HealthDataType): Boolean =
+    availability() == HealthConnectAvailability.Available && type in grantedTypes()

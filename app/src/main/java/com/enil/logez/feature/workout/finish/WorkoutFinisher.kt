@@ -21,8 +21,9 @@ import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
-import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HealthDataType
+import com.enil.logez.core.wellness.canRead
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -133,8 +134,7 @@ class WorkoutFinisher @Inject constructor(
 
     private suspend fun saveHeartRateSamples(workoutId: String, startedAt: Long, endedAt: Long) {
         try {
-            if (healthMetricsSource.availability() != HealthConnectAvailability.Available) return
-            if (!healthMetricsSource.hasAllPermissions()) return
+            if (!healthMetricsSource.canRead(HealthDataType.HEART_RATE)) return
             val samples = healthMetricsSource.readHeartRateSamples(Instant.ofEpochMilli(startedAt), Instant.ofEpochMilli(endedAt))
             if (samples.isEmpty()) return
             heartRateSampleRepository.insertAll(

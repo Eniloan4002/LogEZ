@@ -40,11 +40,23 @@ import javax.inject.Inject
 class HealthConnectMetricsSource @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : HealthMetricsSource {
-    override val requiredPermissions: Set<String> = setOf(
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+    private val permissionByType: Map<HealthDataType, String> = mapOf(
+        HealthDataType.STEPS to HealthPermission.getReadPermission(StepsRecord::class),
+        HealthDataType.HEART_RATE to HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthDataType.CALORIES to HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
     )
+
+    override val requiredPermissions: Set<String> = permissionByType.values.toSet()
+
+    /**
+     * Set once [revokeAllPermissions] succeeds. On Android 14+ Health Connect applies that revoke
+     * through Context.revokeSelfPermissionsOnKill, so the grants only disappear when this process
+     * ends (confirmed on an Android 15 emulator, 2026-09-25: still granted after the call,
+     * revoked after a force-stop). Without this flag the Profile and Workout tabs kept reading
+     * steps, and re-filled the cache the user had just deleted, until the app was next closed.
+     * This source is a singleton, so the flag covers every reader for the rest of the process.
+     */
+    @Volatile private var revokedInThisProcess = false
 
     override fun availability(): HealthConnectAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
@@ -53,19 +65,30 @@ class HealthConnectMetricsSource @Inject constructor(
             else -> HealthConnectAvailability.Unavailable
         }
 
-    override suspend fun hasAllPermissions(): Boolean =
-        client().permissionController.getGrantedPermissions().containsAll(requiredPermissions)
+    override suspend fun grantedTypes(): Set<HealthDataType> {
+        if (revokedInThisProcess) return emptySet()
+        if (availability() != HealthConnectAvailability.Available) return emptySet()
+        val granted = client().permissionController.getGrantedPermissions()
+        return permissionByType.filterValues { it in granted }.keys
+    }
 
     override suspend fun readTodayTotals(): DailyTotals {
+        val granted = grantedTypes()
+        val metrics = buildSet {
+            if (HealthDataType.STEPS in granted) add(StepsRecord.COUNT_TOTAL)
+            if (HealthDataType.CALORIES in granted) add(TotalCaloriesBurnedRecord.ENERGY_TOTAL)
+        }
+        if (metrics.isEmpty()) return DailyTotals(steps = 0L, caloriesBurned = null)
         val startOfToday = LocalDate.now().atStartOfDay()
         val result = client().aggregate(
             AggregateRequest(
-                metrics = setOf(StepsRecord.COUNT_TOTAL, TotalCaloriesBurnedRecord.ENERGY_TOTAL),
+                metrics = metrics,
                 timeRangeFilter = TimeRangeFilter.between(startOfToday, LocalDateTime.now()),
             ),
         )
-        val steps: Long = result.get(StepsRecord.COUNT_TOTAL) ?: 0L
-        val caloriesBurned: Double? = result.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories
+        val steps: Long = if (StepsRecord.COUNT_TOTAL in metrics) result.get(StepsRecord.COUNT_TOTAL) ?: 0L else 0L
+        val caloriesBurned: Double? =
+            if (TotalCaloriesBurnedRecord.ENERGY_TOTAL in metrics) result.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories else null
         return DailyTotals(steps = steps, caloriesBurned = caloriesBurned)
     }
 
@@ -97,6 +120,12 @@ class HealthConnectMetricsSource @Inject constructor(
         return response.map { bucket ->
             DailyStepCount(date = bucket.startTime.toLocalDate(), steps = bucket.result.get(StepsRecord.COUNT_TOTAL) ?: 0L)
         }
+    }
+
+    override suspend fun revokeAllPermissions() {
+        if (availability() != HealthConnectAvailability.Available) return
+        client().permissionController.revokeAllPermissions()
+        revokedInThisProcess = true
     }
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)

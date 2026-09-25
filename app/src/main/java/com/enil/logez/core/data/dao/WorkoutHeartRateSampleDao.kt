@@ -17,4 +17,7 @@ interface WorkoutHeartRateSampleDao {
 
     @Query("SELECT * FROM workout_heart_rate_samples WHERE workout_id = :workoutId ORDER BY recorded_at ASC")
     fun observeForWorkout(workoutId: String): Flow<List<WorkoutHeartRateSampleEntity>>
+
+    @Query("DELETE FROM workout_heart_rate_samples")
+    suspend fun deleteAll()
 }

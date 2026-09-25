@@ -17,6 +17,7 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WellnessRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthDataType
 import com.enil.logez.core.wellness.HealthMetricsSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
@@ -86,23 +87,29 @@ class ProfileViewModel @Inject constructor(
 
             // M21e: read-only, graceful degrade -- a device with no Health Connect (or a user who
             // hasn't granted the permission yet) simply doesn't get this section, never a nag.
+            // Each type is honoured on its own (2026-09-25): a user who ticked only steps on Health
+            // Connect's screen used to see nothing, because this required all three grants.
             val wellnessAvailability = healthMetricsSource.availability()
-            val hasWellnessPermissions = wellnessAvailability == HealthConnectAvailability.Available &&
-                healthMetricsSource.hasAllPermissions()
+            val wellnessGranted = healthMetricsSource.grantedTypes()
+            val stepsGranted = HealthDataType.STEPS in wellnessGranted
             var todaySteps: Long? = null
             var todayCalories: Double? = null
-            if (hasWellnessPermissions) {
+            if (stepsGranted || HealthDataType.CALORIES in wellnessGranted) {
                 val totals = healthMetricsSource.readTodayTotals()
-                todaySteps = totals.steps
+                if (stepsGranted) todaySteps = totals.steps
                 todayCalories = totals.caloriesBurned
-                wellnessRepository.upsert(
-                    DailyWellnessTotal(
-                        date = today.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                        steps = totals.steps,
-                        caloriesBurned = totals.caloriesBurned,
-                        updatedAt = clock.now().toEpochMilliseconds(),
-                    ),
-                )
+                // The widget's steps line reads this cache; a calories-only grant has no steps to
+                // cache, and writing a 0 would show the widget a step count the user never shared.
+                if (stepsGranted) {
+                    wellnessRepository.upsert(
+                        DailyWellnessTotal(
+                            date = today.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                            steps = totals.steps,
+                            caloriesBurned = totals.caloriesBurned,
+                            updatedAt = clock.now().toEpochMilliseconds(),
+                        ),
+                    )
+                }
             }
 
             _uiState.value = ProfileUiState(
@@ -121,7 +128,7 @@ class ProfileViewModel @Inject constructor(
                 weightUnit = settings.weightUnit,
                 muscleDiagramVariant = settings.muscleDiagramVariant,
                 wellnessAvailability = wellnessAvailability,
-                hasWellnessPermissions = hasWellnessPermissions,
+                wellnessGranted = wellnessGranted,
                 todaySteps = todaySteps,
                 todayCaloriesBurned = todayCalories,
             )
@@ -129,8 +136,8 @@ class ProfileViewModel @Inject constructor(
     }
 
     /** Called after the Compose permission launcher resolves — re-runs the one load path rather than duplicating it. */
-    fun onWellnessPermissionResult(granted: Boolean) {
-        if (granted) refresh()
+    fun onWellnessPermissionResult(anyGranted: Boolean) {
+        if (anyGranted) refresh()
     }
 }
 
@@ -144,9 +151,10 @@ data class ProfileUiState(
     val quickCharts: Map<TrainingMetric, List<DashboardAggregator.WeeklyBar>> = emptyMap(),
     val weightUnit: WeightUnit = WeightUnit.KG,
     val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
-    /** M21e: whether Health Connect is even usable on this device -- gates whether the wellness card shows at all. */
+    /** M21e: whether Health Connect is usable, needs installing/updating, or is unsupported here -- picks which card shows. */
     val wellnessAvailability: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
-    val hasWellnessPermissions: Boolean = false,
+    /** The Health Connect types the user granted. Empty shows the Connect card; each stat shows only for its own type. */
+    val wellnessGranted: Set<HealthDataType> = emptySet(),
     val todaySteps: Long? = null,
     val todayCaloriesBurned: Double? = null,
 )

@@ -15,6 +15,9 @@ import com.enil.logez.core.data.backup.BackupWriter
 import com.enil.logez.core.data.backup.RestoreMarker
 import com.enil.logez.core.data.export.CsvExporter
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthConnectDisconnector
+import com.enil.logez.core.wellness.HealthMetricsSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -39,6 +42,8 @@ sealed interface DataJob {
 data class DataUiState(
     val workoutSetCount: Int? = null,
     val measurementCount: Int? = null,
+    /** Gates the "Manage Health Connect access" row; the disconnect-and-delete row always shows. */
+    val healthConnectAvailable: Boolean = false,
     val job: DataJob = DataJob.Idle,
 )
 
@@ -50,6 +55,8 @@ class DataViewModel @Inject constructor(
     private val backupReader: BackupReader,
     private val backupRestorer: BackupRestorer,
     private val workoutRepository: WorkoutRepository,
+    private val healthMetricsSource: HealthMetricsSource,
+    private val healthConnectDisconnector: HealthConnectDisconnector,
     private val logger: AppLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DataUiState())
@@ -63,6 +70,7 @@ class DataViewModel @Inject constructor(
                 it.copy(
                     workoutSetCount = csvExporter.workoutSetCount(),
                     measurementCount = csvExporter.measurementCount(),
+                    healthConnectAvailable = healthMetricsSource.availability() == HealthConnectAvailability.Available,
                 )
             }
         }
@@ -153,6 +161,23 @@ class DataViewModel @Inject constructor(
         viewModelScope.launch {
             stagingDir.deleteRecursively()
             _uiState.update { it.copy(job = DataJob.Idle) }
+        }
+    }
+
+    /**
+     * Revokes Health Connect access and deletes every step, calorie and heart-rate reading LogEZ
+     * saved from it. Workouts, routes and measurements are untouched. Confirmed by the screen.
+     */
+    fun disconnectHealthConnect() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(job = DataJob.Working(R.string.data_health_disconnecting)) }
+            try {
+                healthConnectDisconnector.disconnectAndDelete()
+                _uiState.update { it.copy(job = DataJob.Done(R.string.data_health_disconnected)) }
+            } catch (t: Throwable) {
+                logger.e(TAG, "Deleting Health Connect data failed", t)
+                _uiState.update { it.copy(job = DataJob.Failed(R.string.data_health_disconnect_failed)) }
+            }
         }
     }
 

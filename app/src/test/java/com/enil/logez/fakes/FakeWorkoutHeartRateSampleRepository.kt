@@ -21,4 +21,8 @@ class FakeWorkoutHeartRateSampleRepository(initial: List<WorkoutHeartRateSampleE
 
     override fun observeForWorkout(workoutId: String): Flow<List<WorkoutHeartRateSampleEntity>> =
         state.map { list -> list.filter { it.workoutId == workoutId }.sortedBy { it.recordedAt } }
+
+    override suspend fun deleteAll() {
+        state.value = emptyList()
+    }
 }

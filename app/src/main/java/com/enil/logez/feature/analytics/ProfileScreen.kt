@@ -54,6 +54,10 @@ import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.rememberRequestHealthConnectPermissions
 import java.util.Locale
 import kotlin.math.roundToLong
+import com.enil.logez.core.wellness.canInstallOrUpdate
+import com.enil.logez.core.wellness.openHealthConnectInPlayStore
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedButton
 
 /**
  * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats (lifetime Workouts + Streak,
@@ -74,6 +78,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val requestWellnessPermissions = rememberRequestHealthConnectPermissions(
         source = viewModel.healthMetricsSource,
         onResult = viewModel::onWellnessPermissionResult,
@@ -96,7 +101,12 @@ fun ProfileScreen(
                 onMeasurementsClick = onMeasurementsClick,
                 onSettingsClick = onSettingsClick,
             )
-            profileStatsItems(uiState, onStatisticsClick, requestWellnessPermissions)
+            profileStatsItems(
+                uiState = uiState,
+                onStatisticsClick = onStatisticsClick,
+                onConnectWellness = requestWellnessPermissions,
+                onInstallHealthConnect = { openHealthConnectInPlayStore(context) },
+            )
         }
     }
 }
@@ -112,6 +122,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
     uiState: ProfileUiState,
     onStatisticsClick: (TrainingMetric?) -> Unit,
     onConnectWellness: () -> Unit,
+    onInstallHealthConnect: () -> Unit,
 ) {
         item(key = "headline") {
             if (uiState.isLoading) return@item
@@ -156,8 +167,29 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
         // (already the established pattern on the Workout tab's heatmap/steps/quick-track cards)
         // instead of the horizontal-only padding this screen used to have, which left zero gap
         // between consecutive cards.
+        item(key = "wellness_install") {
+            if (uiState.isLoading || !uiState.wellnessAvailability.canInstallOrUpdate()) return@item
+            val updating = uiState.wellnessAvailability == HealthConnectAvailability.UpdateRequired
+            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
+                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(
+                        stringResource(if (updating) R.string.wellness_update_title else R.string.wellness_install_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        stringResource(if (updating) R.string.wellness_update_body else R.string.wellness_install_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(onClick = onInstallHealthConnect) { Text(stringResource(R.string.wellness_install_action)) }
+                }
+            }
+        }
+
         item(key = "wellness_connect") {
-            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || uiState.hasWellnessPermissions) return@item
+            // Shown until the user grants at least one type. A partial grant is a working choice,
+            // not an unfinished one; Settings > Data > Health Connect reaches the rest.
+            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || uiState.wellnessGranted.isNotEmpty()) return@item
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
@@ -172,7 +204,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
         }
 
         item(key = "wellness_today_label") {
-            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || !uiState.hasWellnessPermissions) return@item
+            if (uiState.isLoading || !uiState.showsTodayWellness()) return@item
             Text(
                 stringResource(R.string.wellness_today_title).uppercase(currentLocale()),
                 style = MaterialTheme.typography.titleMedium,
@@ -182,16 +214,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
         }
 
         item(key = "wellness_stats") {
-            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || !uiState.hasWellnessPermissions) return@item
+            if (uiState.isLoading || !uiState.showsTodayWellness()) return@item
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
-                HeadlineStat(
-                    label = stringResource(R.string.wellness_steps_label),
-                    value = formatSteps(uiState.todaySteps ?: 0L),
-                    modifier = Modifier.weight(1f),
-                )
+                if (uiState.todaySteps != null) {
+                    HeadlineStat(
+                        label = stringResource(R.string.wellness_steps_label),
+                        value = formatSteps(uiState.todaySteps),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 // M21g: absent when Health Connect has no calorie data for today yet (null, not
                 // zero) -- this app never shows a stat it isn't actually tracking, same rule as the
                 // Volume/Reps/Distance gating on Finish/History. Steps alone then fills the row.
@@ -361,3 +395,13 @@ private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modi
 private fun formatSteps(steps: Long): String = "%,d".format(Locale.ROOT, steps)
 
 private fun formatCalories(calories: Double): String = "%,d".format(Locale.ROOT, calories.roundToLong())
+
+/**
+ * The Today section shows only when it has a stat to show: steps whenever that type is granted,
+ * calories when granted and Health Connect has a figure for today. Heart rate alone has nothing to
+ * show here (it appears during workouts and walk/run tracking instead), and a calories-only grant
+ * on a day with no calorie data would otherwise leave an empty "Today" header.
+ */
+private fun ProfileUiState.showsTodayWellness(): Boolean =
+    wellnessAvailability == HealthConnectAvailability.Available &&
+        (todaySteps != null || todayCaloriesBurned != null)

@@ -20,8 +20,9 @@ import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.wellness.DailyStepCount
-import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HealthDataType
+import com.enil.logez.core.wellness.canRead
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import java.time.Instant
@@ -135,8 +136,7 @@ class AnalyticsViewModel @Inject constructor(
             // Health Connect's own permission grant only sees the last 30 days of history (its own
             // permission screen says so), so this always asks for exactly that window regardless of
             // the card's own selectors — there's never more to fetch beyond it.
-            val stepsAvailable = healthMetricsSource.availability() == HealthConnectAvailability.Available &&
-                healthMetricsSource.hasAllPermissions()
+            val stepsAvailable = healthMetricsSource.canRead(HealthDataType.STEPS)
             val stepsHistory = if (stepsAvailable) healthMetricsSource.readStepsHistory(today.minusDays(29), today) else emptyList()
 
             // A surviving positional selection would re-anchor to a different week when the

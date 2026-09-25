@@ -41,6 +41,9 @@ import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.enil.logez.core.wellness.openHealthConnectSettings
 
 /**
  * Settings → Data. The app's privacy policy has pointed users here since it was written; this is
@@ -55,7 +58,12 @@ fun DataScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
-    var pendingKind by remember { mutableStateOf<ExportKind?>(null) }
+    val context = LocalContext.current
+    // Saveable: the document picker is another activity, and a configuration change or process
+    // death while it is open recreated this screen with the pending kind lost, so the chosen file
+    // was created but never written.
+    var pendingKind by rememberSaveable { mutableStateOf<ExportKind?>(null) }
+    var confirmHealthDisconnect by rememberSaveable { mutableStateOf(false) }
 
     val createDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -117,6 +125,30 @@ fun DataScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelRestore() }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmHealthDisconnect) {
+        AlertDialog(
+            onDismissRequest = { confirmHealthDisconnect = false },
+            title = { Text(stringResource(R.string.data_health_disconnect_confirm_title)) },
+            text = { Text(stringResource(R.string.data_health_disconnect_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmHealthDisconnect = false
+                    viewModel.disconnectHealthConnect()
+                }) {
+                    Text(
+                        text = stringResource(R.string.data_health_disconnect_confirm_action),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmHealthDisconnect = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },
@@ -193,6 +225,28 @@ fun DataScreen(
                     subtitle = stringResource(R.string.data_restore_subtitle),
                     value = "",
                     onClick = { openDocument.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
+                )
+            }
+
+            item(key = "section_health") { SettingsSectionHeader(stringResource(R.string.data_section_health)) }
+
+            if (uiState.healthConnectAvailable) {
+                item(key = "health_manage") {
+                    SettingsValueRow(
+                        title = stringResource(R.string.data_health_manage),
+                        subtitle = stringResource(R.string.data_health_manage_subtitle),
+                        value = "",
+                        onClick = { openHealthConnectSettings(context) },
+                    )
+                }
+            }
+
+            item(key = "health_disconnect") {
+                SettingsValueRow(
+                    title = stringResource(R.string.data_health_disconnect),
+                    subtitle = stringResource(R.string.data_health_disconnect_subtitle),
+                    value = "",
+                    onClick = { confirmHealthDisconnect = true },
                 )
             }
 

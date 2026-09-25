@@ -17,4 +17,7 @@ interface WellnessDao {
 
     @Query("SELECT * FROM daily_wellness_totals WHERE date = :date LIMIT 1")
     fun observeByDate(date: String): Flow<DailyWellnessTotalEntity?>
+
+    @Query("DELETE FROM daily_wellness_totals")
+    suspend fun deleteAll()
 }

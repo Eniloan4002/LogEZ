@@ -18,9 +18,10 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.activity.ActivityTrackingController
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
-import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.DailyStepCount
 import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.HealthDataType
+import com.enil.logez.core.wellness.canRead
 import com.enil.logez.feature.workout.SessionDiscarder
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
@@ -71,8 +72,7 @@ class WorkoutTabViewModel @Inject constructor(
     /** Called via `RefreshOnResume` so the scorecard reflects new steps without requiring a full tab re-entry. */
     fun refreshSteps() {
         viewModelScope.launch {
-            val available = healthMetricsSource.availability() == HealthConnectAvailability.Available &&
-                healthMetricsSource.hasAllPermissions()
+            val available = healthMetricsSource.canRead(HealthDataType.STEPS)
             if (!available) {
                 _todaySteps.value = null
                 _recentSteps.value = emptyList()

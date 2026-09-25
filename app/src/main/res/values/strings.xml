@@ -73,8 +73,13 @@
     <string name="wellness_steps_label">Steps</string>
     <string name="wellness_calories_label">Calories</string>
     <string name="wellness_connect_title">Connect Health Connect</string>
-    <string name="wellness_connect_body">See today\'s steps and calories burned, sourced from Health Connect — the same data your phone\'s own health app already tracks.</string>
+    <string name="wellness_connect_body">See today\'s steps and calories burned here, and your heart rate during workouts and walk/run tracking, read from Health Connect. You choose which of these to share, and what LogEZ reads stays on this device.</string>
     <string name="wellness_connect_action">Connect</string>
+    <string name="wellness_install_title">Get Health Connect</string>
+    <string name="wellness_install_body">LogEZ can show your steps, calories burned and heart rate from a watch or fitness app through Health Connect. Install it from Google Play to turn this on.</string>
+    <string name="wellness_update_title">Update Health Connect</string>
+    <string name="wellness_update_body">Health Connect needs an update from Google Play before LogEZ can show your steps, calories burned and heart rate.</string>
+    <string name="wellness_install_action">Open Google Play</string>
 
     <string name="analytics_title">Statistics</string>
     <string name="analytics_training_title">Training</string>
@@ -534,7 +539,7 @@
     <string name="data_exporting">Exporting…</string>
     <string name="data_backing_up">Creating backup…</string>
     <string name="data_export_backup">Full backup (.zip)</string>
-    <string name="data_export_backup_subtitle">Everything, including photos</string>
+    <string name="data_export_backup_subtitle">Everything, including photos, GPS routes and Health Connect readings</string>
     <string name="data_section_restore">Restore</string>
     <string name="data_restore">Restore from a backup</string>
     <string name="data_restore_subtitle">Replaces everything currently in LogEZ</string>
@@ -550,6 +555,17 @@
     <string name="data_restore_blocked_in_progress">Finish or discard your current workout before restoring.</string>
     <string name="data_export_done">Exported</string>
     <string name="data_export_failed">Couldn\'t write the file. Nothing was exported.</string>
+    <string name="data_section_health">Health Connect</string>
+    <string name="data_health_manage">Manage Health Connect access</string>
+    <string name="data_health_manage_subtitle">Choose which of steps, calories burned and heart rate LogEZ can read</string>
+    <string name="data_health_disconnect">Disconnect and delete Health Connect data</string>
+    <string name="data_health_disconnect_subtitle">Stops reading Health Connect and deletes the readings LogEZ saved</string>
+    <string name="data_health_disconnect_confirm_title">Disconnect Health Connect?</string>
+    <string name="data_health_disconnect_confirm_body">LogEZ will stop reading Health Connect and delete the daily steps, calories burned and workout heart-rate readings it saved on this device.\n\nYour workouts, routes and measurements stay. The data in Health Connect itself is not touched. You can connect again from the Profile tab.</string>
+    <string name="data_health_disconnect_confirm_action">Disconnect and delete</string>
+    <string name="data_health_disconnecting">Disconnecting…</string>
+    <string name="data_health_disconnected">Health Connect disconnected and its readings deleted</string>
+    <string name="data_health_disconnect_failed">Couldn\'t delete the Health Connect readings. Nothing was changed.</string>
     <string name="data_privacy_note">Exported files are plain and unencrypted — anything that can open them can read them, including any app you share them with. Keep them somewhere you trust. LogEZ never uploads them; the only thing this app sends over the internet is map tiles, and only while a GPS route is on screen.</string>
 
     <string name="settings_section_about">About</string>

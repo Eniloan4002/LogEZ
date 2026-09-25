@@ -19,4 +19,8 @@ class FakeWellnessRepository(initial: List<DailyWellnessTotal> = emptyList()) : 
     override suspend fun getByDate(date: String): DailyWellnessTotal? = state.value[date]
 
     override fun observeByDate(date: String): Flow<DailyWellnessTotal?> = state.map { it[date] }
+
+    override suspend fun deleteAll() {
+        state.value = emptyMap()
+    }
 }

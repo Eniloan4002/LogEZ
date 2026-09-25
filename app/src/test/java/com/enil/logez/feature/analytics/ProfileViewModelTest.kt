@@ -33,6 +33,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.enil.logez.core.wellness.HealthDataType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
@@ -196,7 +197,7 @@ class ProfileViewModelTest {
     fun `wellness section reports unavailable when Health Connect isn't usable on this device`() = runTest {
         val vm = newViewModel(healthMetricsSource = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Unavailable))
         assertEquals(HealthConnectAvailability.Unavailable, vm.uiState.value.wellnessAvailability)
-        assertFalse(vm.uiState.value.hasWellnessPermissions)
+        assertTrue(vm.uiState.value.wellnessGranted.isEmpty())
     }
 
     @Test
@@ -206,7 +207,7 @@ class ProfileViewModelTest {
         )
         val state = vm.uiState.value
         assertEquals(HealthConnectAvailability.Available, state.wellnessAvailability)
-        assertFalse(state.hasWellnessPermissions)
+        assertTrue(state.wellnessGranted.isEmpty())
         assertEquals(null, state.todaySteps)
     }
 
@@ -223,7 +224,7 @@ class ProfileViewModelTest {
         )
 
         val state = vm.uiState.value
-        assertTrue(state.hasWellnessPermissions)
+        assertEquals(HealthDataType.entries.toSet(), state.wellnessGranted)
         assertEquals(8_432L, state.todaySteps)
         assertEquals(null, state.todayCaloriesBurned)
         assertEquals(1, wellnessRepo.all.size)
@@ -261,10 +262,65 @@ class ProfileViewModelTest {
         )
         assertEquals(true, vm.uiState.value.isLoading) // never refreshed yet -- no init load
 
-        vm.onWellnessPermissionResult(granted = false)
+        vm.onWellnessPermissionResult(anyGranted = false)
         assertEquals(true, vm.uiState.value.isLoading) // a denial must not trigger a load
 
-        vm.onWellnessPermissionResult(granted = true)
+        vm.onWellnessPermissionResult(anyGranted = true)
         assertEquals(100L, vm.uiState.value.todaySteps)
+    }
+
+    // --- Partial Health Connect grants (Play-readiness audit, 2026-09-25) ---
+
+    @Test
+    fun `a steps-only grant shows steps and caches them, with no calories and no connect card`() = runTest {
+        val wellnessRepo = FakeWellnessRepository()
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = HealthConnectAvailability.Available,
+                grantedTypesOverride = setOf(HealthDataType.STEPS),
+                totals = com.enil.logez.core.wellness.DailyTotals(steps = 5_000L, caloriesBurned = 900.0),
+            ),
+            wellnessRepo = wellnessRepo,
+        )
+
+        val state = vm.uiState.value
+        assertEquals(setOf(HealthDataType.STEPS), state.wellnessGranted)
+        assertEquals(5_000L, state.todaySteps)
+        assertEquals(null, state.todayCaloriesBurned)
+        assertEquals(5_000L, wellnessRepo.all.single().steps)
+    }
+
+    @Test
+    fun `a calories-only grant shows calories but never caches or shows a step count`() = runTest {
+        val wellnessRepo = FakeWellnessRepository()
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = HealthConnectAvailability.Available,
+                grantedTypesOverride = setOf(HealthDataType.CALORIES),
+                totals = com.enil.logez.core.wellness.DailyTotals(steps = 5_000L, caloriesBurned = 900.0),
+            ),
+            wellnessRepo = wellnessRepo,
+        )
+
+        val state = vm.uiState.value
+        assertEquals(null, state.todaySteps)
+        assertEquals(900.0, state.todayCaloriesBurned)
+        assertTrue(wellnessRepo.all.isEmpty())
+    }
+
+    @Test
+    fun `a heart-rate-only grant hides the connect card without inventing a today section`() = runTest {
+        val vm = newViewModel(
+            healthMetricsSource = FakeHealthMetricsSource(
+                availabilityValue = HealthConnectAvailability.Available,
+                grantedTypesOverride = setOf(HealthDataType.HEART_RATE),
+                totals = com.enil.logez.core.wellness.DailyTotals(steps = 5_000L, caloriesBurned = 900.0),
+            ),
+        )
+
+        val state = vm.uiState.value
+        assertEquals(setOf(HealthDataType.HEART_RATE), state.wellnessGranted)
+        assertEquals(null, state.todaySteps)
+        assertEquals(null, state.todayCaloriesBurned)
     }
 }

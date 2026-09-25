@@ -39,7 +39,7 @@ fun liveHeartRateFlow(
 ): Flow<HeartRateSample?> = flow {
     while (true) {
         val sample = try {
-            if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
+            if (healthMetricsSource.canRead(HealthDataType.HEART_RATE)) {
                 healthMetricsSource.readLatestHeartRate()
             } else {
                 null
@@ -76,7 +76,7 @@ fun liveHeartRateHistoryFlow(
 ): Flow<List<HeartRateSample>> = flow {
     while (true) {
         val samples = try {
-            if (healthMetricsSource.availability() == HealthConnectAvailability.Available && healthMetricsSource.hasAllPermissions()) {
+            if (healthMetricsSource.canRead(HealthDataType.HEART_RATE)) {
                 healthMetricsSource.readHeartRateSamples(
                     Instant.ofEpochMilli(startedAtMillis),
                     Instant.ofEpochMilli(clock.now().toEpochMilliseconds()),

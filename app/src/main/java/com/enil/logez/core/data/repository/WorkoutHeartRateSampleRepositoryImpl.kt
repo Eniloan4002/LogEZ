@@ -12,4 +12,5 @@ class WorkoutHeartRateSampleRepositoryImpl @Inject constructor(
     override suspend fun insertAll(samples: List<WorkoutHeartRateSampleEntity>) = dao.insertAll(samples)
     override suspend fun getForWorkout(workoutId: String): List<WorkoutHeartRateSampleEntity> = dao.getForWorkout(workoutId)
     override fun observeForWorkout(workoutId: String): Flow<List<WorkoutHeartRateSampleEntity>> = dao.observeForWorkout(workoutId)
+    override suspend fun deleteAll() = dao.deleteAll()
 }

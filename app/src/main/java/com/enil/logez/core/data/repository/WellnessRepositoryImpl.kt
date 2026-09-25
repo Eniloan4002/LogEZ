@@ -14,6 +14,7 @@ class WellnessRepositoryImpl @Inject constructor(
     override suspend fun upsert(total: DailyWellnessTotal) = dao.upsert(total.toEntity())
     override suspend fun getByDate(date: String): DailyWellnessTotal? = dao.getByDate(date)?.toDomain()
     override fun observeByDate(date: String): Flow<DailyWellnessTotal?> = dao.observeByDate(date).map { it?.toDomain() }
+    override suspend fun deleteAll() = dao.deleteAll()
 }
 
 private fun DailyWellnessTotalEntity.toDomain() = DailyWellnessTotal(
