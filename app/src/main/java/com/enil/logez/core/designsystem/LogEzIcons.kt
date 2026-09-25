@@ -82,22 +82,24 @@ object LogEzIcons {
         }
     }
 
-    /** Profile tab: a specimen-ID badge. */
+    /**
+     * Profile tab: a person outline, a round head over curved shoulders. Until 2026-09-25 this was
+     * a head inside a square ID-badge border; the Owner asked for the icon without the border.
+     */
     val Profile: ImageVector by lazy {
         icon("LogEzProfile") {
-            line { roundedRect(4f, 3f, 20f, 21f, 2.5f) } // badge
             line {
                 // head
-                moveTo(9.25f, 9.5f)
-                arcTo(2.75f, 2.75f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 14.75f, y1 = 9.5f)
-                arcTo(2.75f, 2.75f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 9.25f, y1 = 9.5f)
+                moveTo(8.25f, 7.75f)
+                arcTo(3.75f, 3.75f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 15.75f, y1 = 7.75f)
+                arcTo(3.75f, 3.75f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 8.25f, y1 = 7.75f)
                 close()
             }
             line {
                 // shoulders
-                moveTo(7.5f, 17.5f)
-                curveTo(8.2f, 15.2f, 9.9f, 14f, 12f, 14f)
-                curveTo(14.1f, 14f, 15.8f, 15.2f, 16.5f, 17.5f)
+                moveTo(4.5f, 20.5f)
+                curveTo(5.2f, 16.6f, 8.2f, 14.25f, 12f, 14.25f)
+                curveTo(15.8f, 14.25f, 18.8f, 16.6f, 19.5f, 20.5f)
             }
         }
     }
