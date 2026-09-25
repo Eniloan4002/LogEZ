@@ -36,6 +36,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import com.enil.logez.core.designsystem.parseDecimalInput
 
 /**
  * Add/edit sheet for one date's body-measurement entry — every field optional (any subset
@@ -75,23 +76,23 @@ fun MeasurementEntryDialog(
     var leftCalfText by remember { mutableStateOf(initial?.leftCalfCm.toFieldText { LengthDisplay.toDisplay(it, lengthUnit) }) }
     var rightCalfText by remember { mutableStateOf(initial?.rightCalfCm.toFieldText { LengthDisplay.toDisplay(it, lengthUnit) }) }
 
-    val weight = weightText.toDoubleOrNull()
-    val leanMass = leanMassText.toDoubleOrNull()
-    val fatPercent = fatPercentText.toDoubleOrNull()
-    val neck = neckText.toDoubleOrNull()
-    val shoulder = shoulderText.toDoubleOrNull()
-    val chest = chestText.toDoubleOrNull()
-    val leftBicep = leftBicepText.toDoubleOrNull()
-    val rightBicep = rightBicepText.toDoubleOrNull()
-    val leftForearm = leftForearmText.toDoubleOrNull()
-    val rightForearm = rightForearmText.toDoubleOrNull()
-    val abdomen = abdomenText.toDoubleOrNull()
-    val waist = waistText.toDoubleOrNull()
-    val hips = hipsText.toDoubleOrNull()
-    val leftThigh = leftThighText.toDoubleOrNull()
-    val rightThigh = rightThighText.toDoubleOrNull()
-    val leftCalf = leftCalfText.toDoubleOrNull()
-    val rightCalf = rightCalfText.toDoubleOrNull()
+    val weight = parseDecimalInput(weightText)
+    val leanMass = parseDecimalInput(leanMassText)
+    val fatPercent = parseDecimalInput(fatPercentText)
+    val neck = parseDecimalInput(neckText)
+    val shoulder = parseDecimalInput(shoulderText)
+    val chest = parseDecimalInput(chestText)
+    val leftBicep = parseDecimalInput(leftBicepText)
+    val rightBicep = parseDecimalInput(rightBicepText)
+    val leftForearm = parseDecimalInput(leftForearmText)
+    val rightForearm = parseDecimalInput(rightForearmText)
+    val abdomen = parseDecimalInput(abdomenText)
+    val waist = parseDecimalInput(waistText)
+    val hips = parseDecimalInput(hipsText)
+    val leftThigh = parseDecimalInput(leftThighText)
+    val rightThigh = parseDecimalInput(rightThighText)
+    val leftCalf = parseDecimalInput(leftCalfText)
+    val rightCalf = parseDecimalInput(rightCalfText)
 
     // Blank is always valid (every field is optional) -- only unparseable, non-blank text errors.
     val fieldsAndValues = listOf(

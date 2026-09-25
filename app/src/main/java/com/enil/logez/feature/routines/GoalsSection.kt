@@ -40,6 +40,7 @@ import com.enil.logez.core.domain.model.GoalMetric
 import com.enil.logez.core.domain.model.GoalPeriod
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.feature.analytics.AnalyticsFormatters
+import com.enil.logez.core.designsystem.parseDecimalInput
 
 /** M8d — Goals card: active goals with a progress bar each, "Add Goal", per-goal delete. */
 @Composable
@@ -113,7 +114,7 @@ private fun GoalItem(row: GoalRow, weightUnit: WeightUnit, onDelete: () -> Unit,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_delete))
             }
         }
@@ -137,7 +138,7 @@ private fun AddGoalDialog(onConfirm: (GoalMetric, GoalPeriod, Double) -> Unit, o
     var metric by remember { mutableStateOf(GoalMetric.VOLUME) }
     var period by remember { mutableStateOf(GoalPeriod.WEEKLY) }
     var targetText by remember { mutableStateOf("") }
-    val targetValue = targetText.toDoubleOrNull()
+    val targetValue = parseDecimalInput(targetText)
 
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -44,6 +44,8 @@ import com.enil.logez.feature.activity.InterruptedTrackingDialog
 import com.enil.logez.feature.workout.InProgressWorkout
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalResources
+import android.content.res.Resources
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,7 +132,7 @@ fun RoutineDetailScreen(
                                     stringResource(
                                         if (isCircuit) R.string.routine_detail_round_line else R.string.routine_detail_set_line,
                                         index + 1,
-                                        formatDetailSetTargets(set, uiState.weightUnit),
+                                        formatDetailSetTargets(LocalResources.current, set, uiState.weightUnit),
                                     ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -187,13 +189,13 @@ fun RoutineDetailScreen(
     }
 }
 
-private fun formatDetailSetTargets(set: com.enil.logez.core.data.entity.RoutineSetEntity, unit: com.enil.logez.core.domain.model.WeightUnit): String {
+private fun formatDetailSetTargets(res: Resources, set: com.enil.logez.core.data.entity.RoutineSetEntity, unit: com.enil.logez.core.domain.model.WeightUnit): String {
     val parts = mutableListOf<String>()
     set.targetWeightKg?.let { parts.add(com.enil.logez.core.designsystem.formatWeight(it, unit)) }
     if (set.targetRepRangeMin != null) {
-        parts.add("${set.targetRepRangeMin}-${set.targetRepRangeMax} reps")
+        parts.add(res.getString(R.string.routine_detail_rep_range, set.targetRepRangeMin, set.targetRepRangeMax))
     } else {
-        set.targetReps?.let { parts.add("$it reps") }
+        set.targetReps?.let { parts.add(res.getQuantityString(R.plurals.set_reps, it, it)) }
     }
     set.targetDurationSeconds?.let { parts.add(formatMmSs(it)) }
     set.targetDistanceMeters?.let { parts.add("${formatNum(it)}m") }

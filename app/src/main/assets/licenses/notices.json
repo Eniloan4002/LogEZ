@@ -1,0 +1,675 @@
+[
+  {
+    "name": "Accompanist Drawable Painter",
+    "artifacts": [
+      "com.google.accompanist:accompanist-drawablepainter"
+    ],
+    "copyright": "Copyright 2020 The Android Open Source Project",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/accompanist"
+  },
+  {
+    "name": "AndroidX and Jetpack Compose",
+    "artifacts": [
+      "androidx.activity:activity",
+      "androidx.activity:activity-compose",
+      "androidx.activity:activity-ktx",
+      "androidx.annotation:annotation",
+      "androidx.annotation:annotation-experimental",
+      "androidx.appcompat:appcompat",
+      "androidx.appcompat:appcompat-resources",
+      "androidx.arch.core:core-common",
+      "androidx.arch.core:core-runtime",
+      "androidx.autofill:autofill",
+      "androidx.camera.featurecombinationquery:featurecombinationquery",
+      "androidx.camera.viewfinder:viewfinder-core",
+      "androidx.camera:camera-camera2",
+      "androidx.camera:camera-camera2-pipe",
+      "androidx.camera:camera-core",
+      "androidx.camera:camera-lifecycle",
+      "androidx.camera:camera-video",
+      "androidx.camera:camera-view",
+      "androidx.cardview:cardview",
+      "androidx.collection:collection",
+      "androidx.collection:collection-ktx",
+      "androidx.compose.animation:animation",
+      "androidx.compose.animation:animation-core",
+      "androidx.compose.foundation:foundation",
+      "androidx.compose.foundation:foundation-layout",
+      "androidx.compose.material3:material3",
+      "androidx.compose.material:material",
+      "androidx.compose.material:material-icons-core",
+      "androidx.compose.material:material-icons-extended",
+      "androidx.compose.material:material-ripple",
+      "androidx.compose.runtime:runtime",
+      "androidx.compose.runtime:runtime-annotation",
+      "androidx.compose.runtime:runtime-retain",
+      "androidx.compose.runtime:runtime-saveable",
+      "androidx.compose.ui:ui",
+      "androidx.compose.ui:ui-geometry",
+      "androidx.compose.ui:ui-graphics",
+      "androidx.compose.ui:ui-text",
+      "androidx.compose.ui:ui-tooling",
+      "androidx.compose.ui:ui-tooling-data",
+      "androidx.compose.ui:ui-tooling-preview",
+      "androidx.compose.ui:ui-unit",
+      "androidx.compose.ui:ui-util",
+      "androidx.concurrent:concurrent-futures",
+      "androidx.concurrent:concurrent-futures-ktx",
+      "androidx.constraintlayout:constraintlayout",
+      "androidx.constraintlayout:constraintlayout-core",
+      "androidx.coordinatorlayout:coordinatorlayout",
+      "androidx.core:core",
+      "androidx.core:core-backported-fixes",
+      "androidx.core:core-ktx",
+      "androidx.core:core-remoteviews",
+      "androidx.core:core-viewtree",
+      "androidx.cursoradapter:cursoradapter",
+      "androidx.customview:customview",
+      "androidx.customview:customview-poolingcontainer",
+      "androidx.datastore:datastore",
+      "androidx.datastore:datastore-core",
+      "androidx.datastore:datastore-core-okio",
+      "androidx.datastore:datastore-preferences",
+      "androidx.datastore:datastore-preferences-core",
+      "androidx.datastore:datastore-preferences-external-protobuf",
+      "androidx.datastore:datastore-preferences-proto",
+      "androidx.drawerlayout:drawerlayout",
+      "androidx.dynamicanimation:dynamicanimation",
+      "androidx.emoji2:emoji2",
+      "androidx.emoji2:emoji2-views-helper",
+      "androidx.exifinterface:exifinterface",
+      "androidx.fragment:fragment",
+      "androidx.glance:glance",
+      "androidx.glance:glance-appwidget",
+      "androidx.glance:glance-appwidget-external-protobuf",
+      "androidx.glance:glance-appwidget-proto",
+      "androidx.graphics:graphics-path",
+      "androidx.graphics:graphics-shapes",
+      "androidx.health.connect:connect-client",
+      "androidx.health.connect:connect-client-external-protobuf",
+      "androidx.health.connect:connect-client-proto",
+      "androidx.hilt:hilt-lifecycle-viewmodel",
+      "androidx.hilt:hilt-lifecycle-viewmodel-compose",
+      "androidx.hilt:hilt-navigation-compose",
+      "androidx.interpolator:interpolator",
+      "androidx.lifecycle:lifecycle-common",
+      "androidx.lifecycle:lifecycle-common-java8",
+      "androidx.lifecycle:lifecycle-livedata",
+      "androidx.lifecycle:lifecycle-livedata-core",
+      "androidx.lifecycle:lifecycle-livedata-core-ktx",
+      "androidx.lifecycle:lifecycle-process",
+      "androidx.lifecycle:lifecycle-runtime",
+      "androidx.lifecycle:lifecycle-runtime-compose",
+      "androidx.lifecycle:lifecycle-runtime-ktx",
+      "androidx.lifecycle:lifecycle-service",
+      "androidx.lifecycle:lifecycle-viewmodel",
+      "androidx.lifecycle:lifecycle-viewmodel-compose",
+      "androidx.lifecycle:lifecycle-viewmodel-ktx",
+      "androidx.lifecycle:lifecycle-viewmodel-savedstate",
+      "androidx.loader:loader",
+      "androidx.media3:media3-common",
+      "androidx.media3:media3-container",
+      "androidx.media3:media3-muxer",
+      "androidx.navigation:navigation-common",
+      "androidx.navigation:navigation-compose",
+      "androidx.navigation:navigation-runtime",
+      "androidx.navigationevent:navigationevent",
+      "androidx.navigationevent:navigationevent-compose",
+      "androidx.profileinstaller:profileinstaller",
+      "androidx.recyclerview:recyclerview",
+      "androidx.resourceinspection:resourceinspection-annotation",
+      "androidx.room:room-common",
+      "androidx.room:room-ktx",
+      "androidx.room:room-runtime",
+      "androidx.savedstate:savedstate",
+      "androidx.savedstate:savedstate-compose",
+      "androidx.savedstate:savedstate-ktx",
+      "androidx.sqlite:sqlite",
+      "androidx.sqlite:sqlite-framework",
+      "androidx.startup:startup-runtime",
+      "androidx.tracing:tracing",
+      "androidx.tracing:tracing-ktx",
+      "androidx.transition:transition",
+      "androidx.vectordrawable:vectordrawable",
+      "androidx.vectordrawable:vectordrawable-animated",
+      "androidx.versionedparcelable:versionedparcelable",
+      "androidx.viewpager2:viewpager2",
+      "androidx.viewpager:viewpager",
+      "androidx.window:window",
+      "androidx.window:window-core",
+      "androidx.work:work-runtime",
+      "androidx.work:work-runtime-ktx"
+    ],
+    "copyright": "Copyright The Android Open Source Project",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://developer.android.com/jetpack/androidx"
+  },
+  {
+    "name": "AutoValue Annotations",
+    "artifacts": [
+      "com.google.auto.value:auto-value-annotations"
+    ],
+    "copyright": "Copyright 2013 Google LLC",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/auto"
+  },
+  {
+    "name": "Chakra Petch (font)",
+    "artifacts": [
+      "font/chakra_petch_bold.ttf",
+      "font/chakra_petch_semibold.ttf"
+    ],
+    "copyright": "Copyright 2018 The Chakra Petch Project Authors (https://github.com/m4rc1e/Chakra-Petch.git)",
+    "license": "OFL-1.1",
+    "file": "ofl-1.1-chakra-petch.txt",
+    "url": "https://github.com/m4rc1e/Chakra-Petch"
+  },
+  {
+    "name": "Checker Framework Qualifiers",
+    "artifacts": [
+      "org.checkerframework:checker-qual"
+    ],
+    "copyright": "Copyright 2004-present by the Checker Framework developers",
+    "license": "MIT",
+    "file": "mit-checker-qual.txt",
+    "url": "https://github.com/typetools/checker-framework"
+  },
+  {
+    "name": "Coil",
+    "artifacts": [
+      "io.coil-kt.coil3:coil",
+      "io.coil-kt.coil3:coil-compose",
+      "io.coil-kt.coil3:coil-compose-core",
+      "io.coil-kt.coil3:coil-core"
+    ],
+    "copyright": "Copyright 2026 Coil Contributors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/coil-kt/coil"
+  },
+  {
+    "name": "Compose Multiplatform (JetBrains)",
+    "artifacts": [
+      "org.jetbrains.androidx.lifecycle:lifecycle-common",
+      "org.jetbrains.androidx.lifecycle:lifecycle-runtime",
+      "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose",
+      "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel",
+      "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate",
+      "org.jetbrains.androidx.savedstate:savedstate",
+      "org.jetbrains.androidx.savedstate:savedstate-compose",
+      "org.jetbrains.compose.animation:animation",
+      "org.jetbrains.compose.animation:animation-core",
+      "org.jetbrains.compose.annotation-internal:annotation",
+      "org.jetbrains.compose.collection-internal:collection",
+      "org.jetbrains.compose.foundation:foundation",
+      "org.jetbrains.compose.foundation:foundation-layout",
+      "org.jetbrains.compose.material3:material3",
+      "org.jetbrains.compose.material:material",
+      "org.jetbrains.compose.material:material-ripple",
+      "org.jetbrains.compose.runtime:runtime",
+      "org.jetbrains.compose.runtime:runtime-saveable",
+      "org.jetbrains.compose.ui:ui",
+      "org.jetbrains.compose.ui:ui-backhandler",
+      "org.jetbrains.compose.ui:ui-geometry",
+      "org.jetbrains.compose.ui:ui-graphics",
+      "org.jetbrains.compose.ui:ui-text",
+      "org.jetbrains.compose.ui:ui-unit",
+      "org.jetbrains.compose.ui:ui-util"
+    ],
+    "copyright": "Copyright The Android Open Source Project",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/JetBrains/compose-multiplatform-core"
+  },
+  {
+    "name": "Compose Rich Editor",
+    "artifacts": [
+      "com.mohamedrejeb.richeditor:richeditor-compose"
+    ],
+    "copyright": "Copyright 2024 Mohamed Rejeb",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/MohamedRejeb/compose-rich-editor"
+  },
+  {
+    "name": "Compose Unstyled",
+    "artifacts": [
+      "com.composables:composeunstyled-build-modifier",
+      "com.composables:composeunstyled-dialog",
+      "com.composables:composeunstyled-modal",
+      "com.composables:composeunstyled-portal",
+      "com.composables:composeunstyled-slider"
+    ],
+    "copyright": "Copyright (c) 2026 Composable Horizons",
+    "license": "MIT",
+    "file": "mit-compose-unstyled.txt",
+    "url": "https://github.com/composablehorizons/compose-unstyled"
+  },
+  {
+    "name": "Dagger and Hilt",
+    "artifacts": [
+      "com.google.dagger:dagger",
+      "com.google.dagger:dagger-lint-aar",
+      "com.google.dagger:hilt-android",
+      "com.google.dagger:hilt-core"
+    ],
+    "copyright": "Copyright 2012 The Dagger Authors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/dagger"
+  },
+  {
+    "name": "Error Prone Annotations",
+    "artifacts": [
+      "com.google.errorprone:error_prone_annotations"
+    ],
+    "copyright": "Copyright The Error Prone Authors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/error-prone"
+  },
+  {
+    "name": "FlexibleBottomSheet",
+    "artifacts": [
+      "com.github.skydoves:flexible-bottomsheet-material3",
+      "com.github.skydoves:flexible-core"
+    ],
+    "copyright": "Designed and developed by 2023 skydoves (Jaewoong Eum); portions Copyright 2023 The Android Open Source Project",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/skydoves/FlexibleBottomSheet"
+  },
+  {
+    "name": "Google Play services",
+    "artifacts": [
+      "com.google.android.gms:play-services-base",
+      "com.google.android.gms:play-services-basement",
+      "com.google.android.gms:play-services-location",
+      "com.google.android.gms:play-services-tasks"
+    ],
+    "copyright": "Google LLC",
+    "license": "Android Software Development Kit License",
+    "file": null,
+    "url": "https://developer.android.com/studio/terms"
+  },
+  {
+    "name": "Google Play services: bundled third-party components",
+    "artifacts": [
+      "com.google.android.gms:play-services-base",
+      "com.google.android.gms:play-services-basement",
+      "com.google.android.gms:play-services-location",
+      "com.google.android.gms:play-services-tasks"
+    ],
+    "copyright": "Various copyright holders (see file)",
+    "license": "Various (MIT, Apache-2.0, BSD and others; see file)",
+    "file": "google-play-services-third-party.txt",
+    "url": "https://developers.google.com/android/guides/opensource"
+  },
+  {
+    "name": "Gson",
+    "artifacts": [
+      "com.google.code.gson:gson"
+    ],
+    "copyright": "Copyright 2008 Google Inc.",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/gson"
+  },
+  {
+    "name": "Guava",
+    "artifacts": [
+      "com.google.guava:failureaccess",
+      "com.google.guava:guava",
+      "com.google.guava:listenablefuture"
+    ],
+    "copyright": "Copyright (C) The Guava Authors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/guava"
+  },
+  {
+    "name": "IBM Plex Mono (font)",
+    "artifacts": [
+      "font/ibm_plex_mono_medium.ttf",
+      "font/ibm_plex_mono_regular.ttf",
+      "font/ibm_plex_mono_semibold.ttf"
+    ],
+    "copyright": "Copyright © 2017 IBM Corp. with Reserved Font Name \"Plex\"",
+    "license": "OFL-1.1",
+    "file": "ofl-1.1-ibm-plex-mono.txt",
+    "url": "https://github.com/IBM/plex"
+  },
+  {
+    "name": "IBM Plex Sans (font)",
+    "artifacts": [
+      "font/ibm_plex_sans_variable.ttf"
+    ],
+    "copyright": "Copyright © 2017 IBM Corp. with Reserved Font Name \"Plex\"",
+    "license": "OFL-1.1",
+    "file": "ofl-1.1-ibm-plex-sans.txt",
+    "url": "https://github.com/IBM/plex"
+  },
+  {
+    "name": "J2ObjC Annotations",
+    "artifacts": [
+      "com.google.j2objc:j2objc-annotations"
+    ],
+    "copyright": "Copyright 2012 Google Inc. All Rights Reserved.",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/google/j2objc"
+  },
+  {
+    "name": "Jakarta Dependency Injection",
+    "artifacts": [
+      "jakarta.inject:jakarta.inject-api"
+    ],
+    "copyright": "Copyright (C) 2009 The JSR-330 Expert Group",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/eclipse-ee4j/injection-api"
+  },
+  {
+    "name": "javax.inject (JSR-330)",
+    "artifacts": [
+      "javax.inject:javax.inject"
+    ],
+    "copyright": "Copyright (C) 2009 The JSR-330 Expert Group",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/javax-inject/javax-inject"
+  },
+  {
+    "name": "JCIP Annotations (in JSR 305)",
+    "artifacts": [
+      "com.google.code.findbugs:jsr305"
+    ],
+    "copyright": "Copyright (c) 2005 Brian Goetz",
+    "license": "CC-BY-2.5",
+    "file": "cc-by-2.5-jcip-annotations.txt",
+    "url": "http://www.jcip.net"
+  },
+  {
+    "name": "JetBrains Java Annotations",
+    "artifacts": [
+      "org.jetbrains:annotations"
+    ],
+    "copyright": "Copyright 2000-2021 JetBrains s.r.o.",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/JetBrains/java-annotations"
+  },
+  {
+    "name": "JetBrains Markdown",
+    "artifacts": [
+      "org.jetbrains:markdown"
+    ],
+    "copyright": "JetBrains",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/JetBrains/markdown"
+  },
+  {
+    "name": "JSpecify",
+    "artifacts": [
+      "org.jspecify:jspecify"
+    ],
+    "copyright": "Copyright The JSpecify Authors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/jspecify/jspecify"
+  },
+  {
+    "name": "JSR 305 Annotations",
+    "artifacts": [
+      "com.google.code.findbugs:jsr305"
+    ],
+    "copyright": "FindBugs-jsr305",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://code.google.com/p/jsr-305/"
+  },
+  {
+    "name": "Kizitonwose Calendar",
+    "artifacts": [
+      "com.kizitonwose.calendar:compose",
+      "com.kizitonwose.calendar:core",
+      "com.kizitonwose.calendar:data"
+    ],
+    "copyright": "Copyright (c) 2019 Kizito Nwose",
+    "license": "MIT",
+    "file": "mit-kizitonwose-calendar.txt",
+    "url": "https://github.com/kizitonwose/calendar"
+  },
+  {
+    "name": "KoalaPlot",
+    "artifacts": [
+      "io.github.koalaplot:koalaplot-core"
+    ],
+    "copyright": "Copyright (c) 2022 Gregory J. Steckman",
+    "license": "MIT",
+    "file": "mit-koalaplot.txt",
+    "url": "https://github.com/KoalaPlot/koalaplot-core"
+  },
+  {
+    "name": "Kotlin Standard Library",
+    "artifacts": [
+      "org.jetbrains.kotlin:kotlin-android-extensions-runtime",
+      "org.jetbrains.kotlin:kotlin-parcelize-runtime",
+      "org.jetbrains.kotlin:kotlin-stdlib",
+      "org.jetbrains.kotlin:kotlin-stdlib-common",
+      "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
+      "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    ],
+    "copyright": "Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/JetBrains/kotlin"
+  },
+  {
+    "name": "kotlinx atomicfu",
+    "artifacts": [
+      "org.jetbrains.kotlinx:atomicfu"
+    ],
+    "copyright": "Copyright 2017 JetBrains s.r.o and respective authors and developers",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/Kotlin/kotlinx-atomicfu"
+  },
+  {
+    "name": "kotlinx-datetime",
+    "artifacts": [
+      "org.jetbrains.kotlinx:kotlinx-datetime"
+    ],
+    "copyright": "Copyright 2019-2025 JetBrains s.r.o. and contributors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/Kotlin/kotlinx-datetime"
+  },
+  {
+    "name": "kotlinx.coroutines",
+    "artifacts": [
+      "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-guava"
+    ],
+    "copyright": "Copyright 2016-2025 JetBrains s.r.o and contributors",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/Kotlin/kotlinx.coroutines"
+  },
+  {
+    "name": "kotlinx.serialization",
+    "artifacts": [
+      "org.jetbrains.kotlinx:kotlinx-serialization-core",
+      "org.jetbrains.kotlinx:kotlinx-serialization-json"
+    ],
+    "copyright": "Copyright 2017-2019 JetBrains s.r.o and respective authors and developers",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/Kotlin/kotlinx.serialization"
+  },
+  {
+    "name": "Ksoup",
+    "artifacts": [
+      "com.mohamedrejeb.ksoup:ksoup-entities",
+      "com.mohamedrejeb.ksoup:ksoup-html"
+    ],
+    "copyright": "Copyright 2024 Mohamed Rejeb",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/MohamedRejeb/ksoup"
+  },
+  {
+    "name": "libyuv (in CameraX)",
+    "artifacts": [
+      "androidx.camera:camera-core"
+    ],
+    "copyright": "Copyright 2011 The LibYuv Project Authors. All rights reserved.",
+    "license": "BSD-3-Clause",
+    "file": "bsd-3-clause-libyuv.txt",
+    "url": "https://chromium.googlesource.com/libyuv/libyuv"
+  },
+  {
+    "name": "MapLibre Android Gestures",
+    "artifacts": [
+      "org.maplibre.gl:maplibre-android-gestures"
+    ],
+    "copyright": "Copyright (c) 2018, Mapbox; Copyright (c) 2024, MapLibre contributors; Copyright (c) 2012, Almer Thie",
+    "license": "BSD-2-Clause",
+    "file": "bsd-2-clause-maplibre-gestures.txt",
+    "url": "https://github.com/maplibre/maplibre-gestures-android"
+  },
+  {
+    "name": "MapLibre Java (GeoJSON and Turf)",
+    "artifacts": [
+      "org.maplibre.gl:android-sdk-geojson",
+      "org.maplibre.gl:android-sdk-turf"
+    ],
+    "copyright": "Copyright (c) 2018 Mapbox",
+    "license": "MIT",
+    "file": "mit-maplibre-java.txt",
+    "url": "https://github.com/maplibre/maplibre-java"
+  },
+  {
+    "name": "MapLibre Native Android",
+    "artifacts": [
+      "org.maplibre.gl:android-sdk-opengl"
+    ],
+    "copyright": "Copyright (c) 2021 MapLibre contributors; Copyright (c) 2018-2021 MapTiler.com; Copyright (c) 2014-2020 Mapbox",
+    "license": "BSD-2-Clause",
+    "file": "bsd-2-clause-maplibre-native.txt",
+    "url": "https://github.com/maplibre/maplibre-native"
+  },
+  {
+    "name": "Material Components for Android",
+    "artifacts": [
+      "com.google.android.material:material"
+    ],
+    "copyright": "Copyright The Android Open Source Project",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/material-components/material-components-android"
+  },
+  {
+    "name": "NOTICE files of Apache-2.0 libraries",
+    "artifacts": [
+      "org.jetbrains.kotlin:kotlin-stdlib",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+      "org.jetbrains.kotlinx:kotlinx-serialization-core",
+      "org.jetbrains.kotlinx:atomicfu",
+      "jakarta.inject:jakarta.inject-api"
+    ],
+    "copyright": "Various copyright holders (see file)",
+    "license": "Apache-2.0",
+    "file": "apache-2.0-notices.txt",
+    "url": "https://www.apache.org/licenses/LICENSE-2.0"
+  },
+  {
+    "name": "OkHttp",
+    "artifacts": [
+      "com.squareup.okhttp3:okhttp"
+    ],
+    "copyright": "Copyright 2019 Square, Inc.",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/square/okhttp"
+  },
+  {
+    "name": "Okio",
+    "artifacts": [
+      "com.squareup.okio:okio"
+    ],
+    "copyright": "Copyright 2013 Square, Inc.",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/square/okio"
+  },
+  {
+    "name": "Protocol Buffers",
+    "artifacts": [
+      "androidx.datastore:datastore-preferences-external-protobuf",
+      "androidx.glance:glance-appwidget-external-protobuf",
+      "androidx.health.connect:connect-client-external-protobuf"
+    ],
+    "copyright": "Copyright 2008 Google Inc.  All rights reserved.",
+    "license": "BSD-3-Clause",
+    "file": "bsd-3-clause-protobuf.txt",
+    "url": "https://github.com/protocolbuffers/protobuf"
+  },
+  {
+    "name": "Public Suffix List (in OkHttp)",
+    "artifacts": [
+      "com.squareup.okhttp3:okhttp"
+    ],
+    "copyright": "Public Suffix List contributors",
+    "license": "MPL-2.0",
+    "file": "mpl-2.0.txt",
+    "url": "https://publicsuffix.org/list/"
+  },
+  {
+    "name": "Reorderable",
+    "artifacts": [
+      "sh.calvin.reorderable:reorderable"
+    ],
+    "copyright": "Copyright 2023 Calvin Liang",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/Calvin-LL/Reorderable"
+  },
+  {
+    "name": "ThreeTen-Backport (portions in Kotlin and kotlinx-datetime)",
+    "artifacts": [
+      "org.jetbrains.kotlin:kotlin-stdlib",
+      "org.jetbrains.kotlinx:kotlinx-datetime"
+    ],
+    "copyright": "Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos.",
+    "license": "BSD-3-Clause",
+    "file": "bsd-3-clause-threetenbp.txt",
+    "url": "https://github.com/ThreeTen/threetenbp"
+  },
+  {
+    "name": "Timber",
+    "artifacts": [
+      "com.jakewharton.timber:timber"
+    ],
+    "copyright": "Copyright 2013 Jake Wharton",
+    "license": "Apache-2.0",
+    "file": "apache-2.0.txt",
+    "url": "https://github.com/JakeWharton/timber"
+  },
+  {
+    "name": "vue-human-muscle-anatomy (muscle diagram geometry)",
+    "artifacts": [
+      "core/designsystem/MuscleBodyData.kt (derived path data)"
+    ],
+    "copyright": "Copyright (c) 2025 Luca Wahlen",
+    "license": "MIT",
+    "file": "mit-vue-human-muscle-anatomy.txt",
+    "url": "https://github.com/sebmaynard/vue-human-muscle-anatomy"
+  }
+]

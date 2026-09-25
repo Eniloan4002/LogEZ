@@ -55,6 +55,14 @@ val Danger500 = Color(0xFFFF5A50)
 val Warning500 = Color(0xFF68894D)
 
 /**
+ * Text colour for the warm-up "W" badge: Warning500's hue, lightened. Warning500 itself measured
+ * 2.62:1 against its own 15% tint on a completed row's green band (WCAG AA needs 4.5:1 for small
+ * text). This measures 8.76:1 on a plain card and 5.92:1 on the completed band (2026-09-25
+ * accessibility pass); the badge fill stays Warning500 so the colour coding is unchanged.
+ */
+val Warning300 = Color(0xFFA8CF86)
+
+/**
  * Personal records only — the trophy icon (`Icons.Outlined.EmojiEvents`) in `RecordsChip`,
  * `DetailStatCell`'s PR branch, the completed-set PR badge, and `PrMedalCard`. Every one of those
  * currently reuses [NeonGreen] via `colorScheme.primary`, the same color as every ordinary CTA and

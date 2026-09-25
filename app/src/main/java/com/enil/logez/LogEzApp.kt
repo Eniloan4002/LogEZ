@@ -33,6 +33,13 @@ import com.enil.logez.feature.activity.InterruptedTrackingDialog
 import com.enil.logez.feature.workout.WorkoutMiniBar
 import com.enil.logez.feature.workout.WorkoutRoutes
 import com.enil.logez.feature.workout.rememberStartWorkoutSession
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 
 /** App root: theme + the 3-tab Scaffold. Theme is dark-only (Owner directive) — no mode switching. */
 @Composable
@@ -141,10 +148,9 @@ fun LogEzApp() {
                                         }
                                     },
                                     icon = {
-                                        Icon(
-                                            imageVector = destination.icon,
-                                            contentDescription = stringResource(destination.labelRes),
-                                        )
+                                        // Null: the visible label already names the tab, and a
+                                        // description here made TalkBack read it twice.
+                                        Icon(imageVector = destination.icon, contentDescription = null)
                                     },
                                     label = { Text(stringResource(destination.labelRes)) },
                                 )
@@ -154,10 +160,22 @@ fun LogEzApp() {
                 }
             },
         ) { innerPadding ->
-            LogEzNavHost(
-                navController = navController,
-                modifier = Modifier.padding(innerPadding),
-            )
+            // Tablets, foldables and landscape (2026-09-25, Play-readiness audit): the phone layout
+            // used to stretch edge to edge, so cards and set tables spread across a whole tablet.
+            // Content is capped at a readable width and centred; the bottom bar stays full width.
+            // A phone is narrower than the cap, so nothing changes there.
+            Box(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                LogEzNavHost(
+                    navController = navController,
+                    modifier = Modifier.fillMaxHeight().widthIn(max = MAX_CONTENT_WIDTH).fillMaxWidth(),
+                )
+            }
         }
     }
 }
+
+/** The widest the content column grows on a large screen: comfortable for reading and for the set table. */
+private val MAX_CONTENT_WIDTH = 720.dp

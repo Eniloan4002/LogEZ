@@ -61,7 +61,7 @@ object SetTable {
     val rpeCell: Dp = 44.dp
 
     /** Trailing check/action column (also the header row's spacer over it). */
-    val checkCell: Dp = 40.dp
+    val checkCell: Dp = 48.dp // the most-tapped control in the app; 48dp is the touch-target floor (was 40dp)
 
     /**
      * M17: the plate-calculator tap target that trails a barbell row's KG cell. The header rows

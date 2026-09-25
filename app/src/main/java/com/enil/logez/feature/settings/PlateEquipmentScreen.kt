@@ -36,6 +36,7 @@ import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.PlateCalculator
+import com.enil.logez.core.designsystem.parseDecimalInput
 
 /** Which add dialog is open, if any. */
 private enum class PlateEquipmentDialog { ADD_BAR, ADD_PLATE }
@@ -171,7 +172,7 @@ private fun AddWeightDialog(
     onDismiss: () -> Unit,
 ) {
     var text by remember { mutableStateOf("") }
-    val rounded = text.toDoubleOrNull()?.let { PlateCalculator.roundToQuarterKg(it) }
+    val rounded = parseDecimalInput(text)?.let { PlateCalculator.roundToQuarterKg(it) }
     val error = when {
         text.isEmpty() -> null
         rounded == null || rounded <= 0.0 -> stringResource(R.string.settings_plate_invalid_weight)

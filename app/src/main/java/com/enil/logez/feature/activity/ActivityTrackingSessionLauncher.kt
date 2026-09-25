@@ -19,6 +19,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import com.enil.logez.R
 import com.enil.logez.feature.activity.service.ActivityTrackingService
+import com.enil.logez.core.common.PermissionDenial
+import com.enil.logez.core.common.classifyDenial
+import androidx.compose.runtime.saveable.rememberSaveable
 
 /**
  * M21a. Unlike [com.enil.logez.feature.workout.rememberStartWorkoutSession]'s notification
@@ -28,17 +31,23 @@ import com.enil.logez.feature.activity.service.ActivityTrackingService
  * "proceed either way" precedent, not an oversight).
  */
 @Composable
-fun rememberRequestLocationForTracking(onGranted: () -> Unit, onDenied: () -> Unit): () -> Unit {
+fun rememberRequestLocationForTracking(onGranted: () -> Unit, onDenied: (PermissionDenial) -> Unit): () -> Unit {
     val context = LocalContext.current
-    var showRationale by remember { mutableStateOf(false) }
+    var showRationale by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) onGranted() else onDenied()
+        when {
+            grants[Manifest.permission.ACCESS_FINE_LOCATION] == true -> onGranted()
+            // Android 12+ lets the user grant only approximate location, which cannot measure a
+            // route. It used to read as a plain denial with no hint that "Precise" was the fix.
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> onDenied(PermissionDenial.ApproximateOnly)
+            else -> onDenied(classifyDenial(context, Manifest.permission.ACCESS_FINE_LOCATION))
+        }
     }
 
     if (showRationale) {
         AlertDialog(
-            onDismissRequest = { showRationale = false; onDenied() },
+            onDismissRequest = { showRationale = false; onDenied(PermissionDenial.Declined) },
             title = { Text(stringResource(R.string.activity_tracking_location_rationale_title)) },
             text = { Text(stringResource(R.string.activity_tracking_location_rationale_body)) },
             confirmButton = {
@@ -48,7 +57,7 @@ fun rememberRequestLocationForTracking(onGranted: () -> Unit, onDenied: () -> Un
                 }) { Text(stringResource(R.string.activity_tracking_location_rationale_allow)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRationale = false; onDenied() }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { showRationale = false; onDenied(PermissionDenial.Declined) }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }

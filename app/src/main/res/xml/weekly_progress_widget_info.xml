@@ -8,6 +8,10 @@
   changes, and from a worker at local midnight.
 
   initialLayout ships inside glance-appwidget; there is no local layout to write.
+
+  previewImage (2026-09-25, Play-readiness audit): without it the widget picker showed the
+  launcher icon instead of the widget. It is a real render of the widget, cropped from an
+  emulator, so the picker shows what the user will actually get.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="110dp"
@@ -22,4 +26,5 @@
     android:widgetCategory="home_screen"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/glance_default_loading_layout"
-    android:description="@string/widget_weekly_progress_description" />
+    android:description="@string/widget_weekly_progress_description"
+    android:previewImage="@drawable/widget_preview" />

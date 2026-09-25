@@ -91,6 +91,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import com.enil.logez.core.designsystem.rememberClockTimeFormatter
 
 /** M20d: which set the screen-hoisted plate calculator sheet is open for. */
 private data class PlateTarget(val exerciseId: String, val setId: String, val initialWeightKg: Double?)
@@ -838,7 +839,7 @@ private fun EditDateDurationRows(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.finish_date_time_label), modifier = Modifier.weight(1f))
-            Text(formatEditDateTime(startedAtMillis), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(formatEditDateTime(startedAtMillis, rememberClockTimeFormatter()), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         HorizontalDivider()
         Row(
@@ -858,7 +859,7 @@ private fun EditDateDurationRows(
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
-                suffix = { Text("min") },
+                suffix = { Text(stringResource(R.string.unit_minutes_short)) },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -869,8 +870,10 @@ private fun EditDateDurationRows(
 private fun formatEditDate(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy"))
 
-private fun formatEditDateTime(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
+private fun formatEditDateTime(millis: Long, clock: DateTimeFormatter): String {
+    val zoned = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
+    return zoned.format(DateTimeFormatter.ofPattern("d MMM yyyy")) + ", " + zoned.format(clock)
+}
 
 private fun formatVolumeShort(kg: Double, unit: com.enil.logez.core.domain.model.WeightUnit): String = com.enil.logez.core.designsystem.formatWeight(kg, unit)
 

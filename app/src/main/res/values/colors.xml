@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The window's own background, shown for the instant before Compose draws and behind every
+        screen transition. Matches Neutral950 in core/designsystem/Color.kt; all other in-app colour
+        lives there.
+    -->
+    <color name="logez_window_background">#FF07090A</color>
+</resources>

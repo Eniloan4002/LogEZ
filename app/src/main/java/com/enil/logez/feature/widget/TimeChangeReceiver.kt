@@ -16,6 +16,10 @@ import kotlinx.coroutines.launch
  */
 class TimeChangeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        // Act only on the two system broadcasts the manifest registers for (lint
+        // UnsafeProtectedBroadcastReceiver, 2026-09-25 audit): anything else reaching this
+        // receiver is not a clock change and must not trigger a refresh or reschedule.
+        if (intent.action != Intent.ACTION_TIME_CHANGED && intent.action != Intent.ACTION_TIMEZONE_CHANGED) return
         val appContext = context.applicationContext
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {

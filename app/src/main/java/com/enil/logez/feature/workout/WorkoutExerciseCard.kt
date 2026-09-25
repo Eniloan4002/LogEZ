@@ -87,6 +87,10 @@ import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.targetFields
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import com.enil.logez.core.designsystem.parseDecimalInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.enil.logez.core.designsystem.Warning300
 
 /** REPS never needs more than 1-2 digits, so it's the weighted column that shrinks to fund the
  * wider PREVIOUS cell (Owner, 2026-09-03) — KG/TIME/DISTANCE keep the full share so 5-char values
@@ -416,16 +420,19 @@ internal fun SetRow(
                 modifier = Modifier.padding(horizontal = Spacing.xxs, vertical = Spacing.xxs),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                // Primary text on a completed row: the muted colour measured 3.4:1 on the green
+                // completed band, below WCAG AA (2026-09-25 accessibility pass).
+                val previousColor = if (set.isCompleted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                 Text(
                     set.previousLabel,
-                    style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    style = LogEzMono.dataSmall.copy(color = previousColor),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 set.previousRpeLabel?.let { rpeLine ->
                     Text(
                         rpeLine,
-                        style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)),
+                        style = LogEzMono.dataSmall.copy(color = previousColor.copy(alpha = 0.8f)),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -433,10 +440,13 @@ internal fun SetRow(
             }
         }
         if (showCustomMetric) {
-            NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f), label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_value)))
         }
         if (TargetField.WEIGHT in fields) {
-            WeightCell(valueKg = set.weightKg, unit = config.weightUnit, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f))
+            WeightCell(
+                valueKg = set.weightKg, unit = config.weightUnit, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f),
+                label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(if (config.weightUnit == WeightUnit.LB) R.string.workout_field_weight_lb else R.string.workout_field_weight_kg)),
+            )
             if (showPlateCalculator) {
                 // Trails the KG cell inside the same fixed width the header row spaces over, so
                 // the M15 column alignment holds with or without the button.
@@ -455,7 +465,7 @@ internal fun SetRow(
             }
         }
         if (TargetField.REPS in fields) {
-            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(REPS_COLUMN_WEIGHT))
+            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(REPS_COLUMN_WEIGHT), label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_reps)))
         }
         if (TargetField.DURATION in fields) {
             // Leaf-scoped (spine rule): only collected/ticking while this exact row is the running inline timer.
@@ -466,6 +476,7 @@ internal fun SetRow(
                 enabled = fieldsEnabled && !inlineTimerRunning,
                 modifier = Modifier.weight(1f),
                 suffix = stringResource(R.string.workout_unit_suffix_seconds),
+                label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_seconds)),
             )
             if (showInlineTimer && !set.isCompleted) {
                 IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(32.dp)) {
@@ -483,6 +494,7 @@ internal fun SetRow(
                 enabled = fieldsEnabled,
                 modifier = Modifier.weight(1f),
                 suffix = stringResource(R.string.workout_unit_suffix_meters),
+                label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_meters)),
             )
         }
         if (showRpe) {
@@ -537,7 +549,7 @@ internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modi
         modifier = modifier.clickable(onClick = onClick),
     ) {
         Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
-            Text(label, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(label, color = if (setType == SetType.WARMUP) Warning300 else color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -558,15 +570,16 @@ internal fun weightHeaderRes(unit: WeightUnit): Int =
  * boxed cells (SET/PREVIOUS/RPE) render as one grid. Focus keeps the default primary outline.
  * See [com.enil.logez.core.designsystem.boxedFieldColors], shared with RoutineExerciseCard.kt. */
 @Composable
-internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null) {
+internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null, label: String? = null) {
     var text by remember(value) { mutableStateOf(value?.let { formatTargetNumber(it) }.orEmpty()) }
     CompactBoxedTextField(
         text = text,
-        onTextChange = { new -> text = new; onValueChange(new.toDoubleOrNull()) },
+        onTextChange = { new -> text = new; onValueChange(parseDecimalInput(new)) },
         enabled = enabled,
         keyboardType = KeyboardType.Decimal,
         modifier = modifier,
         suffix = suffix,
+        label = label,
     )
 }
 
@@ -579,7 +592,7 @@ internal fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, enable
  * so the two conversions cannot stack.
  */
 @Composable
-internal fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Double?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, label: String? = null) {
     val displayText = valueKg?.let { WeightDisplay.format(WeightDisplay.toDisplay(it, unit)) }.orEmpty()
     // Same remember(value) idiom as NumberCell: the typed string is kept until the derived display
     // text actually changes underneath it (a stored-kg or unit change), so conversion never fights
@@ -587,15 +600,16 @@ internal fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Doub
     var text by remember(displayText) { mutableStateOf(displayText) }
     CompactBoxedTextField(
         text = text,
-        onTextChange = { new -> text = new; onValueChange(new.toDoubleOrNull()?.let { WeightDisplay.toKg(it, unit) }) },
+        onTextChange = { new -> text = new; onValueChange(parseDecimalInput(new)?.let { WeightDisplay.toKg(it, unit) }) },
         enabled = enabled,
         keyboardType = KeyboardType.Decimal,
         modifier = modifier,
+        label = label,
     )
 }
 
 @Composable
-internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null) {
+internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null, label: String? = null) {
     var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
     CompactBoxedTextField(
         text = text,
@@ -604,6 +618,7 @@ internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolea
         keyboardType = KeyboardType.Number,
         modifier = modifier,
         suffix = suffix,
+        label = label,
     )
 }
 
@@ -634,6 +649,8 @@ private fun CompactBoxedTextField(
     keyboardType: KeyboardType,
     modifier: Modifier = Modifier,
     suffix: String? = null,
+    /** What TalkBack announces for the field, e.g. "Set 2, reps". A bare BasicTextField announced only its value. */
+    label: String? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -655,7 +672,7 @@ private fun CompactBoxedTextField(
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             interactionSource = interactionSource,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
         ) { innerTextField ->
             OutlinedTextFieldDefaults.DecorationBox(
                 value = text,

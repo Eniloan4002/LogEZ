@@ -20,6 +20,10 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.enil.logez.R
 
 /** One bar: [label] names the bucket (shown for the first/last bar), [value] is the raw height. */
 data class BarChartEntry(val label: String, val value: Double)
@@ -47,6 +51,18 @@ fun BarChart(
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val labelStyle: TextStyle = LogEzMono.dataSmall.copy(color = labelColor)
     val textMeasurer = rememberTextMeasurer()
+    // A Canvas is invisible to TalkBack, so the chart speaks a one-line summary of its data
+    // (2026-09-25 accessibility pass); the per-bar tap readout stays a sighted-touch extra.
+    val peak = entries.maxByOrNull { it.value }
+    val summary = if (entries.isEmpty() || peak == null) {
+        stringResource(R.string.chart_empty_summary)
+    } else {
+        stringResource(
+            R.string.chart_bar_summary,
+            entries.size, entries.first().label, entries.last().label,
+            yLabel(peak.value), peak.label, yLabel(entries.last().value),
+        )
+    }
 
     // Bars grow from zero — a bar chart with a non-zero baseline misleads (§5.2's honest-stats
     // rule); yHigh pads 10% above the max so the tallest bar never touches the top edge.
@@ -77,6 +93,7 @@ fun BarChart(
 
     Canvas(
         modifier = modifier
+            .semantics { contentDescription = summary }
             .fillMaxWidth()
             .height(chartHeight)
             .pointerInput(entries) {

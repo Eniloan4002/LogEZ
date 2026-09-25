@@ -15,6 +15,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.enil.logez.R
 
 /** One chart point: [x] is an epoch-millis timestamp, [y] the raw metric value. */
 data class LineChartPoint(val x: Long, val y: Double)
@@ -40,6 +44,16 @@ fun LineChart(
     val selectedColor = MaterialTheme.colorScheme.tertiary
     val labelStyle: TextStyle = LogEzMono.dataSmall.copy(color = labelColor)
     val textMeasurer = rememberTextMeasurer()
+    // See BarChart: a spoken summary, because a Canvas is invisible to TalkBack.
+    val summary = if (points.isEmpty()) {
+        stringResource(R.string.chart_empty_summary)
+    } else {
+        stringResource(
+            R.string.chart_line_summary,
+            points.size, xLabel(points.first().x), xLabel(points.last().x),
+            yLabel(points.maxOf { it.y }), yLabel(points.minOf { it.y }), yLabel(points.last().y),
+        )
+    }
 
     // Geometry is recomputed identically in draw and tap scopes from the same inputs, so the two
     // lambdas can't disagree about where a point sits.
@@ -66,6 +80,7 @@ fun LineChart(
 
     Canvas(
         modifier = modifier
+            .semantics { contentDescription = summary }
             .fillMaxWidth()
             .height(200.dp)
             .pointerInput(points) {

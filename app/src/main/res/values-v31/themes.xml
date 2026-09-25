@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Android 12+ draws its own launch splash from these attributes. Without an explicit
+        background it follows the system theme, which meant a white splash in light mode before the
+        dark app. The icon is the launcher icon, whose own near-black background blends into this.
+    -->
+    <style name="Theme.LogEZ" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/logez_window_background</item>
+        <item name="android:windowSplashScreenBackground">@color/logez_window_background</item>
+    </style>
+</resources>

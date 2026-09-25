@@ -46,6 +46,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.enil.logez.core.designsystem.rememberClockTimeFormatter
+import com.enil.logez.core.designsystem.currentLocale
 
 /**
  * PHASE2_PLAN.md §5.2 History tab — the landing destination, a reverse-chronological feed of
@@ -177,19 +179,23 @@ private fun RecordsChip() {
     }
 }
 
+/**
+ * "Today, 2:32 PM" / "Yesterday, 14:32" / "12 Aug, 2:32 PM" / "12 Aug 2025, 2:32 PM" once the year
+ * rolls over. The clock follows the phone's 12/24-hour setting, and Today/Yesterday are resources.
+ */
 @Composable
-/** "Today, 2:32 PM" / "Yesterday, 2:32 PM" / "12 Aug, 2:32 PM" / "12 Aug 2025, 2:32 PM" once the year rolls over. */
 internal fun formatCardDateTime(millis: Long, today: LocalDate = LocalDate.now(ZoneId.systemDefault())): String {
     val zoned = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
     val date = zoned.toLocalDate()
-    val time = zoned.format(DateTimeFormatter.ofPattern("h:mm a"))
+    val locale = currentLocale()
+    val time = zoned.format(rememberClockTimeFormatter())
     val dayPart = when {
-        date == today -> "Today"
-        date == today.minusDays(1) -> "Yesterday"
-        date.year == today.year -> zoned.format(DateTimeFormatter.ofPattern("d MMM"))
-        else -> zoned.format(DateTimeFormatter.ofPattern("d MMM yyyy"))
+        date == today -> stringResource(R.string.history_card_today)
+        date == today.minusDays(1) -> stringResource(R.string.history_card_yesterday)
+        date.year == today.year -> zoned.format(DateTimeFormatter.ofPattern("d MMM", locale))
+        else -> zoned.format(DateTimeFormatter.ofPattern("d MMM yyyy", locale))
     }
-    return "$dayPart, $time"
+    return stringResource(R.string.history_card_date_time, dayPart, time)
 }
 
 private fun formatCardDuration(totalSeconds: Int): String {

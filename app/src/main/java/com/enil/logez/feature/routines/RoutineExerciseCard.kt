@@ -58,6 +58,8 @@ import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.targetFields
+import com.enil.logez.core.designsystem.parseDecimalInput
+import com.enil.logez.core.designsystem.Warning300
 
 /**
  * One `routine_exercises` card (PHASE2_PLAN.md §5.1.2): header, notes, rest timer, set table.
@@ -322,7 +324,7 @@ private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modif
         modifier = modifier.clickable(onClick = onClick),
     ) {
         Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
-            Text(label, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(label, color = if (setType == SetType.WARMUP) Warning300 else color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -334,7 +336,7 @@ private fun NumberCell(value: Double?, onValueChange: (Double?) -> Unit, modifie
         value = text,
         onValueChange = { new ->
             text = new
-            onValueChange(new.toDoubleOrNull())
+            onValueChange(parseDecimalInput(new))
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         singleLine = true,
@@ -356,7 +358,7 @@ private fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Doubl
     var text by remember(displayText) { mutableStateOf(displayText) }
     OutlinedTextField(
         value = text,
-        onValueChange = { new -> text = new; onValueChange(new.toDoubleOrNull()?.let { WeightDisplay.toKg(it, unit) }) },
+        onValueChange = { new -> text = new; onValueChange(parseDecimalInput(new)?.let { WeightDisplay.toKg(it, unit) }) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         singleLine = true,
         shape = RoundedCornerShape(Radius.sm),

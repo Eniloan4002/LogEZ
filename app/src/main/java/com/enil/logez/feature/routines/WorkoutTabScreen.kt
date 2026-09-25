@@ -99,6 +99,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import com.enil.logez.core.common.PermissionDenial
+import com.enil.logez.core.common.openAppDetailsSettings
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 
 /** What "Discard & start new" should start, once the in-progress conflict is resolved (§5.1.1 edge case). */
 private sealed class PendingStart {
@@ -185,9 +189,24 @@ fun WorkoutTabScreen(
                 }
             }
         },
-        onDenied = {
+        onDenied = { denial ->
             pendingTrackExercise = null
-            scope.launch { snackbarHostState.showSnackbar(resources.getString(R.string.activity_tracking_location_denied)) }
+            scope.launch {
+                val message = resources.getString(
+                    when (denial) {
+                        PermissionDenial.Declined -> R.string.activity_tracking_location_denied
+                        PermissionDenial.ApproximateOnly -> R.string.activity_tracking_location_approximate
+                        PermissionDenial.Blocked -> R.string.activity_tracking_location_blocked
+                    },
+                )
+                // Only offer Settings when it is the one place left to fix it.
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = if (denial == PermissionDenial.Declined) null else resources.getString(R.string.permission_open_settings),
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) openAppDetailsSettings(context)
+            }
         },
     )
 

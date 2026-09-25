@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import com.enil.logez.R
+import com.enil.logez.core.common.PermissionDenial
+import com.enil.logez.core.common.classifyDenial
+import androidx.compose.runtime.saveable.rememberSaveable
 
 /**
  * M22a. A progress photo genuinely cannot be captured without camera access, so a denial calls
@@ -26,17 +29,17 @@ import com.enil.logez.R
  * than the multi-permission contract.
  */
 @Composable
-fun rememberRequestCameraPermission(onGranted: () -> Unit, onDenied: () -> Unit): () -> Unit {
+fun rememberRequestCameraPermission(onGranted: () -> Unit, onDenied: (PermissionDenial) -> Unit): () -> Unit {
     val context = LocalContext.current
-    var showRationale by remember { mutableStateOf(false) }
+    var showRationale by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) onGranted() else onDenied()
+        if (granted) onGranted() else onDenied(classifyDenial(context, Manifest.permission.CAMERA))
     }
 
     if (showRationale) {
         AlertDialog(
-            onDismissRequest = { showRationale = false; onDenied() },
+            onDismissRequest = { showRationale = false; onDenied(PermissionDenial.Declined) },
             title = { Text(stringResource(R.string.measurements_camera_rationale_title)) },
             text = { Text(stringResource(R.string.measurements_camera_rationale_body)) },
             confirmButton = {
@@ -46,7 +49,7 @@ fun rememberRequestCameraPermission(onGranted: () -> Unit, onDenied: () -> Unit)
                 }) { Text(stringResource(R.string.measurements_camera_rationale_allow)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRationale = false; onDenied() }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { showRationale = false; onDenied(PermissionDenial.Declined) }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }

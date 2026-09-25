@@ -32,6 +32,9 @@ import com.enil.logez.core.domain.calc.WidgetSnapshot
 import dagger.hilt.android.EntryPointAccessors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.glance.LocalContext
+import com.enil.logez.core.designsystem.clockTimeFormatter
+import com.enil.logez.R
 
 private const val TAG = "WeeklyProgressWidget"
 private val SMALL = androidx.compose.ui.unit.DpSize(110.dp, 110.dp)
@@ -93,7 +96,7 @@ private fun WeeklyProgressContent(snapshot: WidgetSnapshot?) {
             ),
         )
         Text(
-            text = "days this week",
+            text = LocalContext.current.getString(R.string.widget_days_this_week),
             style = TextStyle(color = WidgetColors.secondaryText, fontSize = 12.dp.toSp()),
         )
 
@@ -103,7 +106,7 @@ private fun WeeklyProgressContent(snapshot: WidgetSnapshot?) {
         if (snapshot.weekStreakWeeks > 0) {
             Spacer(GlanceModifier.height(8.dp))
             Text(
-                text = weekStreakLabel(snapshot.weekStreakWeeks),
+                text = weekStreakLabel(LocalContext.current, snapshot.weekStreakWeeks),
                 style = TextStyle(color = WidgetColors.accent, fontSize = 12.dp.toSp(), fontWeight = FontWeight.Medium),
             )
         }
@@ -111,7 +114,7 @@ private fun WeeklyProgressContent(snapshot: WidgetSnapshot?) {
         if (isWide && snapshot.steps != null) {
             Spacer(GlanceModifier.height(6.dp))
             Text(
-                text = stepsLabel(snapshot),
+                text = stepsLabel(LocalContext.current, snapshot),
                 style = TextStyle(color = WidgetColors.secondaryText, fontSize = 11.dp.toSp()),
             )
         }
@@ -141,15 +144,16 @@ private fun WeekDots(snapshot: WidgetSnapshot) {
     }
 }
 
-private fun weekStreakLabel(weeks: Int): String =
-    if (weeks == 1) "1 week streak" else "$weeks week streak"
+private fun weekStreakLabel(context: Context, weeks: Int): String =
+    context.resources.getQuantityString(R.plurals.widget_week_streak, weeks, weeks)
 
-private fun stepsLabel(snapshot: WidgetSnapshot): String {
+private fun stepsLabel(context: Context, snapshot: WidgetSnapshot): String {
     val steps = "%,d".format(Locale.getDefault(), snapshot.steps ?: 0L)
     // Stated rather than hidden: nothing refreshes steps in the background, so the number can be
-    // hours old and saying so is more useful than presenting it as live.
-    val asOf = snapshot.stepsAsOf?.format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
-    return if (asOf == null) "$steps steps" else "$steps steps · as of $asOf"
+    // hours old and saying so is more useful than presenting it as live. The clock follows the
+    // phone's 12/24-hour setting.
+    val asOf = snapshot.stepsAsOf?.format(clockTimeFormatter(context))
+    return if (asOf == null) context.getString(R.string.widget_steps, steps) else context.getString(R.string.widget_steps_as_of, steps, asOf)
 }
 
 /** Glance text sizes are TextUnit; the theme's tokens are Dp. */

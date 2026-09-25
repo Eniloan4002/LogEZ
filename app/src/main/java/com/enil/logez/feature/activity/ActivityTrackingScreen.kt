@@ -64,6 +64,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import com.enil.logez.core.designsystem.rememberClockTimeFormatter
 
 /**
  * M21 redesign (2026-09-11, decisions.md same date): Finish goes straight to the Save Workout
@@ -258,7 +259,7 @@ fun ActivityTrackingScreen(
                                 // live-instant accuracy it can't actually guarantee.
                                 if (liveBpm != null) {
                                     Text(
-                                        stringResource(R.string.activity_tracking_bpm_as_of, formatClockTime(liveBpm!!.time)),
+                                        stringResource(R.string.activity_tracking_bpm_as_of, formatClockTime(liveBpm!!.time, rememberClockTimeFormatter())),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -424,6 +425,6 @@ private fun formatDistanceNumber(distanceMeters: Double, unit: DistanceUnit): St
     return "%.2f".format(Locale.ROOT, (display * 100).roundToInt() / 100.0)
 }
 
-/** "7:44 PM" -- same `h:mm a` clock-time convention `HistoryScreen.formatCardDateTime` uses for its own time-of-day portion. */
-private fun formatClockTime(instant: Instant): String =
-    instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a"))
+/** "7:44 PM" or "19:44", following the phone's 12/24-hour setting (see [rememberClockTimeFormatter]). */
+private fun formatClockTime(instant: Instant, formatter: DateTimeFormatter): String =
+    instant.atZone(ZoneId.systemDefault()).format(formatter)

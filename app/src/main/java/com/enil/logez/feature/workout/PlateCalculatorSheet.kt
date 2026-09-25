@@ -31,6 +31,7 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.skydoves.flexible.bottomsheet.material3.FlexibleBottomSheet
 import com.skydoves.flexible.core.FlexibleSheetSize
 import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
+import com.enil.logez.core.designsystem.parseDecimalInput
 
 /**
  * §5.1.5 Plate Calculator sheet (M17). Deliberately thin — every solve goes through the tested
@@ -128,7 +129,7 @@ internal fun PlateCalculatorSheet(
                 }
             }
 
-            val targetKg = targetText.toDoubleOrNull()?.let { toKg(it, weightUnit) }
+            val targetKg = parseDecimalInput(targetText)?.let { toKg(it, weightUnit) }
             if (targetKg == null || targetKg <= 0.0) {
                 Text(
                     stringResource(R.string.workout_plate_enter_target),

@@ -86,6 +86,9 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import com.enil.logez.core.designsystem.rememberClockTimeFormatter
+import androidx.compose.ui.platform.LocalResources
+import android.content.res.Resources
 
 /** PHASE2_PLAN.md §5.2 "Workout Detail": read-only record of one completed workout. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,9 +189,13 @@ fun WorkoutDetailScreen(
             item {
                 Column(modifier = Modifier.padding(top = Spacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val started = Instant.ofEpochMilli(workout.startedAt).atZone(ZoneId.systemDefault())
                         Text(
-                            DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a")
-                                .format(Instant.ofEpochMilli(workout.startedAt).atZone(ZoneId.systemDefault())),
+                            stringResource(
+                                R.string.history_card_date_time,
+                                started.format(DateTimeFormatter.ofPattern("d MMM yyyy", currentLocale())),
+                                started.format(rememberClockTimeFormatter()),
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
@@ -426,7 +433,7 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
             }
         }
         Text(
-            formatDetailSetValue(position, set, exerciseType, weightUnit, positionLabel),
+            formatDetailSetValue(LocalResources.current, position, set, exerciseType, weightUnit, positionLabel),
             style = LogEzMono.dataMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = Spacing.sm).weight(1f),
@@ -442,15 +449,17 @@ private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: Exe
     }
 }
 
-private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, weightUnit: WeightUnit, positionLabel: Boolean = true): String {
+private fun formatDetailSetValue(res: Resources, position: Int, set: DetailSetRow, exerciseType: ExerciseType?, weightUnit: WeightUnit, positionLabel: Boolean = true): String {
+    // Plurals, not "$it reps": a one-rep set used to read "1 reps".
+    fun reps(n: Int) = res.getQuantityString(R.plurals.set_reps, n, n)
     if (!set.isCompleted) return "—"
     val parts = mutableListOf<String>()
     when (exerciseType) {
         ExerciseType.WEIGHT_REPS, ExerciseType.BODYWEIGHT_WEIGHTED, ExerciseType.BODYWEIGHT_ASSISTED -> {
             set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
-            set.reps?.let { parts.add("$it reps") }
+            set.reps?.let { parts.add(reps(it)) }
         }
-        ExerciseType.REPS_ONLY -> set.reps?.let { parts.add("$it reps") }
+        ExerciseType.REPS_ONLY -> set.reps?.let { parts.add(reps(it)) }
         ExerciseType.DURATION, ExerciseType.FLOORS_DURATION, ExerciseType.STEPS_DURATION -> {
             set.durationSeconds?.let { parts.add(formatDetailMmSs(it)) }
             set.customMetric?.let { parts.add(formatDetailNum(it)) }
@@ -472,7 +481,7 @@ private fun formatDetailSetValue(position: Int, set: DetailSetRow, exerciseType:
     set.rpe?.let { parts.add("@$it") }
     if (parts.isEmpty()) return "—"
     // M11 circuit rounds carry the round number in the card header, so their rows skip the prefix.
-    return if (positionLabel) "Set $position: ${parts.joinToString(" · ")}" else parts.joinToString(" · ")
+    return if (positionLabel) res.getString(R.string.detail_set_line, position, parts.joinToString(" · ")) else parts.joinToString(" · ")
 }
 
 // Used to fall back to the raw Double.toString() for a non-whole value -- harmless for a set's

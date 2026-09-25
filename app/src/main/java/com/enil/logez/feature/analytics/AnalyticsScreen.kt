@@ -73,6 +73,9 @@ import androidx.compose.material.icons.outlined.BarChart
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 
 /**
  * PHASE2_PLAN.md §5.2 "Analytics dashboard" — scrollable column of stat cards. Every §8-owned
@@ -166,12 +169,12 @@ internal fun RangeChips(selected: ChartRange, onSelect: (ChartRange) -> Unit) {
 private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(Radius.pill)
     val primary = MaterialTheme.colorScheme.primary
+    ChipTouchTarget(selected = selected, onClick = onClick) {
     Box(
         modifier = Modifier
             .clip(shape)
             .background(if (selected) primary else Color.Transparent)
             .let { if (selected) it else it.border(1.dp, MaterialTheme.colorScheme.outline, shape) }
-            .clickable(onClick = onClick)
             .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
     ) {
         Text(
@@ -183,6 +186,7 @@ private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
             ),
         )
     }
+    }
 }
 
 /** The quiet chip: rounded-rect (not a pill), smaller, selected = a green *tint* rather than a fill. */
@@ -190,6 +194,7 @@ private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(Radius.sm)
     val primary = MaterialTheme.colorScheme.primary
+    ChipTouchTarget(selected = selected, onClick = onClick) {
     Box(
         modifier = Modifier
             .clip(shape)
@@ -199,7 +204,6 @@ private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
                 if (selected) primary.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant,
                 shape,
             )
-            .clickable(onClick = onClick)
             .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
     ) {
         Text(
@@ -211,6 +215,24 @@ private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
                 color = if (selected) primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         )
+    }
+    }
+}
+
+/**
+ * The tappable area around a chip: at least 48dp tall (the Play core-quality touch-target floor;
+ * the quiet range chip was about 22dp) while the chip itself keeps its compact look, and announced
+ * to TalkBack as a selectable tab with its selected state (2026-09-25 accessibility pass).
+ */
+@Composable
+private fun ChipTouchTarget(selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
     }
 }
 

@@ -55,6 +55,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import com.enil.logez.core.designsystem.rememberClockTimeFormatter
 
 /** PHASE2_PLAN.md §5.1.8(a) Save Workout screen, plus (b)'s conditional Update-Routine prompt. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -149,7 +150,7 @@ fun FinishWorkoutScreen(
             // WorkoutLoggerViewModel.prepareForFinish() before this screen opened.
             LabeledRow(
                 label = stringResource(R.string.finish_date_time_label),
-                value = formatDateTime(uiState.startedAtMillis),
+                value = formatDateTime(uiState.startedAtMillis, rememberClockTimeFormatter()),
                 onClick = { showDatePicker = true },
             )
             HorizontalDivider()
@@ -314,7 +315,7 @@ internal fun fromDatePickerMillis(pickedUtcMillis: Long, originalMillis: Long, z
     return pickedDate.atTime(localTime).atZone(zone).toInstant().toEpochMilli()
 }
 
-private fun formatDateTime(millis: Long): String =
-    Instant.ofEpochMilli(millis)
-        .atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
+private fun formatDateTime(millis: Long, clock: DateTimeFormatter): String {
+    val zoned = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
+    return zoned.format(DateTimeFormatter.ofPattern("d MMM yyyy")) + ", " + zoned.format(clock)
+}

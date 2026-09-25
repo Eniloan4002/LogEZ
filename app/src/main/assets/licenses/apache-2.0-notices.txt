@@ -1,0 +1,104 @@
+NOTICE files of Apache-2.0 licensed libraries used by this app, reproduced as required by section 4(d) of the Apache License, Version 2.0 (see apache-2.0.txt).
+
+===========================================================================
+Kotlin
+Source: https://github.com/JetBrains/kotlin/blob/v2.4.10/license/NOTICE.txt
+===========================================================================
+
+   =========================================================================
+   ==  NOTICE file corresponding to the section 4 d of                    ==
+   ==  the Apache License, Version 2.0,                                   ==
+   ==  in this case for the Kotlin Compiler distribution.                 ==
+   =========================================================================
+
+   Kotlin Compiler
+   Copyright 2010-2024 JetBrains s.r.o and respective authors and developers
+
+===========================================================================
+kotlinx.coroutines
+Source: https://github.com/Kotlin/kotlinx.coroutines/blob/1.11.0/license/NOTICE.txt
+===========================================================================
+
+=========================================================================
+==  NOTICE file corresponding to the section 4 d of                    ==
+==  the Apache License, Version 2.0,                                   ==
+==  in this case for the kotlinx.coroutines library.                   ==
+=========================================================================
+
+kotlinx.coroutines library.
+Copyright 2016-2025 JetBrains s.r.o and contributors
+
+===========================================================================
+kotlinx.serialization
+Source: https://github.com/Kotlin/kotlinx.serialization/blob/v1.9.0/license/NOTICE.txt
+===========================================================================
+
+   =========================================================================
+   ==  NOTICE file corresponding to the section 4 d of                    ==
+   ==  the Apache License, Version 2.0,                                   ==
+   ==  in this case for the kotlix.serialization library.                 ==
+   =========================================================================
+
+   kotlinx.serialization library.
+   Copyright 2017-2019 JetBrains s.r.o and respective authors and developers
+
+===========================================================================
+kotlinx atomicfu
+Source: https://github.com/Kotlin/kotlinx-atomicfu/blob/0.28.0/license/NOTICE.txt
+===========================================================================
+
+   =========================================================================
+   ==  NOTICE file corresponding to the section 4 d of                    ==
+   ==  the Apache License, Version 2.0,                                   ==
+   ==  in this case for the kotlix.atomicfu library.                      ==
+   =========================================================================
+
+   kotlinx.atoimcfu library.
+   Copyright 2017 JetBrains s.r.o and respective authors and developers
+
+===========================================================================
+Jakarta Dependency Injection (jakarta.inject:jakarta.inject-api:2.0.1)
+Source: META-INF/NOTICE.md in jakarta.inject-api-2.0.1.jar
+===========================================================================
+
+# Notices for Eclipse Jakarta Dependency Injection
+
+This content is produced and maintained by the Eclipse Jakarta Dependency Injection project.
+
+* Project home: https://projects.eclipse.org/projects/cdi.batch
+
+## Trademarks
+
+Jakarta Dependency Injection is a trademark of the Eclipse Foundation.
+
+## Copyright
+
+All content is the property of the respective authors or their employers. For
+more information regarding authorship of content, please consult the listed
+source code repository logs.
+
+## Declared Project Licenses
+
+This program and the accompanying materials are made available under the terms
+of the Apache License, Version 2.0 which is available at
+https://www.apache.org/licenses/LICENSE-2.0.
+
+SPDX-License-Identifier: Apache-2.0
+
+## Source Code
+
+The project maintains the following source code repositories:
+
+https://github.com/eclipse-ee4j/injection-api
+https://github.com/eclipse-ee4j/injection-spec
+https://github.com/eclipse-ee4j/injection-tck
+
+## Third-party Content
+
+This project leverages the following third party content.
+
+None
+
+## Cryptography
+
+None

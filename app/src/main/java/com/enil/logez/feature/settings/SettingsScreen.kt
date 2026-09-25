@@ -42,6 +42,13 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.feature.privacy.PrivacyPolicyActivity
 import java.time.DayOfWeek
 import java.time.format.TextStyle
+import com.enil.logez.BuildConfig
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.enil.logez.core.designsystem.Spacing
+import androidx.compose.material3.MaterialTheme
+import com.enil.logez.feature.workout.hasNotificationPermission
+import com.enil.logez.feature.workout.openAppNotificationSettings
+import androidx.lifecycle.compose.LifecycleResumeEffect
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
 private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, WEEKLY_ACTIVE_DAY_TARGET, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
@@ -60,11 +67,19 @@ fun SettingsScreen(
     onPlateEquipmentClick: () -> Unit,
     onWarmupSetsClick: () -> Unit,
     onDataClick: () -> Unit,
+    onLicensesClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    var openDialog by remember { mutableStateOf<SettingsDialog?>(null) }
+    // Saveable (2026-09-25): an open dialog used to vanish on rotation or process death.
+    var openDialog by rememberSaveable { mutableStateOf<SettingsDialog?>(null) }
     val context = LocalContext.current
+    // Re-checked on every resume, so the row disappears as soon as the user turns notifications on.
+    var notificationsAllowed by remember { mutableStateOf(hasNotificationPermission(context)) }
+    LifecycleResumeEffect(Unit) {
+        notificationsAllowed = hasNotificationPermission(context)
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         topBar = {
@@ -176,6 +191,16 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setLivePrNotificationEnabled,
                 )
             }
+            if (!notificationsAllowed) {
+                item(key = "notifications_off") {
+                    SettingsValueRow(
+                        title = stringResource(R.string.settings_notifications_row),
+                        subtitle = stringResource(R.string.workout_notification_permission_denied_hint),
+                        value = stringResource(R.string.workout_notification_permission_denied_settings),
+                        onClick = { openAppNotificationSettings(context) },
+                    )
+                }
+            }
             item(key = "max_heart_rate") {
                 SettingsValueRow(
                     title = stringResource(R.string.settings_max_heart_rate),
@@ -283,11 +308,45 @@ fun SettingsScreen(
             }
 
             item(key = "section_about") { SettingsSectionHeader(stringResource(R.string.settings_section_about)) }
+            item(key = "app_version") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_version_row),
+                    value = BuildConfig.VERSION_NAME,
+                    onClick = {},
+                )
+            }
+            // Hidden until the public contact address is configured (gradle.properties).
+            if (BuildConfig.CONTACT_EMAIL.isNotBlank()) {
+                item(key = "send_feedback") {
+                    SettingsValueRow(
+                        title = stringResource(R.string.settings_feedback_row),
+                        subtitle = stringResource(R.string.settings_feedback_subtitle),
+                        value = "",
+                        onClick = { sendFeedbackEmail(context) },
+                    )
+                }
+            }
             item(key = "privacy_policy") {
                 SettingsValueRow(
                     title = stringResource(R.string.settings_privacy_policy_row),
                     value = "",
                     onClick = { context.startActivity(Intent(context, PrivacyPolicyActivity::class.java)) },
+                )
+            }
+            item(key = "licenses") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_licenses_row),
+                    subtitle = stringResource(R.string.settings_licenses_subtitle),
+                    value = "",
+                    onClick = onLicensesClick,
+                )
+            }
+            item(key = "health_disclaimer") {
+                Text(
+                    stringResource(R.string.settings_health_disclaimer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
                 )
             }
         }
@@ -466,4 +525,18 @@ internal fun restTimerLabel(totalSeconds: Int): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "$minutes:${seconds.toString().padStart(2, '0')}"
+}
+
+/**
+ * Opens the user's email app addressed to the developer, with the app and Android versions filled
+ * in so a tester's report says which build it is about. No attachment, no logs: nothing leaves the
+ * phone unless the user writes and sends the email themselves.
+ */
+private fun sendFeedbackEmail(context: android.content.Context) {
+    val subject = "LogEZ feedback (${BuildConfig.VERSION_NAME}, Android ${android.os.Build.VERSION.RELEASE})"
+    val intent = Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:")).apply {
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(BuildConfig.CONTACT_EMAIL))
+        putExtra(Intent.EXTRA_SUBJECT, subject)
+    }
+    runCatching { context.startActivity(intent) }
 }

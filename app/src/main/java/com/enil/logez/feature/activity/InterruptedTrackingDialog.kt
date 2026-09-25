@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import com.enil.logez.core.designsystem.currentLocale
+import com.enil.logez.core.designsystem.rememberClockTimeFormatter
 
 @HiltViewModel
 class InterruptedTrackingViewModel @Inject constructor(
@@ -46,7 +47,7 @@ fun InterruptedTrackingDialog(
     val scope = rememberCoroutineScope()
     val zone = ZoneId.systemDefault()
     val started = Instant.ofEpochMilli(startedAt).atZone(zone)
-    val startedLabel = started.format(DateTimeFormatter.ofPattern("h:mm a", currentLocale()))
+    val startedLabel = started.format(rememberClockTimeFormatter())
     val elapsedLabel = formatCoarseElapsed(System.currentTimeMillis() - startedAt)
 
     AlertDialog(

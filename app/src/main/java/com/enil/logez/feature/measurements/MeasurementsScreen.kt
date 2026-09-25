@@ -68,6 +68,15 @@ import com.enil.logez.feature.settings.SettingsValueRow
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.enil.logez.core.common.PermissionDenial
+import com.enil.logez.core.common.openAppDetailsSettings
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalResources
+import kotlinx.coroutines.launch
+import androidx.compose.ui.Alignment
 
 /**
  * PHASE2_PLAN.md §5.2 "Measurements" (Profile → Measurements). No overlay-camera compositing this
@@ -87,13 +96,26 @@ fun MeasurementsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var entryDialogTarget by remember { mutableStateOf<EntryDialogTarget?>(null) }
-    var deletingDate by remember { mutableStateOf<String?>(null) }
+    var deletingDate by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingPhoto by remember { mutableStateOf<ProgressPhoto?>(null) }
-    var showTrackingModeDialog by remember { mutableStateOf(false) }
+    var showTrackingModeDialog by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
 
+    // A camera denial used to do nothing at all: the tap just appeared to fail.
     val requestCameraPermission = rememberRequestCameraPermission(
         onGranted = onOpenCamera,
-        onDenied = {},
+        onDenied = { denial ->
+            scope.launch {
+                val blocked = denial == PermissionDenial.Blocked
+                val result = snackbarHostState.showSnackbar(
+                    message = resources.getString(if (blocked) R.string.measurements_camera_blocked else R.string.measurements_camera_denied),
+                    actionLabel = if (blocked) resources.getString(R.string.permission_open_settings) else null,
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) openAppDetailsSettings(context)
+            }
+        },
     )
 
     LaunchedEffect(capturedPhotoPath) {
@@ -219,7 +241,8 @@ fun MeasurementsScreen(
                                 contentDescription = photo.date,
                                 modifier = Modifier.size(72.dp),
                             )
-                            IconButton(onClick = { deletingPhoto = photo }, modifier = Modifier.size(24.dp)) {
+                            // 48dp touch target in the thumbnail's corner (was a 24dp button).
+                            IconButton(onClick = { deletingPhoto = photo }, modifier = Modifier.align(Alignment.TopEnd).size(48.dp)) {
                                 Icon(
                                     Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.action_delete),

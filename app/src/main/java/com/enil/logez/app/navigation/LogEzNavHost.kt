@@ -45,6 +45,7 @@ import com.enil.logez.feature.workout.WorkoutLoggerViewModel
 import com.enil.logez.feature.workout.WorkoutRoutes
 import com.enil.logez.feature.workout.finish.FinishWorkoutScreen
 import com.enil.logez.feature.workout.finish.WorkoutSummaryScreen
+import com.enil.logez.feature.settings.LicensesScreen
 
 @Composable
 fun LogEzNavHost(
@@ -164,7 +165,11 @@ fun LogEzNavHost(
                 onPlateEquipmentClick = { navController.navigate(SettingsRoutes.PLATE_EQUIPMENT) { launchSingleTop = true } },
                 onWarmupSetsClick = { navController.navigate(SettingsRoutes.WARMUP_SETS) { launchSingleTop = true } },
                 onDataClick = { navController.navigate(SettingsRoutes.DATA) { launchSingleTop = true } },
+                onLicensesClick = { navController.navigate(SettingsRoutes.LICENSES) { launchSingleTop = true } },
             )
+        }
+        composable(SettingsRoutes.LICENSES) {
+            LicensesScreen(onBack = { navController.popBackStack() })
         }
         composable(SettingsRoutes.DATA) {
             DataScreen(onBack = { navController.popBackStack() })

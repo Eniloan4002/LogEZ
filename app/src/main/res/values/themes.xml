@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        Compose owns all real theming (core/designsystem/Theme.kt). This system theme only
-        controls the pre-Compose window background / status-bar chrome shown for an instant
-        during cold start, so it must not visibly clash with the light Compose theme.
+        Compose owns all real theming (core/designsystem/Theme.kt), and the app is dark-only. This
+        window theme covers the moments before Compose draws: the launch window and the gaps behind
+        transitions. Until 2026-09-25 it was DayNight, so a phone in light mode flashed a white
+        window at launch before the near-black UI appeared (Play-readiness audit). It now uses the
+        dark parent and the app's own background colour on every system theme.
     -->
-    <style name="Theme.LogEZ" parent="Theme.Material3.DayNight.NoActionBar" />
+    <style name="Theme.LogEZ" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/logez_window_background</item>
+    </style>
 </resources>

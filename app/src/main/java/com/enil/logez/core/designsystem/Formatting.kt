@@ -121,3 +121,11 @@ fun formatMmSs(totalSeconds: Int): String = Formatting.mmSs(totalSeconds)
 fun formatDistanceKm(meters: Double): String = Formatting.distanceKm(meters)
 fun formatDistance(meters: Double, unit: DistanceUnit): String = Formatting.distance(meters, unit)
 fun formatPace(secondsPerUnit: Double): String = Formatting.pace(secondsPerUnit)
+
+/**
+ * Parses a number the user typed, accepting a comma as the decimal separator. A phone set to a
+ * comma-decimal language shows "," on its number keyboard, and plain String.toDoubleOrNull()
+ * silently discarded "32,5" (Play-readiness audit, 2026-09-25): the field looked filled in but
+ * nothing was saved. Every free-typed decimal field goes through this instead.
+ */
+fun parseDecimalInput(text: String): Double? = text.trim().replace(',', '.').toDoubleOrNull()
