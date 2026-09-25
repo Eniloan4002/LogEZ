@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.enil.logez.MainActivity
 import com.enil.logez.R
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.domain.calc.DistanceDisplay
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
@@ -49,6 +50,7 @@ import kotlinx.coroutines.launch
 class ActivityTrackingService : Service() {
     @Inject lateinit var controller: ActivityTrackingController
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var logger: AppLogger
 
     // The unit the notification's distance renders in. KM until the settings collector's first
     // emission lands (the very first onStartCommand notification), then whatever Settings says --
@@ -78,23 +80,31 @@ class ActivityTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundCompat(buildNotification(controller.state.value))
-        ensureCollectorStarted()
-
-        when (intent?.action) {
-            ACTION_STOP -> {
-                stopSelfCleanly()
-                return START_NOT_STICKY
-            }
-            ACTION_START -> Unit // tracking already started by the caller before startForegroundService()
-            else -> {
-                // No rehydration story for GPS — a bare/unrecognized redelivery just stops, and
-                // must not then ask the framework to start it again.
-                stopSelfCleanly()
-                return START_NOT_STICKY
-            }
+        // Anything but ACTION_START stops without a foreground promotion. ACTION_STOP arrives
+        // through a plain startService(), so there is no startForegroundService() contract to
+        // honour. Any other intent can only be a system redelivery, and GPS has no rehydration
+        // story. Promoting first, as this used to, was actively dangerous for that redelivery:
+        // Android 14+ refuses a location foreground service started from the background and
+        // throws, which crashed the process on its way to stopping anyway.
+        if (intent?.action != ACTION_START) {
+            stopSelfCleanly()
+            return START_NOT_STICKY
         }
-        return START_STICKY
+
+        if (!startForegroundSafely(buildNotification(controller.state.value))) {
+            // Only reachable if location access was revoked, or the app left the foreground,
+            // between the user's tap and this call. The controller is left alone on purpose: the
+            // live-tracking screen owns Finish/Cancel, and cancelling here would silently discard
+            // a run the user can still see and save.
+            stopSelfCleanly()
+            return START_NOT_STICKY
+        }
+        ensureCollectorStarted()
+        // NOT_STICKY even on a successful start (was START_STICKY until 2026-09-25): once the
+        // process dies the controller's in-memory session is gone, so a restart could only ever
+        // stop again, and on Android 14+ it would throw first. The interrupted-run dialog is the
+        // recovery path for a GPS session, not a service restart.
+        return START_NOT_STICKY
     }
 
     /**
@@ -180,12 +190,22 @@ class ActivityTrackingService : Service() {
         }
     }
 
-    private fun startForegroundCompat(notification: Notification) {
+    /** Returns false instead of throwing when Android refuses the promotion; see the caller. */
+    private fun startForegroundSafely(notification: Notification): Boolean = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        true
+    } catch (e: IllegalStateException) {
+        // ForegroundServiceStartNotAllowedException (API 31+) is an IllegalStateException.
+        logger.e(TAG, "Foreground promotion refused; stopping the activity tracking service", e)
+        false
+    } catch (e: SecurityException) {
+        // API 34+: location access is no longer granted, so the location type is not allowed.
+        logger.e(TAG, "Location foreground service not allowed; stopping the activity tracking service", e)
+        false
     }
 
     @SuppressLint("MissingPermission") // notify() safely no-ops if POST_NOTIFICATIONS was denied — the FGS itself keeps running either way
@@ -227,6 +247,7 @@ class ActivityTrackingService : Service() {
         const val ACTION_START = "com.enil.logez.action.ACTIVITY_TRACKING_START"
         const val ACTION_STOP = "com.enil.logez.action.ACTIVITY_TRACKING_STOP"
 
+        private const val TAG = "ActivityTrackingService"
         private const val NOTIFICATION_ID = 2001
         private const val REQUEST_OPEN_APP = 101
     }

@@ -428,7 +428,6 @@
     <string name="activity_tracking_notification_title">Tracking your run/walk</string>
     <string name="activity_tracking_notification_text">%1$s km so far</string>
     <string name="activity_tracking_notification_text_mi">%1$s mi so far</string>
-    <string name="notification_workout_fgs_subtype">Ongoing live workout session: rest-timer countdown and set-logging notification actions</string>
 
     <!-- M4c: finish flow, live PRs, summary -->
     <string name="finish_title">Save Workout</string>

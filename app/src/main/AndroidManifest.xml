@@ -18,7 +18,15 @@
     <!-- M4b (PHASE2_PLAN.md §9.2/§9.3/§9.4/§9.7): live-workout foreground service, its ongoing
          notification, and the rest-timer's bounded doze-insurance wake lock. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- 2026-09-25 (Play-readiness audit, Owner decision): WorkoutSessionService moved from
+         specialUse to the health type, which Android documents for exercise trackers. From
+         API 34 a health-type service must also meet one runtime prerequisite. The app meets it
+         with HIGH_SAMPLING_RATE_SENSORS, a normal install-time permission with no dialog, so a
+         typed workout never depends on Health Connect or a body-sensor grant the user may refuse.
+         The app does not sample sensors at a high rate; the declaration exists solely as that
+         prerequisite. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -106,16 +114,12 @@
             </intent-filter>
         </activity>
 
-        <!-- §9.2: specialUse — shortService caps at ~3min (workouts run 30-120min+); health
-             requires body-sensor permissions this app has no use for. -->
+        <!-- §9.2: the health type (was specialUse until 2026-09-25, see the permission block
+             above). shortService caps at ~3min and workouts run 30-120min+. -->
         <service
             android:name=".feature.workout.service.WorkoutSessionService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="@string/notification_workout_fgs_subtype" />
-        </service>
+            android:foregroundServiceType="health" />
 
         <!-- M21a: the purpose-built `location` FGS type, not `specialUse` — distinct from
              WorkoutSessionService above; this one's whole job is to hold the location permission

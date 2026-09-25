@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.enil.logez.MainActivity
 import com.enil.logez.R
+import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.ElapsedRealtimeClock
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -50,6 +51,7 @@ class WorkoutSessionService : Service() {
     @Inject lateinit var audioPlayer: WorkoutAudioPlayer
     @Inject lateinit var hapticsPlayer: WorkoutHapticsPlayer
     @Inject lateinit var elapsedRealtimeClock: ElapsedRealtimeClock
+    @Inject lateinit var logger: AppLogger
 
     // `var`, not `val`: stopSelfCleanly() cancels the job, and a cancelled SupervisorJob can never
     // run anything again, so a reused Service instance has to rebuild both. Unlike [wakeLock]
@@ -72,14 +74,28 @@ class WorkoutSessionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundCompat(buildNotification(sessionController.state.value))
+        // Stop first, before any foreground promotion: stopWorkoutSessionService() sends this
+        // through a plain startService(), so there is no startForegroundService() contract to
+        // honour, and promoting a service only to tear it down again posted a notification for
+        // nothing (and, on a service that was not already running, briefly started a new one).
+        if (intent?.action == ACTION_STOP) {
+            stopSelfCleanly()
+            return START_NOT_STICKY
+        }
+
+        if (!startForegroundSafely(buildNotification(sessionController.state.value))) {
+            // Android refused the foreground promotion -- realistically a START_STICKY restart
+            // after the process was killed, which Android 12+ treats as a background start. The
+            // workout itself is safe: it is an IN_PROGRESS row in Room, and the Workout tab's
+            // resume banner reopens it the next time the app is launched. Staying started but not
+            // foreground would only get the service killed again within a minute, and letting the
+            // exception escape would crash the process, so stop and do not ask to be restarted.
+            stopSelfCleanly()
+            return START_NOT_STICKY
+        }
         ensureCollectorsStarted()
 
         when (intent?.action) {
-            ACTION_STOP -> {
-                stopSelfCleanly()
-                return START_NOT_STICKY
-            }
             ACTION_COMPLETE_SET -> {
                 val workoutId = sessionController.state.value.workoutId
                 val workoutExerciseId = intent.getStringExtra(EXTRA_WORKOUT_EXERCISE_ID)
@@ -196,12 +212,35 @@ class WorkoutSessionService : Service() {
         wakeLock = null
     }
 
-    private fun startForegroundCompat(notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+    /**
+     * Promotes this service with the `health` foreground-service type, which is the type Android
+     * documents for exercise trackers. It replaced `specialUse` on 2026-09-25 (Play-readiness
+     * audit): Play reviews a specialUse declaration by hand and lists fitness sessions under
+     * `health`, so specialUse invited a rejection the app had no need to risk.
+     *
+     * The explicit type only exists from API 34, and that is also the first release that checks
+     * a type's runtime prerequisites. The manifest's HIGH_SAMPLING_RATE_SENSORS declaration is the
+     * prerequisite this app meets: it is a normal, install-time permission, so a workout never
+     * depends on Health Connect or a body-sensor grant the user may have declined. On API 26-33
+     * the two-argument call promotes with the manifest's declared type.
+     *
+     * Returns false instead of throwing when Android refuses, see the caller for why that is safe.
+     */
+    private fun startForegroundSafely(notification: Notification): Boolean = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        true
+    } catch (e: IllegalStateException) {
+        // ForegroundServiceStartNotAllowedException (API 31+) is an IllegalStateException.
+        logger.e(TAG, "Foreground promotion refused; stopping the workout session service", e)
+        false
+    } catch (e: SecurityException) {
+        // API 34+: a foreground-service type whose prerequisite is not met.
+        logger.e(TAG, "Foreground service type prerequisite not met; stopping the workout session service", e)
+        false
     }
 
     @SuppressLint("MissingPermission") // §9.3: NotificationManagerCompat.notify() safely no-ops if POST_NOTIFICATIONS was denied — the FGS itself keeps running either way.
@@ -324,6 +363,7 @@ class WorkoutSessionService : Service() {
         const val EXTRA_SET_ID = "setId"
         const val EXTRA_DELTA_SECONDS = "deltaSeconds"
 
+        private const val TAG = "WorkoutSessionService"
         private const val NOTIFICATION_ID = 1001
         private const val REST_END_NOTIFICATION_ID = 1002
         private const val REST_END_HEADS_UP_TIMEOUT_MS = 15_000L
