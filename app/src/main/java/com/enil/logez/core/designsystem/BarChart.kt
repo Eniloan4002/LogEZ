@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.enil.logez.R
+import androidx.compose.ui.res.pluralStringResource
 
 /** One bar: [label] names the bucket (shown for the first/last bar), [value] is the raw height. */
 data class BarChartEntry(val label: String, val value: Double)
@@ -59,7 +60,7 @@ fun BarChart(
     } else {
         stringResource(
             R.string.chart_bar_summary,
-            entries.size, entries.first().label, entries.last().label,
+            pluralStringResource(R.plurals.chart_bar_count, entries.size, entries.size), entries.first().label, entries.last().label,
             yLabel(peak.value), peak.label, yLabel(entries.last().value),
         )
     }

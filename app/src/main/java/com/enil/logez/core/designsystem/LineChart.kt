@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.enil.logez.R
+import androidx.compose.ui.res.pluralStringResource
 
 /** One chart point: [x] is an epoch-millis timestamp, [y] the raw metric value. */
 data class LineChartPoint(val x: Long, val y: Double)
@@ -50,7 +51,7 @@ fun LineChart(
     } else {
         stringResource(
             R.string.chart_line_summary,
-            points.size, xLabel(points.first().x), xLabel(points.last().x),
+            pluralStringResource(R.plurals.chart_point_count, points.size, points.size), xLabel(points.first().x), xLabel(points.last().x),
             yLabel(points.maxOf { it.y }), yLabel(points.minOf { it.y }), yLabel(points.last().y),
         )
     }

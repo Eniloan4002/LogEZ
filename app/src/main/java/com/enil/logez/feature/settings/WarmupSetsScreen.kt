@@ -42,6 +42,7 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WarmupStep
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.pluralStringResource
 
 /** Which step is being edited (null target = adding a new one). */
 private data class WarmupStepDialogState(val index: Int?, val initial: WarmupStep?)
@@ -149,7 +150,7 @@ private fun WarmupStepRow(
     ListItem(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         headlineContent = { Text(stringResource(R.string.settings_warmup_step_row, step.displayPercent())) },
-        supportingContent = { Text(stringResource(R.string.settings_warmup_step_row_reps, step.reps)) },
+        supportingContent = { Text(pluralStringResource(R.plurals.set_reps, step.reps, step.reps)) },
         trailingContent = {
             Row {
                 IconButton(onClick = onMoveUp, enabled = canMoveUp) {

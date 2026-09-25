@@ -18,8 +18,10 @@
     <string name="workout_field_meters">metres</string>
     <string name="workout_field_value">value</string>
     <string name="chart_empty_summary">Chart, no data yet</string>
-    <string name="chart_bar_summary">Bar chart, %1$d bars from %2$s to %3$s. Highest %4$s in %5$s. Latest %6$s.</string>
-    <string name="chart_line_summary">Line chart, %1$d points from %2$s to %3$s. Highest %4$s, lowest %5$s, latest %6$s.</string>
+    <plurals name="chart_bar_count"><item quantity="one">%d bar</item><item quantity="other">%d bars</item></plurals>
+    <plurals name="chart_point_count"><item quantity="one">%d point</item><item quantity="other">%d points</item></plurals>
+    <string name="chart_bar_summary">Bar chart, %1$s from %2$s to %3$s. Highest %4$s in %5$s. Latest %6$s.</string>
+    <string name="chart_line_summary">Line chart, %1$s from %2$s to %3$s. Highest %4$s, lowest %5$s, latest %6$s.</string>
     <string name="history_card_today">Today</string>
     <string name="history_card_yesterday">Yesterday</string>
     <!-- "Today, 2:32 PM": the day part, then the clock time in the phone's 12/24-hour format. -->
@@ -45,7 +47,10 @@
     <string name="history_detail_copy">Copy Workout</string>
     <string name="history_detail_edit">Edit Workout</string>
     <string name="workout_edit_title">Editing — %1$s</string>
-    <string name="workout_edit_stats">%1$d sets · %2$s</string>
+    <plurals name="workout_edit_stats">
+        <item quantity="one">%1$d set · %2$s</item>
+        <item quantity="other">%1$d sets · %2$s</item>
+    </plurals>
     <string name="workout_edit_discard_title">Discard your changes?</string>
     <string name="workout_edit_discard_body">Nothing you\'ve changed here has been saved yet.</string>
     <string name="workout_edit_discard_confirm">Discard changes</string>
@@ -247,7 +252,10 @@
     <string name="exercise_delete_confirm_body">Past workouts that used it are kept, but you won\'t be able to log it again.</string>
 
     <string name="exercise_picker_create_row">Create new exercise</string>
-    <string name="exercise_picker_add_n">Add %1$d exercises</string>
+    <plurals name="exercise_picker_add_n">
+        <item quantity="one">Add %1$d exercise</item>
+        <item quantity="other">Add %1$d exercises</item>
+    </plurals>
 
     <string name="rest_timer_default_option">Default (%1$s)</string>
     <string name="rest_timer_off_option">Off</string>
@@ -580,7 +588,15 @@
     <string name="data_restore_reading">Reading the backup…</string>
     <string name="data_restore_restoring">Restoring…</string>
     <string name="data_restore_confirm_title">Replace everything?</string>
-    <string name="data_restore_confirm_body">This permanently replaces everything in LogEZ with this backup: %1$d workouts, %2$d exercises, %3$d routines, %4$d measurement entries, %5$d goals and %6$d photos.\n\nWhat you have now cannot be recovered afterwards.</string>
+    <string name="data_restore_confirm_body">This permanently replaces everything in LogEZ with this backup: %1$s, %2$s, %3$s, %4$s, %5$s and %6$s.
+
+What you have now cannot be recovered afterwards.</string>
+    <plurals name="data_count_workouts"><item quantity="one">%d workout</item><item quantity="other">%d workouts</item></plurals>
+    <plurals name="data_count_exercises"><item quantity="one">%d exercise</item><item quantity="other">%d exercises</item></plurals>
+    <plurals name="data_count_routines"><item quantity="one">%d routine</item><item quantity="other">%d routines</item></plurals>
+    <plurals name="data_count_measurements"><item quantity="one">%d measurement entry</item><item quantity="other">%d measurement entries</item></plurals>
+    <plurals name="data_count_goals"><item quantity="one">%d goal</item><item quantity="other">%d goals</item></plurals>
+    <plurals name="data_count_photos"><item quantity="one">%d photo</item><item quantity="other">%d photos</item></plurals>
     <string name="data_restore_confirm_action">Replace everything</string>
     <string name="data_restore_done">Restored</string>
     <string name="data_restore_failed">Restore failed. Your data is unchanged.</string>
@@ -684,7 +700,6 @@
     <string name="settings_warmup_method_title">Warm-up Sets</string>
     <string name="settings_warmup_step_value">%1$d%% ×%2$d</string>
     <string name="settings_warmup_step_row">%1$d%% of working weight</string>
-    <string name="settings_warmup_step_row_reps">%1$d reps</string>
     <string name="settings_warmup_add_step">Add step</string>
     <string name="settings_warmup_reset">Reset to default</string>
     <string name="settings_warmup_edit_step">Edit warm-up step</string>

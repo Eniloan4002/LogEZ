@@ -55,6 +55,7 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.repository.Exercise
 import java.io.File
+import androidx.compose.ui.res.pluralStringResource
 
 enum class ExercisePickerMode { ADD, REPLACE }
 
@@ -156,7 +157,7 @@ fun ExercisePickerSheet(
                     enabled = uiState.selectedCount > 0,
                     modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm),
                 ) {
-                    Text(stringResource(R.string.exercise_picker_add_n, uiState.selectedCount))
+                    Text(pluralStringResource(R.plurals.exercise_picker_add_n, uiState.selectedCount, uiState.selectedCount))
                 }
             }
         }

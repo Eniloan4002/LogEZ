@@ -252,7 +252,7 @@ fun WorkoutLoggerScreen(
                         // count, and date/duration become editable rows in the body instead.
                         if (uiState.isEditMode) {
                             Text(
-                                stringResource(R.string.workout_edit_stats, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg, uiState.weightUnit)),
+                                pluralStringResource(R.plurals.workout_edit_stats, uiState.completedSetCount, uiState.completedSetCount, formatVolumeShort(uiState.totalVolumeKg, uiState.weightUnit)),
                                 style = LogEzMono.dataSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                                 maxLines = 1,
                             )

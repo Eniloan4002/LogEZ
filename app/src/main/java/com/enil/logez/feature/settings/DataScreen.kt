@@ -111,8 +111,12 @@ fun DataScreen(
                 Text(
                     stringResource(
                         R.string.data_restore_confirm_body,
-                        m.workoutCount, m.exerciseCount, m.routineCount,
-                        m.measurementCount, m.goalCount, m.mediaFileCount,
+                        pluralStringResource(R.plurals.data_count_workouts, m.workoutCount, m.workoutCount),
+                        pluralStringResource(R.plurals.data_count_exercises, m.exerciseCount, m.exerciseCount),
+                        pluralStringResource(R.plurals.data_count_routines, m.routineCount, m.routineCount),
+                        pluralStringResource(R.plurals.data_count_measurements, m.measurementCount, m.measurementCount),
+                        pluralStringResource(R.plurals.data_count_goals, m.goalCount, m.goalCount),
+                        pluralStringResource(R.plurals.data_count_photos, m.mediaFileCount, m.mediaFileCount),
                     ),
                 )
             },
