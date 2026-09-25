@@ -19,7 +19,7 @@ Offline-first fitness logger for Android — routines, live workout tracking, GP
 
 1. Clone the repo and open it in Android Studio, or work from the terminal with the Gradle wrapper (`./gradlew`, `gradlew.bat` on Windows) — never install Gradle globally.
 2. Copy [`local.properties.example`](local.properties.example) to `local.properties` and fill in your Android SDK path. No map API key is needed: route maps load [OpenFreeMap](https://openfreemap.org/) tiles, which need no key or account.
-3. For a signed release build only (not needed for debug or tests), copy [`keystore.properties.example`](keystore.properties.example) to `keystore.properties` and point it at your own keystore.
+3. For a signed release build only (not needed for debug, staging or tests), copy [`keystore.properties.example`](keystore.properties.example) to `keystore.properties` and point it at your own keystore, and set `logez.contactEmail` in `gradle.properties`: release packaging refuses to run while it is empty, because the address appears in the privacy policy.
 
 ### Build & run
 
@@ -27,9 +27,14 @@ Offline-first fitness logger for Android — routines, live workout tracking, GP
 |---|---|
 | Debug APK (unsigned, installable) | `./gradlew :app:assembleDebug` |
 | Install on a running emulator/device | `./gradlew :app:installDebug` |
+| Release-equivalent APK for testing (R8, shrunk resources, debug key, installs beside other copies as "LogEZ staging") | `./gradlew :app:assembleStaging` |
 | Signed release APK | `./gradlew :app:assembleRelease` |
+| Signed release bundle for Google Play | `./gradlew :app:bundleRelease` |
+| Release lint (CI runs this; the build fails on any NewApi error) | `./gradlew :app:lintRelease` |
 
-Output lands under `app/build/outputs/apk/{debug,release}/`.
+Output lands under `app/build/outputs/apk/{debug,staging,release}/` and `app/build/outputs/bundle/release/`. Release builds run R8; the rules are in `app/proguard-rules.pro`.
+
+The privacy policy lives in `feature/privacy/PrivacyPolicyContent.kt` and is also published as `site/privacy/index.html` (GitHub Pages, via `.github/workflows/pages.yml`). A unit test fails when the two drift; its failure message says where the regenerated page is. Open-source notices live in `app/src/main/assets/licenses/` (update `notices.json` when adding a dependency).
 
 ### Tests
 

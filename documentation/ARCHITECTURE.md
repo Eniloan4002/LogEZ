@@ -44,7 +44,7 @@ Rules that hold everywhere in the code:
 | `feature/analytics` | The Statistics screen: charts, muscle-distribution/balance |
 | `feature/exercises` | Exercise library: browsing, editing, custom exercises |
 | `feature/history` | Past-workout history and workout detail |
-| `feature/privacy` | Privacy policy screen (required by the Health Connect permission rationale) |
+| `feature/privacy` | Privacy policy: the single-source text (`PrivacyPolicyContent`), the in-app screen Health Connect opens, and the HTML renderer for the hosted copy in `site/privacy/` |
 | `feature/routines` | Routine/folder building and the Workout tab's routine list |
 | `feature/settings` | App settings (units, rest timer, sounds, plate equipment, etc.) |
 | `feature/wellness` | Health Connect integration (steps, heart rate, calories) |
