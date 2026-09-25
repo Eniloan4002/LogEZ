@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
-import java.util.Locale
 
 /**
  * v4.0's shared TopAppBar title (Owner: every tab root's header should read the same way) —
@@ -19,7 +18,7 @@ import java.util.Locale
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
     Text(
-        text.uppercase(Locale.getDefault()),
+        text.uppercase(currentLocale()),
         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.06.em),
         color = MaterialTheme.colorScheme.onSurface,
         modifier = modifier,

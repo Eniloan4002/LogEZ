@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -41,7 +42,6 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.feature.privacy.PrivacyPolicyActivity
 import java.time.DayOfWeek
 import java.time.format.TextStyle
-import java.util.Locale
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
 private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, WEEKLY_ACTIVE_DAY_TARGET, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
@@ -121,7 +121,7 @@ fun SettingsScreen(
             item(key = "first_day") {
                 SettingsValueRow(
                     title = stringResource(R.string.calendar_first_day_of_week),
-                    value = settings.firstDayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                    value = settings.firstDayOfWeek.getDisplayName(TextStyle.FULL, currentLocale()),
                     onClick = { openDialog = SettingsDialog.FIRST_DAY },
                 )
             }
@@ -342,7 +342,7 @@ fun SettingsScreen(
             // Calendar screen's picker), not all seven days.
             options = listOf(DayOfWeek.MONDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY),
             selected = settings.firstDayOfWeek,
-            optionLabel = { it.getDisplayName(TextStyle.FULL, Locale.getDefault()) },
+            optionLabel = { it.getDisplayName(TextStyle.FULL, currentLocale()) },
             onSelect = viewModel::setFirstDayOfWeek,
             onDismiss = { openDialog = null },
         )

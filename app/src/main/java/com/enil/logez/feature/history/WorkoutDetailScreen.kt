@@ -70,6 +70,7 @@ import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.designsystem.formatTwoDecimals
 import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.ExerciseType
@@ -332,7 +333,7 @@ private fun DetailRoundCard(round: DetailRound, weightUnit: WeightUnit, onExerci
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.workout_round_header, round.roundNumber).uppercase(java.util.Locale.getDefault()),
+                    stringResource(R.string.workout_round_header, round.roundNumber).uppercase(currentLocale()),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 )
             }

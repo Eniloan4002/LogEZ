@@ -331,7 +331,7 @@ data class WorkoutTabUiState(
     val inProgressWorkoutTitle: String? = null,
     /** M8c progress heatmap. */
     val heatmapCounts: Map<LocalDate, Int> = emptyMap(),
-    val heatmapToday: LocalDate = LocalDate.EPOCH,
+    val heatmapToday: LocalDate = LocalDate.ofEpochDay(0),
     val heatmapFirstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     /** Same figure the finish summary/Profile already show (`StreakCalculator.weeklyStreak`). 0 means no chip, not a "0 weeks" chip. */
     val weeklyStreak: Int = 0,

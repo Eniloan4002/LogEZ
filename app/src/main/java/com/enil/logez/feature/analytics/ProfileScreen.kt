@@ -48,6 +48,7 @@ import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
 import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.rememberRequestHealthConnectPermissions
@@ -173,7 +174,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
         item(key = "wellness_today_label") {
             if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || !uiState.hasWellnessPermissions) return@item
             Text(
-                stringResource(R.string.wellness_today_title).uppercase(Locale.getDefault()),
+                stringResource(R.string.wellness_today_title).uppercase(currentLocale()),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
@@ -209,7 +210,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
-                        stringResource(R.string.profile_last7_title).uppercase(Locale.getDefault()),
+                        stringResource(R.string.profile_last7_title).uppercase(currentLocale()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -237,7 +238,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
-                        stringResource(R.string.profile_quick_charts_title).uppercase(Locale.getDefault()),
+                        stringResource(R.string.profile_quick_charts_title).uppercase(currentLocale()),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )

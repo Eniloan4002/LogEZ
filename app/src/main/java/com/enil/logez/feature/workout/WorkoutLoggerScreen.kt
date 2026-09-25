@@ -57,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -108,6 +109,7 @@ fun WorkoutLoggerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     // Exposed as MutableState (not just `var x by remember {}`) so WorkoutLoggerDialogs and the
     // circuit/regular body composables below can read and write the same instance — same
     // delegate object either way, this just lets it cross a composable-function boundary.
@@ -221,7 +223,7 @@ fun WorkoutLoggerScreen(
     val prBannerPrefix = stringResource(R.string.pr_banner, "")
     LaunchedEffect(Unit) {
         viewModel.prBanner.collect { prTypes ->
-            val names = prTypes.joinToString(", ") { context.getString(it.labelRes()) }
+            val names = prTypes.joinToString(", ") { resources.getString(it.labelRes()) }
             snackbarHostState.showSnackbar(prBannerPrefix.trimEnd() + " " + names)
         }
     }

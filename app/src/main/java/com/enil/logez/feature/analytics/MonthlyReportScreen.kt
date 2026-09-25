@@ -49,6 +49,7 @@ import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.feature.analytics.MonthlyReportViewModel.ComparisonMetric
 import com.enil.logez.feature.exercises.SummaryFormatters
 import com.enil.logez.core.domain.model.DistanceUnit
@@ -56,7 +57,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
 
 /**
  * PHASE2_PLAN.md §5.2 card 6 — a full-screen report for one calendar month: 6-month comparison,
@@ -73,7 +73,7 @@ fun MonthlyReportScreen(
 
     RefreshOnResume(viewModel::refresh)
 
-    val monthTitle = uiState.month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+    val monthTitle = uiState.month.format(DateTimeFormatter.ofPattern("MMMM yyyy", currentLocale()))
 
     Scaffold(
         topBar = {
@@ -175,8 +175,8 @@ private fun ComparisonCard(uiState: MonthlyReportUiState, viewModel: MonthlyRepo
                     )
                 }
             }
-            val monthFormatter = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
-            val monthReadoutFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault())
+            val monthFormatter = DateTimeFormatter.ofPattern("MMM", currentLocale())
+            val monthReadoutFormatter = DateTimeFormatter.ofPattern("MMM yyyy", currentLocale())
             // §5.2 interactions: every bar taps through to its exact value + date range.
             var selectedBar by remember(uiState.comparison, uiState.comparisonMetric) { mutableStateOf<Int?>(null) }
             selectedBar?.let { i ->
@@ -255,7 +255,7 @@ private fun MiniMonthGrid(month: YearMonth, workoutDates: Set<LocalDate>) {
         Row(modifier = Modifier.fillMaxWidth()) {
             java.time.DayOfWeek.entries.forEach { dow ->
                 Text(
-                    dow.getDisplayName(JavaTextStyle.NARROW, Locale.getDefault()),
+                    dow.getDisplayName(JavaTextStyle.NARROW, currentLocale()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

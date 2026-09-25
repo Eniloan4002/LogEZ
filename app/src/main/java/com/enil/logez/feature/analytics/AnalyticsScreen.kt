@@ -61,6 +61,7 @@ import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
@@ -174,7 +175,7 @@ private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
             .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
     ) {
         Text(
-            label.uppercase(Locale.getDefault()),
+            label.uppercase(currentLocale()),
             style = LogEzMono.dataSmall.copy(
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.08.em,
@@ -202,7 +203,7 @@ private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
             .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
     ) {
         Text(
-            label.uppercase(Locale.getDefault()),
+            label.uppercase(currentLocale()),
             style = LogEzMono.dataSmall.copy(
                 fontSize = 10.sp,
                 lineHeight = 14.sp,
@@ -221,7 +222,7 @@ private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun ChartReadout(label: String, value: String) {
     Column {
         Text(
-            label.uppercase(Locale.getDefault()),
+            label.uppercase(currentLocale()),
             style = LogEzMono.dataSmall.copy(
                 letterSpacing = 0.08.em,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -247,7 +248,7 @@ internal fun rangeLabel(range: ChartRange): String = when (range) {
 @Composable
 private fun CardTitle(text: String) {
     Text(
-        text.uppercase(Locale.getDefault()),
+        text.uppercase(currentLocale()),
         style = MaterialTheme.typography.titleMedium.copy(letterSpacing = 0.05.em),
         color = MaterialTheme.colorScheme.onSurface,
     )

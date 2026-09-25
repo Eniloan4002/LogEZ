@@ -93,6 +93,18 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+    lint {
+        // Play-readiness audit, 2026-09-25: two UI-state defaults read java.time.LocalDate.EPOCH,
+        // a field that only exists on API 34+. minSdk is 26, so every Android 8-13 phone crashed
+        // opening the Workout or Statistics tab, and nothing failed the build. A new-API call is
+        // always a crash on older devices, never a style nit, so it now stops the build outright.
+        fatal += "NewApi"
+        // The release variant is the one Play receives; its lint run gates `assembleRelease` and
+        // `bundleRelease` through AGP's vital-lint task, so an error-severity finding there cannot
+        // ship unnoticed.
+        checkReleaseBuilds = true
+        abortOnError = true
+    }
 }
 
 // PHASE2_PLAN.md §10.4 — exportSchema=true from day one; schemas/ is committed alongside code.

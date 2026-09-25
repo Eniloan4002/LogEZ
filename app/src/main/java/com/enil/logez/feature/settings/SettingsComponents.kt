@@ -49,7 +49,7 @@ import com.composeunstyled.UnstyledSlider
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.Spacing
-import java.util.Locale
+import com.enil.logez.core.designsystem.currentLocale
 import kotlin.math.roundToInt
 
 /**
@@ -62,7 +62,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun SettingsSectionHeader(text: String) {
     Text(
-        text.uppercase(Locale.getDefault()),
+        text.uppercase(currentLocale()),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,

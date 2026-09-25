@@ -38,12 +38,12 @@ import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.LogEzTheme
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.feature.workout.finish.PrMedal
 import com.enil.logez.feature.workout.finish.labelRes
-import java.util.Locale
 
 /**
  * Everything [ShareCard] renders, pre-formatted by the summary screen — the card itself is a pure
@@ -92,7 +92,7 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                 .padding(Spacing.lg),
         ) {
             Text(
-                stringResource(R.string.summary_title).uppercase(Locale.getDefault()),
+                stringResource(R.string.summary_title).uppercase(currentLocale()),
                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.14.em),
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -117,7 +117,7 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                     (
                         stringResource(R.string.routine_structure_chip_circuit) + " · " +
                             pluralStringResource(R.plurals.routine_rounds_count, data.rounds, data.rounds)
-                        ).uppercase(Locale.getDefault()),
+                        ).uppercase(currentLocale()),
                     style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = Spacing.xxs),
@@ -198,7 +198,7 @@ private fun Hairline(modifier: Modifier = Modifier) {
 private fun CardStat(@StringRes labelRes: Int, value: String, modifier: Modifier = Modifier) {
     StatCell(
         value = value,
-        label = stringResource(labelRes).uppercase(Locale.getDefault()),
+        label = stringResource(labelRes).uppercase(currentLocale()),
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         valueStyle = LogEzMono.dataLarge,
@@ -213,7 +213,7 @@ private fun CardStat(@StringRes labelRes: Int, value: String, modifier: Modifier
 @Composable
 private fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
-        text.uppercase(Locale.getDefault()),
+        text.uppercase(currentLocale()),
         style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier,

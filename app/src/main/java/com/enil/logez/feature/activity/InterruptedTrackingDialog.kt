@@ -14,9 +14,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.launch
+import com.enil.logez.core.designsystem.currentLocale
 
 @HiltViewModel
 class InterruptedTrackingViewModel @Inject constructor(
@@ -46,7 +46,7 @@ fun InterruptedTrackingDialog(
     val scope = rememberCoroutineScope()
     val zone = ZoneId.systemDefault()
     val started = Instant.ofEpochMilli(startedAt).atZone(zone)
-    val startedLabel = started.format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
+    val startedLabel = started.format(DateTimeFormatter.ofPattern("h:mm a", currentLocale()))
     val elapsedLabel = formatCoarseElapsed(System.currentTimeMillis() - startedAt)
 
     AlertDialog(

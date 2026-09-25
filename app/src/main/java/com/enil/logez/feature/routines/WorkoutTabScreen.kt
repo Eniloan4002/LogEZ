@@ -56,6 +56,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -81,6 +82,7 @@ import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.activity.ActivityTrackingStartResult
@@ -126,6 +128,7 @@ fun WorkoutTabScreen(
     RefreshOnResume(goalsViewModel::refresh)
     RefreshOnResume(viewModel::refreshSteps)
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -184,7 +187,7 @@ fun WorkoutTabScreen(
         },
         onDenied = {
             pendingTrackExercise = null
-            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.activity_tracking_location_denied)) }
+            scope.launch { snackbarHostState.showSnackbar(resources.getString(R.string.activity_tracking_location_denied)) }
         },
     )
 
@@ -912,7 +915,7 @@ private fun SevenDayStepsChart(steps: List<DailyStepCount>, modifier: Modifier =
         Row(modifier = Modifier.fillMaxWidth()) {
             steps.forEach { day ->
                 Text(
-                    text = day.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                    text = day.date.dayOfWeek.getDisplayName(TextStyle.NARROW, currentLocale()),
                     style = LogEzMono.dataSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

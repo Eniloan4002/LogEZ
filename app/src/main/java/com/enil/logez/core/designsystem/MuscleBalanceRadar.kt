@@ -24,7 +24,6 @@ import io.github.koalaplot.core.polar.rememberCategoryAngularAxisModel
 import io.github.koalaplot.core.polar.rememberFloatRadialAxisModel
 import io.github.koalaplot.core.style.AreaStyle
 import io.github.koalaplot.core.style.LineStyle
-import java.util.Locale
 
 /** Shared eight-region radar used by Statistics and the post-workout recap. */
 @OptIn(io.github.koalaplot.core.util.ExperimentalKoalaPlotApi::class)
@@ -44,7 +43,7 @@ fun MuscleBalanceRadar(shares: List<RegionShare>, modifier: Modifier = Modifier,
         radialAxisLabels = {},
         angularAxisLabels = { region ->
             Text(
-                bodyRegionAxisLabel(region).uppercase(Locale.getDefault()),
+                bodyRegionAxisLabel(region).uppercase(currentLocale()),
                 style = LogEzMono.dataSmall.copy(
                     fontSize = if (compact) 9.sp else LogEzMono.dataSmall.fontSize,
                     lineHeight = if (compact) 11.sp else LogEzMono.dataSmall.lineHeight,

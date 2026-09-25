@@ -55,6 +55,7 @@ import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.designsystem.currentLocale
 import com.kizitonwose.calendar.compose.HorizontalCalendar
 import com.kizitonwose.calendar.compose.rememberCalendarState
 import com.kizitonwose.calendar.core.DayPosition
@@ -64,7 +65,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 
 /**
  * PHASE2_PLAN.md §5.2 "Calendar screen": month grid with workout days highlighted, unlimited
@@ -164,7 +164,7 @@ fun CalendarScreen(
                         // §5.2 lists exactly these three — the conventional week starts, not all seven.
                         listOf(DayOfWeek.MONDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY).forEach { day ->
                             DropdownMenuItem(
-                                text = { Text(day.getDisplayName(TextStyle.FULL, Locale.getDefault())) },
+                                text = { Text(day.getDisplayName(TextStyle.FULL, currentLocale())) },
                                 onClick = { firstDayMenuExpanded = false; viewModel.setFirstDayOfWeek(day) },
                             )
                         }
@@ -240,7 +240,7 @@ fun CalendarScreen(
                     Row(modifier = Modifier.fillMaxWidth()) {
                         weekDayLabels.forEach { day ->
                             Text(
-                                day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                                day.getDisplayName(TextStyle.NARROW, currentLocale()),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f).padding(bottom = Spacing.xs),

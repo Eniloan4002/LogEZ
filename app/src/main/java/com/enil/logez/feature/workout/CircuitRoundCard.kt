@@ -35,12 +35,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.targetFields
-import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -76,7 +76,7 @@ internal fun CircuitRoundCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.workout_round_header, round.roundNumber)
-                        .uppercase(Locale.getDefault()),
+                        .uppercase(currentLocale()),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.06.em),
                     modifier = Modifier.weight(1f),
                 )

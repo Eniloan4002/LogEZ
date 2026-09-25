@@ -60,7 +60,7 @@ class AnalyticsViewModel @Inject constructor(
         val weightUnit: WeightUnit = WeightUnit.KG,
         val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
         val zone: ZoneId = ZoneId.systemDefault(),
-        val today: LocalDate = LocalDate.EPOCH,
+        val today: LocalDate = LocalDate.ofEpochDay(0),
         /** M21: absent (not zero-filled) whenever Health Connect has nothing to show. */
         val stepsAvailable: Boolean = false,
         val stepsHistory: List<DailyStepCount> = emptyList(),
