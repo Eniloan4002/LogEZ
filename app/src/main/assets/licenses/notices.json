@@ -226,16 +226,6 @@
     "url": "https://github.com/JetBrains/compose-multiplatform-core"
   },
   {
-    "name": "Compose Rich Editor",
-    "artifacts": [
-      "com.mohamedrejeb.richeditor:richeditor-compose"
-    ],
-    "copyright": "Copyright 2024 Mohamed Rejeb",
-    "license": "Apache-2.0",
-    "file": "apache-2.0.txt",
-    "url": "https://github.com/MohamedRejeb/compose-rich-editor"
-  },
-  {
     "name": "Compose Unstyled",
     "artifacts": [
       "com.composables:composeunstyled-build-modifier",
@@ -404,16 +394,6 @@
     "url": "https://github.com/JetBrains/java-annotations"
   },
   {
-    "name": "JetBrains Markdown",
-    "artifacts": [
-      "org.jetbrains:markdown"
-    ],
-    "copyright": "JetBrains",
-    "license": "Apache-2.0",
-    "file": "apache-2.0.txt",
-    "url": "https://github.com/JetBrains/markdown"
-  },
-  {
     "name": "JSpecify",
     "artifacts": [
       "org.jspecify:jspecify"
@@ -512,17 +492,6 @@
     "license": "Apache-2.0",
     "file": "apache-2.0.txt",
     "url": "https://github.com/Kotlin/kotlinx.serialization"
-  },
-  {
-    "name": "Ksoup",
-    "artifacts": [
-      "com.mohamedrejeb.ksoup:ksoup-entities",
-      "com.mohamedrejeb.ksoup:ksoup-html"
-    ],
-    "copyright": "Copyright 2024 Mohamed Rejeb",
-    "license": "Apache-2.0",
-    "file": "apache-2.0.txt",
-    "url": "https://github.com/MohamedRejeb/ksoup"
   },
   {
     "name": "libyuv (in CameraX)",

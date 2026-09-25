@@ -70,13 +70,11 @@ import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.workout.finish.labelRes
-import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
-import com.mohamedrejeb.richeditor.model.RichTextState
-import com.mohamedrejeb.richeditor.ui.material3.RichText
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import com.enil.logez.core.designsystem.InlineMarkdown
 
 internal enum class DetailTab(@StringRes val labelRes: Int) {
     SUMMARY(R.string.exercise_detail_tab_summary),
@@ -521,7 +519,6 @@ private fun formatHistorySet(entry: ExerciseHistoryEntry, weightUnit: WeightUnit
     return if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 }
 
-@OptIn(ExperimentalRichTextApi::class)
 @Composable
 private fun HowToTab(instructions: String) {
     // No blank guard: the tab itself is absent when there is nothing to show (see detailTabsFor).
@@ -536,16 +533,10 @@ private fun HowToTab(instructions: String) {
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(end = Spacing.xs),
                 )
-                // Keyed on `step`, not rememberRichTextState()'s bare (unkeyed) form: that variant
-                // allocates the state once but re-runs .apply { setMarkdown(step) } on EVERY
-                // recomposition of this tab -- including ones caused by something else entirely on
-                // the exercise detail screen (the Summary/History tabs share this ViewModel) -- so
-                // a static list of steps was being re-parsed and its snapshot state rewritten for
-                // no reason on every unrelated recomposition. RichTextState's own public
-                // constructor (used here, not the @Composable factory) needs no Composition to
-                // create, so remember(step) is enough to parse exactly once per distinct step text.
-                val stepState = remember(step) { RichTextState().apply { setMarkdown(step) } }
-                RichText(state = stepState, style = MaterialTheme.typography.bodyLarge)
+                // Parsed once per distinct step text (InlineMarkdown replaced the rich-editor
+                // library on 2026-09-25; the stored **bold** / *italic* format is unchanged).
+                val stepText = remember(step) { InlineMarkdown.toAnnotatedString(step) }
+                Text(stepText, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

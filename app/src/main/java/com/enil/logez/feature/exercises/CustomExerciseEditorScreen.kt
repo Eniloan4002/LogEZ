@@ -73,11 +73,12 @@ import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.availableHeads
 import com.enil.logez.core.domain.model.userSelectable
-import com.mohamedrejeb.richeditor.model.rememberRichTextState
-import com.mohamedrejeb.richeditor.ui.material3.OutlinedRichTextEditor
 import java.io.File
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import com.enil.logez.core.designsystem.InlineMarkdown
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,22 +94,26 @@ fun CustomExerciseEditorScreen(
         if (uri != null) viewModel.onImagePicked(uri)
     }
 
-    // M20g: storage stays "one step per line" -- but NOT plain text. This editor writes
-    // instructionsState.toMarkdown() straight into the persisted field below, so a step can carry
-    // inline **bold**/*italic* markers on disk; ExerciseDetailScreen's HowToTab is what parses them
-    // back out on render. In edit mode the ViewModel loads the exercise asynchronously (isLoading
-    // starts true), so this waits for that load rather than seeding from whatever
-    // uiState.instructions holds at first composition (empty) -- then loads exactly once.
-    // Re-keying on every subsequent uiState.instructions change would fight the user's cursor
-    // position on every keystroke, since our own edits write back into that same field.
-    val instructionsState = rememberRichTextState()
-    LaunchedEffect(instructionsState) {
+    // M20g: storage stays "one step per line" -- but NOT plain text: a step can carry inline
+    // **bold**/*italic* markers on disk, and ExerciseDetailScreen's HowToTab parses them back out.
+    // Since 2026-09-25 the field edits that Markdown directly (InlineMarkdown styles it in place
+    // and dims the markers) instead of going through the rich-editor library, so what is typed is
+    // exactly what is stored. In edit mode the ViewModel loads the exercise asynchronously
+    // (isLoading starts true), so the field is seeded once, after that load; re-seeding on every
+    // uiState.instructions change would fight the cursor, since edits write back into that field.
+    var instructions by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+    var instructionsSeeded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (instructionsSeeded) return@LaunchedEffect
         snapshotFlow { uiState.isLoading }.first { !it }
-        instructionsState.setMarkdown(uiState.instructions)
-        snapshotFlow { instructionsState.annotatedString }
-            .drop(1) // the emission the setMarkdown call above just produced
-            .collect { viewModel.onInstructionsChange(instructionsState.toMarkdown()) }
+        instructions = TextFieldValue(uiState.instructions)
+        instructionsSeeded = true
     }
+    fun updateInstructions(value: TextFieldValue) {
+        instructions = value
+        viewModel.onInstructionsChange(value.text)
+    }
+    val (instructionsBold, instructionsItalic) = InlineMarkdown.stylesAt(instructions.text, instructions.selection.start)
 
     Scaffold(
         topBar = {
@@ -260,23 +265,27 @@ fun CustomExerciseEditorScreen(
 
             Row(modifier = Modifier.padding(top = Spacing.lg)) {
                 StyleToggle(
-                    checked = { instructionsState.currentSpanStyle.fontWeight == FontWeight.Bold },
-                    onToggle = { instructionsState.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) },
+                    checked = { instructionsBold },
+                    onToggle = { updateInstructions(InlineMarkdown.toggle(instructions, "**")) },
                     icon = Icons.Outlined.FormatBold,
                     contentDescription = stringResource(R.string.exercise_editor_bold),
                 )
                 StyleToggle(
-                    checked = { instructionsState.currentSpanStyle.fontStyle == FontStyle.Italic },
-                    onToggle = { instructionsState.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) },
+                    checked = { instructionsItalic },
+                    onToggle = { updateInstructions(InlineMarkdown.toggle(instructions, "*")) },
                     icon = Icons.Outlined.FormatItalic,
                     contentDescription = stringResource(R.string.exercise_editor_italic),
                 )
             }
-            OutlinedRichTextEditor(
-                state = instructionsState,
+            val markerColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            val markdownStyling = remember(markerColor) { InlineMarkdown.editorTransformation(markerColor) }
+            OutlinedTextField(
+                value = instructions,
+                onValueChange = ::updateInstructions,
                 label = { Text(stringResource(R.string.exercise_editor_instructions)) },
                 supportingText = { Text(stringResource(R.string.exercise_editor_instructions_hint)) },
                 minLines = 4,
+                visualTransformation = markdownStyling,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -286,21 +295,11 @@ fun CustomExerciseEditorScreen(
 }
 
 /**
- * A Bold/Italic toolbar button, its pressed state showing whether that style is armed for the
- * caret's current position. `IconButton` carried no such indicator: `toggleSpanStyle` (RichTextState.kt)
- * REMOVES the style when it's already active and ADDS it otherwise, so tapping Bold with the caret
- * inside already-bold text un-bolds it -- with an `IconButton`, silently, since the icon looks
- * identical before and after and TalkBack announces "Bold, button" in both states, missing the
- * value half of name/role/value. `IconToggleButton` fixes both: a visibly different content colour
- * per state (Material3's own default `IconButtonDefaults.defaultIconToggleButtonColors`, not a
- * hand-picked tint) and a `Role.Checkbox` semantics node TalkBack reads as "checked"/"not checked".
- *
- * [checked] is a lambda, not a `Boolean`, specifically so the `currentSpanStyle` read it wraps
- * happens inside THIS composable's own recomposition scope. `currentSpanStyle` is backed by
- * `mutableStateOf` and changes on every caret move; reading it as a plain value at the call site
- * would register that read against the *caller's* scope instead -- here, the editor screen's single
- * non-lazy `Column` holding both dropdowns, all ~15 muscle-group checkboxes and the photo picker --
- * so every caret move would recompose the whole screen instead of just these two buttons.
+ * A Bold/Italic toolbar button whose pressed state shows whether the caret sits inside that style.
+ * Tapping wraps the selection in the Markdown marker, or unwraps it when it is already wrapped
+ * ([InlineMarkdown.toggle]). `IconToggleButton` rather than `IconButton`: a visibly different
+ * content colour per state and a `Role.Checkbox` node TalkBack reads as "checked"/"not checked",
+ * so the value half of name/role/value is never missing.
  */
 @Composable
 private fun StyleToggle(checked: () -> Boolean, onToggle: () -> Unit, icon: ImageVector, contentDescription: String) {

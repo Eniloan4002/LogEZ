@@ -159,9 +159,6 @@ dependencies {
     // M20f: swipeable month calendar; java.time artifact — the calendar code is java.time end to end.
     implementation(libs.calendar.compose)
 
-    // M20g: inline bold/lists in exercise How-to. Storage stays plain 'one step per line';
-    // Markdown only at the UI boundary.
-    implementation(libs.richeditor.compose)
 
     // M21a: FusedLocationProviderClient for GPS run/walk tracking. Verified by direct AAR
     // manifest inspection to declare zero permissions of its own, including no INTERNET
