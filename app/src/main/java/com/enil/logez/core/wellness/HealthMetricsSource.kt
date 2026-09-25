@@ -93,6 +93,9 @@ interface HealthMetricsSource {
      * Data's disconnect-and-delete action. A no-op when Health Connect is not available.
      */
     suspend fun revokeAllPermissions()
+
+    /** The user granted access again after a disconnect in this session; reads may resume. */
+    fun onPermissionsRegranted() {}
 }
 
 /** True when Health Connect is usable and the user has granted [type]. */

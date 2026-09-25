@@ -137,7 +137,10 @@ class ProfileViewModel @Inject constructor(
 
     /** Called after the Compose permission launcher resolves — re-runs the one load path rather than duplicating it. */
     fun onWellnessPermissionResult(anyGranted: Boolean) {
-        if (anyGranted) refresh()
+        if (anyGranted) {
+            healthMetricsSource.onPermissionsRegranted()
+            refresh()
+        }
     }
 }
 

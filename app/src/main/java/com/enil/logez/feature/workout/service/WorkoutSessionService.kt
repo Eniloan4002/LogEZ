@@ -59,6 +59,8 @@ class WorkoutSessionService : Service() {
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(serviceJob)
     private var collectorsStarted = false
+    /** True while this instance holds a live foreground session; see the notification-action check. */
+    private var promoted = false
     private var wakeLock: PowerManager.WakeLock? = null
     /** Guards [wakeLock]: the wake-lock collector runs on [serviceScope]'s (non-main) dispatcher
      * while [onDestroy] runs on the main thread — without this, acquire-then-assign in
@@ -83,6 +85,15 @@ class WorkoutSessionService : Service() {
             return START_NOT_STICKY
         }
 
+        // A notification action (complete set, rest adjust/skip) that reaches an instance with no
+        // live session: the tap raced Finish/Discard stopping the service. These arrive through a
+        // plain startService(), so there is no promotion owed. Promoting here used to leave an
+        // undismissable blank "workout" notification with nothing behind it (2026-09-25 review).
+        if (intent?.action in NOTIFICATION_ACTIONS && !promoted) {
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
         if (!startForegroundSafely(buildNotification(sessionController.state.value))) {
             // Android refused the foreground promotion -- realistically a START_STICKY restart
             // after the process was killed, which Android 12+ treats as a background start. The
@@ -93,6 +104,7 @@ class WorkoutSessionService : Service() {
             stopSelfCleanly()
             return START_NOT_STICKY
         }
+        promoted = true
         ensureCollectorsStarted()
 
         when (intent?.action) {
@@ -141,6 +153,7 @@ class WorkoutSessionService : Service() {
      * for a session that's being stopped, since Android may not call [onDestroy] for a while.
      */
     private fun stopSelfCleanly() {
+        promoted = false
         collectorsStarted = false
         serviceJob.cancel()
         releaseWakeLock()
@@ -364,6 +377,7 @@ class WorkoutSessionService : Service() {
         const val EXTRA_DELTA_SECONDS = "deltaSeconds"
 
         private const val TAG = "WorkoutSessionService"
+        private val NOTIFICATION_ACTIONS = setOf(ACTION_COMPLETE_SET, ACTION_REST_ADJUST, ACTION_REST_SKIP)
         private const val NOTIFICATION_ID = 1001
         private const val REST_END_NOTIFICATION_ID = 1002
         private const val REST_END_HEADS_UP_TIMEOUT_MS = 15_000L

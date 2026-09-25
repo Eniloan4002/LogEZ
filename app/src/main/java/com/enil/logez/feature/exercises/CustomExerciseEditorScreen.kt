@@ -104,10 +104,18 @@ fun CustomExerciseEditorScreen(
     var instructions by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     var instructionsSeeded by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        if (instructionsSeeded) return@LaunchedEffect
         snapshotFlow { uiState.isLoading }.first { !it }
-        instructions = TextFieldValue(uiState.instructions)
-        instructionsSeeded = true
+        if (instructionsSeeded) {
+            // Restored after process death: the field kept the user's text but the new ViewModel
+            // did not, and Save writes the ViewModel's copy (2026-09-25 review). Push it back.
+            viewModel.onInstructionsChange(instructions.text)
+        } else {
+            // Drops the old rich-text editor's "<br>" filler lines from instructions it wrote.
+            val seeded = uiState.instructions.lines().filterNot(InlineMarkdown::isFillerLine).joinToString("\n")
+            instructions = TextFieldValue(seeded)
+            if (seeded != uiState.instructions) viewModel.onInstructionsChange(seeded)
+            instructionsSeeded = true
+        }
     }
     fun updateInstructions(value: TextFieldValue) {
         instructions = value
@@ -266,13 +274,13 @@ fun CustomExerciseEditorScreen(
             Row(modifier = Modifier.padding(top = Spacing.lg)) {
                 StyleToggle(
                     checked = { instructionsBold },
-                    onToggle = { updateInstructions(InlineMarkdown.toggle(instructions, "**")) },
+                    onToggle = { updateInstructions(InlineMarkdown.toggleBold(instructions)) },
                     icon = Icons.Outlined.FormatBold,
                     contentDescription = stringResource(R.string.exercise_editor_bold),
                 )
                 StyleToggle(
                     checked = { instructionsItalic },
-                    onToggle = { updateInstructions(InlineMarkdown.toggle(instructions, "*")) },
+                    onToggle = { updateInstructions(InlineMarkdown.toggleItalic(instructions)) },
                     icon = Icons.Outlined.FormatItalic,
                     contentDescription = stringResource(R.string.exercise_editor_italic),
                 )

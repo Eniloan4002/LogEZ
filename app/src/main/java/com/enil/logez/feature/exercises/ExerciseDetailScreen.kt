@@ -523,7 +523,7 @@ private fun formatHistorySet(entry: ExerciseHistoryEntry, weightUnit: WeightUnit
 private fun HowToTab(instructions: String) {
     // No blank guard: the tab itself is absent when there is nothing to show (see detailTabsFor).
     Column(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
-        instructions.split("\n").filter { it.isNotBlank() }.forEachIndexed { index, step ->
+        instructions.split("\n").filter { it.isNotBlank() && !InlineMarkdown.isFillerLine(it) }.forEachIndexed { index, step ->
             // M20g: the step's own text is parsed as Markdown for inline **bold**/*italic* --
             // the "N." number stays a plain Text outside that parse so a step starting with a
             // digit (e.g. "12 reps...") is never misread as CommonMark ordered-list syntax.

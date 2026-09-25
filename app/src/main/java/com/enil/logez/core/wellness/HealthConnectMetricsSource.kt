@@ -16,6 +16,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Period
 import javax.inject.Inject
+import com.enil.logez.core.common.AppLogger
+import kotlinx.coroutines.CancellationException
 
 /**
  * M21e (steps + calories) + M21f (heart rate). Wraps `HealthConnectClient`, the same
@@ -39,6 +41,7 @@ import javax.inject.Inject
  */
 class HealthConnectMetricsSource @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val logger: AppLogger,
 ) : HealthMetricsSource {
     private val permissionByType: Map<HealthDataType, String> = mapOf(
         HealthDataType.STEPS to HealthPermission.getReadPermission(StepsRecord::class),
@@ -55,6 +58,9 @@ class HealthConnectMetricsSource @Inject constructor(
      * revoked after a force-stop). Without this flag the Profile and Workout tabs kept reading
      * steps, and re-filled the cache the user had just deleted, until the app was next closed.
      * This source is a singleton, so the flag covers every reader for the rest of the process.
+     * It is set before the revoke is attempted, so a revoke Health Connect refuses still stops
+     * the reads for this session, and cleared by [onPermissionsRegranted] when the user connects
+     * again (it used to block a same-session reconnect until restart, 2026-09-25 review).
      */
     @Volatile private var revokedInThisProcess = false
 
@@ -65,11 +71,27 @@ class HealthConnectMetricsSource @Inject constructor(
             else -> HealthConnectAvailability.Unavailable
         }
 
+    // Health Connect calls can throw while its app updates or when a grant is withdrawn mid-read.
+    // Every caller runs these from a bare viewModelScope.launch, where an escaped exception kills
+    // the process, so each read answers "nothing to show" instead (2026-09-25 review).
     override suspend fun grantedTypes(): Set<HealthDataType> {
         if (revokedInThisProcess) return emptySet()
         if (availability() != HealthConnectAvailability.Available) return emptySet()
-        val granted = client().permissionController.getGrantedPermissions()
+        val granted = safely("grantedTypes", emptySet()) { client().permissionController.getGrantedPermissions() }
         return permissionByType.filterValues { it in granted }.keys
+    }
+
+    override fun onPermissionsRegranted() {
+        revokedInThisProcess = false
+    }
+
+    private suspend fun <T> safely(what: String, fallback: T, block: suspend () -> T): T = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        logger.e(TAG, "Health Connect $what failed; showing nothing for it", e)
+        fallback
     }
 
     override suspend fun readTodayTotals(): DailyTotals {
@@ -80,12 +102,14 @@ class HealthConnectMetricsSource @Inject constructor(
         }
         if (metrics.isEmpty()) return DailyTotals(steps = 0L, caloriesBurned = null)
         val startOfToday = LocalDate.now().atStartOfDay()
-        val result = client().aggregate(
-            AggregateRequest(
-                metrics = metrics,
-                timeRangeFilter = TimeRangeFilter.between(startOfToday, LocalDateTime.now()),
-            ),
-        )
+        val result = safely("readTodayTotals", null) {
+            client().aggregate(
+                AggregateRequest(
+                    metrics = metrics,
+                    timeRangeFilter = TimeRangeFilter.between(startOfToday, LocalDateTime.now()),
+                ),
+            )
+        } ?: return DailyTotals(steps = 0L, caloriesBurned = null)
         val steps: Long = if (StepsRecord.COUNT_TOTAL in metrics) result.get(StepsRecord.COUNT_TOTAL) ?: 0L else 0L
         val caloriesBurned: Double? =
             if (TotalCaloriesBurnedRecord.ENERGY_TOTAL in metrics) result.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories else null
@@ -110,13 +134,15 @@ class HealthConnectMetricsSource @Inject constructor(
     }
 
     override suspend fun readStepsHistory(start: LocalDate, end: LocalDate): List<DailyStepCount> {
-        val response = client().aggregateGroupByPeriod(
-            AggregateGroupByPeriodRequest(
-                metrics = setOf(StepsRecord.COUNT_TOTAL),
-                timeRangeFilter = TimeRangeFilter.between(start.atStartOfDay(), end.plusDays(1).atStartOfDay()),
-                timeRangeSlicer = Period.ofDays(1),
-            ),
-        )
+        val response = safely("readStepsHistory", emptyList()) {
+            client().aggregateGroupByPeriod(
+                AggregateGroupByPeriodRequest(
+                    metrics = setOf(StepsRecord.COUNT_TOTAL),
+                    timeRangeFilter = TimeRangeFilter.between(start.atStartOfDay(), end.plusDays(1).atStartOfDay()),
+                    timeRangeSlicer = Period.ofDays(1),
+                ),
+            )
+        }
         return response.map { bucket ->
             DailyStepCount(date = bucket.startTime.toLocalDate(), steps = bucket.result.get(StepsRecord.COUNT_TOTAL) ?: 0L)
         }
@@ -124,9 +150,13 @@ class HealthConnectMetricsSource @Inject constructor(
 
     override suspend fun revokeAllPermissions() {
         if (availability() != HealthConnectAvailability.Available) return
-        client().permissionController.revokeAllPermissions()
         revokedInThisProcess = true
+        client().permissionController.revokeAllPermissions()
     }
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
+
+    private companion object {
+        const val TAG = "HealthConnectMetricsSource"
+    }
 }

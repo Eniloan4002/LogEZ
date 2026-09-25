@@ -88,4 +88,45 @@ class InlineMarkdownTest {
         assertEquals(raw, transformed.text.text)
         assertEquals(4, transformed.offsetMapping.originalToTransformed(4))
     }
+
+    // --- 2026-09-25 review fixes ---
+
+    @Test
+    fun `a lone asterisk stays literal even when the step also has bold`() {
+        val out = InlineMarkdown.toAnnotatedString("Do 3 * 10 reps **slow**")
+        assertEquals("Do 3 * 10 reps slow", out.text)
+        assertEquals(listOf("slow"), out.boldRanges())
+        assertTrue(out.italicRanges().isEmpty())
+    }
+
+    @Test
+    fun `italic on a bold word adds italic instead of stripping the bold`() {
+        val bold = TextFieldValue("**bold**", TextRange(2, 6))
+        val both = InlineMarkdown.toggleItalic(bold)
+        assertEquals("**_bold_**", both.text)
+        val rendered = InlineMarkdown.toAnnotatedString(both.text)
+        assertEquals("bold", rendered.text)
+        assertEquals(listOf("bold"), rendered.boldRanges())
+        assertEquals(listOf("bold"), rendered.italicRanges())
+    }
+
+    @Test
+    fun `italic toggles off text the old editor wrote with asterisks`() {
+        val out = InlineMarkdown.toggleItalic(TextFieldValue("*soft*", TextRange(1, 5)))
+        assertEquals("soft", out.text)
+    }
+
+    @Test
+    fun `the caret just past a closing marker reads as outside the style`() {
+        val text = "a **bold** b"
+        assertTrue(InlineMarkdown.stylesAt(text, 8).first)
+        assertFalse("just after the closing **", InlineMarkdown.stylesAt(text, 10).first)
+    }
+
+    @Test
+    fun `the old editor's br filler lines are recognised`() {
+        assertTrue(InlineMarkdown.isFillerLine("<br>"))
+        assertTrue(InlineMarkdown.isFillerLine("  <BR> "))
+        assertFalse(InlineMarkdown.isFillerLine("Brace <br> hard"))
+    }
 }

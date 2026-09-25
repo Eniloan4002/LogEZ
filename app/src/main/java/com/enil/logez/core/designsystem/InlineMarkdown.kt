@@ -20,18 +20,34 @@ import androidx.compose.ui.text.input.VisualTransformation
  * that library, including the stable ones, pulled the whole app onto an alpha Material3 and a
  * Kotlin 2.4 standard library, ahead of this project's pinned Kotlin 2.3.0, for what is only bold
  * and italic in a How-to step. The storage format is unchanged, so instructions written with the
- * old editor render exactly as before.
+ * old editor render as before (the old editor's `<br>` filler lines are dropped by the callers).
  *
- * A marker only opens a style when a matching closer appears later in the same text; an unmatched
- * `*` (for example "3 * 10 reps") stays literal rather than italicising the rest of the step.
+ * A marker only opens a style when a matching closer appears later. Marker characters are read in
+ * runs: a single `*` never pairs with half of a `**`, so "3 * 10 reps **slow**" keeps its lone
+ * asterisk literal instead of italicising the rest of the step.
  */
 object InlineMarkdown {
     private enum class Marker(val token: String, val bold: Boolean) {
         BOLD_STARS("**", true), BOLD_UNDERSCORES("__", true), ITALIC_STAR("*", false), ITALIC_UNDERSCORE("_", false)
     }
 
-    /** One scanned piece of the source: literal text in a style, or a marker (hidden when rendered). */
-    private data class Piece(val start: Int, val end: Int, val text: String, val bold: Boolean, val italic: Boolean, val isMarker: Boolean)
+    /** Bold and italic tokens the editor's toolbar writes. Italic uses `_` so it never merges with a `**`. */
+    const val BOLD_TOKEN = "**"
+    const val ITALIC_TOKEN = "_"
+
+    /**
+     * One scanned piece of the source: literal text, or a marker (hidden when rendered). A piece
+     * carries the style in force *before* it; for a marker, [after] is the style it switches to.
+     */
+    private data class Piece(
+        val start: Int,
+        val end: Int,
+        val text: String,
+        val bold: Boolean,
+        val italic: Boolean,
+        val isMarker: Boolean,
+        val after: Pair<Boolean, Boolean> = bold to italic,
+    )
 
     private fun scan(source: String): List<Piece> {
         val pieces = mutableListOf<Piece>()
@@ -65,10 +81,10 @@ object InlineMarkdown {
             if (marker != null) {
                 val closes = if (marker.bold) openBold == marker else openItalic == marker
                 val opens = !closes && (if (marker.bold) openBold == null else openItalic == null) &&
-                    hasCloser(source, marker.token, i + marker.token.length)
+                    hasCloser(source, marker, i + marker.token.length)
                 if (closes || opens) {
                     flush(i)
-                    pieces += Piece(i, i + marker.token.length, marker.token, bold, italic, isMarker = true)
+                    val before = bold to italic
                     if (marker.bold) {
                         bold = opens
                         openBold = if (opens) marker else null
@@ -76,6 +92,7 @@ object InlineMarkdown {
                         italic = opens
                         openItalic = if (opens) marker else null
                     }
+                    pieces += Piece(i, i + marker.token.length, marker.token, before.first, before.second, isMarker = true, after = bold to italic)
                     i += marker.token.length
                     literalStart = i
                     continue
@@ -89,10 +106,25 @@ object InlineMarkdown {
         return pieces
     }
 
-    /** A closer must exist later, and not immediately (an empty "****" is two literal pairs). */
-    private fun hasCloser(source: String, token: String, from: Int): Boolean {
-        val at = source.indexOf(token, from)
-        return at > from
+    /**
+     * Whether a closer for [marker] appears at or after [from], reading marker characters in runs
+     * and skipping escaped ones. A run of one or three can close an italic, a run of two or three a
+     * bold (three being `***`, both at once). The closer must not sit immediately at [from]: an
+     * empty "****" is literal.
+     */
+    private fun hasCloser(source: String, marker: Marker, from: Int): Boolean {
+        val c = marker.token[0]
+        var j = from
+        while (j < source.length) {
+            if (source[j] == '\\') { j += 2; continue }
+            if (source[j] != c) { j++; continue }
+            var run = 0
+            while (j + run < source.length && source[j + run] == c) run++
+            val fits = if (marker.bold) run == 2 || run == 3 else run == 1 || run == 3
+            if (fits && j > from) return true
+            j += run
+        }
+        return false
     }
 
     private fun style(bold: Boolean, italic: Boolean) = SpanStyle(
@@ -113,11 +145,16 @@ object InlineMarkdown {
         }
     }
 
-    /** Whether the character just before [offset] is bold / italic, for the editor's toggle buttons. */
+    /**
+     * Whether text typed at [offset] would be bold / italic, for the editor's toggle buttons: the
+     * style of the character before the caret, or, when that character belongs to a marker, the
+     * style the marker switches to (so the caret just past a closing `**` reads as not bold).
+     */
     fun stylesAt(source: String, offset: Int): Pair<Boolean, Boolean> {
-        val target = (offset - 1).coerceAtLeast(0)
-        val piece = scan(source).lastOrNull { !it.isMarker && it.start <= target } ?: return false to false
-        return piece.bold to piece.italic
+        if (offset <= 0) return false to false
+        val index = (offset - 1).coerceAtMost(source.length - 1)
+        val piece = scan(source).firstOrNull { index >= it.start && index < it.end } ?: return false to false
+        return if (piece.isMarker) piece.after else piece.bold to piece.italic
     }
 
     /**
@@ -139,19 +176,27 @@ object InlineMarkdown {
         TransformedText(styled, OffsetMapping.Identity)
     }
 
+    /** The Bold button. Unwraps `**x**` or `__x__`; wraps with `**`. */
+    fun toggleBold(value: TextFieldValue): TextFieldValue = toggle(value, BOLD_TOKEN, listOf("**", "__"))
+
+    /** The Italic button. Unwraps `_x_` or `*x*` (the old editor's form); wraps with `_`. */
+    fun toggleItalic(value: TextFieldValue): TextFieldValue = toggle(value, ITALIC_TOKEN, listOf("_", "*"))
+
     /**
-     * The Bold / Italic button: wraps the selection in [token], or unwraps it when it is already
-     * wrapped; with no selection, inserts an empty pair and puts the cursor between the markers.
+     * Wraps the selection in [token], or unwraps it when it is already wrapped in one of
+     * [unwrapTokens]; with no selection, inserts an empty pair and puts the cursor between. A wrap
+     * only counts when the characters just outside it are not more of the same marker, so the
+     * single `*` of a `**` is never mistaken for an italic marker.
      */
-    fun toggle(value: TextFieldValue, token: String): TextFieldValue {
+    fun toggle(value: TextFieldValue, token: String, unwrapTokens: List<String> = listOf(token)): TextFieldValue {
         val text = value.text
         val start = value.selection.min
         val end = value.selection.max
-        val wrapped = start >= token.length && text.startsWith(token, start - token.length) && text.startsWith(token, end)
+        val wrapping = unwrapTokens.firstOrNull { isCleanWrap(text, start, end, it) }
         return when {
-            wrapped -> TextFieldValue(
-                text = text.removeRange(end, end + token.length).removeRange(start - token.length, start),
-                selection = TextRange(start - token.length, end - token.length),
+            wrapping != null -> TextFieldValue(
+                text = text.removeRange(end, end + wrapping.length).removeRange(start - wrapping.length, start),
+                selection = TextRange(start - wrapping.length, end - wrapping.length),
             )
             start == end -> TextFieldValue(
                 text = text.substring(0, start) + token + token + text.substring(start),
@@ -163,6 +208,18 @@ object InlineMarkdown {
             )
         }
     }
+
+    private fun isCleanWrap(text: String, start: Int, end: Int, token: String): Boolean {
+        if (start == end || start < token.length || end + token.length > text.length) return false
+        if (!text.startsWith(token, start - token.length) || !text.startsWith(token, end)) return false
+        val c = token[0]
+        val beforeOk = start - token.length - 1 < 0 || text[start - token.length - 1] != c
+        val afterOk = end + token.length >= text.length || text[end + token.length] != c
+        return beforeOk && afterOk
+    }
+
+    /** The old rich-text editor wrote `<br>` for extra blank paragraphs; it is filler, not a step. */
+    fun isFillerLine(line: String): Boolean = line.trim().equals("<br>", ignoreCase = true)
 
     private val ESCAPABLE = setOf('*', '_', '\\')
 }
