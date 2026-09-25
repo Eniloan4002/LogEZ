@@ -27,6 +27,17 @@ import com.enil.logez.core.designsystem.LogEzTheme
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.Spacing
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
+import com.enil.logez.BuildConfig
 
 /**
  * A deliberate, narrow exception to this app's single-Activity architecture (`MainActivity` hosts
@@ -45,7 +56,9 @@ import com.enil.logez.core.designsystem.Spacing
  * self-closed, with nothing this app's own code could catch or react to.
  *
  * Also reachable directly from Settings, as an ordinary privacy-policy screen -- the same content
- * either way.
+ * either way. The text comes from [PrivacyPolicyContent], the same source the hosted web copy is
+ * rendered from, so Health Connect's "same policy in the app and on the web" rule holds by
+ * construction (2026-09-25).
  */
 class PrivacyPolicyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,15 +94,58 @@ private fun PrivacyPolicyScreen(onBack: () -> Unit) {
             )
         },
     ) { padding ->
+        val document = PrivacyPolicyContent.document(BuildConfig.CONTACT_EMAIL)
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            Text(stringResource(R.string.privacy_policy_body), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.privacy_policy_effective, document.effectiveDate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            document.sections.forEach { section ->
+                Text(
+                    section.heading,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = Spacing.md).semantics { heading() },
+                )
+                section.blocks.forEach { block ->
+                    when (block) {
+                        is PolicyBlock.Paragraph -> PolicyText(block.text)
+                        is PolicyBlock.Bullets -> block.items.forEach { item ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                Text("•", style = MaterialTheme.typography.bodyMedium)
+                                PolicyText(item, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+/** Body text with its https URLs and email address made tappable, like the hosted page's links. */
+@Composable
+private fun PolicyText(text: String, modifier: Modifier = Modifier) {
+    val linkStyles = TextLinkStyles(
+        style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline),
+    )
+    val annotated = buildAnnotatedString {
+        var last = 0
+        PrivacyPolicyHtml.LINK.findAll(text).forEach { match ->
+            append(text.substring(last, match.range.first))
+            val url = if (match.value.startsWith("https://")) match.value else "mailto:${match.value}"
+            withLink(LinkAnnotation.Url(url, linkStyles)) { append(match.value) }
+            last = match.range.last + 1
+        }
+        append(text.substring(last))
+    }
+    Text(annotated, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
 }

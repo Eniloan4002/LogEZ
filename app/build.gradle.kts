@@ -18,6 +18,14 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+// Public developer contact email, from gradle.properties' logez.contactEmail (see the comment there).
+// Validated here so a typo fails the build instead of shipping in the privacy policy; the pattern
+// also rules out quotes and backslashes, so the value can be spliced into BuildConfig unescaped.
+val contactEmail: String = providers.gradleProperty("logez.contactEmail").orNull?.trim().orEmpty()
+require(contactEmail.isEmpty() || Regex("^[^@\\s\"\\\\]+@[^@\\s\"\\\\]+\\.[^@\\s\"\\\\]+$").matches(contactEmail)) {
+    "logez.contactEmail in gradle.properties is not an email address: '$contactEmail'"
+}
+
 android {
     namespace = "com.enil.logez"
     compileSdk {
@@ -34,6 +42,8 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "CONTACT_EMAIL", "\"$contactEmail\"")
     }
 
     signingConfigs {
@@ -196,4 +206,21 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+}
+
+// A release must never ship the privacy policy's "contact email not set" placeholder (Owner
+// decision, 2026-09-25). Hooked on the two packaging tasks rather than on compilation, so lint and
+// unit tests still run on a checkout that has not set the address yet.
+tasks.configureEach {
+    if (name == "packageRelease" || name == "packageReleaseBundle") {
+        val email = contactEmail
+        doFirst {
+            if (email.isEmpty()) {
+                throw GradleException(
+                    "logez.contactEmail is empty in gradle.properties. Set the public developer contact " +
+                        "email before building a release; it appears in the privacy policy.",
+                )
+            }
+        }
+    }
 }
