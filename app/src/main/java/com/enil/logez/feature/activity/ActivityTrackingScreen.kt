@@ -45,6 +45,7 @@ import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
+import com.enil.logez.core.designsystem.formatElapsedClock
 import com.enil.logez.core.designsystem.formatMmSs
 import com.enil.logez.core.designsystem.formatPace
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
@@ -364,23 +365,7 @@ fun ActivityTrackingScreen(
     }
 }
 
-@Composable
-private fun heartRateZoneLabel(zone: HeartRateZone): String = stringResource(
-    when (zone) {
-        HeartRateZone.ZONE_1 -> R.string.activity_tracking_zone_1
-        HeartRateZone.ZONE_2 -> R.string.activity_tracking_zone_2
-        HeartRateZone.ZONE_3 -> R.string.activity_tracking_zone_3
-        HeartRateZone.ZONE_4 -> R.string.activity_tracking_zone_4
-        HeartRateZone.ZONE_5 -> R.string.activity_tracking_zone_5
-    },
-)
-
-private fun formatElapsed(totalSeconds: Int): String {
-    val h = totalSeconds / 3600
-    val m = (totalSeconds % 3600) / 60
-    val s = totalSeconds % 60
-    return if (h > 0) "%d:%02d:%02d".format(Locale.ROOT, h, m, s) else "%d:%02d".format(Locale.ROOT, m, s)
-}
+private fun formatElapsed(totalSeconds: Int): String = formatElapsedClock(totalSeconds)
 
 /** What a stat reads while it has nothing to show yet -- the same dash every other stat surface uses. */
 private const val PLACEHOLDER = "—"

@@ -155,7 +155,10 @@ class WorkoutDetailViewModel @Inject constructor(
             completedSetCount = included.size,
             hasRecords = workoutPrs.isNotEmpty(),
             exerciseBlocks = exerciseBlocks,
-            hasRoute = track != null,
+            // A track with no recorded point has nothing to draw; showing its card put an empty map
+            // centred on the Metro Manila fallback on screen. The walk/run summary says in words
+            // that GPS recorded no points instead (2026-09-26).
+            hasRoute = track?.routePolyline != null,
             routePoints = routePoints,
         )
     }

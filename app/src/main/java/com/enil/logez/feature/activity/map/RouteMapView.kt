@@ -1,7 +1,9 @@
 package com.enil.logez.feature.activity.map
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -36,6 +40,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -50,11 +55,14 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
@@ -97,6 +105,25 @@ private const val ROUTE_BOUNDS_PADDING_PX = 96
 
 private const val ROUTE_SOURCE_ID = "route-source"
 private const val ROUTE_LAYER_ID = "route-layer"
+private const val ENDPOINTS_SOURCE_ID = "route-endpoints-source"
+private const val START_LAYER_ID = "route-start-layer"
+private const val FINISH_LAYER_ID = "route-finish-layer"
+private const val ENDPOINT_KIND = "kind"
+private const val KIND_START = "start"
+private const val KIND_FINISH = "finish"
+
+/** Start and finish dots (2026-09-26): the first and last recorded point, finish only once there are two. */
+private fun endpointsFeatures(points: List<Pair<Double, Double>>): FeatureCollection {
+    val features = mutableListOf<Feature>()
+    points.firstOrNull()?.let { (lat, lng) ->
+        features += Feature.fromGeometry(Point.fromLngLat(lng, lat)).apply { addStringProperty(ENDPOINT_KIND, KIND_START) }
+    }
+    if (points.size >= 2) {
+        val (lat, lng) = points.last()
+        features += Feature.fromGeometry(Point.fromLngLat(lng, lat)).apply { addStringProperty(ENDPOINT_KIND, KIND_FINISH) }
+    }
+    return FeatureCollection.fromFeatures(features)
+}
 
 private fun routeFeature(points: List<Pair<Double, Double>>): Feature =
     Feature.fromGeometry(LineString.fromLngLats(points.map { (lat, lng) -> Point.fromLngLat(lng, lat) }))
@@ -159,12 +186,26 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
  * calls (`REASON_API_ANIMATION`); [userPanned] latches true on the former and suppresses
  * auto-follow until the user taps the "recenter" button, exactly the pattern every real GPS-track
  * app (Strava, Nike Run Club, Google Maps' own blue-dot follow mode) uses for this same conflict.
+ *
+ * Walk/run summary (2026-09-26):
+ * - [interactive] false turns every gesture off. A map inside a scrolling page otherwise takes the
+ *   drag for itself and the page stops scrolling (the conflict ActivityTrackingScreen documents).
+ *   [onMapClick] then makes a tap open something else, the summary's full-screen map.
+ * - [showEndpoints] draws a start dot and a finish dot; recaps show them, live tracking doesn't.
+ * - [fitPadding] replaces the default bounds padding per side, so a route can clear overlays such
+ *   as the summary's top scrim and bottom fade. [attributionPadding] lifts the credit line clear
+ *   of them too, keeping it visible as OpenStreetMap requires.
  */
 @Composable
 fun RouteMapView(
     modifier: Modifier = Modifier,
     routePoints: List<Pair<Double, Double>> = emptyList(),
     followLatest: Boolean = false,
+    interactive: Boolean = true,
+    onMapClick: (() -> Unit)? = null,
+    showEndpoints: Boolean = !followLatest,
+    fitPadding: PaddingValues? = null,
+    attributionPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -174,6 +215,21 @@ fun RouteMapView(
     var loadError by remember { mutableStateOf<String?>(null) }
     var userPanned by remember { mutableStateOf(false) }
     val routeLineColor = MaterialTheme.colorScheme.primary.toArgb()
+    val startColor = MaterialTheme.colorScheme.primary.toArgb()
+    val finishColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val endpointStrokeColor = MaterialTheme.colorScheme.background.toArgb()
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val fitPaddingPx = fitPadding?.let { padding ->
+        with(density) {
+            intArrayOf(
+                padding.calculateLeftPadding(layoutDirection).roundToPx(),
+                padding.calculateTopPadding().roundToPx(),
+                padding.calculateRightPadding(layoutDirection).roundToPx(),
+                padding.calculateBottomPadding().roundToPx(),
+            )
+        }
+    }
 
     // Extracted so both the initial load and the Retry button below can (re)run it. Recap screens
     // (WorkoutDetailScreen/WorkoutSummaryScreen) already know their full route at this point, so the
@@ -182,7 +238,7 @@ fun RouteMapView(
     // and still falls back to the fixed default, which is the one case with no better data available.
     fun loadStyle(map: MapLibreMap) {
         loadError = null
-        val initialTarget = if (routePoints.size >= 2) routeCentroid(routePoints) else METRO_MANILA_CENTER
+        val initialTarget = if (routePoints.isNotEmpty()) routeCentroid(routePoints) else METRO_MANILA_CENTER
         map.setStyle(Style.Builder().fromUri(MAP_STYLE_URL)) { style ->
             style.addSource(GeoJsonSource(ROUTE_SOURCE_ID))
             style.addLayer(
@@ -193,6 +249,13 @@ fun RouteMapView(
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                 ),
             )
+            if (showEndpoints) {
+                style.addSource(GeoJsonSource(ENDPOINTS_SOURCE_ID))
+                // Finish first, so a start dot on top of it stays visible on a loop that ends
+                // where it began.
+                style.addLayer(endpointLayer(FINISH_LAYER_ID, KIND_FINISH, finishColor, endpointStrokeColor))
+                style.addLayer(endpointLayer(START_LAYER_ID, KIND_START, startColor, endpointStrokeColor))
+            }
 
             // See the class doc comment for why this exact two-step zoom sequence, with a real
             // delay between steps, is required for line/symbol layers to render at all.
@@ -243,6 +306,13 @@ fun RouteMapView(
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose {
                 lifecycleOwner.lifecycle.removeObserver(observer)
+                // A map can leave composition while the screen stays resumed (the summary swapping
+                // its hero map for the full-screen one), so it never receives ON_PAUSE/ON_STOP.
+                // MapView only releases its connectivity receiver and file source in onStop, not
+                // onDestroy, so step it down first or each swap leaks one activation (2026-09-26).
+                val state = lifecycleOwner.lifecycle.currentState
+                if (state.isAtLeast(Lifecycle.State.RESUMED)) mapView.onPause()
+                if (state.isAtLeast(Lifecycle.State.STARTED)) mapView.onStop()
                 mapView.onDestroy()
             }
         }
@@ -266,12 +336,12 @@ fun RouteMapView(
                 map.uiSettings.isAttributionEnabled = false
                 // Explicit, not relying on the SDK's own defaults -- this is the exact set of
                 // gestures the "can't zoom or move the map" report (2026-09-11) was about.
-                map.uiSettings.isZoomGesturesEnabled = true
-                map.uiSettings.isScrollGesturesEnabled = true
-                map.uiSettings.isRotateGesturesEnabled = true
-                map.uiSettings.isTiltGesturesEnabled = true
-                map.uiSettings.isDoubleTapGesturesEnabled = true
-                map.uiSettings.isQuickZoomGesturesEnabled = true
+                map.uiSettings.isZoomGesturesEnabled = interactive
+                map.uiSettings.isScrollGesturesEnabled = interactive
+                map.uiSettings.isRotateGesturesEnabled = interactive
+                map.uiSettings.isTiltGesturesEnabled = interactive
+                map.uiSettings.isDoubleTapGesturesEnabled = interactive
+                map.uiSettings.isQuickZoomGesturesEnabled = interactive
                 // A real pinch/drag (not this composable's own easeCamera calls) latches
                 // userPanned -- see the class doc comment for why this exists.
                 map.addOnCameraMoveStartedListener { reason ->
@@ -281,6 +351,12 @@ fun RouteMapView(
                 }
                 loadStyle(map)
             }
+        }
+
+        // Above the map, below the retry state and the attribution links, so both stay tappable.
+        // Touch only: hidden from TalkBack, whose users get the caller's labelled button instead.
+        if (!interactive && onMapClick != null) {
+            Box(modifier = Modifier.fillMaxSize().clearAndSetSemantics {}.clickable(onClick = onMapClick))
         }
 
         // Shown until the style has fetched over the network and the zoom-dance above has settled --
@@ -325,6 +401,7 @@ fun RouteMapView(
             color = Color.Black,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .padding(attributionPadding)
                 .background(Color.White.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp),
         )
@@ -364,6 +441,9 @@ fun RouteMapView(
         val source = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID) ?: return@LaunchedEffect
 
         if (routePoints.size >= 2) source.setGeoJson(routeFeature(routePoints))
+        if (showEndpoints && routePoints.isNotEmpty()) {
+            style.getSourceAs<GeoJsonSource>(ENDPOINTS_SOURCE_ID)?.setGeoJson(endpointsFeatures(routePoints))
+        }
 
         // userPanned: don't fight a gesture the user is mid-way through -- see the class doc
         // comment. The recenter button (above) is the only way back to auto-follow from here.
@@ -374,12 +454,25 @@ fun RouteMapView(
                 val (lat, lng) = routePoints.last()
                 map.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), FOLLOW_ZOOM))
             }
+        } else if (routePoints.size == 1 || (routePoints.size >= 2 && isDegenerateRoute(routePoints))) {
+            // One usable fix, or a route too small to fit: centre on it at street level.
+            map.easeCamera(CameraUpdateFactory.newLatLngZoom(routeCentroid(routePoints), FOLLOW_ZOOM))
         } else if (routePoints.size >= 2) {
-            if (isDegenerateRoute(routePoints)) {
-                map.easeCamera(CameraUpdateFactory.newLatLngZoom(routeCentroid(routePoints), FOLLOW_ZOOM))
-            } else {
-                map.easeCamera(CameraUpdateFactory.newLatLngBounds(routeBounds(routePoints), ROUTE_BOUNDS_PADDING_PX))
-            }
+            val bounds = routeBounds(routePoints)
+            val update = fitPaddingPx?.let { (left, top, right, bottom) ->
+                CameraUpdateFactory.newLatLngBounds(bounds, left, top, right, bottom)
+            } ?: CameraUpdateFactory.newLatLngBounds(bounds, ROUTE_BOUNDS_PADDING_PX)
+            map.easeCamera(update)
         }
     }
 }
+
+private fun endpointLayer(id: String, kind: String, fill: Int, stroke: Int): CircleLayer =
+    CircleLayer(id, ENDPOINTS_SOURCE_ID)
+        .withFilter(Expression.eq(Expression.get(ENDPOINT_KIND), Expression.literal(kind)))
+        .withProperties(
+            PropertyFactory.circleRadius(6.5f),
+            PropertyFactory.circleColor(fill),
+            PropertyFactory.circleStrokeColor(stroke),
+            PropertyFactory.circleStrokeWidth(3f),
+        )

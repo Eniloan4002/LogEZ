@@ -7,12 +7,16 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.calc.HeartRateZone
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.Equipment
+import com.enil.logez.core.domain.model.GpsActivity
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
@@ -31,6 +35,8 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -287,7 +293,158 @@ class WorkoutSummaryViewModelTest {
         assertEquals(2, state.rounds) // derived either way; only CIRCUIT summaries render it
     }
 
+    // --- walk/run summary (2026-09-26) ---
+
+    @Test
+    fun `a GPS run shows no muscle data, even though its exercise lists leg muscles`() = runTest {
+        val vm = gpsViewModel(distanceMeters = 4_620.0, durationSeconds = 1_678)
+        val state = vm.uiState.value
+        assertTrue(state.isGpsTracked)
+        assertTrue(state.muscleIntensity.isEmpty())
+        assertTrue(state.muscleBalance.isEmpty())
+    }
+
+    @Test
+    fun `a GPS workout is labelled a run or a walk from its seed exercise`() = runTest {
+        assertEquals(GpsActivity.RUN, gpsViewModel(exerciseId = GpsActivity.RUNNING_OUTDOOR_EXERCISE_ID).uiState.value.gpsActivity)
+        assertEquals(GpsActivity.WALK, gpsViewModel(exerciseId = GpsActivity.WALKING_OUTDOOR_EXERCISE_ID).uiState.value.gpsActivity)
+    }
+
+    @Test
+    fun `average pace and speed come from saved distance and time, in the user's unit`() = runTest {
+        val km = gpsViewModel(distanceMeters = 4_620.0, durationSeconds = 1_678).uiState.value
+        assertEquals(363.2, km.averagePaceSecondsPerUnit!!, 0.1) // 6:03 /km
+        assertEquals(9.91, km.averageSpeedPerHour!!, 0.01)
+
+        val miles = gpsViewModel(distanceMeters = 4_620.0, durationSeconds = 1_678, settings = UserSettings(distanceUnit = DistanceUnit.MILES)).uiState.value
+        assertEquals(584.5, miles.averagePaceSecondsPerUnit!!, 0.2) // 9:44 /mi
+        assertEquals(6.16, miles.averageSpeedPerHour!!, 0.01)
+    }
+
+    @Test
+    fun `under 50 m there is no honest pace or speed to show`() = runTest {
+        val state = gpsViewModel(distanceMeters = 30.0, durationSeconds = 60).uiState.value
+        assertNull(state.averagePaceSecondsPerUnit)
+        assertNull(state.averageSpeedPerHour)
+    }
+
+    @Test
+    fun `heart rate is summarised inside the workout's window, with zones when a max is set`() = runTest {
+        val start = 1_000_000L
+        val samples = listOf(
+            WorkoutHeartRateSampleEntity("hr0", "w1", start - 60_000, 190L), // before the run: dropped
+            WorkoutHeartRateSampleEntity("hr1", "w1", start, 120L),
+            WorkoutHeartRateSampleEntity("hr2", "w1", start + 60_000, 160L),
+        )
+        val state = gpsViewModel(
+            durationSeconds = 120,
+            heartRate = samples,
+            settings = UserSettings(maxHeartRateBpm = 200),
+        ).uiState.value
+        assertNotNull(state.heartRateSummary)
+        val summary = state.heartRateSummary!!
+        assertEquals(160L, summary.maxBpm)
+        assertEquals(140L, summary.averageBpm)
+        assertEquals(60, summary.zoneSeconds!![HeartRateZone.ZONE_2]) // 120 bpm = 60% of 200
+        assertEquals(60, summary.zoneSeconds!![HeartRateZone.ZONE_4]) // 160 bpm = 80%
+    }
+
+    @Test
+    fun `a GPS workout without a watch has no heart-rate summary`() = runTest {
+        assertNull(gpsViewModel().uiState.value.heartRateSummary)
+    }
+
+    @Test
+    fun `a run with saved route times gets splits and a pace series`() = runTest {
+        val degreesPer100m = 100.0 / 111_195.0
+        val points = (0..25).map { (14.6 + it * degreesPer100m) to 121.06 } // 2.5 km north
+        val times = points.indices.map { it * 30L } // 5:00/km
+        val track = ActivityTrackEntity(
+            id = "t1", workoutSetId = "s1", routePolyline = PolylineEncoding.encode(points), pointCount = points.size,
+            avgAccuracyM = 5.0, routeTimes = PolylineEncoding.encodeDeltas(times),
+        )
+        val state = gpsViewModel(distanceMeters = 2_500.0, durationSeconds = 750, track = track).uiState.value
+        assertEquals(3, state.splits.size)
+        assertTrue(state.splits.last().isPartial)
+        assertTrue(state.paceSeries.isNotEmpty())
+    }
+
+    @Test
+    fun `a run tracked before route times were saved still shows its route, just no splits`() = runTest {
+        val track = ActivityTrackEntity(
+            id = "t1", workoutSetId = "s1", routePolyline = PolylineEncoding.encode(listOf(14.6 to 121.06, 14.61 to 121.06)),
+            pointCount = 2, avgAccuracyM = 5.0, routeTimes = null,
+        )
+        val state = gpsViewModel(distanceMeters = 1_100.0, durationSeconds = 400, track = track).uiState.value
+        assertEquals(2, state.routePoints.size)
+        assertTrue(state.hasTrack)
+        assertTrue(state.splits.isEmpty())
+        assertTrue(state.paceSeries.isEmpty())
+    }
+
+    @Test
+    fun `an interrupted run that kept only its time has no track at all`() = runTest {
+        val state = gpsViewModel(distanceMeters = null, durationSeconds = 900, track = null).uiState.value
+        assertTrue(state.isGpsTracked)
+        assertFalse(state.hasTrack)
+        assertFalse(state.hasDistance)
+        assertTrue(state.routePoints.isEmpty())
+    }
+
+    @Test
+    fun `a run where GPS never got a fix has a track but no points`() = runTest {
+        val track = ActivityTrackEntity(id = "t1", workoutSetId = "s1", routePolyline = null, pointCount = 0, avgAccuracyM = null)
+        val state = gpsViewModel(distanceMeters = 0.0, durationSeconds = 300, track = track).uiState.value
+        assertTrue(state.hasTrack)
+        assertTrue(state.routePoints.isEmpty())
+    }
+
+    @Test
+    fun `a strength workout keeps its muscle data and gets none of the walk-run fields`() = runTest {
+        val vm = viewModel(
+            FakeWorkoutRepository(workouts = listOf(workout("w1")), exercises = listOf(workoutExercise("we1", "w1")), sets = listOf(aSet("s1", "we1", 0, reps = 8))),
+        )
+        val state = vm.uiState.value
+        assertFalse(state.isGpsTracked)
+        assertTrue(state.muscleIntensity.isNotEmpty())
+        assertNull(state.heartRateSummary)
+        assertNull(state.averagePaceSecondsPerUnit)
+    }
+
     // --- fixture ---
+
+    /** A realistic tracked run: GPS_TRACKED kind, the DISTANCE_DURATION seed exercise with its leg secondaries. */
+    private fun gpsViewModel(
+        exerciseId: String = GpsActivity.RUNNING_OUTDOOR_EXERCISE_ID,
+        distanceMeters: Double? = 1_000.0,
+        durationSeconds: Int = 360,
+        track: ActivityTrackEntity? = null,
+        heartRate: List<WorkoutHeartRateSampleEntity> = emptyList(),
+        settings: UserSettings = UserSettings(),
+    ): WorkoutSummaryViewModel {
+        val start = 1_000_000L
+        val run = Exercise(
+            id = exerciseId, name = "Running (Outdoor)", exerciseType = ExerciseType.DISTANCE_DURATION,
+            primaryMuscleGroup = MuscleGroup.CARDIO,
+            secondaryMuscleGroups = listOf(MuscleGroup.QUADRICEPS, MuscleGroup.HAMSTRINGS, MuscleGroup.CALVES),
+            equipment = Equipment.NONE, instructions = "", mediaPath = null, isCustom = false,
+            isBodyweightVolumeEligible = false, isDeleted = false, createdAt = 0, updatedAt = 0,
+        )
+        val workout = workout("w1", kind = WorkoutKind.GPS_TRACKED, startedAt = start, durationSeconds = durationSeconds)
+        return WorkoutSummaryViewModel(
+            savedStateHandle = SavedStateHandle(mapOf(WorkoutSummaryViewModel.WORKOUT_ID_ARG to "w1")),
+            workoutRepository = FakeWorkoutRepository(
+                workouts = listOf(workout),
+                exercises = listOf(workoutExercise("we1", "w1", exerciseId = exerciseId)),
+                sets = listOf(aSet("s1", "we1", 0, reps = null, weightKg = null, distanceMeters = distanceMeters)),
+            ),
+            exerciseRepository = FakeExerciseRepository(listOf(run)),
+            personalRecordsRepository = FakePersonalRecordsRepository(),
+            settingsRepository = FakeSettingsRepository(settings),
+            activityTrackRepository = FakeActivityTrackRepository(listOfNotNull(track)),
+            heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(heartRate),
+        )
+    }
 
     private fun viewModel(
         workoutRepo: FakeWorkoutRepository,
@@ -303,10 +460,16 @@ class WorkoutSummaryViewModelTest {
         heartRateSampleRepository = heartRateRepo,
     )
 
-    private fun workout(id: String, structure: WorkoutStructure = WorkoutStructure.REGULAR) = WorkoutEntity(
+    private fun workout(
+        id: String,
+        structure: WorkoutStructure = WorkoutStructure.REGULAR,
+        kind: WorkoutKind = WorkoutKind.STRENGTH,
+        startedAt: Long = 1_000L,
+        durationSeconds: Int = 1,
+    ) = WorkoutEntity(
         id = id, routineId = null, title = "Session $id", notes = null, status = WorkoutStatus.COMPLETED,
-        startedAt = 1_000L, endedAt = 2_000L, durationSeconds = 1, createdAt = 1_000L, updatedAt = 1_000L,
-        structure = structure,
+        startedAt = startedAt, endedAt = startedAt + durationSeconds * 1000L, durationSeconds = durationSeconds,
+        createdAt = 1_000L, updatedAt = 1_000L, structure = structure, kind = kind,
     )
 
     private fun workoutExercise(id: String, workoutId: String, orderIndex: Int = 0, exerciseId: String = "ex-1") = WorkoutExerciseEntity(

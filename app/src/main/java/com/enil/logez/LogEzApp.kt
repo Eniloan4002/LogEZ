@@ -1,6 +1,9 @@
 package com.enil.logez
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -167,12 +171,27 @@ fun LogEzApp() {
                 }
             },
         ) { innerPadding ->
+            // The workout summary draws behind the status bar so a walk/run's route map can run up
+            // to the top edge (2026-09-26); it pads its own text back down. Every other screen
+            // keeps the full inset.
+            val backStackEntry by navController.currentBackStackEntryAsState()
+            val drawsBehindStatusBar = backStackEntry?.destination?.route == WorkoutRoutes.SUMMARY
+            val layoutDirection = LocalLayoutDirection.current
+            val contentPadding = if (drawsBehindStatusBar) {
+                PaddingValues(
+                    start = innerPadding.calculateStartPadding(layoutDirection),
+                    end = innerPadding.calculateEndPadding(layoutDirection),
+                    bottom = innerPadding.calculateBottomPadding(),
+                )
+            } else {
+                innerPadding
+            }
             // Tablets, foldables and landscape (2026-09-25, Play-readiness audit): the phone layout
             // used to stretch edge to edge, so cards and set tables spread across a whole tablet.
             // Content is capped at a readable width and centred; the bottom bar stays full width.
             // A phone is narrower than the cap, so nothing changes there.
             Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                modifier = Modifier.fillMaxSize().padding(contentPadding),
                 contentAlignment = Alignment.TopCenter,
             ) {
                 LogEzNavHost(

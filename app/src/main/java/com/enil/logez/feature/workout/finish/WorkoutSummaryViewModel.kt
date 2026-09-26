@@ -4,14 +4,21 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.PolylineEncoding
+import com.enil.logez.core.domain.calc.HeartRateSummary
+import com.enil.logez.core.domain.calc.HeartRateSummaryCalculator
+import com.enil.logez.core.domain.calc.PaceCalculator
+import com.enil.logez.core.domain.calc.RouteSplit
+import com.enil.logez.core.domain.calc.RouteSplitsCalculator
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.WorkoutMuscleTargetCalculator
 import com.enil.logez.core.domain.calc.MuscleStatsCalculator
 import com.enil.logez.core.domain.calc.RegionShare
 import com.enil.logez.core.domain.calc.balanceAxes
 import com.enil.logez.core.domain.calc.isIncluded
+import com.enil.logez.core.domain.model.GpsActivity
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PrType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ActivityTrackRepository
 import com.enil.logez.core.domain.repository.ExerciseRepository
@@ -37,6 +44,12 @@ import kotlinx.coroutines.launch
  * Stat parity invariant: the share card never shows a stat the summary screen doesn't — both
  * surfaces render the same Duration/Volume/Sets/Reps/Distance values from this one UiState, so
  * adding a card stat means adding the matching screen cell (and vice versa).
+ *
+ * A GPS-tracked walk/run (`WorkoutEntity.kind == GPS_TRACKED`) gets its own summary (Owner,
+ * 2026-09-26): route, distance, time, pace, splits and heart rate, and no muscle data at all. The
+ * Running and Walking seed exercises list leg muscles as secondary targets, which used to light up
+ * the body diagram and draw an empty balance radar (their primary group, CARDIO, maps to no body
+ * region) on every run's summary.
  */
 @HiltViewModel
 class WorkoutSummaryViewModel @Inject constructor(
@@ -95,12 +108,17 @@ class WorkoutSummaryViewModel @Inject constructor(
                         )
                     }
                 }
-            val muscleIntensity = WorkoutMuscleTargetCalculator.intensities(muscleTargets)
-            val muscleBalance = balanceAxes(
-                muscleTargets.groupingBy { it.primary }.eachCount().map { (group, count) ->
-                    MuscleStatsCalculator.GroupShare(group = group, setCount = count, sharePercent = 0)
-                },
-            )
+            val isGpsTracked = workout.kind == WorkoutKind.GPS_TRACKED
+            val muscleIntensity = if (isGpsTracked) emptyMap() else WorkoutMuscleTargetCalculator.intensities(muscleTargets)
+            val muscleBalance = if (isGpsTracked) {
+                emptyList()
+            } else {
+                balanceAxes(
+                    muscleTargets.groupingBy { it.primary }.eachCount().map { (group, count) ->
+                        MuscleStatsCalculator.GroupShare(group = group, setCount = count, sharePercent = 0)
+                    },
+                )
+            }
 
             // Share-card exercise lines, built the way HistoryViewModel builds its card summaries
             // (group by workoutExerciseId, order by exerciseOrderIndex, count through the same
@@ -134,15 +152,30 @@ class WorkoutSummaryViewModel @Inject constructor(
             // "Track a walk/run" flow creates exactly one), so the first hit is the whole answer --
             // an N-query loop like WorkoutDetailViewModel's, same justification (no bulk-lookup
             // method, and a workout has at most a handful of sets).
-            val routePoints = sets.firstNotNullOfOrNull { row ->
-                activityTrackRepository.getByWorkoutSetId(row.set.setId)?.routePolyline
-            }?.let(PolylineEncoding::decode) ?: emptyList()
+            val track = sets.firstNotNullOfOrNull { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) }
+            val routePoints = track?.routePolyline?.let(PolylineEncoding::decode) ?: emptyList()
+            // Null for runs tracked before route times were saved (2026-09-26); those get no splits.
+            val routeTimes = track?.routeTimes?.let(PolylineEncoding::decodeDeltas)?.map { it.toInt() } ?: emptyList()
 
             // M21f: read from the local cache WorkoutFinisher already wrote at finish time, never
             // Health Connect directly -- by the time this screen shows, the samples (if any) are
             // already saved, same "local cache of what Health Connect already tracks" shape as
             // routePoints/DailyWellnessTotalEntity elsewhere in this milestone.
             val heartRateSamples = heartRateSampleRepository.getForWorkout(workoutId).map { it.recordedAt to it.bpm }
+
+            val totalDistanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 }
+            val windowEnd = workout.endedAt ?: (workout.startedAt + workout.durationSeconds * 1000L)
+            val heartRateSummary = if (isGpsTracked) {
+                HeartRateSummaryCalculator.summarize(heartRateSamples, workout.startedAt, windowEnd, settings.maxHeartRateBpm)
+            } else {
+                null
+            }
+            val averagePace = if (isGpsTracked) {
+                PaceCalculator.paceSecondsPerUnit(totalDistanceMeters, workout.durationSeconds, settings.distanceUnit)
+            } else {
+                null
+            }
+            val gpsExerciseId = if (isGpsTracked) sets.firstOrNull()?.exerciseId else null
 
             val prs = workoutPrs.map { pr ->
                 PrMedal(
@@ -173,8 +206,28 @@ class WorkoutSummaryViewModel @Inject constructor(
                 hasVolume = included.any { it.set.weightKg != null },
                 hasReps = included.any { it.set.reps != null },
                 hasDistance = included.any { it.set.distanceMeters != null },
-                totalDistanceMeters = included.sumOf { it.set.distanceMeters ?: 0.0 },
+                totalDistanceMeters = totalDistanceMeters,
                 routePoints = routePoints,
+                isGpsTracked = isGpsTracked,
+                gpsActivity = GpsActivity.resolve(gpsExerciseId, gpsExerciseId?.let { exercisesById[it]?.name }),
+                hasTrack = track != null,
+                averagePaceSecondsPerUnit = averagePace,
+                // Units per hour, from the same average pace, so the two cells can't disagree.
+                averageSpeedPerHour = averagePace?.takeIf { it > 0.0 }?.let { 3600.0 / it },
+                heartRateSummary = heartRateSummary,
+                splits = if (isGpsTracked) {
+                    RouteSplitsCalculator.splits(
+                        routePoints, routeTimes, settings.distanceUnit, workout.startedAt,
+                        heartRateSummary?.samples.orEmpty(), trackedDistanceMeters = totalDistanceMeters,
+                    )
+                } else {
+                    emptyList()
+                },
+                paceSeries = if (isGpsTracked) {
+                    RouteSplitsCalculator.paceSeries(routePoints, routeTimes, settings.distanceUnit, workout.startedAt, totalDistanceMeters)
+                } else {
+                    emptyList()
+                },
                 heartRateSamples = heartRateSamples,
                 muscleIntensity = muscleIntensity,
                 muscleDiagramVariant = settings.muscleDiagramVariant,
@@ -227,4 +280,22 @@ data class WorkoutSummaryUiState(
     /** M11: CIRCUIT summaries add a "CIRCUIT · N rounds" line on screen and card. */
     val structure: WorkoutStructure = WorkoutStructure.REGULAR,
     val rounds: Int = 0,
+    /** A GPS-tracked walk/run: the summary switches to its own route-first layout. */
+    val isGpsTracked: Boolean = false,
+    val gpsActivity: GpsActivity = GpsActivity.RUN,
+    /**
+     * Whether a track row exists at all. False only for an interrupted run whose time was kept
+     * without a route; true with an empty [routePoints] when GPS never produced a usable fix.
+     */
+    val hasTrack: Boolean = false,
+    /** Seconds per km/mi over the whole session, or null under 50 m (PaceCalculator's floor). */
+    val averagePaceSecondsPerUnit: Double? = null,
+    /** km/h or mph; null exactly when [averagePaceSecondsPerUnit] is. */
+    val averageSpeedPerHour: Double? = null,
+    /** GPS workouts only: null without a heart-rate sample inside the workout's window. */
+    val heartRateSummary: HeartRateSummary? = null,
+    /** GPS workouts with saved route times only (tracked from 2026-09-26 on). */
+    val splits: List<RouteSplit> = emptyList(),
+    /** (epochMillis, seconds per unit), smoothed over a minute; same availability as [splits]. */
+    val paceSeries: List<Pair<Long, Double>> = emptyList(),
 )

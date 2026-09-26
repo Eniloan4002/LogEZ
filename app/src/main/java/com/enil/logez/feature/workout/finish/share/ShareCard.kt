@@ -1,10 +1,12 @@
 package com.enil.logez.feature.workout.finish.share
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -18,6 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -71,6 +79,28 @@ data class ShareCardData(
     /** M11: CIRCUIT cards add the rounds line; REGULAR cards are visually unchanged. */
     val structure: WorkoutStructure,
     val rounds: Int,
+    /** A GPS-tracked walk/run: when set, the card is the route layout and the fields above aren't drawn. */
+    val gps: GpsShareCardData? = null,
+)
+
+/**
+ * The walk/run card's content (2026-09-26), pre-formatted like everything else here. Every value
+ * is one the walk/run summary screen also shows, keeping the stat-parity rule.
+ *
+ * @property distanceNumber null for an interrupted run, which saved no distance.
+ * @property avgBpmText null without a watch; the cell is left out, not dashed.
+ * @property prLines (record type, value) pairs.
+ */
+data class GpsShareCardData(
+    val eyebrow: String,
+    val routePoints: List<Pair<Double, Double>>,
+    val distanceNumber: String?,
+    val distanceUnitLabel: String,
+    val timeText: String,
+    val paceText: String?,
+    val paceLabel: String,
+    val avgBpmText: String?,
+    val prLines: List<Pair<String, String>>,
 )
 
 /**
@@ -83,6 +113,10 @@ data class ShareCardData(
  */
 @Composable
 fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier = Modifier) {
+    data.gps?.let { gps ->
+        GpsShareCard(data, gps, format, modifier)
+        return
+    }
     LogEzTheme {
         val sectionGap = Spacing.md
         Column(
@@ -186,6 +220,148 @@ fun ShareCard(data: ShareCardData, format: ShareCardFormat, modifier: Modifier =
                 color = MaterialTheme.colorScheme.onBackground,
             )
         }
+    }
+}
+
+/**
+ * The walk/run card: route drawn as a plain vector line, distance, time, pace, average heart rate
+ * and records. No muscle charts and no set lines, which said nothing true about a run. The route
+ * is drawn on a Canvas rather than with the map view: the card is captured through a graphics
+ * layer, which cannot reliably capture a live MapView, and a card with no tiles needs no network.
+ */
+@Composable
+private fun GpsShareCard(data: ShareCardData, gps: GpsShareCardData, format: ShareCardFormat, modifier: Modifier) {
+    LogEzTheme {
+        Column(
+            modifier = modifier
+                .requiredSize(format.width, format.height)
+                .background(MaterialTheme.colorScheme.background)
+                .padding(Spacing.lg),
+        ) {
+            Text(
+                gps.eyebrow.uppercase(currentLocale()),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.14.em),
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                data.title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = Spacing.xxs),
+            )
+            Text(
+                data.dateLine,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Hairline(Modifier.padding(top = Spacing.md))
+
+            if (gps.routePoints.size >= 2) {
+                RouteDrawing(gps.routePoints, Modifier.fillMaxWidth().weight(1f).padding(vertical = Spacing.xs))
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
+
+            gps.distanceNumber?.let { number ->
+                Text(
+                    stringResource(R.string.summary_gps_distance).uppercase(currentLocale()),
+                    style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row {
+                    Text(
+                        number,
+                        style = LogEzMono.dataLarge.copy(fontSize = 54.sp, lineHeight = 58.sp, letterSpacing = (-0.03).em),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                    Text(
+                        gps.distanceUnitLabel,
+                        style = LogEzMono.dataLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.alignByBaseline().padding(start = 6.dp),
+                    )
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
+                GpsCardStat(gps.timeText, stringResource(R.string.share_card_time), Modifier.weight(1f))
+                gps.paceText?.let { GpsCardStat(it, gps.paceLabel, Modifier.weight(1f)) }
+                gps.avgBpmText?.let { GpsCardStat(it, stringResource(R.string.share_card_avg_bpm), Modifier.weight(1f)) }
+            }
+            gps.prLines.take(2).forEach { (label, value) ->
+                Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = Gold500, modifier = Modifier.size(16.dp))
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f).padding(start = Spacing.xs),
+                    )
+                    Text(value, style = LogEzMono.dataMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onBackground)
+                }
+            }
+
+            Hairline(Modifier.padding(top = Spacing.md, bottom = Spacing.xs))
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.06.em),
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GpsCardStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(value, style = LogEzMono.dataLarge, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
+        Text(
+            label.uppercase(currentLocale()),
+            style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * The route fitted into its box, north up, longitude scaled by cos(latitude) so the shape isn't
+ * stretched sideways. A soft wide stroke under the line, a green start dot and a light finish dot,
+ * matching the map's route styling.
+ */
+@Composable
+private fun RouteDrawing(points: List<Pair<Double, Double>>, modifier: Modifier = Modifier) {
+    val line = MaterialTheme.colorScheme.primary
+    val finish = MaterialTheme.colorScheme.onSurface
+    val ring = MaterialTheme.colorScheme.background
+    Canvas(modifier = modifier) {
+        val cosLat = kotlin.math.cos(Math.toRadians(points.sumOf { it.first } / points.size))
+        val xs = points.map { it.second * cosLat }
+        val ys = points.map { -it.first }
+        val minX = xs.min()
+        val minY = ys.min()
+        val spanX = (xs.max() - minX).takeIf { it > 0.0 } ?: 1e-9
+        val spanY = (ys.max() - minY).takeIf { it > 0.0 } ?: 1e-9
+        val pad = 18.dp.toPx()
+        val scale = minOf((size.width - 2 * pad) / spanX, (size.height - 2 * pad) / spanY)
+        val offsetX = (size.width - spanX * scale) / 2
+        val offsetY = (size.height - spanY * scale) / 2
+        fun at(i: Int) = Offset((offsetX + (xs[i] - minX) * scale).toFloat(), (offsetY + (ys[i] - minY) * scale).toFloat())
+        val path = Path().apply {
+            moveTo(at(0).x, at(0).y)
+            for (i in 1 until points.size) lineTo(at(i).x, at(i).y)
+        }
+        drawPath(path, line.copy(alpha = 0.14f), style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path, line, style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        val dot = 5.5.dp.toPx()
+        val stroke = 2.5.dp.toPx()
+        drawCircle(ring, radius = dot + stroke, center = at(points.lastIndex))
+        drawCircle(finish, radius = dot, center = at(points.lastIndex))
+        drawCircle(ring, radius = dot + stroke, center = at(0))
+        drawCircle(line, radius = dot, center = at(0))
     }
 }
 

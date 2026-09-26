@@ -524,6 +524,43 @@
     <string name="summary_prs_header">Personal records</string>
     <string name="summary_done">Done</string>
     <string name="summary_share">Share</string>
+    <!-- Walk/run summary: GPS-tracked workouts get a route-first layout with no muscle charts (2026-09-26) -->
+    <string name="summary_gps_chip_run">Run</string>
+    <string name="summary_gps_chip_walk">Walk</string>
+    <string name="summary_gps_chip_other">GPS</string>
+    <string name="summary_gps_distance">Distance</string>
+    <string name="summary_gps_time">Time</string>
+    <string name="summary_gps_avg_pace_km">Avg pace /km</string>
+    <string name="summary_gps_avg_pace_mi">Avg pace /mi</string>
+    <string name="summary_gps_avg_speed_km">Avg speed km/h</string>
+    <string name="summary_gps_avg_speed_mi">Avg speed mph</string>
+    <string name="summary_gps_pace_header">Pace</string>
+    <string name="summary_gps_fastest_km">Fastest km</string>
+    <string name="summary_gps_fastest_mi">Fastest mile</string>
+    <string name="summary_gps_split_col_km">Km</string>
+    <string name="summary_gps_split_col_mi">Mi</string>
+    <string name="summary_gps_split_col_pace">Pace</string>
+    <string name="summary_gps_split_col_bpm">Bpm</string>
+    <string name="summary_gps_split_a11y">Split %1$s, pace %2$s</string>
+    <string name="summary_gps_split_bpm_a11y">Split %1$s, pace %2$s, %3$s beats per minute</string>
+    <string name="summary_gps_heart_rate_header">Heart rate</string>
+    <string name="summary_gps_heart_rate_source">via Health Connect</string>
+    <string name="summary_gps_avg_bpm">Avg bpm</string>
+    <string name="summary_gps_max_bpm">Max bpm</string>
+    <string name="summary_gps_zones_header">Time in zones</string>
+    <string name="summary_gps_zones_basis">Zones use the max heart rate set in Settings (%1$d bpm).</string>
+    <string name="summary_gps_zones_missing">Set your max heart rate in Settings to see time in each zone.</string>
+    <string name="summary_gps_zone_a11y">Zone %1$d, %2$s: %3$s</string>
+    <string name="summary_gps_route_interrupted">The route wasn\'t saved because tracking was interrupted.</string>
+    <string name="summary_gps_route_empty">GPS didn\'t record any points on this workout, so there\'s no route to show.</string>
+    <string name="summary_gps_open_map">Open the full-screen map</string>
+    <string name="summary_gps_close_map">Close the map</string>
+    <string name="share_card_run_complete">Run complete</string>
+    <string name="share_card_walk_complete">Walk complete</string>
+    <string name="share_card_time">Time</string>
+    <string name="share_card_pace_km">Pace /km</string>
+    <string name="share_card_pace_mi">Pace /mi</string>
+    <string name="share_card_avg_bpm">Avg bpm</string>
 
     <!-- Shareable summary-card export -->
     <string name="share_card_avg_reps">avg %1$s reps</string>

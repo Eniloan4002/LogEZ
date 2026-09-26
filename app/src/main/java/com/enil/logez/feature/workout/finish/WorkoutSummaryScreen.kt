@@ -3,12 +3,16 @@ package com.enil.logez.feature.workout.finish
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -54,6 +58,8 @@ import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.activity.map.RouteMapView
 import com.enil.logez.feature.history.formatCardDateTime
+import com.enil.logez.core.domain.model.GpsActivity
+import com.enil.logez.feature.workout.finish.share.GpsShareCardData
 import com.enil.logez.feature.workout.finish.share.ShareCardData
 import com.enil.logez.feature.workout.finish.share.ShareSummaryDialog
 
@@ -63,6 +69,12 @@ import com.enil.logez.feature.workout.finish.share.ShareSummaryDialog
  * no social SDKs; the image leaves the device only through the target the user picks there. Back
  * is intercepted to mean Done: the workout is already saved, so re-entering the finish screen
  * behind it would offer to save something that no longer exists.
+ *
+ * A GPS-tracked walk/run renders [GpsWorkoutSummary] instead (2026-09-26). This route draws
+ * behind the status bar (LogEzApp leaves out the top inset for it) so that summary's map can run
+ * up to the top edge; the strength layout pads itself back down below the status bar. The inner
+ * Scaffold adds no insets of its own: it used to add the status bar a second time on top of the
+ * app Scaffold's, leaving a ~95dp empty band above the heading.
  */
 @Composable
 fun WorkoutSummaryScreen(
@@ -72,13 +84,31 @@ fun WorkoutSummaryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Saveable so a rotation with the dialog open re-opens it instead of silently swallowing the tap.
     var showShareDialog by rememberSaveable { mutableStateOf(false) }
+    var showFullMap by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onDone)
 
-    Scaffold { padding ->
+    Scaffold(contentWindowInsets = WindowInsets(0)) { padding ->
         if (uiState.isLoading) return@Scaffold
 
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(Spacing.md),
+        if (uiState.isGpsTracked) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                GpsWorkoutSummary(
+                    uiState = uiState,
+                    onOpenMap = { showFullMap = true },
+                    onShare = { showShareDialog = true },
+                    onDone = onDone,
+                )
+                // Drawn over the summary rather than in place of it, so closing the map returns to
+                // the same scroll position with the hero map still loaded.
+                if (showFullMap && uiState.routePoints.isNotEmpty()) {
+                    // Composed after the screen's own BackHandler, so Back closes the map first.
+                    BackHandler { showFullMap = false }
+                    FullScreenRouteMap(routePoints = uiState.routePoints, onClose = { showFullMap = false })
+                }
+            }
+        } else Column(
+            modifier = Modifier.fillMaxSize().padding(padding).windowInsetsPadding(WindowInsets.statusBars)
+                .verticalScroll(rememberScrollState()).padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -172,7 +202,7 @@ fun WorkoutSummaryScreen(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.sm).fillMaxWidth(),
                 )
-                uiState.prMedals.forEach { medal -> PrMedalCard(medal, uiState.weightUnit) }
+                uiState.prMedals.forEach { medal -> PrMedalCard(medal, uiState.weightUnit, uiState.distanceUnit) }
             }
 
             OutlinedButton(
@@ -187,10 +217,33 @@ fun WorkoutSummaryScreen(
         }
 
         if (showShareDialog) {
+            val gpsShare = if (uiState.isGpsTracked) {
+                val km = uiState.distanceUnit == DistanceUnit.KM
+                GpsShareCardData(
+                    eyebrow = stringResource(
+                        when (uiState.gpsActivity) {
+                            GpsActivity.RUN -> R.string.share_card_run_complete
+                            GpsActivity.WALK -> R.string.share_card_walk_complete
+                            GpsActivity.OTHER -> R.string.summary_title
+                        },
+                    ),
+                    routePoints = uiState.routePoints,
+                    distanceNumber = if (uiState.hasDistance) formatDistanceNumber(uiState.totalDistanceMeters, uiState.distanceUnit) else null,
+                    distanceUnitLabel = if (km) "km" else "mi",
+                    timeText = com.enil.logez.core.designsystem.formatElapsedClock(uiState.durationSeconds),
+                    paceText = uiState.averagePaceSecondsPerUnit?.let { com.enil.logez.core.designsystem.formatPace(it) },
+                    paceLabel = stringResource(if (km) R.string.share_card_pace_km else R.string.share_card_pace_mi),
+                    avgBpmText = uiState.heartRateSummary?.averageBpm?.toString(),
+                    prLines = uiState.prMedals.map { medal -> stringResource(medal.prType.labelRes()) to formatGpsPrValue(medal, uiState.distanceUnit) },
+                )
+            } else {
+                null
+            }
             ShareSummaryDialog(
                 data = ShareCardData(
                     title = uiState.title,
-                    dateLine = formatCardDateTime(uiState.startedAtMillis),
+                    // A shared image outlives "Today", so a walk/run card carries the full date.
+                    dateLine = if (uiState.isGpsTracked) formatFullDateTime(uiState.startedAtMillis) else formatCardDateTime(uiState.startedAtMillis),
                     durationText = formatDuration(uiState.durationSeconds),
                     volumeText = if (uiState.hasVolume) formatVolume(uiState.totalVolumeKg, uiState.weightUnit) else null,
                     setsText = uiState.completedSetCount.toString(),
@@ -208,6 +261,7 @@ fun WorkoutSummaryScreen(
                     },
                     structure = uiState.structure,
                     rounds = uiState.rounds,
+                    gps = gpsShare,
                 ),
                 onDismiss = { showShareDialog = false },
             )
@@ -221,7 +275,7 @@ fun WorkoutSummaryScreen(
  * banner is untouched).
  */
 @Composable
-private fun PrMedalCard(medal: PrMedal, weightUnit: WeightUnit) {
+private fun PrMedalCard(medal: PrMedal, weightUnit: WeightUnit, distanceUnit: DistanceUnit) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
         colors = CardDefaults.cardColors(
@@ -239,7 +293,7 @@ private fun PrMedalCard(medal: PrMedal, weightUnit: WeightUnit) {
                 Text(medal.exerciseName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(medal.prType.labelRes()), style = MaterialTheme.typography.bodySmall)
             }
-            Text(formatPrValue(medal, weightUnit), style = LogEzMono.dataLarge)
+            Text(formatPrValue(medal, weightUnit, distanceUnit), style = LogEzMono.dataLarge)
         }
     }
 }
@@ -265,14 +319,19 @@ private fun formatChartElapsed(totalSeconds: Long): String {
     return "%d:%02d".format(java.util.Locale.ROOT, m, s)
 }
 
-/** Reps-based records are whole numbers; time is m:ss; everything else carries a unit. */
-private fun formatPrValue(medal: PrMedal, unit: WeightUnit): String = when (medal.prType) {
+/**
+ * Reps-based records are whole numbers; everything else carries a unit. Time uses the clock format
+ * the walk/run summary uses, which keeps hours ("1:15:03", not "75:03"). Distance stays in meters
+ * here: on a strength summary it is a carry or a sled push, where "20m" reads better than
+ * "0.02 km". A walk/run's distance record renders on [GpsWorkoutSummary] in km/mi instead.
+ */
+private fun formatPrValue(medal: PrMedal, weightUnit: WeightUnit, distanceUnit: DistanceUnit): String = when (medal.prType) {
     com.enil.logez.core.domain.model.PrType.MOST_REPS_SET,
     com.enil.logez.core.domain.model.PrType.MOST_SESSION_REPS,
     -> medal.value.toInt().toString()
     com.enil.logez.core.domain.model.PrType.BEST_TIME,
     com.enil.logez.core.domain.model.PrType.LONGEST_TIME,
-    -> "%d:%02d".format(java.util.Locale.ROOT, medal.value.toInt() / 60, medal.value.toInt() % 60)
+    -> formatGpsPrValue(medal, distanceUnit)
     com.enil.logez.core.domain.model.PrType.LONGEST_DISTANCE -> "${formatSummaryNumber(medal.value)}m"
-    else -> formatVolume(medal.value, unit)
+    else -> formatVolume(medal.value, weightUnit)
 }

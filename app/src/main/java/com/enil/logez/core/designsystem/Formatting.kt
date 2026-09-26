@@ -107,6 +107,19 @@ object Formatting {
         return if (display == display.toLong().toDouble()) "${display.toLong()}$suffix" else "%.2f$suffix".format(Locale.ROOT, display)
     }
 
+    /**
+     * A clock-style elapsed time: `m:ss` under an hour, `h:mm:ss` from an hour up, `Locale.ROOT`.
+     * The live tracking screen and the walk/run summary both read this, so a run's time looks the
+     * same while it ticks and after it is saved.
+     */
+    fun elapsedClock(totalSeconds: Int): String {
+        val seconds = totalSeconds.coerceAtLeast(0)
+        val h = seconds / 3600
+        val m = (seconds % 3600) / 60
+        val s = seconds % 60
+        return if (h > 0) "%d:%02d:%02d".format(Locale.ROOT, h, m, s) else "%d:%02d".format(Locale.ROOT, m, s)
+    }
+
     /** `M:SS` per km/mile from [PaceCalculator.paceSecondsPerUnit] -- reuses [mmSs]'s exact shape. */
     fun pace(secondsPerUnit: Double): String = mmSs(secondsPerUnit.toLong().toInt())
 }
@@ -121,6 +134,7 @@ fun formatMmSs(totalSeconds: Int): String = Formatting.mmSs(totalSeconds)
 fun formatDistanceKm(meters: Double): String = Formatting.distanceKm(meters)
 fun formatDistance(meters: Double, unit: DistanceUnit): String = Formatting.distance(meters, unit)
 fun formatPace(secondsPerUnit: Double): String = Formatting.pace(secondsPerUnit)
+fun formatElapsedClock(totalSeconds: Int): String = Formatting.elapsedClock(totalSeconds)
 
 /**
  * Parses a number the user typed, accepting a comma as the decimal separator. A phone set to a

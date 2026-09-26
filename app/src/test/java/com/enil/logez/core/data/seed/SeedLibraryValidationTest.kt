@@ -51,6 +51,13 @@ class SeedLibraryValidationTest {
     }
 
     @Test
+    fun `the walk and run ids the summary uses to label a GPS workout are the real seed rows`() {
+        val byId = loadSeedFile().exercises.associateBy { it.id }
+        assertEquals("Running (Outdoor)", byId[com.enil.logez.core.domain.model.GpsActivity.RUNNING_OUTDOOR_EXERCISE_ID]?.name)
+        assertEquals("Walking (Outdoor)", byId[com.enil.logez.core.domain.model.GpsActivity.WALKING_OUTDOOR_EXERCISE_ID]?.name)
+    }
+
+    @Test
     fun `every enum field maps to a real domain enum value`() {
         loadSeedFile().exercises.forEach { e ->
             ExerciseType.valueOf(e.exerciseType) // throws IllegalArgumentException on a bad value

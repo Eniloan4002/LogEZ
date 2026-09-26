@@ -109,6 +109,21 @@ class WorkoutDetailViewModelTest {
     }
 
     @Test
+    fun `a track with no recorded point shows no Route card, rather than an empty map`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 0.0)),
+            ),
+            trackRepo = FakeActivityTrackRepository(
+                listOf(com.enil.logez.core.data.entity.ActivityTrackEntity("t-empty", "s1", routePolyline = null, pointCount = 0, avgAccuracyM = null)),
+            ),
+        )
+        assertFalse(vm.uiState.value.hasRoute)
+    }
+
+    @Test
     fun `hasRoute stays true even when the tracked set is excluded from stats as a warm-up`() = runTest {
         // Regression (adversarial review, 2026-09-10): hasRoute deliberately scans the unfiltered
         // set list, not the isIncluded-filtered one hasVolume/hasDistance use -- a recorded GPS

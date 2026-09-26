@@ -29,6 +29,10 @@ data class LineChartPoint(val x: Long, val y: Double)
  * toolchain quadruple is pinned, and §5.2's exercise graphs are a single series with tap-to-read,
  * well within Canvas reach). Y-axis renders min/mid/max gridline labels via [yLabel]; the x-axis
  * renders the first and last point's [xLabel]. Tapping selects the nearest point by x.
+ *
+ * [showPoints] false draws the line without a dot on every point (2026-09-26): a heart-rate or
+ * pace series has a point every few seconds, and a dot on each one turns the line into beads.
+ * A tapped point still gets its highlight.
  */
 @Composable
 fun LineChart(
@@ -38,6 +42,7 @@ fun LineChart(
     selectedIndex: Int?,
     onPointTap: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    showPoints: Boolean = true,
 ) {
     val lineColor = MaterialTheme.colorScheme.primary
     val gridColor = MaterialTheme.colorScheme.outlineVariant
@@ -126,7 +131,9 @@ fun LineChart(
             if (i == selectedIndex) {
                 drawCircle(selectedColor, radius = 6.dp.toPx(), center = p)
             }
-            drawCircle(lineColor, radius = 3.dp.toPx(), center = p)
+            if (showPoints || i == selectedIndex || points.size == 1) {
+                drawCircle(lineColor, radius = 3.dp.toPx(), center = p)
+            }
         }
     }
 }
