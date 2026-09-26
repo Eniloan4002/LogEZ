@@ -13,6 +13,7 @@ import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeClock
@@ -35,6 +36,8 @@ import com.enil.logez.feature.workout.session.WorkoutSessionController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -62,7 +65,7 @@ class WorkoutTabViewModelTest {
     private fun newViewModel(
         routineRepo: FakeRoutineRepository,
         clock: FakeClock = FakeClock(),
-        workoutRepo: FakeWorkoutRepository = FakeWorkoutRepository(),
+        workoutRepo: WorkoutRepository = FakeWorkoutRepository(),
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
         activityTrackingController: ActivityTrackingController = ActivityTrackingController(
@@ -111,6 +114,54 @@ class WorkoutTabViewModelTest {
     fun `M8c heatmap has no counts when there are no completed workouts`() = runTest {
         val vm = newViewModel(FakeRoutineRepository())
         assertEquals(emptyMap<java.time.LocalDate, Int>(), vm.uiState.value.heatmapCounts)
+    }
+
+    @Test
+    fun `the heatmap caption shows when there is no completed workout`() = runTest {
+        val vm = newViewModel(FakeRoutineRepository())
+        assertTrue(vm.uiState.value.showHeatmapEmptyCaption)
+    }
+
+    @Test
+    fun `an unfinished workout alone still counts as no completed workout for the heatmap caption`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w1", routineId = null, title = "Workout", notes = null,
+                    status = WorkoutStatus.IN_PROGRESS, startedAt = 5_000L, endedAt = null,
+                    durationSeconds = 0, createdAt = 5_000L, updatedAt = 5_000L,
+                ),
+            ),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), workoutRepo = workoutRepo)
+        assertTrue(vm.uiState.value.showHeatmapEmptyCaption)
+    }
+
+    @Test
+    fun `the heatmap caption goes away once a workout is completed`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(
+                WorkoutEntity(
+                    id = "w1", routineId = null, title = "Workout", notes = null,
+                    status = WorkoutStatus.COMPLETED, startedAt = 5_000L, endedAt = 6_000L,
+                    durationSeconds = 1, createdAt = 5_000L, updatedAt = 5_000L,
+                ),
+            ),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), workoutRepo = workoutRepo)
+        assertFalse(vm.uiState.value.showHeatmapEmptyCaption)
+    }
+
+    @Test
+    fun `the heatmap caption stays hidden while the completed workouts have not loaded`() = runTest {
+        // observeCompleted() that has not answered yet, as Room hasn't on the first frame: the
+        // ViewModel's own pre-load state must not show the caption to someone who has history.
+        val notYetLoaded = object : WorkoutRepository by FakeWorkoutRepository() {
+            override fun observeCompleted(): Flow<List<WorkoutEntity>> = MutableSharedFlow()
+        }
+        val vm = newViewModel(FakeRoutineRepository(), workoutRepo = notYetLoaded)
+        assertTrue(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.showHeatmapEmptyCaption)
     }
 
     @Test

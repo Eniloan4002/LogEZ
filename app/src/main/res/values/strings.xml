@@ -74,8 +74,8 @@
     <string name="history_detail_delete_title">Delete this workout?</string>
     <string name="history_detail_delete_body">This can\'t be undone.</string>
 
-    <string name="workout_empty_title">Nothing logged yet</string>
-    <string name="workout_empty_subtitle">Build a routine or start an empty workout to begin.</string>
+    <string name="workout_empty_title">No routines yet</string>
+    <string name="workout_empty_subtitle">Create one from the exercises you repeat, or open a finished workout in History and choose Save as Routine.</string>
 
     <string name="profile_empty_title">No stats yet</string>
     <string name="profile_empty_subtitle">Log a session to begin tracking streaks, charts, and records.</string>
@@ -267,6 +267,7 @@
 
     <string name="workout_tab_title">Workout</string>
     <string name="workout_heatmap_title">Progress</string>
+    <string name="workout_heatmap_empty_caption">Each square is a day. Days you train fill in.</string>
     <string name="workout_steps_scorecard_title">Steps Today</string>
     <string name="workout_steps_last_seven_days">Past 7 days</string>
     <string name="workout_new_folder">New folder</string>

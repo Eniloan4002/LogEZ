@@ -70,6 +70,7 @@ import com.enil.logez.core.data.entity.RoutineFolderEntity
 import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.ConfirmDialog
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.EmptyStateCtaStyle
 import com.enil.logez.core.designsystem.HeatmapGrid
 import com.enil.logez.core.designsystem.DragHandle
 import com.enil.logez.core.designsystem.SyncOptimisticList
@@ -357,6 +358,17 @@ fun WorkoutTabScreen(
                                 firstDayOfWeek = uiState.heatmapFirstDayOfWeek,
                                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
                             )
+                            // First-run plan (O1b): an all-grey grid with no legend reads as a
+                            // broken widget, and the grid itself exposes nothing to TalkBack. Until
+                            // the first completed workout fills a square, one line says what it is.
+                            if (uiState.showHeatmapEmptyCaption) {
+                                Text(
+                                    stringResource(R.string.workout_heatmap_empty_caption),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = Spacing.sm),
+                                )
+                            }
                         }
                     }
                 }
@@ -396,12 +408,15 @@ fun WorkoutTabScreen(
 
             if (uiState.folders.isEmpty() && uiState.rootRoutines.isEmpty()) {
                 item {
+                    // First-run plan (O1b): outlined, so the pinned Start Empty Workout stays the
+                    // tab's one filled button -- the routine is the secondary path.
                     EmptyState(
                         icon = LogEzIcons.Workout,
                         title = stringResource(R.string.workout_empty_title),
                         subtitle = stringResource(R.string.workout_empty_subtitle),
                         ctaLabel = stringResource(R.string.workout_create_first_routine),
                         onCtaClick = { onCreateRoutine(null) },
+                        ctaStyle = EmptyStateCtaStyle.Outlined,
                     )
                 }
                 return@LazyColumn

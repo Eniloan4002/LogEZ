@@ -189,6 +189,7 @@ class WorkoutTabViewModel @Inject constructor(
             heatmapFirstDayOfWeek = firstDayOfWeek,
             weeklyStreak = weeklyStreak,
             dailyStreak = dailyStreak,
+            showHeatmapEmptyCaption = completed.isEmpty(),
             showHeatmap = settings.showHeatmap,
             showGoals = settings.showGoals,
         )
@@ -336,6 +337,12 @@ data class WorkoutTabUiState(
     val weeklyStreak: Int = 0,
     /** `StreakCalculator.dailyStreak` -- same honest-empty-state rule: 0 means no chip. */
     val dailyStreak: Int = 0,
+    /**
+     * First-run plan (O1b): true once Room has answered and there is no completed workout, so the
+     * heatmap's "Each square is a day" caption shows. False while loading, so a user with history
+     * never sees it flash in.
+     */
+    val showHeatmapEmptyCaption: Boolean = false,
     /** Owner, 2026-09-03: Settings toggles hiding the heatmap/Goals sections below. Default on. */
     val showHeatmap: Boolean = true,
     val showGoals: Boolean = true,

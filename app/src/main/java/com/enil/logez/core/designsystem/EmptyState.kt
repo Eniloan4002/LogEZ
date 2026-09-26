@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,6 +21,11 @@ import androidx.compose.ui.unit.dp
  * The one honest-empty-state component every screen in the app uses (PHASE2_PLAN.md: "empty
  * states are honest — they never render zeroed charts, sample data, or fabricated metrics").
  * A screen with no CTA yet (nothing to route to before M2/M3 land) omits [ctaLabel].
+ *
+ * [ctaStyle] defaults to [EmptyStateCtaStyle.Filled], so every screen whose empty state is its
+ * only action keeps the solid button. A screen that already pins its own filled primary action
+ * (the Workout tab's Start Empty Workout) passes [EmptyStateCtaStyle.Outlined], so the pinned
+ * action stays the one filled button in view.
  */
 @Composable
 fun EmptyState(
@@ -29,6 +35,7 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     ctaLabel: String? = null,
     onCtaClick: () -> Unit = {},
+    ctaStyle: EmptyStateCtaStyle = EmptyStateCtaStyle.Filled,
 ) {
     Column(
         modifier = modifier
@@ -56,9 +63,20 @@ fun EmptyState(
             modifier = Modifier.padding(top = Spacing.xxs),
         )
         if (ctaLabel != null) {
-            Button(onClick = onCtaClick, modifier = Modifier.padding(top = Spacing.lg)) {
-                Text(ctaLabel)
+            val ctaModifier = Modifier.padding(top = Spacing.lg)
+            // Centred like the title and subtitle, so a label that wraps at large font sizes
+            // doesn't hug the button's start edge. A no-op for a one-line label.
+            when (ctaStyle) {
+                EmptyStateCtaStyle.Filled -> Button(onClick = onCtaClick, modifier = ctaModifier) {
+                    Text(ctaLabel, textAlign = TextAlign.Center)
+                }
+                EmptyStateCtaStyle.Outlined -> OutlinedButton(onClick = onCtaClick, modifier = ctaModifier) {
+                    Text(ctaLabel, textAlign = TextAlign.Center)
+                }
             }
         }
     }
 }
+
+/** How [EmptyState] draws its call to action. */
+enum class EmptyStateCtaStyle { Filled, Outlined }
