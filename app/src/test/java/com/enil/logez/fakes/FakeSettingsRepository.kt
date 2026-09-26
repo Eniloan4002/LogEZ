@@ -6,23 +6,46 @@ import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
+import com.enil.logez.core.domain.model.SetupChoices
+import com.enil.logez.core.domain.model.StoredSetupValues
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import java.time.DayOfWeek
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 
-/** In-memory fake (PHASE2_PLAN.md §10.1 rule 2). */
-class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsRepository {
+/**
+ * In-memory fake (PHASE2_PLAN.md §10.1 rule 2).
+ *
+ * [storedSetupValues] mirrors which setup keys the real DataStore would hold: none at first (a
+ * fresh install), then each one as its setter, [replaceAll] or [applySetupChoices] writes it.
+ */
+class FakeSettingsRepository(
+    initial: UserSettings = UserSettings(),
+    var storedSetupValues: StoredSetupValues = StoredSetupValues(),
+) : SettingsRepository {
     private val state = MutableStateFlow(initial)
     override val settings = state
 
-    override suspend fun setWeightUnit(value: WeightUnit) { state.value = state.value.copy(weightUnit = value) }
-    override suspend fun setDistanceUnit(value: DistanceUnit) { state.value = state.value.copy(distanceUnit = value) }
+    /** Thrown from [readStoredSetupValues] when set, standing in for a corrupt DataStore. */
+    var readStoredSetupValuesError: Exception? = null
+
+    /** Every [applySetupChoices] call, in order. */
+    val appliedSetupChoices = mutableListOf<SetupChoices>()
+
+    /** Thrown from [applySetupChoices] (after it is recorded, before anything is written) when set. */
+    var applySetupChoicesError: Exception? = null
+
+    /** When set, [applySetupChoices] suspends on it after being recorded, so a test can see the write in progress. */
+    var applySetupChoicesGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun setWeightUnit(value: WeightUnit) { state.value = state.value.copy(weightUnit = value); storedSetupValues = storedSetupValues.copy(weightUnit = value) }
+    override suspend fun setDistanceUnit(value: DistanceUnit) { state.value = state.value.copy(distanceUnit = value); storedSetupValues = storedSetupValues.copy(distanceUnit = value) }
     override suspend fun setLengthUnit(value: LengthUnit) { state.value = state.value.copy(lengthUnit = value) }
     override suspend fun setMuscleDiagramVariant(value: MuscleDiagramVariant) { state.value = state.value.copy(muscleDiagramVariant = value) }
-    override suspend fun setFirstDayOfWeek(value: DayOfWeek) { state.value = state.value.copy(firstDayOfWeek = value) }
+    override suspend fun setFirstDayOfWeek(value: DayOfWeek) { state.value = state.value.copy(firstDayOfWeek = value); storedSetupValues = storedSetupValues.copy(firstDayOfWeek = value) }
     override suspend fun setPerExerciseUnitOverride(exerciseId: String, unit: WeightUnit?) {
         state.value = state.value.copy(
             perExerciseUnitOverrides = if (unit == null) state.value.perExerciseUnitOverrides - exerciseId else state.value.perExerciseUnitOverrides + (exerciseId to unit),
@@ -49,5 +72,21 @@ class FakeSettingsRepository(initial: UserSettings = UserSettings()) : SettingsR
     override suspend fun setShowGoals(value: Boolean) { state.value = state.value.copy(showGoals = value) }
     override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) { state.value = state.value.copy(measurementsTrackingMode = value) }
     override suspend fun setWeeklyActiveDayTarget(value: Int) { state.value = state.value.copy(weeklyActiveDayTarget = value) }
-    override suspend fun replaceAll(settings: UserSettings) { state.value = settings }
+    override suspend fun replaceAll(settings: UserSettings) {
+        state.value = settings
+        storedSetupValues = StoredSetupValues(settings.weightUnit, settings.distanceUnit, settings.firstDayOfWeek)
+    }
+
+    override suspend fun readStoredSetupValues(): StoredSetupValues {
+        readStoredSetupValuesError?.let { throw it }
+        return storedSetupValues
+    }
+
+    override suspend fun applySetupChoices(choices: SetupChoices) {
+        appliedSetupChoices += choices
+        applySetupChoicesGate?.await()
+        applySetupChoicesError?.let { throw it }
+        state.value = choices.applyTo(state.value)
+        storedSetupValues = StoredSetupValues(choices.weightUnit, choices.distanceUnit, choices.firstDayOfWeek)
+    }
 }

@@ -70,6 +70,15 @@ interface ExerciseDao {
     suspend fun seedCount(): Int
 
     /**
+     * Exercises the user made or changed: saving an edit to a seeded exercise also writes
+     * `is_custom = 1` (see [com.enil.logez.core.domain.repository.ExerciseRepository.upsertCustom]), so an edited seed row counts too,
+     * and so does a custom exercise that was later soft-deleted. One statement on purpose, so it
+     * can never straddle the first seed's commit (see `RoomUserDataProbe`).
+     */
+    @Query("SELECT COUNT(*) FROM exercises WHERE is_custom = 1")
+    suspend fun customCount(): Int
+
+    /**
      * Soft delete (spine entity 1) — any exercise, seed or custom (Owner directive 2026-08-26).
      * For a seed row this is not necessarily permanent: a future seed-version bump's
      * [updateSeedFields]/[pruneRetiredSeeds] pass writes `is_deleted` from the seed file's own

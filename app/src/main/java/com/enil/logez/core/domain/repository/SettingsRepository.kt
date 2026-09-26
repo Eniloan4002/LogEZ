@@ -6,6 +6,8 @@ import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
+import com.enil.logez.core.domain.model.SetupChoices
+import com.enil.logez.core.domain.model.StoredSetupValues
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
@@ -58,4 +60,18 @@ interface SettingsRepository {
      * library at a stale version.
      */
     suspend fun replaceAll(settings: UserSettings)
+
+    /**
+     * Which setup values are actually stored, as opposed to filled in from defaults. The
+     * [settings] Flow can't answer that: a stored KG and a missing key both read as KG. First-run
+     * setup preselects a stored value over the region's suggestion.
+     */
+    suspend fun readStoredSetupValues(): StoredSetupValues
+
+    /**
+     * First-run setup's Continue: weight, distance and length units and the first day of the
+     * week, in one edit so a process death can't leave only some of them written. Nothing else
+     * is touched.
+     */
+    suspend fun applySetupChoices(choices: SetupChoices)
 }

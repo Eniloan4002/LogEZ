@@ -13,6 +13,8 @@ import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
+import com.enil.logez.core.domain.model.SetupChoices
+import com.enil.logez.core.domain.model.StoredSetupValues
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WarmupStep
 import com.enil.logez.core.domain.model.WeightUnit
@@ -22,6 +24,7 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import java.time.DayOfWeek
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -199,6 +202,24 @@ class SettingsRepositoryImpl @Inject constructor(
 
             // lastAppliedSeedVersion is deliberately untouched here -- it belongs to the installed
             // app's seed asset, not to the user's data. The restore resets it separately.
+        }
+    }
+
+    override suspend fun readStoredSetupValues(): StoredSetupValues {
+        val prefs = dataStore.data.first()
+        return StoredSetupValues(
+            weightUnit = prefs[Keys.WEIGHT_UNIT]?.toEnumOrNull<WeightUnit>(),
+            distanceUnit = prefs[Keys.DISTANCE_UNIT]?.toEnumOrNull<DistanceUnit>(),
+            firstDayOfWeek = prefs[Keys.FIRST_DAY_OF_WEEK]?.toEnumOrNull<DayOfWeek>(),
+        )
+    }
+
+    override suspend fun applySetupChoices(choices: SetupChoices) {
+        dataStore.edit { prefs ->
+            prefs[Keys.WEIGHT_UNIT] = choices.weightUnit.name
+            prefs[Keys.DISTANCE_UNIT] = choices.distanceUnit.name
+            prefs[Keys.LENGTH_UNIT] = choices.lengthUnit.name
+            prefs[Keys.FIRST_DAY_OF_WEEK] = choices.firstDayOfWeek.name
         }
     }
 
