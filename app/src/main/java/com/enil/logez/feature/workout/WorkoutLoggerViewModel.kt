@@ -72,6 +72,7 @@ private data class WorkoutMeta(
 /** Intermediate grouping for the session controller's live state. */
 private data class SessionState(
     val isPaused: Boolean = false,
+    val timerWaitsForFirstExercise: Boolean = false,
     val restExerciseId: String? = null,
     val inlineTimerExerciseId: String? = null,
     val inlineTimerSetId: String? = null,
@@ -219,6 +220,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         sessionController.state.map { s ->
             SessionState(
                 isPaused = s.isPaused,
+                timerWaitsForFirstExercise = timerWaitsForFirstExercise(s),
                 restExerciseId = s.restExerciseId,
                 inlineTimerExerciseId = s.inlineTimer?.exerciseId,
                 inlineTimerSetId = s.inlineTimer?.setId,
@@ -255,6 +257,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             supersetSelectionActive = meta.supersetSourceId != null,
             supersetSourceExerciseId = meta.supersetSourceId,
             isPaused = session.isPaused,
+            timerWaitsForFirstExercise = session.timerWaitsForFirstExercise,
             restExerciseId = session.restExerciseId,
             keepAwakeEnabled = meta.keepAwakeEnabled,
             inlineTimerEnabled = meta.inlineTimerEnabled,
@@ -826,6 +829,23 @@ class WorkoutLoggerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * First-run plan (O1b): the empty logger's second line, "The timer starts with your first
+     * exercise.", is true only for a session that is holding its clock at zero until an exercise
+     * arrives -- an empty start, or an empty start whose first exercise was removed inside the
+     * grace window (which resets and pauses it). A routine, copy or History start runs the timer at
+     * once, and an empty start emptied after the grace window keeps running, so neither says it.
+     * Paused means elapsed is exactly the accumulator ([com.enil.logez.feature.workout.session.WorkoutDurationEngine]),
+     * so no clock read is needed. Never in edit mode, and never for a session that belongs to
+     * another workout.
+     */
+    private fun timerWaitsForFirstExercise(s: WorkoutSessionState): Boolean =
+        !isEditMode &&
+            s.workoutId == workoutId &&
+            s.isEmptyWorkoutTimerMode &&
+            s.isPaused &&
+            s.accumulatedActiveSeconds == 0L
+
     private fun isEmptyWorkoutGraceActive(): Boolean =
         sessionController.state.value.isEmptyWorkoutTimerMode &&
             sessionController.elapsedSeconds() < EMPTY_WORKOUT_TIMER_GRACE_SECONDS
@@ -1027,6 +1047,11 @@ data class WorkoutLoggerUiState(
     val supersetSelectionActive: Boolean = false,
     val supersetSourceExerciseId: String? = null,
     val isPaused: Boolean = false,
+    /**
+     * First-run plan (O1b): the live session's clock is held at zero until the first exercise is
+     * added, so the empty logger can truthfully add "The timer starts with your first exercise."
+     */
+    val timerWaitsForFirstExercise: Boolean = false,
     /** Which exercise's card should show the rest-timer bar — the numeric countdown itself is a separate leaf-collected Flow (see [WorkoutLoggerViewModel.restRemainingMillisFlow]). */
     val restExerciseId: String? = null,
     val keepAwakeEnabled: Boolean = true,
@@ -1047,7 +1072,14 @@ data class WorkoutLoggerUiState(
     val weightUnit: WeightUnit = WeightUnit.KG,
     /** M18 §5.1.6: shows the exercise-card "Add warm-up sets" item. Always false in a circuit. */
     val warmupCalculatorEnabled: Boolean = false,
-)
+) {
+    /**
+     * First-run plan (O1b): the empty logger's "Add an exercise to start." line -- a loaded live
+     * workout (regular or circuit) with no exercises. Never in edit mode, where an emptied workout
+     * is a Save blocker ([canSaveEdit]), not a fresh start.
+     */
+    val showEmptyHint: Boolean get() = !isLoading && !isEditMode && exercises.isEmpty()
+}
 
 private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpeLabel: String? = null) = WorkoutSetUiModel(
     id = id, setType = setType, weightKg = weightKg, reps = reps, durationSeconds = durationSeconds,

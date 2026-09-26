@@ -7,6 +7,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -55,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -600,33 +605,38 @@ private fun ColumnScope.CircuitWorkoutBody(
     // order inside it. Grouping is pure (buildCircuitRounds) and never repairs
     // data: unequal set counts render as inert "—" slots.
     val rounds = buildCircuitRounds(uiState.exercises)
-    LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
-        // Keyed by the round's first surviving set id, not its position: removing
-        // an earlier round must not re-attach later cards' remembered UI state
-        // (open menus, unparsed cell text) to a different round.
-        items(
-            items = rounds,
-            key = { r -> r.entries.firstNotNullOfOrNull { it.set?.id } ?: "round-${r.roundNumber}" },
-        ) { round ->
-            CircuitRoundCard(
-                round = round,
-                callbacks = workoutCallbacks,
-                onExerciseClick = onExerciseClick,
-                onOpenReplacePicker = { weId -> if (uiState.exercises.hasCompletedSets(weId)) pendingReplaceTargetId = weId else { replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE } },
-                onRemoveRound = {
-                    val roundIndex = round.roundNumber - 1
-                    if (viewModel.roundHasLoggedValues(roundIndex)) {
-                        pendingRemoveRoundIndex = roundIndex
-                    } else {
-                        viewModel.removeRound(roundIndex)
-                    }
-                },
-                canRemoveRound = rounds.size > 1,
-                inlineTimerExerciseId = uiState.inlineTimerExerciseId,
-                inlineTimerSetId = uiState.inlineTimerSetId,
-                inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
-                config = displayConfig,
-            )
+    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md)) {
+            // Keyed by the round's first surviving set id, not its position: removing
+            // an earlier round must not re-attach later cards' remembered UI state
+            // (open menus, unparsed cell text) to a different round.
+            items(
+                items = rounds,
+                key = { r -> r.entries.firstNotNullOfOrNull { it.set?.id } ?: "round-${r.roundNumber}" },
+            ) { round ->
+                CircuitRoundCard(
+                    round = round,
+                    callbacks = workoutCallbacks,
+                    onExerciseClick = onExerciseClick,
+                    onOpenReplacePicker = { weId -> if (uiState.exercises.hasCompletedSets(weId)) pendingReplaceTargetId = weId else { replaceTargetId = weId; pickerMode = ExercisePickerMode.REPLACE } },
+                    onRemoveRound = {
+                        val roundIndex = round.roundNumber - 1
+                        if (viewModel.roundHasLoggedValues(roundIndex)) {
+                            pendingRemoveRoundIndex = roundIndex
+                        } else {
+                            viewModel.removeRound(roundIndex)
+                        }
+                    },
+                    canRemoveRound = rounds.size > 1,
+                    inlineTimerExerciseId = uiState.inlineTimerExerciseId,
+                    inlineTimerSetId = uiState.inlineTimerSetId,
+                    inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
+                    config = displayConfig,
+                )
+            }
+        }
+        if (uiState.showEmptyHint) {
+            LoggerEmptyHint(showTimerLine = uiState.timerWaitsForFirstExercise, modifier = Modifier.matchParentSize())
         }
     }
 
@@ -707,36 +717,43 @@ private fun ColumnScope.RegularWorkoutBody(
         localExercises.add(to, localExercises.removeAt(from))
         commitOrder()
     }
-    LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = Spacing.md)) {
-        items(items = localExercises, key = { it.id }) { exercise ->
-            // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule).
-            // Declined at the M20a checkpoint (decisions.md 2026-09-07) -- a settled
-            // decision, not an open question.
-            ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
-                WorkoutExerciseCard(
-                    exercise = exercise,
-                    dragHandle = {
-                        val index = localExercises.indexOfFirst { it.id == exercise.id }
-                        DragHandle(
-                            modifier = Modifier.longPressDraggableHandle(onDragStopped = commitOrder),
-                            onMoveUp = if (index > 0) ({ nudge(exercise.id, -1) }) else null,
-                            onMoveDown = if (index in 0 until localExercises.lastIndex) ({ nudge(exercise.id, +1) }) else null,
-                        )
-                    },
-                    isDragging = isDragging,
-                    supersetSelectionActive = uiState.supersetSelectionActive,
-                    isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
-                    callbacks = workoutCallbacks,
-                    onExerciseClick = { onExerciseClick(exercise.exerciseId) },
-                    onOpenReplacePicker = { if (uiState.exercises.hasCompletedSets(exercise.id)) pendingReplaceTargetId = exercise.id else { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE } },
-                    onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
-                    inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
-                    inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
-                    onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
-                    onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
-                    config = displayConfig,
-                )
+    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md)) {
+            items(items = localExercises, key = { it.id }) { exercise ->
+                // animateItemModifier = Modifier: no sibling-slide (near-zero-motion rule).
+                // Declined at the M20a checkpoint (decisions.md 2026-09-07) -- a settled
+                // decision, not an open question.
+                ReorderableItem(reorderState, key = exercise.id, animateItemModifier = Modifier) { isDragging ->
+                    WorkoutExerciseCard(
+                        exercise = exercise,
+                        dragHandle = {
+                            val index = localExercises.indexOfFirst { it.id == exercise.id }
+                            DragHandle(
+                                modifier = Modifier.longPressDraggableHandle(onDragStopped = commitOrder),
+                                onMoveUp = if (index > 0) ({ nudge(exercise.id, -1) }) else null,
+                                onMoveDown = if (index in 0 until localExercises.lastIndex) ({ nudge(exercise.id, +1) }) else null,
+                            )
+                        },
+                        isDragging = isDragging,
+                        supersetSelectionActive = uiState.supersetSelectionActive,
+                        isSupersetSource = exercise.id == uiState.supersetSourceExerciseId,
+                        callbacks = workoutCallbacks,
+                        onExerciseClick = { onExerciseClick(exercise.exerciseId) },
+                        onOpenReplacePicker = { if (uiState.exercises.hasCompletedSets(exercise.id)) pendingReplaceTargetId = exercise.id else { replaceTargetId = exercise.id; pickerMode = ExercisePickerMode.REPLACE } },
+                        onRpeChange = { setId, rpe -> viewModel.updateRpe(exercise.id, setId, rpe) },
+                        inlineTimerSetId = if (uiState.inlineTimerExerciseId == exercise.id) uiState.inlineTimerSetId else null,
+                        inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
+                        onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
+                        onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
+                        config = displayConfig,
+                    )
+                }
             }
+        }
+        // Drawn over the (empty) list rather than as a list item, so the list's item indexes --
+        // which the superset auto-scroll uses directly -- never include it.
+        if (uiState.showEmptyHint) {
+            LoggerEmptyHint(showTimerLine = uiState.timerWaitsForFirstExercise, modifier = Modifier.matchParentSize())
         }
     }
 
@@ -759,6 +776,43 @@ private fun ColumnScope.RegularWorkoutBody(
         modifier = Modifier.fillMaxWidth().padding(Spacing.md),
     ) {
         Text(stringResource(R.string.routine_builder_add_exercise))
+    }
+}
+
+/**
+ * First-run plan (O1b): what an empty live logger says instead of a blank page above "+ Add
+ * Exercise". The timer line shows only while it is true ([WorkoutLoggerUiState.timerWaitsForFirstExercise]).
+ * Centred like [com.enil.logez.core.designsystem.EmptyState] without its icon and title, but in a
+ * scrolling column at least as tall as the list area, so large font sizes scroll instead of clipping.
+ */
+@Composable
+private fun LoggerEmptyHint(showTimerLine: Boolean, modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .heightIn(min = maxHeight)
+                .padding(Spacing.xl),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.logger_empty_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            if (showTimerLine) {
+                Text(
+                    text = stringResource(R.string.logger_empty_timer_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
+            }
+        }
     }
 }
 

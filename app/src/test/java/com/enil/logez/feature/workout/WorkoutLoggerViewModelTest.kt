@@ -5,6 +5,7 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.StatSet
+import com.enil.logez.core.domain.model.ActiveSessionSnapshot
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
@@ -912,6 +913,220 @@ class WorkoutLoggerViewModelTest {
 
         assertEquals(0L, controller.elapsedSeconds())
         assertTrue(controller.state.value.isPaused)
+    }
+
+    // --- First-run plan O1b: the empty logger's timer line ---
+
+    @Test
+    fun `an empty-started workout says its timer waits for the first exercise, until one is added`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(clock = clock, sessionController = controller)
+
+        assertTrue(vm.uiState.value.exercises.isEmpty())
+        assertTrue(vm.uiState.value.timerWaitsForFirstExercise)
+
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `a routine-started workout emptied of exercises does not claim its running timer waits`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1")
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1", routineId = "r1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            clock = clock,
+            sessionController = controller,
+        )
+        clock.currentMillis = 40_000L
+
+        vm.removeExercise("we1")
+
+        assertTrue(vm.uiState.value.exercises.isEmpty())
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `removing the first exercise inside the grace window brings the timer line back`() = runTest {
+        val clock = FakeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(clock = clock, sessionController = controller)
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        clock.currentMillis = 40_000L
+
+        vm.removeExercise(vm.uiState.value.exercises.single().id)
+
+        assertTrue(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `an empty-started workout emptied after the grace window keeps running, so no timer line`() = runTest {
+        val clock = FakeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(clock = clock, sessionController = controller)
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        clock.currentMillis = 300_000L
+
+        vm.removeExercise(vm.uiState.value.exercises.single().id)
+
+        assertTrue(vm.uiState.value.exercises.isEmpty())
+        assertFalse(controller.state.value.isPaused)
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `a paused empty-start timer that has already counted time does not claim to wait`() = runTest {
+        val clock = FakeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(clock = clock, sessionController = controller)
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+        clock.currentMillis = 600_000L
+        vm.togglePause()
+
+        vm.removeExercise(vm.uiState.value.exercises.single().id)
+
+        assertTrue(controller.state.value.isPaused)
+        assertEquals(600L, controller.elapsedSeconds())
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `an empty-start session that belongs to another workout never shows this logger the timer line`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("other", waitForFirstExercise = true)
+        val vm = newViewModel(clock = clock, sessionController = controller)
+
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `edit mode never shows the timer line, even beside a waiting empty-start session`() = runTest {
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1", waitForFirstExercise = true)
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(workouts = listOf(aCompletedWorkout("w1"))),
+            clock = clock,
+            sessionController = controller,
+            isEditMode = true,
+        )
+
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `an empty-started workout restored after process death still says its timer waits`() = runTest {
+        // Nothing starts the session in memory: the logger's own rehydrate() restores what the
+        // DataStore snapshot held when the process died.
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(
+                ActiveSessionSnapshot(
+                    workoutId = "w1",
+                    isPaused = true,
+                    accumulatedActiveSeconds = 0L,
+                    lastResumedAtMillis = null,
+                    isEmptyWorkoutTimerMode = true,
+                ),
+            ),
+            clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        val vm = newViewModel(clock = clock, sessionController = controller)
+
+        assertFalse(vm.uiState.value.isLoading)
+        assertTrue(vm.uiState.value.timerWaitsForFirstExercise)
+    }
+
+    @Test
+    fun `a routine start paused at zero and then emptied does not claim its timer waits`() = runTest {
+        // Pausing inside a routine start's first second stores 0 s, and emptying it leaves it
+        // paused at 0 -- but adding an exercise would not start this timer, so the line is untrue.
+        val clock = FakeClock(currentMillis = 10_000L)
+        val controller = WorkoutSessionController(
+            FakeActiveSessionRepository(), clock, FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+        )
+        controller.startSession("w1")
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1", routineId = "r1")),
+            exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+            sets = listOf(WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 60.0, reps = 8, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null)),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"), exercise("ex-2", "Squat"))),
+            clock = clock,
+            sessionController = controller,
+        )
+        vm.togglePause()
+
+        vm.removeExercise("we1")
+
+        assertTrue(controller.state.value.isPaused)
+        assertEquals(0L, controller.elapsedSeconds())
+        assertFalse(vm.uiState.value.timerWaitsForFirstExercise)
+
+        vm.addExercises(listOf(exercise("ex-2", "Squat")))
+
+        assertTrue("adding an exercise does not resume a routine start's paused timer", controller.state.value.isPaused)
+    }
+
+    @Test
+    fun `a loaded live workout with no exercises shows the empty hint, and adding one hides it`() = runTest {
+        val vm = newViewModel()
+
+        assertTrue(vm.uiState.value.exercises.isEmpty())
+        assertTrue(vm.uiState.value.showEmptyHint)
+
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+
+        assertFalse(vm.uiState.value.showEmptyHint)
+    }
+
+    @Test
+    fun `edit mode with every exercise removed never shows the empty hint`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = editFixture(),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            isEditMode = true,
+        )
+
+        vm.removeExercise("we1")
+
+        assertTrue(vm.uiState.value.exercises.isEmpty())
+        assertFalse(vm.uiState.value.showEmptyHint)
+    }
+
+    @Test
+    fun `the empty hint stays hidden until the workout has loaded`() {
+        assertFalse(WorkoutLoggerUiState(isLoading = true, exercises = emptyList()).showEmptyHint)
     }
 
     @Test

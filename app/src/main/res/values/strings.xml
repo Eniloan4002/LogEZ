@@ -451,6 +451,10 @@
     <string name="workout_resume_banner_title">Workout in progress</string>
     <string name="workout_resume_discard_action">Discard &amp; start new</string>
 
+    <!-- First-run plan O1b: the empty live logger -->
+    <string name="logger_empty_hint">Add an exercise to start.</string>
+    <string name="logger_empty_timer_hint">The timer starts with your first exercise.</string>
+
     <!-- M4b: timers & foreground service -->
     <string name="workout_pause_timer">Pause Workout Timer</string>
     <string name="workout_resume_timer">Resume Workout Timer</string>
