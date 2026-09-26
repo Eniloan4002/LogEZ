@@ -3,7 +3,9 @@ package com.enil.logez.core.common.di
 import com.enil.logez.core.common.AndroidAppLogger
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.Clock
+import com.enil.logez.core.common.AndroidRegionDefaults
 import com.enil.logez.core.common.ElapsedRealtimeClock
+import com.enil.logez.core.common.RegionDefaults
 import com.enil.logez.core.common.SystemClock
 import com.enil.logez.core.common.SystemElapsedRealtimeClock
 import dagger.Binds
@@ -30,6 +32,9 @@ abstract class CommonModule {
     @Binds
     @Singleton
     abstract fun bindAppLogger(impl: AndroidAppLogger): AppLogger
+
+    @Binds
+    abstract fun bindRegionDefaults(impl: AndroidRegionDefaults): RegionDefaults
 
     companion object {
         /** §9.2 — [com.enil.logez.feature.workout.session.WorkoutSessionController]'s fire-and-forget
