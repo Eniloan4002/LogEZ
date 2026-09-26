@@ -7,7 +7,11 @@ class FakeWidgetRefresher : WidgetRefresher {
     var refreshCount = 0
         private set
 
+    /** Thrown from [refresh] (after it is counted) when set. */
+    var error: Exception? = null
+
     override suspend fun refresh() {
         refreshCount++
+        error?.let { throw it }
     }
 }
