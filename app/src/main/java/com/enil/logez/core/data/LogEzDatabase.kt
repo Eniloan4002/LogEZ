@@ -67,7 +67,7 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
         DailyWellnessTotalEntity::class,
         WorkoutHeartRateSampleEntity::class,
     ],
-    version = 9,
+    version = LogEzDatabase.VERSION,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -87,6 +87,13 @@ abstract class LogEzDatabase : RoomDatabase() {
     abstract fun backupDao(): BackupDao
 
     companion object {
+        /**
+         * The schema version, in one place. [com.enil.logez.core.data.backup.BackupWriter] stamps it
+         * into every backup's manifest so an older app refuses a newer backup; it drifted once
+         * (left at 9 when v10 shipped, 2026-09-26) while it was a separate literal.
+         */
+        const val VERSION = 10
+
         const val DATABASE_NAME = "logez.db"
 
         /** v1 -> v2 (M8d): a brand-new table only, nothing existing changes shape. */
@@ -253,6 +260,18 @@ abstract class LogEzDatabase : RoomDatabase() {
                     )
                     """.trimIndent(),
                 )
+            }
+        }
+
+        /**
+         * v9 -> v10 (walk/run summary, 2026-09-26): one nullable column on `activity_tracks`, the
+         * time each route point was recorded, so a finished run's splits and pace chart can be
+         * rebuilt. Additive with no default: every run tracked before this reads back null and
+         * simply shows no splits, which is honest, since its timing was never kept.
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `activity_tracks` ADD COLUMN `route_times` TEXT")
             }
         }
     }

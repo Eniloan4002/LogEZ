@@ -239,10 +239,12 @@ data class ActivityTrackDto(
     @SerialName("route_polyline") val routePolyline: String? = null,
     @SerialName("point_count") val pointCount: Int = 0,
     @SerialName("avg_accuracy_m") val avgAccuracyM: Double? = null,
+    /** Added 2026-09-26 (database v10). Absent from older backups, which restore with null. */
+    @SerialName("route_times") val routeTimes: String? = null,
 )
 
-fun ActivityTrackEntity.toDto() = ActivityTrackDto(id, workoutSetId, routePolyline, pointCount, avgAccuracyM)
-fun ActivityTrackDto.toEntity() = ActivityTrackEntity(id, workoutSetId, routePolyline, pointCount, avgAccuracyM)
+fun ActivityTrackEntity.toDto() = ActivityTrackDto(id, workoutSetId, routePolyline, pointCount, avgAccuracyM, routeTimes)
+fun ActivityTrackDto.toEntity() = ActivityTrackEntity(id, workoutSetId, routePolyline, pointCount, avgAccuracyM, routeTimes)
 
 @Serializable
 data class WorkoutHeartRateSampleDto(

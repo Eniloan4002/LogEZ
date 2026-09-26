@@ -763,6 +763,50 @@ class LogEzDatabaseMigrationTest {
      * checks MIGRATION_4_5's live columns against what [com.enil.logez.core.data.entity.RoutineEntity]
      * and [com.enil.logez.core.data.entity.WorkoutEntity] declare, `defaultValue` included.
      */
+    /** A "v9" stand-in with just `activity_tracks` as v9 created it (5_6's createSql, unchanged since). */
+    private fun openV9(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(9) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `activity_tracks` (`id` TEXT NOT NULL, `workout_set_id` TEXT NOT NULL, " +
+                        "`route_polyline` TEXT, `point_count` INTEGER NOT NULL, `avg_accuracy_m` REAL, PRIMARY KEY(`id`))",
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_9_10 adds a nullable route_times column and keeps existing tracks with none`() {
+        val db = openV9().writableDatabase
+        db.execSQL(
+            "INSERT INTO activity_tracks (id, workout_set_id, route_polyline, point_count, avg_accuracy_m) " +
+                "VALUES ('t1', 'set1', 'abc', 3, 5.0)",
+        )
+        LogEzDatabase.MIGRATION_9_10.migrate(db)
+
+        val columns = mutableMapOf<String, Pair<String, Boolean>>()
+        db.query("PRAGMA table_info(`activity_tracks`)").use {
+            while (it.moveToNext()) {
+                columns[it.getString(it.getColumnIndexOrThrow("name"))] =
+                    it.getString(it.getColumnIndexOrThrow("type")) to (it.getInt(it.getColumnIndexOrThrow("notnull")) == 1)
+            }
+        }
+        assertEquals("TEXT" to false, columns["route_times"])
+
+        db.query("SELECT route_polyline, route_times FROM activity_tracks WHERE id = 't1'").use {
+            it.moveToFirst()
+            assertEquals("abc", it.getString(0))
+            assertTrue(it.isNull(1))
+        }
+        db.close()
+    }
+
     @Test
     fun `a real v4 database opened through LogEzDatabase's own migration path upgrades to v5 without a validation crash`() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -785,7 +829,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
                 )
                 .build()
 
@@ -829,7 +873,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
                 )
                 .build()
 
@@ -872,7 +916,7 @@ class LogEzDatabaseMigrationTest {
                 .addMigrations(
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
-                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
                 )
                 .build()
 

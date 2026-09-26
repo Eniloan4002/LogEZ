@@ -186,8 +186,8 @@ class BackupWriter @Inject constructor(
     )
 
     companion object {
-        /** Must track [com.enil.logez.core.data.LogEzDatabase]'s version. */
-        const val ROOM_SCHEMA_VERSION = 9
+        /** [com.enil.logez.core.data.LogEzDatabase]'s version, by reference so the two can't drift. */
+        const val ROOM_SCHEMA_VERSION = com.enil.logez.core.data.LogEzDatabase.VERSION
 
         const val PROGRESS_PHOTOS_DIR = "progress_photos"
         const val EXERCISE_MEDIA_DIR = "exercise_media"

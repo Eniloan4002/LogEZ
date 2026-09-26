@@ -134,8 +134,16 @@ class BackupDtoRoundTripTest {
 
     @Test
     fun `activity track survives, so a GPS route is not lost on restore`() {
-        val entity = ActivityTrackEntity("t1", "ws1", "_p~iF~ps|U_ulLnnqC", 412, 4.5)
+        val entity = ActivityTrackEntity("t1", "ws1", "_p~iF~ps|U_ulLnnqC", 412, 4.5, routeTimes = "AEE")
         assertEquals(entity, roundTrip(entity.toDto()).toEntity())
+    }
+
+    @Test
+    fun `an activity track from a backup made before route times existed restores with none`() {
+        val oldLine = """{"id":"t1","workout_set_id":"ws1","route_polyline":"abc","point_count":3,"avg_accuracy_m":4.5}"""
+        val restored = BackupFormat.jsonRead.decodeFromString(ActivityTrackDto.serializer(), oldLine).toEntity()
+        assertEquals(null, restored.routeTimes)
+        assertEquals("abc", restored.routePolyline)
     }
 
     @Test

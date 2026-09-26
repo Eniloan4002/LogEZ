@@ -104,7 +104,7 @@ class BackupRoundTripTest : RoomDatabaseTestBase() {
                 ),
             ),
         )
-        dao.insertActivityTracks(listOf(ActivityTrackEntity("t1", "ws1", "abc", 12, 4.5)))
+        dao.insertActivityTracks(listOf(ActivityTrackEntity("t1", "ws1", "abc", 12, 4.5, routeTimes = "AEE")))
         dao.insertHeartRateSamples(listOf(WorkoutHeartRateSampleEntity("hr1", "w1", 150, 132L)))
         dao.insertBodyMeasurements(
             listOf(

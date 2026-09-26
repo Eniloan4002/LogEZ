@@ -38,6 +38,32 @@ object PolylineEncoding {
         return points
     }
 
+    /**
+     * One integer stream, delta-encoded with the same character scheme as a route: used for
+     * `activity_tracks.route_times`, the seconds-since-start of each route point (2026-09-26). A
+     * run's times grow by a few seconds per point, so each one costs a single character.
+     */
+    fun encodeDeltas(values: List<Long>): String {
+        val sb = StringBuilder()
+        var previous = 0L
+        for (value in values) {
+            encodeValue(value - previous, sb)
+            previous = value
+        }
+        return sb.toString()
+    }
+
+    fun decodeDeltas(encoded: String): List<Long> {
+        val values = mutableListOf<Long>()
+        var index = 0
+        var current = 0L
+        while (index < encoded.length) {
+            current += decodeValue(encoded, index).also { index = it.second }.first
+            values += current
+        }
+        return values
+    }
+
     private fun encodeValue(value: Long, sb: StringBuilder) {
         var v = value shl 1
         if (v < 0) v = v.inv()

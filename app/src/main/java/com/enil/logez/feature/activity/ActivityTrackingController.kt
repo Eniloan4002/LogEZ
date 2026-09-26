@@ -70,6 +70,9 @@ class ActivityTrackingController @Inject constructor(
     // first to avoid racing a still-landing fix. cancelTracking() throws the accumulated state away
     // entirely rather than reading it, so a plain (non-suspending) cancel() is sufficient there.
     private val routePoints = mutableListOf<Pair<Double, Double>>()
+
+    /** Seconds since start for each entry of [routePoints], appended together so the two never drift apart. */
+    private val routeTimes = mutableListOf<Long>()
     private val distanceHistory = mutableListOf<Pair<Long, Double>>()
     private var lastHistorySampleElapsedSeconds = 0
     private var lastAccepted: LocationFix? = null
@@ -78,6 +81,7 @@ class ActivityTrackingController @Inject constructor(
 
     fun startTracking(workoutId: String, workoutSetId: String) {
         routePoints.clear()
+        routeTimes.clear()
         distanceHistory.clear()
         lastHistorySampleElapsedSeconds = 0
         lastAccepted = null
@@ -101,6 +105,7 @@ class ActivityTrackingController @Inject constructor(
         }
         lastAccepted = fix
         routePoints += fix.latitude to fix.longitude
+        routeTimes += elapsedSeconds().toLong()
         accuracySumMeters += fix.accuracyMeters
 
         // Piggybacks on a real, externally-driven fix arrival rather than a self-ticking
@@ -178,6 +183,10 @@ class ActivityTrackingController @Inject constructor(
                 routePolyline = routePoints.takeIf { it.isNotEmpty() }?.let(PolylineEncoding::encode),
                 pointCount = routePoints.size,
                 avgAccuracyM = routePoints.takeIf { it.isNotEmpty() }?.let { accuracySumMeters / it.size },
+                // The time each point was recorded, so the summary can rebuild splits and a pace
+                // chart after the fact (2026-09-26). distanceHistory alone can't: it is sampled
+                // every 15 s at most and lives only in memory.
+                routeTimes = routeTimes.takeIf { it.isNotEmpty() }?.let(PolylineEncoding::encodeDeltas),
             ),
         )
         workoutRepository.getById(workoutId)?.let { workout ->

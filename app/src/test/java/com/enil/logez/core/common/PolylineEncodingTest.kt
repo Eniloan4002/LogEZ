@@ -40,4 +40,17 @@ class PolylineEncodingTest {
         assertEquals("", PolylineEncoding.encode(emptyList()))
         assertEquals(emptyList<Pair<Double, Double>>(), PolylineEncoding.decode(""))
     }
+
+    @Test
+    fun `a delta-encoded time series round-trips exactly, including repeats and large gaps`() {
+        val seconds = listOf(0L, 3L, 6L, 6L, 9L, 600L, 3_605L)
+        assertEquals(seconds, PolylineEncoding.decodeDeltas(PolylineEncoding.encodeDeltas(seconds)))
+    }
+
+    @Test
+    fun `route times stay compact, about one character per point for a few seconds apart`() {
+        val seconds = (0L..900L step 3L).toList()
+        assertEquals(seconds.size, PolylineEncoding.encodeDeltas(seconds).length)
+        assertEquals(emptyList<Long>(), PolylineEncoding.decodeDeltas(""))
+    }
 }

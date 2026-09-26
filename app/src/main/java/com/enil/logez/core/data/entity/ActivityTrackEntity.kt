@@ -32,4 +32,11 @@ data class ActivityTrackEntity(
     @ColumnInfo(name = "route_polyline") val routePolyline: String?,
     @ColumnInfo(name = "point_count") val pointCount: Int,
     @ColumnInfo(name = "avg_accuracy_m") val avgAccuracyM: Double?,
+    /**
+     * Seconds since tracking started at which each route point was recorded, one per point, in
+     * [com.enil.logez.core.common.PolylineEncoding.encodeDeltas] form. Added in v10 (2026-09-26)
+     * so the summary can rebuild splits and a pace chart; null for every run recorded before it,
+     * whose summary therefore shows no splits.
+     */
+    @ColumnInfo(name = "route_times") val routeTimes: String? = null,
 )

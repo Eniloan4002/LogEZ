@@ -1,5 +1,6 @@
 package com.enil.logez.feature.activity
 
+import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
@@ -222,6 +223,36 @@ class ActivityTrackingControllerTest {
         assertEquals(2, track!!.pointCount)
         assertNotNull(track.routePolyline)
         assertEquals(5.0, track.avgAccuracyM!!, 0.001)
+    }
+
+    @Test
+    fun `finishTracking saves the time each accepted point was recorded, one per point`() = runTest {
+        val trackRepo = FakeActivityTrackRepository()
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(trackRepo = trackRepo, locationSource = locationSource, clock = clock)
+
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+        clock.currentMillis = 1_002_000L
+        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        clock.currentMillis = 1_005_000L
+        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L)) // under 3 m: rejected, no time saved
+        clock.currentMillis = 1_008_000L
+        locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 0L))
+        controller.finishTracking()
+
+        val track = trackRepo.getByWorkoutSetId("set-1")!!
+        assertEquals(listOf(2L, 8L), PolylineEncoding.decodeDeltas(track.routeTimes!!))
+        assertEquals(track.pointCount, PolylineEncoding.decodeDeltas(track.routeTimes!!).size)
+    }
+
+    @Test
+    fun `a run with no accepted fix saves no route times`() = runTest {
+        val trackRepo = FakeActivityTrackRepository()
+        val controller = newController(trackRepo = trackRepo)
+        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
+        controller.finishTracking()
+        assertNull(trackRepo.getByWorkoutSetId("set-1")!!.routeTimes)
     }
 
     @Test
