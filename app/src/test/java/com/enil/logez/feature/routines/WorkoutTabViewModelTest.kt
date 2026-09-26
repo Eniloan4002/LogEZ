@@ -312,6 +312,35 @@ class WorkoutTabViewModelTest {
     }
 
     @Test
+    fun `quickTrackExercises appears when the seed lands after the tab opened`() = runTest {
+        // A fresh install: the Workout tab opens before the first-launch seed has committed.
+        val exerciseRepo = FakeExerciseRepository()
+        val vm = newViewModel(FakeRoutineRepository(), exerciseRepo = exerciseRepo)
+        assertNull(vm.quickTrackExercises.value)
+
+        exerciseRepo.upsertCustom(cardioExercise("ex-run", "Running (Outdoor)"))
+        exerciseRepo.upsertCustom(cardioExercise("ex-walk", "Walking (Outdoor)"))
+
+        val exercises = vm.quickTrackExercises.value
+        assertNotNull(exercises)
+        assertEquals("ex-run", exercises!!.running.id)
+        assertEquals("ex-walk", exercises.walking.id)
+    }
+
+    @Test
+    fun `quickTrackExercises goes away when one of the two is deleted`() = runTest {
+        val exerciseRepo = FakeExerciseRepository(
+            listOf(cardioExercise("ex-run", "Running (Outdoor)"), cardioExercise("ex-walk", "Walking (Outdoor)")),
+        )
+        val vm = newViewModel(FakeRoutineRepository(), exerciseRepo = exerciseRepo)
+        assertNotNull(vm.quickTrackExercises.value)
+
+        exerciseRepo.softDelete("ex-walk")
+
+        assertNull(vm.quickTrackExercises.value)
+    }
+
+    @Test
     fun `startActivityTracking starts both the workout and the GPS controller`() = runTest {
         val workoutRepo = FakeWorkoutRepository()
         val clock = FakeClock(currentMillis = 2_000L)

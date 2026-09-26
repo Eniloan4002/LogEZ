@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -58,8 +60,6 @@ class WorkoutTabViewModel @Inject constructor(
     private val widgetRefresher: WidgetRefresher,
     private val clock: Clock,
 ) : ViewModel() {
-    private val _quickTrackExercises = MutableStateFlow<QuickTrackExercises?>(null)
-
     private val _todaySteps = MutableStateFlow<Long?>(null)
     private val _recentSteps = MutableStateFlow<List<DailyStepCount>>(emptyList())
 
@@ -112,22 +112,21 @@ class WorkoutTabViewModel @Inject constructor(
      * M21a "Track a walk/run": the two seed exercises the card offers, looked up by their exact
      * frozen seed names (`exercises_seed.json`, PHASE2_PLAN §7.9) rather than a hardcoded id, so a
      * user who has edited/deleted either one degrades to the card simply not showing instead of
-     * pointing at a stale id. A one-shot lookup, kept out of [uiState]'s own `combine` (already at
-     * kotlinx.coroutines' 5-flow typed-overload ceiling) since these two rows aren't expected to
-     * change mid-session.
+     * pointing at a stale id. Kept out of [uiState]'s own `combine` (already at kotlinx.coroutines'
+     * 5-flow typed-overload ceiling).
+     *
+     * Observed, not looked up once: on a fresh install the tab can open before the first-launch
+     * seed commits, and a one-shot read then found nothing and hid the card until the tab was
+     * rebuilt. Now the card appears as soon as the seed lands.
      */
-    val quickTrackExercises: StateFlow<QuickTrackExercises?> = _quickTrackExercises.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            val active = exerciseRepository.getAllActive()
+    val quickTrackExercises: StateFlow<QuickTrackExercises?> = exerciseRepository.observeActive()
+        .map { active ->
             val running = active.firstOrNull { it.name == QUICK_TRACK_RUNNING_NAME }
             val walking = active.firstOrNull { it.name == QUICK_TRACK_WALKING_NAME }
-            if (running != null && walking != null) {
-                _quickTrackExercises.value = QuickTrackExercises(running, walking)
-            }
+            if (running != null && walking != null) QuickTrackExercises(running, walking) else null
         }
-    }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val uiState: StateFlow<WorkoutTabUiState> = combine(
         routineRepository.observeFolders(),
