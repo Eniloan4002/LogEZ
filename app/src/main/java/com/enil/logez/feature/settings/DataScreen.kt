@@ -33,6 +33,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
@@ -56,6 +58,8 @@ fun DataScreen(
     viewModel: DataViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Back from Health Connect's own settings, the grant line under "Manage" must be current.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshHealthAccess() }
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
     val context = LocalContext.current
@@ -268,7 +272,11 @@ fun DataScreen(
                 item(key = "health_manage") {
                     SettingsValueRow(
                         title = stringResource(R.string.data_health_manage),
-                        subtitle = stringResource(R.string.data_health_manage_subtitle),
+                        subtitle = when {
+                            uiState.healthDisconnectedThisSession -> stringResource(R.string.data_health_access_disconnected)
+                            uiState.grantedHealthTypes != null -> healthAccessSummary(uiState.grantedHealthTypes!!)
+                            else -> stringResource(R.string.data_health_manage_subtitle)
+                        },
                         value = "",
                         onClick = ifIdle { openHealthConnectSettings(context) },
                     )
@@ -310,4 +318,26 @@ fun DataScreen(
 private fun fileName(prefix: String, extension: String): String {
     val stamp = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ROOT))
     return "${prefix}_$stamp.$extension"
+}
+
+/** "LogEZ can read: Steps, Heart rate. Not allowed: Calories burned." in the app's type order. */
+@Composable
+private fun healthAccessSummary(granted: Set<com.enil.logez.core.wellness.HealthDataType>): String {
+    val names = com.enil.logez.core.wellness.HealthDataType.entries.associateWith { type ->
+        stringResource(
+            when (type) {
+                com.enil.logez.core.wellness.HealthDataType.STEPS -> R.string.data_health_type_steps
+                com.enil.logez.core.wellness.HealthDataType.CALORIES -> R.string.data_health_type_calories
+                com.enil.logez.core.wellness.HealthDataType.HEART_RATE -> R.string.data_health_type_heart_rate
+            },
+        )
+    }
+    if (granted.isEmpty()) return stringResource(R.string.data_health_access_none)
+    val reading = names.filterKeys { it in granted }.values.joinToString(", ")
+    val missing = names.filterKeys { it !in granted }.values.joinToString(", ")
+    return if (missing.isEmpty()) {
+        stringResource(R.string.data_health_access_all, reading)
+    } else {
+        stringResource(R.string.data_health_access_partial, reading, missing)
+    }
 }

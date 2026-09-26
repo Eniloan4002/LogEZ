@@ -6,6 +6,7 @@ import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 
 /** M21f default poll cadence for [liveHeartRateFlow]. */
@@ -94,3 +95,44 @@ fun liveHeartRateHistoryFlow(
         delay(pollIntervalMs)
     }
 }
+
+/** Whether heart rate can be read at all, so the tracking screen can say why it has none. */
+enum class HeartRateAccess {
+    /** Health Connect isn't usable on this phone and isn't installable (or its install state is unknown). */
+    UNAVAILABLE,
+
+    /** Health Connect is present but needs a Play Store update, or can be installed (Android 9-13). */
+    NEEDS_INSTALL_OR_UPDATE,
+
+    /** Health Connect works, but the user hasn't allowed LogEZ to read heart rate. */
+    NOT_GRANTED,
+
+    /** Reads are allowed; an empty chart then just means nothing has synced yet. */
+    GRANTED,
+}
+
+/**
+ * The tracking screen's heart-rate access state, re-checked every [pollIntervalMs] so allowing the
+ * permission mid-run (from the screen's own button or from Health Connect's settings) shows up
+ * without leaving the screen. Before 2026-09-26 "not allowed", "nothing synced yet" and "the read
+ * failed" all showed the same "No heart rate yet" message, so a user couldn't tell a missing
+ * permission from a watch that simply hadn't synced. Cold, like the flows above.
+ */
+fun heartRateAccessFlow(
+    healthMetricsSource: HealthMetricsSource,
+    pollIntervalMs: Long = ACCESS_POLL_INTERVAL_MS,
+): Flow<HeartRateAccess> = flow {
+    while (true) {
+        val availability = healthMetricsSource.availability()
+        val access = when {
+            availability != HealthConnectAvailability.Available && availability.canInstallOrUpdate() -> HeartRateAccess.NEEDS_INSTALL_OR_UPDATE
+            availability != HealthConnectAvailability.Available -> HeartRateAccess.UNAVAILABLE
+            HealthDataType.HEART_RATE in healthMetricsSource.grantedTypes() -> HeartRateAccess.GRANTED
+            else -> HeartRateAccess.NOT_GRANTED
+        }
+        emit(access)
+        delay(pollIntervalMs)
+    }
+}.distinctUntilChanged()
+
+private const val ACCESS_POLL_INTERVAL_MS = 15_000L

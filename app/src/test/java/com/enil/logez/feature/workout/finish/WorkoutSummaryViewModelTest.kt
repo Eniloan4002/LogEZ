@@ -20,6 +20,9 @@ import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.core.common.AppLogger
+import com.enil.logez.core.wellness.WorkoutHeartRateBackfill
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakePersonalRecordsRepository
@@ -141,6 +144,7 @@ class WorkoutSummaryViewModelTest {
             settingsRepository = FakeSettingsRepository(),
             activityTrackRepository = trackRepo,
             heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+            heartRateBackfill = noBackfill(),
         )
 
         val points = vm.uiState.value.routePoints
@@ -225,6 +229,7 @@ class WorkoutSummaryViewModelTest {
             settingsRepository = FakeSettingsRepository(),
             activityTrackRepository = FakeActivityTrackRepository(),
             heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+            heartRateBackfill = noBackfill(),
         )
 
         val intensity = vm.uiState.value.muscleIntensity
@@ -411,7 +416,31 @@ class WorkoutSummaryViewModelTest {
         assertNull(state.averagePaceSecondsPerUnit)
     }
 
+    @Test
+    fun `heart rate that syncs after Save appears when the summary comes back to the foreground`() = runTest {
+        val start = 1_000_000L
+        val health = FakeHealthMetricsSource(
+            availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Available,
+            permissionsGranted = true,
+        )
+        val vm = gpsViewModel(durationSeconds = 600, healthSource = health)
+        assertNull(vm.uiState.value.heartRateSummary) // nothing had synced at Save
+
+        // The watch syncs later; the user returns to the summary.
+        health.heartRateSamples = listOf(
+            com.enil.logez.core.wellness.HeartRateSample(java.time.Instant.ofEpochMilli(start + 60_000), 130L),
+            com.enil.logez.core.wellness.HeartRateSample(java.time.Instant.ofEpochMilli(start + 120_000), 150L),
+        )
+        vm.refreshHeartRate()
+
+        assertEquals(150L, vm.uiState.value.heartRateSummary!!.maxBpm)
+    }
+
     // --- fixture ---
+
+    /** A backfill that never finds anything new: Health Connect unavailable. */
+    private fun noBackfill(repo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository()) =
+        WorkoutHeartRateBackfill(FakeHealthMetricsSource(), repo, AppLogger.NoOp)
 
     /** A realistic tracked run: GPS_TRACKED kind, the DISTANCE_DURATION seed exercise with its leg secondaries. */
     private fun gpsViewModel(
@@ -421,6 +450,8 @@ class WorkoutSummaryViewModelTest {
         track: ActivityTrackEntity? = null,
         heartRate: List<WorkoutHeartRateSampleEntity> = emptyList(),
         settings: UserSettings = UserSettings(),
+        healthSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
+        sampleRepo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(heartRate),
     ): WorkoutSummaryViewModel {
         val start = 1_000_000L
         val run = Exercise(
@@ -442,7 +473,8 @@ class WorkoutSummaryViewModelTest {
             personalRecordsRepository = FakePersonalRecordsRepository(),
             settingsRepository = FakeSettingsRepository(settings),
             activityTrackRepository = FakeActivityTrackRepository(listOfNotNull(track)),
-            heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(heartRate),
+            heartRateSampleRepository = sampleRepo,
+            heartRateBackfill = WorkoutHeartRateBackfill(healthSource, sampleRepo, AppLogger.NoOp),
         )
     }
 
@@ -458,6 +490,7 @@ class WorkoutSummaryViewModelTest {
         settingsRepository = settingsRepo,
         activityTrackRepository = FakeActivityTrackRepository(),
         heartRateSampleRepository = heartRateRepo,
+        heartRateBackfill = noBackfill(heartRateRepo),
     )
 
     private fun workout(

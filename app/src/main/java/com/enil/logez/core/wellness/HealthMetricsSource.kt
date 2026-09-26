@@ -77,7 +77,11 @@ interface HealthMetricsSource {
      */
     suspend fun readLatestHeartRate(withinSeconds: Long = 300): HeartRateSample?
 
-    /** M21f: every heart-rate sample Health Connect has for [start]..[end] (a finished workout's own window), oldest first -- drives the post-workout historical chart. */
+    /**
+     * M21f: every heart-rate sample whose own time lies in [start]..[end], oldest first. Samples
+     * are selected by their timestamps, not by which record holds them: a record that began
+     * before [start] still contributes its later samples (2026-09-26, see HeartRateReadWindow).
+     */
     suspend fun readHeartRateSamples(start: Instant, end: Instant): List<HeartRateSample>
 
     /**
@@ -96,6 +100,15 @@ interface HealthMetricsSource {
 
     /** The user granted access again after a disconnect in this session; reads may resume. */
     fun onPermissionsRegranted() {}
+
+    /**
+     * True after a disconnect in this session: Health Connect only drops the grants when the
+     * process ends, so LogEZ treats access as gone until then and says so (2026-09-26).
+     */
+    val accessEndsOnRestart: Boolean get() = false
+
+    /** The permission string Health Connect uses for reading [type]. */
+    fun permissionFor(type: HealthDataType): String
 }
 
 /** True when Health Connect is usable and the user has granted [type]. */

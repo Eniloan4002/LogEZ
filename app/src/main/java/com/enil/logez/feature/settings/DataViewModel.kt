@@ -18,6 +18,7 @@ import com.enil.logez.core.data.export.CsvExporter
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.HealthConnectDisconnector
+import com.enil.logez.core.wellness.HealthDataType
 import com.enil.logez.core.wellness.HealthMetricsSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -47,6 +48,14 @@ data class DataUiState(
     val measurementCount: Int? = null,
     /** Gates the "Manage Health Connect access" row; the disconnect-and-delete row always shows. */
     val healthConnectAvailable: Boolean = false,
+    /**
+     * What LogEZ may read right now, shown under the manage row (2026-09-26). Nothing in the app
+     * used to show whether heart rate itself was allowed: Profile shows steps and calories, so a
+     * grant without heart rate looked complete. Null until first loaded.
+     */
+    val grantedHealthTypes: Set<HealthDataType>? = null,
+    /** Disconnected this session: access ends when LogEZ restarts, reconnect from Profile. */
+    val healthDisconnectedThisSession: Boolean = false,
     val job: DataJob = DataJob.Idle,
 )
 
@@ -82,6 +91,18 @@ class DataViewModel @Inject constructor(
                     workoutSetCount = csvExporter.workoutSetCount(),
                     measurementCount = csvExporter.measurementCount(),
                     healthConnectAvailable = healthMetricsSource.availability() == HealthConnectAvailability.Available,
+                )
+            }
+        }
+    }
+
+    /** Re-reads the grants; the screen calls this on resume, e.g. back from Health Connect's settings. */
+    fun refreshHealthAccess() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    grantedHealthTypes = healthMetricsSource.grantedTypes(),
+                    healthDisconnectedThisSession = healthMetricsSource.accessEndsOnRestart,
                 )
             }
         }
@@ -191,6 +212,7 @@ class DataViewModel @Inject constructor(
             try {
                 withContext(NonCancellable) { healthConnectDisconnector.disconnectAndDelete() }
                 _uiState.update { it.copy(job = DataJob.Done(R.string.data_health_disconnected)) }
+                refreshHealthAccess()
             } catch (t: Throwable) {
                 logger.e(TAG, "Deleting Health Connect data failed", t)
                 _uiState.update { it.copy(job = DataJob.Failed(R.string.data_health_disconnect_failed)) }

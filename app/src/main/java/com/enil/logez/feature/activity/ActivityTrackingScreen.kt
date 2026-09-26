@@ -1,5 +1,11 @@
 package com.enil.logez.feature.activity
 
+import com.enil.logez.core.wellness.HealthDataType
+import com.enil.logez.core.wellness.openHealthConnectInPlayStore
+import com.enil.logez.core.wellness.openHealthConnectSettings
+import com.enil.logez.core.wellness.rememberRequestHealthPermissions
+import com.enil.logez.core.wellness.HeartRateAccess
+import androidx.compose.material3.TextButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -87,12 +93,21 @@ fun ActivityTrackingScreen(
     val scope = rememberCoroutineScope()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elapsedSeconds by viewModel.elapsedSecondsFlow.collectAsStateWithLifecycle(initialValue = 0)
-    val liveBpm by viewModel.liveBpmFlow.collectAsStateWithLifecycle(initialValue = null)
+    val heartRateAccess by viewModel.heartRateAccessFlow.collectAsStateWithLifecycle(initialValue = null)
+    // Asks for heart rate alone. If Health Connect answers without heart rate (it was refused
+    // before, so no dialog showed), the button switches to opening Health Connect's settings,
+    // where it can still be turned on; otherwise the button could silently do nothing.
+    val heartRatePermission = remember { viewModel.healthMetricsSource.permissionFor(HealthDataType.HEART_RATE) }
+    var heartRateRequestRefused by rememberSaveable { mutableStateOf(false) }
+    val requestHeartRate = rememberRequestHealthPermissions(setOf(heartRatePermission)) { granted ->
+        val allowed = heartRatePermission in granted
+        heartRateRequestRefused = !allowed
+        viewModel.onHeartRatePermissionResult(allowed)
+    }
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var showCancelConfirm by remember { mutableStateOf(false) }
 
     val paceSecondsPerUnit = PaceCalculator.paceSecondsPerUnit(state.distanceMeters, elapsedSeconds, settings.distanceUnit)
-    val heartRateZone = liveBpm?.let { HeartRateZoneCalculator.zoneFor(it.bpm, settings.maxHeartRateBpm) }
 
     // The vitals card's two historical charts. Heart-rate history is Health-Connect-sourced (re-
     // queried each poll, see liveHeartRateHistoryFlow's own doc comment); pace history is derived
@@ -104,6 +119,12 @@ fun ActivityTrackingScreen(
         startedAtMillis?.let(viewModel::heartRateHistoryFlow) ?: flowOf(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
     val heartRateChartPoints = heartRateHistory.map { LineChartPoint(x = it.time.toEpochMilli(), y = it.bpm.toDouble()) }
+    // The newest reading of this session, however old: a watch's heart rate reaches Health Connect
+    // in batches, so the "as of" time under it says how far behind it is (2026-09-26).
+    val liveBpm = heartRateHistory.lastOrNull()
+    val heartRateZone = liveBpm?.let { HeartRateZoneCalculator.zoneFor(it.bpm, settings.maxHeartRateBpm) }
+    val nowMillis = (startedAtMillis ?: 0L) + elapsedSeconds * 1000L
+    val liveBpmIsStale = liveBpm != null && nowMillis - liveBpm.time.toEpochMilli() > STALE_READING_MILLIS
     val paceChartPoints = state.distanceHistory.zipWithNext { (t1, d1), (t2, d2) ->
         PaceCalculator.windowedPaceSecondsPerUnit(d2 - d1, ((t2 - t1) / 1000).toInt(), settings.distanceUnit)?.let { LineChartPoint(x = t2, y = it) }
     }.filterNotNull()
@@ -281,22 +302,45 @@ fun ActivityTrackingScreen(
                                 )
                             }
                         }
-                        // Two different "no number" states: liveBpm only looks back 5 minutes
-                        // (HealthMetricsSource.readLatestHeartRate's window) while the chart
-                        // covers the whole session, and a watch's sync gap routinely exceeds
-                        // that window -- so "connect a watch" above a populated chart would be
-                        // wrong; that case says the reading is late instead (adversarial review,
-                        // 2026-09-23).
-                        if (liveBpm == null) {
+                        // One message per real situation (2026-09-26). "Not allowed" and "nothing
+                        // synced yet" used to share one message, so a missing permission looked
+                        // exactly like a watch that hadn't synced.
+                        val heartRateMessage = when {
+                            heartRateAccess == HeartRateAccess.UNAVAILABLE -> R.string.activity_tracking_heart_rate_unavailable
+                            heartRateAccess == HeartRateAccess.NEEDS_INSTALL_OR_UPDATE -> R.string.activity_tracking_heart_rate_needs_update
+                            heartRateAccess == HeartRateAccess.NOT_GRANTED && heartRateRequestRefused -> R.string.activity_tracking_heart_rate_turn_on_in_settings
+                            heartRateAccess == HeartRateAccess.NOT_GRANTED -> R.string.activity_tracking_heart_rate_not_allowed
+                            liveBpm == null && heartRateAccess == HeartRateAccess.GRANTED -> R.string.activity_tracking_heart_rate_empty
+                            liveBpmIsStale -> R.string.activity_tracking_heart_rate_stale
+                            else -> null
+                        }
+                        if (heartRateMessage != null) {
                             Text(
-                                stringResource(
-                                    if (heartRateChartPoints.isEmpty()) R.string.activity_tracking_heart_rate_empty else R.string.activity_tracking_heart_rate_stale,
-                                ),
+                                stringResource(heartRateMessage),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
                             )
+                        }
+                        when (heartRateAccess) {
+                            HeartRateAccess.NOT_GRANTED -> TextButton(
+                                onClick = { if (heartRateRequestRefused) openHealthConnectSettings(context) else requestHeartRate() },
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (heartRateRequestRefused) R.string.activity_tracking_heart_rate_open_settings else R.string.activity_tracking_heart_rate_allow,
+                                    ),
+                                )
+                            }
+                            HeartRateAccess.NEEDS_INSTALL_OR_UPDATE -> TextButton(
+                                onClick = { openHealthConnectInPlayStore(context) },
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            ) {
+                                Text(stringResource(R.string.activity_tracking_heart_rate_get_health_connect))
+                            }
+                            else -> Unit
                         }
 
                         Text(
@@ -369,6 +413,9 @@ private fun formatElapsed(totalSeconds: Int): String = formatElapsedClock(totalS
 
 /** What a stat reads while it has nothing to show yet -- the same dash every other stat surface uses. */
 private const val PLACEHOLDER = "—"
+
+/** A reading older than this gets the "your watch syncs in batches" note under it. */
+private const val STALE_READING_MILLIS = 5 * 60_000L
 
 /** One cell of the three-up live stat row: the recap screen's StatCell shape, centered. */
 @Composable

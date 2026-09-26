@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import com.enil.logez.feature.workout.finish.HeartRateCard
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -227,6 +228,15 @@ fun WorkoutDetailScreen(
             if (uiState.hasRoute) {
                 item {
                     RouteCard(routePoints = uiState.routePoints)
+                }
+            }
+
+            // Heart rate saved for this workout, the same card the walk/run summary shows. It can
+            // appear on a later visit: opening the workout asks Health Connect for readings the
+            // watch synced after Save (2026-09-26).
+            uiState.heartRateSummary?.let { summary ->
+                item {
+                    HeartRateCard(summary, workout.startedAt, Modifier.padding(vertical = Spacing.xs))
                 }
             }
 

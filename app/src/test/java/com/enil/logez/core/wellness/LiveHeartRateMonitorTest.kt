@@ -152,4 +152,16 @@ class LiveHeartRateHistoryFlowTest {
 
         assertEquals("take(4) must poll exactly 4 times, never more", 4, source.queriedRanges.size)
     }
+
+    @Test
+    fun `the access flow says whether heart rate is unavailable, not allowed, or allowed`() = runTest {
+        assertEquals(listOf(HeartRateAccess.UNAVAILABLE), heartRateAccessFlow(FakeHealthMetricsSource()).take(1).toList())
+        val stepsOnly = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available,
+            grantedTypesOverride = setOf(HealthDataType.STEPS),
+        )
+        assertEquals(listOf(HeartRateAccess.NOT_GRANTED), heartRateAccessFlow(stepsOnly).take(1).toList())
+        val all = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available, permissionsGranted = true)
+        assertEquals(listOf(HeartRateAccess.GRANTED), heartRateAccessFlow(all).take(1).toList())
+    }
 }

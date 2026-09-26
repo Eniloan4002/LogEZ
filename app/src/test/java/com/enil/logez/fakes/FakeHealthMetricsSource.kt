@@ -17,7 +17,8 @@ class FakeHealthMetricsSource(
     private val grantedTypesOverride: Set<HealthDataType>? = null,
     private val totals: DailyTotals = DailyTotals(steps = 0L, caloriesBurned = null),
     private val latestHeartRate: HeartRateSample? = null,
-    private val heartRateSamples: List<HeartRateSample> = emptyList(),
+    /** Mutable so a test can simulate readings that reach Health Connect after a workout was saved. */
+    var heartRateSamples: List<HeartRateSample> = emptyList(),
     private val stepsHistory: List<DailyStepCount> = emptyList(),
     private val throwOnReadHeartRateSamples: Throwable? = null,
     private val throwOnReadLatestHeartRate: Throwable? = null,
@@ -36,6 +37,8 @@ class FakeHealthMetricsSource(
         private set
 
     override fun availability(): HealthConnectAvailability = availabilityValue
+
+    override fun permissionFor(type: HealthDataType): String = "fake.permission.READ_${type.name}"
     /** How many times [revokeAllPermissions] was called. */
     var revokeCallCount = 0
         private set

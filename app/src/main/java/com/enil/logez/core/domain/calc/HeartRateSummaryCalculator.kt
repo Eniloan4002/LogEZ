@@ -29,10 +29,10 @@ object HeartRateSummaryCalculator {
     const val MAX_CREDITED_GAP_MILLIS = 120_000L
 
     /**
-     * Null when no sample falls inside [windowStartMillis]..[windowEndMillis]. Health Connect
-     * returns every record that overlaps a read window, so the saved list can hold readings from
-     * just before the start or after the end; those are dropped here. Two sources reporting the
-     * same instant are averaged into one sample.
+     * Null when no sample falls inside [windowStartMillis]..[windowEndMillis]. Readings saved
+     * before 2026-09-26 came from whole Health Connect records, whose samples can run past either
+     * end of the workout; any outside the window are dropped here. Two sources reporting the same
+     * instant are averaged into one sample.
      *
      * The average is weighted by time: each sample counts for the time until the next one (or
      * the window's end), capped at [MAX_CREDITED_GAP_MILLIS]. A plain mean would let a burst of

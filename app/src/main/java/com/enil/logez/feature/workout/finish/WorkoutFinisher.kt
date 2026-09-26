@@ -22,6 +22,7 @@ import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
 import com.enil.logez.core.wellness.HealthMetricsSource
+import com.enil.logez.core.wellness.WorkoutHeartRateBackfill
 import com.enil.logez.core.wellness.HealthDataType
 import com.enil.logez.core.wellness.canRead
 import java.time.Instant
@@ -66,6 +67,8 @@ class WorkoutFinisher @Inject constructor(
     private val logger: AppLogger = AppLogger.NoOp,
     private val widgetRefresher: WidgetRefresher = WidgetRefresher.NoOp,
 ) {
+    private val heartRateBackfill = WorkoutHeartRateBackfill(healthMetricsSource, heartRateSampleRepository, logger)
+
     suspend fun finish(
         workout: WorkoutEntity,
         title: String,
@@ -132,29 +135,13 @@ class WorkoutFinisher @Inject constructor(
         }
     }
 
+    /**
+     * The first heart-rate read for this workout. Shares [WorkoutHeartRateBackfill] with the
+     * summary and History, which read again later when they come back to the foreground, since a
+     * watch's heart rate usually reaches Health Connect after Save (2026-09-26). Never throws.
+     */
     private suspend fun saveHeartRateSamples(workoutId: String, startedAt: Long, endedAt: Long) {
-        try {
-            if (!healthMetricsSource.canRead(HealthDataType.HEART_RATE)) return
-            val samples = healthMetricsSource.readHeartRateSamples(Instant.ofEpochMilli(startedAt), Instant.ofEpochMilli(endedAt))
-            if (samples.isEmpty()) return
-            heartRateSampleRepository.insertAll(
-                samples.map {
-                    WorkoutHeartRateSampleEntity(
-                        id = UUID.randomUUID().toString(),
-                        workoutId = workoutId,
-                        recordedAt = it.time.toEpochMilli(),
-                        bpm = it.bpm,
-                    )
-                },
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Best-effort by design (see the doc comment at this method's call site): the workout
-            // itself already saved successfully by the time this runs, so a Health Connect IPC
-            // failure or a Room insert failure here must never surface as a failed Finish.
-            logger.e(TAG, "Post-finish heart-rate sample save failed for workout $workoutId; workout itself is unaffected", e)
-        }
+        heartRateBackfill.backfill(workoutId, startedAt, endedAt)
     }
 
     private companion object {

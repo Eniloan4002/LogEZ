@@ -455,8 +455,9 @@ private fun SplitsTable(splits: List<RouteSplit>, fastest: RouteSplit?, km: Bool
     }
 }
 
+/** Also shown on History's workout detail, so a run's heart rate looks the same in both places. */
 @Composable
-private fun HeartRateCard(summary: HeartRateSummary, startedAtMillis: Long, modifier: Modifier = Modifier) {
+internal fun HeartRateCard(summary: HeartRateSummary, startedAtMillis: Long, modifier: Modifier = Modifier) {
     LogEzCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             CardHeadingRow(

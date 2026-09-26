@@ -23,3 +23,20 @@ fun rememberRequestHealthConnectPermissions(
     }
     return { launcher.launch(source.requiredPermissions) }
 }
+
+/**
+ * Requests exactly [permissions] and reports the full set Health Connect now grants (2026-09-26).
+ * The tracking screen asks for heart rate alone this way, so it can tell whether heart rate
+ * itself was allowed: after a type has been refused, Health Connect answers at once without
+ * showing anything, and the caller then points to Health Connect's settings instead.
+ */
+@Composable
+fun rememberRequestHealthPermissions(
+    permissions: Set<String>,
+    onResult: (granted: Set<String>) -> Unit,
+): () -> Unit {
+    val launcher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+        onResult(granted)
+    }
+    return { launcher.launch(permissions) }
+}

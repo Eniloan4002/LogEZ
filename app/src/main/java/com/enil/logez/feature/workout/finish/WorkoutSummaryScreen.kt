@@ -41,6 +41,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.WeightUnit
@@ -86,6 +88,9 @@ fun WorkoutSummaryScreen(
     var showShareDialog by rememberSaveable { mutableStateOf(false) }
     var showFullMap by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onDone)
+    // Heart rate often reaches Health Connect after Save; coming back here (for instance after
+    // opening Samsung Health to sync the watch) looks again and adds whatever arrived.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshHeartRate() }
 
     Scaffold(contentWindowInsets = WindowInsets(0)) { padding ->
         if (uiState.isLoading) return@Scaffold

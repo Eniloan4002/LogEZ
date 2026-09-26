@@ -70,7 +70,7 @@ class ActivityTrackingViewModelTest {
         val workoutStarter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), clock)
         val viewModel = ActivityTrackingViewModel(
             trackingController, SessionDiscarder(workoutStarter, sessionController, trackingController),
-            sessionController, FakeSettingsRepository(), FakeHealthMetricsSource(), clock,
+            sessionController, FakeSettingsRepository(), FakeHealthMetricsSource(), clock, com.enil.logez.core.common.AppLogger.NoOp,
         )
         return Fixture(viewModel, trackingController, sessionController)
     }

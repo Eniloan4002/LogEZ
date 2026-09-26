@@ -28,6 +28,7 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.core.wellness.WorkoutHeartRateBackfill
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,7 @@ class WorkoutSummaryViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val activityTrackRepository: ActivityTrackRepository,
     private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
+    private val heartRateBackfill: WorkoutHeartRateBackfill,
 ) : ViewModel() {
     private val workoutId: String = checkNotNull(savedStateHandle[WORKOUT_ID_ARG])
 
@@ -67,8 +69,26 @@ class WorkoutSummaryViewModel @Inject constructor(
     val uiState: StateFlow<WorkoutSummaryUiState> = _uiState
 
     init {
+        viewModelScope.launch { load() }
+    }
+
+    /**
+     * Reads Health Connect again for this workout and, if new heart rate arrived since the last
+     * look, rebuilds the summary. The screen calls this whenever it comes back to the foreground:
+     * a watch's heart rate usually syncs after Save, typically when the user opens Samsung Health
+     * to force it and then returns here (2026-09-26).
+     */
+    fun refreshHeartRate() {
         viewModelScope.launch {
             val workout = workoutRepository.getById(workoutId) ?: return@launch
+            val endedAt = workout.endedAt ?: (workout.startedAt + workout.durationSeconds * 1000L)
+            if (heartRateBackfill.backfill(workoutId, workout.startedAt, endedAt) > 0) load()
+        }
+    }
+
+    private suspend fun load() {
+        run {
+            val workout = workoutRepository.getById(workoutId) ?: return
             val settings = settingsRepository.settings.first()
             val sets = workoutRepository.getSetsWithExerciseForWorkout(workoutId)
             val included = sets.filter { isIncluded(it.set, settings.includeWarmupsInStats) }

@@ -85,6 +85,10 @@ class HealthConnectMetricsSource @Inject constructor(
         revokedInThisProcess = false
     }
 
+    override val accessEndsOnRestart: Boolean get() = revokedInThisProcess
+
+    override fun permissionFor(type: HealthDataType): String = permissionByType.getValue(type)
+
     private suspend fun <T> safely(what: String, fallback: T, block: suspend () -> T): T = try {
         block()
     } catch (e: CancellationException) {
@@ -116,21 +120,49 @@ class HealthConnectMetricsSource @Inject constructor(
         return DailyTotals(steps = steps, caloriesBurned = caloriesBurned)
     }
 
+    /**
+     * One small page of the newest records is enough for "the latest reading"; the strength
+     * logger polls this every 10 seconds, so it doesn't page through the whole look-back.
+     */
     override suspend fun readLatestHeartRate(withinSeconds: Long): HeartRateSample? {
         val now = Instant.now()
-        return readHeartRateSamples(now.minusSeconds(withinSeconds), now).maxByOrNull { it.time }
+        val from = now.minusSeconds(withinSeconds)
+        return HeartRateReadWindow.collect(from, now, maxPages = 1) { queryStart, _ ->
+            fetchHeartRatePage(queryStart, now, pageToken = null, pageSize = LATEST_PAGE_SIZE)
+        }.samples.lastOrNull()
     }
 
+    /**
+     * Records are fetched from [HeartRateReadWindow.queryStart] and kept by each sample's own time,
+     * because Health Connect matches a range on record start time only (see [HeartRateReadWindow]).
+     * Every page is read, up to [MAX_HEART_RATE_PAGES]; a single page used to be the whole answer.
+     */
     override suspend fun readHeartRateSamples(start: Instant, end: Instant): List<HeartRateSample> {
+        val result = HeartRateReadWindow.collect(start, end, MAX_HEART_RATE_PAGES) { queryStart, pageToken ->
+            fetchHeartRatePage(queryStart, end, pageToken, pageSize = FULL_PAGE_SIZE)
+        }
+        if (result.truncated) {
+            logger.e(TAG, "Heart-rate read for $start..$end stopped at $MAX_HEART_RATE_PAGES pages; oldest look-back records skipped", null)
+        }
+        return result.samples
+    }
+
+    /** Newest records first, so a page cap can only ever drop the oldest look-back records. */
+    private suspend fun fetchHeartRatePage(queryStart: Instant, end: Instant, pageToken: String?, pageSize: Int): HeartRateReadWindow.Page {
         val response = client().readRecords(
-            ReadRecordsRequest(HeartRateRecord::class, TimeRangeFilter.between(start, end)),
+            ReadRecordsRequest(
+                recordType = HeartRateRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(queryStart, end),
+                ascendingOrder = false,
+                pageSize = pageSize,
+                pageToken = pageToken,
+            ),
         )
         // HeartRateRecord.Sample.beatsPerMinute is a plain Long, not a units-wrapper class like
         // Energy -- confirmed via the same javap inspection that caught the calories blocker, so
         // this path doesn't carry the same interop risk.
-        return response.records
-            .flatMap { record -> record.samples.map { HeartRateSample(time = it.time, bpm = it.beatsPerMinute) } }
-            .sortedBy { it.time }
+        val samples = response.records.flatMap { record -> record.samples.map { HeartRateSample(time = it.time, bpm = it.beatsPerMinute) } }
+        return HeartRateReadWindow.Page(samples, response.pageToken)
     }
 
     override suspend fun readStepsHistory(start: LocalDate, end: LocalDate): List<DailyStepCount> {
@@ -158,5 +190,14 @@ class HealthConnectMetricsSource @Inject constructor(
 
     private companion object {
         const val TAG = "HealthConnectMetricsSource"
+
+        /**
+         * Up to 10,000 records across the three-hour look-back plus the workout; far more than a
+         * watch writes (Samsung Health writes a few dozen series records per hour). Reads come
+         * newest first, so hitting it would only lose the oldest look-back records, and is logged.
+         */
+        const val MAX_HEART_RATE_PAGES = 10
+        const val FULL_PAGE_SIZE = 1000
+        const val LATEST_PAGE_SIZE = 50
     }
 }

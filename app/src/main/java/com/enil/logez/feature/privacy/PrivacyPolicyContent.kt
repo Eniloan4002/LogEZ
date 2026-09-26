@@ -31,7 +31,7 @@ data class PrivacyPolicyDocument(
  */
 object PrivacyPolicyContent {
     const val DEVELOPER = "Enil (Linus William Tabanao)"
-    const val EFFECTIVE_DATE = "25 September 2026"
+    const val EFFECTIVE_DATE = "26 September 2026"
 
     /** Shown wherever the contact belongs while `logez.contactEmail` is unset; release builds refuse to build then. */
     const val CONTACT_PLACEHOLDER = "[contact email not set: add logez.contactEmail to gradle.properties]"
@@ -128,7 +128,7 @@ object PrivacyPolicyContent {
                         PolicyBlock.Bullets(
                             listOf(
                                 "Steps are shown on the Profile tab, the Workout tab (today and the last 7 days), the Statistics screen (the last 30 days) and the home-screen widget. Calories burned are shown on the Profile tab.",
-                                "Heart rate is shown live during workouts and walk/run tracking, and as a chart on the summary shown when you finish. LogEZ keeps those readings with the workout, and they are included in full backups.",
+                                "Heart rate is shown during workouts and walk/run tracking, and as a chart on the summary shown when you finish and on the workout in History. Heart rate your watch syncs after you save is added when you next open that summary or workout. LogEZ keeps those readings with the workout, and they are included in full backups.",
                                 "LogEZ keeps a copy of daily step and calorie totals, and of the heart-rate readings for each workout, on your phone.",
                             ),
                         ),

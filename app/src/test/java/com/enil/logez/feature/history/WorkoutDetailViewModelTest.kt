@@ -203,6 +203,8 @@ class WorkoutDetailViewModelTest {
         trackRepo: FakeActivityTrackRepository = FakeActivityTrackRepository(),
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(listOf()),
+        sampleRepo: com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository = com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository(),
+        healthSource: com.enil.logez.fakes.FakeHealthMetricsSource = com.enil.logez.fakes.FakeHealthMetricsSource(),
     ): WorkoutDetailViewModel {
         val personalRecordsRepo = FakePersonalRecordsRepository()
         val personalRecordsUpdater = PersonalRecordsUpdater(
@@ -234,7 +236,45 @@ class WorkoutDetailViewModelTest {
                     CoroutineScope(dispatcher),
                 ),
             ),
+            heartRateSampleRepository = sampleRepo,
+            heartRateBackfill = com.enil.logez.core.wellness.WorkoutHeartRateBackfill(healthSource, sampleRepo, com.enil.logez.core.common.AppLogger.NoOp),
         )
+    }
+
+    @Test
+    fun `saved heart rate shows as a summary on the workout detail`() = runTest {
+        val sampleRepo = com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository(
+            listOf(
+                com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity("hr1", "w1", 1_000L, 120L),
+                com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity("hr2", "w1", 1_500L, 140L),
+            ),
+        )
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(workouts = listOf(workout("w1")), exercises = listOf(workoutExercise("we1", "w1")), sets = listOf(aSet("s1", "we1", weightKg = 50.0, reps = 5))),
+            sampleRepo = sampleRepo,
+        )
+        assertEquals(140L, vm.uiState.value.heartRateSummary!!.maxBpm)
+    }
+
+    @Test
+    fun `opening the workout again adds heart rate the watch synced after Save`() = runTest {
+        val sampleRepo = com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository()
+        val health = com.enil.logez.fakes.FakeHealthMetricsSource(
+            availabilityValue = com.enil.logez.core.wellness.HealthConnectAvailability.Available,
+            permissionsGranted = true,
+            heartRateSamples = listOf(com.enil.logez.core.wellness.HeartRateSample(java.time.Instant.ofEpochMilli(1_500L), 133L)),
+        )
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(workouts = listOf(workout("w1")), exercises = listOf(workoutExercise("we1", "w1")), sets = listOf(aSet("s1", "we1", weightKg = 50.0, reps = 5))),
+            sampleRepo = sampleRepo,
+            healthSource = health,
+        )
+        assertEquals(null, vm.uiState.value.heartRateSummary)
+
+        vm.refresh() // the screen's ON_RESUME
+
+        assertEquals(1, sampleRepo.all.size)
+        assertEquals(133L, vm.uiState.value.heartRateSummary!!.maxBpm)
     }
 
     private fun workout(id: String) = WorkoutEntity(

@@ -26,6 +26,10 @@ import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.workout.WorkoutStarter
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.enil.logez.core.domain.calc.HeartRateSummary
+import com.enil.logez.core.domain.calc.HeartRateSummaryCalculator
+import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
+import com.enil.logez.core.wellness.WorkoutHeartRateBackfill
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +54,8 @@ class WorkoutDetailViewModel @Inject constructor(
     private val activityTrackRepository: ActivityTrackRepository,
     private val inProgressWorkoutResolver: InProgressWorkoutResolver,
     private val sessionDiscarder: SessionDiscarder,
+    private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
+    private val heartRateBackfill: WorkoutHeartRateBackfill,
 ) : ViewModel() {
     /** Which resume path this screen's conflict dialog should take -- see [InProgressWorkoutResolver]. */
     suspend fun inProgressWorkout(): InProgressWorkout? = inProgressWorkoutResolver.resolve()
@@ -63,9 +69,20 @@ class WorkoutDetailViewModel @Inject constructor(
         viewModelScope.launch { reload() }
     }
 
-    /** Re-reads from Room — the screen calls this on RESUME, since an edit rewrites what it shows. */
+    /**
+     * Re-reads from Room — the screen calls this on RESUME, since an edit rewrites what it shows.
+     * Then it asks Health Connect for any heart rate that synced since this workout was saved and
+     * reloads again if some arrived (2026-09-26): a watch's readings usually arrive after Save, so
+     * opening the workout later is when they get added. Room first, so an edit never waits on
+     * Health Connect.
+     */
     fun refresh() {
-        viewModelScope.launch { reload() }
+        viewModelScope.launch {
+            reload()
+            val workout = workoutRepository.getById(workoutId) ?: return@launch
+            val endedAt = workout.endedAt ?: (workout.startedAt + workout.durationSeconds * 1000L)
+            if (heartRateBackfill.backfill(workoutId, workout.startedAt, endedAt) > 0) reload()
+        }
     }
 
     private suspend fun reload() {
@@ -138,9 +155,17 @@ class WorkoutDetailViewModel @Inject constructor(
         val track = rows.firstNotNullOfOrNull { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) }
         val routePoints = track?.routePolyline?.let(PolylineEncoding::decode) ?: emptyList()
 
+        val heartRateSummary = HeartRateSummaryCalculator.summarize(
+            samples = heartRateSampleRepository.getForWorkout(workoutId).map { it.recordedAt to it.bpm },
+            windowStartMillis = workout.startedAt,
+            windowEndMillis = workout.endedAt ?: (workout.startedAt + workout.durationSeconds * 1000L),
+            maxHeartRateBpm = settings.maxHeartRateBpm,
+        )
+
         _uiState.value = WorkoutDetailUiState(
             isLoading = false,
             workout = workout,
+            heartRateSummary = heartRateSummary,
             routineName = routineName,
             durationSeconds = workout.durationSeconds,
             weightUnit = settings.weightUnit,
@@ -224,6 +249,8 @@ data class WorkoutDetailUiState(
     val hasRoute: Boolean = false,
     /** M21c: decoded from the tracked set's saved polyline -- the actual line the Route card draws. */
     val routePoints: List<Pair<Double, Double>> = emptyList(),
+    /** Saved heart rate for this workout, or null with none; shows the Heart rate card (2026-09-26). */
+    val heartRateSummary: HeartRateSummary? = null,
 )
 
 data class DetailExerciseBlock(
