@@ -11,10 +11,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
@@ -36,6 +38,15 @@ fun rememberStartWorkoutSession(onNavigateToLogger: (workoutId: String) -> Unit)
     // there skipped starting the service for a workout that had already begun.
     var pendingWorkoutId by rememberSaveable { mutableStateOf<String?>(null) }
     var showRationale by rememberSaveable { mutableStateOf(false) }
+
+    // While this screen's prompt (or the permission request after it) waits for an answer, other
+    // callers in the window skip this workout: the answer starts the service and opens the logger.
+    val openPrompts = LocalOpenNotificationPrompts.current
+    val waitingFor = pendingWorkoutId
+    DisposableEffect(openPrompts, waitingFor) {
+        if (openPrompts != null && waitingFor != null) openPrompts.add(waitingFor)
+        onDispose { if (openPrompts != null && waitingFor != null) openPrompts.remove(waitingFor) }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) NotificationPromptMemory.markDeclined(context)
@@ -69,7 +80,13 @@ fun rememberStartWorkoutSession(onNavigateToLogger: (workoutId: String) -> Unit)
         )
     }
 
-    return { workoutId ->
+    return start@{ workoutId ->
+        if (openPrompts?.isWaitingFor(workoutId) == true) {
+            // Another screen's prompt for this workout is open (cold-start recovery after a process
+            // death with the Workout tab's prompt showing); starting here too gave two dialogs and
+            // two logger entries. That prompt's answer starts the service and navigates.
+            return@start
+        }
         // Asked once. After "Not now" or a denial the prompt stays away (it used to reappear on
         // every workout start, and after two denials its Allow button silently did nothing);
         // Settings > Workouts > Lock-screen notifications is the way back.
@@ -81,6 +98,27 @@ fun rememberStartWorkoutSession(onNavigateToLogger: (workoutId: String) -> Unit)
         }
     }
 }
+
+/**
+ * The workouts whose lock-screen notification prompt is waiting for an answer in this window,
+ * whichever screen asked. One instance per window, provided by the app root through
+ * [LocalOpenNotificationPrompts]; without one, each caller prompts on its own.
+ */
+class OpenNotificationPrompts {
+    private val workoutIds = mutableSetOf<String>()
+
+    fun isWaitingFor(workoutId: String): Boolean = workoutId in workoutIds
+
+    internal fun add(workoutId: String) {
+        workoutIds += workoutId
+    }
+
+    internal fun remove(workoutId: String) {
+        workoutIds -= workoutId
+    }
+}
+
+val LocalOpenNotificationPrompts = staticCompositionLocalOf<OpenNotificationPrompts?> { null }
 
 private fun launchServiceAndNavigate(context: Context, workoutId: String, onNavigateToLogger: (String) -> Unit) {
     val intent = Intent(context, WorkoutSessionService::class.java).setAction(WorkoutSessionService.ACTION_START)
