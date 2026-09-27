@@ -58,15 +58,19 @@ import kotlin.math.roundToInt
  * the app rather than a new dialect.
  */
 
-/** Uppercase section header ("PREFERENCES", "WORKOUTS", …) matching the app's card-title styling. */
+/**
+ * Uppercase section header ("PREFERENCES", "WORKOUTS", …) matching the app's card-title styling.
+ * [modifier] goes before the header's own padding; first-run setup uses it to mark the header as a
+ * heading for TalkBack.
+ */
 @Composable
-internal fun SettingsSectionHeader(text: String) {
+internal fun SettingsSectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
         text.uppercase(currentLocale()),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = Spacing.md, end = Spacing.md, top = Spacing.lg, bottom = Spacing.xs),
+        modifier = modifier.padding(start = Spacing.md, end = Spacing.md, top = Spacing.lg, bottom = Spacing.xs),
     )
 }
 

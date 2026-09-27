@@ -51,8 +51,11 @@ sealed interface FirstRunGateState {
     /**
      * Continue has been written. The overlay stays up while the app navigates to the Workout tab,
      * so History never flashes; the app then calls [FirstRunGateViewModel.handoffDone].
+     *
+     * @param setup the setup that was showing, so the hand-off frames draw the same screen (disabled)
+     *   even in an Activity recreated mid-hand-off, instead of a blank cover.
      */
-    data object HandOff : FirstRunGateState
+    data class HandOff(val setup: ShowSetup) : FirstRunGateState
 
     /** The app as it is today. */
     data object ShowApp : FirstRunGateState
@@ -167,13 +170,13 @@ class FirstRunGateViewModel @Inject constructor(
             } catch (e: Exception) {
                 logger.e(TAG, "Saving the setup choices failed; opening the app", e)
             }
-            _state.value = FirstRunGateState.HandOff
+            _state.value = FirstRunGateState.HandOff(current)
         }
     }
 
     /** The app has navigated to the Workout tab under the overlay; remove the overlay. */
     fun handoffDone() {
-        if (_state.value == FirstRunGateState.HandOff) _state.value = FirstRunGateState.ShowApp
+        if (_state.value is FirstRunGateState.HandOff) _state.value = FirstRunGateState.ShowApp
     }
 
     /**
@@ -182,11 +185,27 @@ class FirstRunGateViewModel @Inject constructor(
      * Skipped while this window's own Continue is being written: its flag write makes [FirstRunStore.isDone]
      * true before the hand-off, and switching to the app then would flash History under the overlay.
      * A flag that can't be read counts as not done.
+     *
+     * It also re-asks the region: a language or region change while setup shows recreates the
+     * Activity but keeps this ViewModel. The preselected values stay as they were, but the region
+     * note only stays while they are still what the region suggests.
      */
     fun onResume() {
         val current = _state.value
-        if (current is FirstRunGateState.ShowSetup && !current.working && readFlag() == true) {
+        if (current !is FirstRunGateState.ShowSetup || current.working) return
+        if (readFlag() == true) {
             _state.value = FirstRunGateState.ShowApp
+            return
+        }
+        val suggestion = try {
+            regionDefaults.suggest()
+        } catch (e: Exception) {
+            logger.e(TAG, "Region lookup on resume failed; keeping the region note as it was", e)
+            return
+        }
+        val noteVisible = regionNoteVisible(current.preselected, suggestion)
+        if (noteVisible != current.regionNoteVisible) {
+            _state.value = current.copy(regionNoteVisible = noteVisible)
         }
     }
 
@@ -221,11 +240,18 @@ internal fun setupStateFor(stored: StoredSetupValues, suggestion: RegionSuggesti
         firstDayOfWeek = stored.firstDayOfWeek?.takeIf { it in SetupChoices.OFFERED_FIRST_DAYS }
             ?: suggestion.firstDayOfWeek,
     )
-    val matchesRegion = choices.weightUnit == suggestion.weightUnit &&
-        choices.distanceUnit == suggestion.distanceUnit &&
-        choices.firstDayOfWeek == suggestion.firstDayOfWeek
     return FirstRunGateState.ShowSetup(
         preselected = choices,
-        regionNoteVisible = matchesRegion && !suggestion.weekStartClamped,
+        regionNoteVisible = regionNoteVisible(choices, suggestion),
     )
 }
+
+/**
+ * "Suggested from your phone's region." is true only when every preselected value is the region's
+ * suggestion and the region's week start was one the app offers.
+ */
+private fun regionNoteVisible(preselected: SetupChoices, suggestion: RegionSuggestion): Boolean =
+    preselected.weightUnit == suggestion.weightUnit &&
+        preselected.distanceUnit == suggestion.distanceUnit &&
+        preselected.firstDayOfWeek == suggestion.firstDayOfWeek &&
+        !suggestion.weekStartClamped

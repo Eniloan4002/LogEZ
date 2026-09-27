@@ -1,6 +1,7 @@
 package com.enil.logez.feature.onboarding
 
 import com.enil.logez.core.common.AppLogger
+import com.enil.logez.core.common.RegionDefaults
 import com.enil.logez.core.common.RegionSuggestion
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
@@ -267,7 +268,17 @@ class FirstRunGateViewModelTest {
         assertEquals(FirstRunPath.SETUP, store.storedPath)
         assertEquals(FakeClock.EPOCH_MILLIS, store.doneAt)
         assertEquals(LengthUnit.IN, settings.settings.value.lengthUnit)
-        assertEquals(FirstRunGateState.HandOff, vm.state.value)
+        // The hand-off carries the setup that was showing (en-PH's, from the fake region), so the
+        // overlay can draw it through the hand-off even in a recreated Activity.
+        assertEquals(
+            FirstRunGateState.HandOff(
+                FirstRunGateState.ShowSetup(
+                    preselected = SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY),
+                    regionNoteVisible = true,
+                ),
+            ),
+            vm.state.value,
+        )
 
         vm.handoffDone()
         assertEquals(FirstRunGateState.ShowApp, vm.state.value)
@@ -291,7 +302,7 @@ class FirstRunGateViewModelTest {
 
         vm.complete(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY))
 
-        assertEquals(FirstRunGateState.HandOff, vm.state.value)
+        assertTrue(vm.state.value is FirstRunGateState.HandOff)
         assertFalse(store.isDone())
         assertNull(store.storedPath)
     }
@@ -303,7 +314,7 @@ class FirstRunGateViewModelTest {
 
         vm.complete(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY))
 
-        assertEquals(FirstRunGateState.HandOff, vm.state.value)
+        assertTrue(vm.state.value is FirstRunGateState.HandOff)
         assertEquals(0, store.markDoneCallCount)
         assertEquals(0, widget.refreshCount)
         assertEquals(listOf("Saving the setup choices failed; opening the app"), logger.messages)
@@ -317,7 +328,7 @@ class FirstRunGateViewModelTest {
         vm.complete(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY))
 
         assertEquals(FirstRunPath.SETUP, store.storedPath)
-        assertEquals(FirstRunGateState.HandOff, vm.state.value)
+        assertTrue(vm.state.value is FirstRunGateState.HandOff)
         assertEquals(listOf("Widget refresh after setup failed"), logger.messages)
     }
 
@@ -338,7 +349,7 @@ class FirstRunGateViewModelTest {
         assertEquals(listOf(first), settings.appliedSetupChoices)
 
         gate.complete(Unit)
-        assertEquals(FirstRunGateState.HandOff, vm.state.value)
+        assertTrue(vm.state.value is FirstRunGateState.HandOff)
         assertEquals(1, store.markDoneCallCount)
     }
 
@@ -380,7 +391,7 @@ class FirstRunGateViewModelTest {
         vm.complete(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.MONDAY))
 
         assertTrue((stateAtResume as FirstRunGateState.ShowSetup).working)
-        assertEquals(FirstRunGateState.HandOff, vm.state.value)
+        assertTrue(vm.state.value is FirstRunGateState.HandOff)
     }
 
     @Test
@@ -392,6 +403,56 @@ class FirstRunGateViewModelTest {
         vm.onResume()
 
         assertEquals(before, vm.state.value)
+    }
+
+    @Test
+    fun `a resume after the region changed keeps the preselection but hides the region note`() {
+        val vm = newViewModel()
+        assertEquals(
+            FirstRunGateState.ShowSetup(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY), true),
+            vm.state.value,
+        )
+
+        // The phone switched from English (Philippines) to English (United Kingdom) while setup showed.
+        region.suggestion = RegionSuggestion(
+            weightUnit = WeightUnit.KG,
+            distanceUnit = DistanceUnit.MILES,
+            lengthUnit = LengthUnit.CM,
+            firstDayOfWeek = DayOfWeek.MONDAY,
+            weekStartClamped = false,
+        )
+        vm.onResume()
+
+        assertEquals(
+            FirstRunGateState.ShowSetup(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY), false),
+            vm.state.value,
+        )
+
+        // And back again: the preselection is the region's once more.
+        region.suggestion = region.suggestion.copy(distanceUnit = DistanceUnit.KM, firstDayOfWeek = DayOfWeek.SUNDAY)
+        vm.onResume()
+        assertEquals(
+            FirstRunGateState.ShowSetup(SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY), true),
+            vm.state.value,
+        )
+    }
+
+    @Test
+    fun `a resume whose region lookup throws keeps the region note as it was`() {
+        var lookupThrows = false
+        val switchable = object : RegionDefaults {
+            override fun suggest(): RegionSuggestion =
+                if (lookupThrows) throw IllegalStateException("no locale") else region.suggestion
+        }
+        val vm = FirstRunGateViewModel(store, probe, settings, switchable, widget, clock, logger)
+        val before = vm.state.value
+        assertTrue(before is FirstRunGateState.ShowSetup)
+
+        lookupThrows = true
+        vm.onResume()
+
+        assertEquals(before, vm.state.value)
+        assertEquals("Region lookup on resume failed; keeping the region note as it was", logger.messages.last())
     }
 
     @Test

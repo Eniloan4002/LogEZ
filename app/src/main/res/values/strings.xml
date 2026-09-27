@@ -705,6 +705,20 @@ What you have now cannot be recovered afterwards.</string>
     <string name="settings_length_unit">Body measurement unit</string>
     <string name="settings_length_unit_cm">Centimeters (cm)</string>
     <string name="settings_length_unit_in">Inches (in)</string>
+    <!-- First-run plan O1c: the setup screen shown once on a fresh install. -->
+    <string name="first_run_pane_title">LogEZ setup</string>
+    <string name="first_run_title">Before you start</string>
+    <string name="first_run_intro">No account and no ads. Everything you log stays on your phone.</string>
+    <string name="first_run_section_units">Units</string>
+    <string name="unit_symbol_kg" translatable="false">kg</string>
+    <string name="unit_symbol_lb" translatable="false">lb</string>
+    <string name="unit_symbol_km" translatable="false">km</string>
+    <string name="unit_symbol_mi" translatable="false">mi</string>
+    <string name="first_run_length_note">Body measurements will use cm with kg, or inches with lb. You can change them separately in Settings.</string>
+    <string name="first_run_region_note">Suggested from your phone\'s region.</string>
+    <string name="first_run_settings_note">Change these any time in Profile &gt; Settings.</string>
+    <string name="first_run_backup_note">LogEZ has no cloud copy of your data. To keep a copy off this phone, make a Full backup (.zip) in Profile &gt; Settings &gt; Export &amp; backup and save the file somewhere else.</string>
+    <string name="first_run_continue">Continue</string>
     <!-- M23b: home-screen widget. -->
     <string name="widget_weekly_progress_label">Weekly progress</string>
     <string name="widget_weekly_progress_description">Training days this week, your week streak, and today\'s steps.</string>
