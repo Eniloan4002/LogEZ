@@ -3,11 +3,14 @@ package com.enil.logez.feature.settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -168,26 +171,12 @@ fun DataScreen(
     }
 
     if (confirmDeleteAll) {
-        AlertDialog(
-            onDismissRequest = { confirmDeleteAll = false },
-            title = { Text(stringResource(R.string.data_delete_all_confirm_title)) },
-            text = { Text(stringResource(R.string.data_delete_all_confirm_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeleteAll = false
-                    viewModel.deleteAllData()
-                }) {
-                    Text(
-                        text = stringResource(R.string.data_delete_all_confirm_action),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+        DeleteAllConfirmDialog(
+            onConfirm = {
+                confirmDeleteAll = false
+                viewModel.deleteAllData()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteAll = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
+            onDismiss = { confirmDeleteAll = false },
         )
     }
 
@@ -340,4 +329,35 @@ private fun healthAccessSummary(granted: Set<com.enil.logez.core.wellness.Health
     } else {
         stringResource(R.string.data_health_access_partial, reading, missing)
     }
+}
+
+/**
+ * "Delete everything?". Its body is two paragraphs (first-run plan, Decision 7, made it longer), so
+ * it scrolls: AlertDialog's text slot doesn't, and at 200% font in landscape the last sentences,
+ * including "Make a full backup first", would otherwise be clipped.
+ */
+@Composable
+internal fun DeleteAllConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.data_delete_all_confirm_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.data_delete_all_confirm_body))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(R.string.data_delete_all_confirm_action),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }

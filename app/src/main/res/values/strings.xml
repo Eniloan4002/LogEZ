@@ -676,7 +676,7 @@ What you have now cannot be recovered afterwards.</string>
     <string name="data_delete_all">Delete all data</string>
     <string name="data_delete_all_subtitle">Erases every workout, routine, measurement, photo and setting</string>
     <string name="data_delete_all_confirm_title">Delete everything?</string>
-    <string name="data_delete_all_confirm_body">This permanently erases everything in LogEZ: workouts, routes, routines, custom exercises, measurements, progress photos, goals, saved Health Connect readings and your settings. The exercise library is restored to its original state.\n\nFiles you already exported or saved to Pictures are not affected. Make a full backup first if you might want this data back.</string>
+    <string name="data_delete_all_confirm_body">This permanently erases everything in LogEZ: workouts, routes, routines, custom exercises, measurements, progress photos, goals, saved Health Connect readings and your settings. The exercise library is restored to its original state. LogEZ then shows its setup screen the next time it opens.\n\nFiles you already exported or saved to Pictures are not affected. Make a full backup first if you might want this data back.</string>
     <string name="data_delete_all_confirm_action">Delete everything</string>
     <string name="data_delete_all_working">Deleting…</string>
     <string name="data_delete_all_done">All data deleted</string>

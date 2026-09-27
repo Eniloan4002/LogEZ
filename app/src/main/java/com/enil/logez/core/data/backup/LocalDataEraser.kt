@@ -2,10 +2,12 @@ package com.enil.logez.core.data.backup
 
 import android.content.Context
 import com.enil.logez.core.common.AppLogger
+import com.enil.logez.core.common.RegionDefaults
 import com.enil.logez.core.data.dao.BackupDao
 import com.enil.logez.core.data.seed.SeedManager
 import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.repository.FirstRunStore
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.TransactionRunner
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,7 +37,9 @@ import org.maplibre.android.offline.OfflineManager
  * 3. The photo directories, any staged or half-swapped restore, and the cache (shared summary
  *    images, camera temp files) are deleted, and MapLibre's tile cache is reset: it holds map
  *    images of the areas the user's routes covered.
- * 4. Settings go back to their defaults, and the library is re-seeded.
+ * 4. Settings go back to their defaults, except the units and the week start, which take the
+ *    phone region's suggestion, as first-run setup would; the first-run flag is removed, so setup
+ *    shows again at the next cold start (first-run plan, Decision 7). Then the library is re-seeded.
  * 5. The widget is repainted so it stops showing the erased week.
  *
  * Runs NonCancellable: once the wipe has committed, leaving the screen must not stop it halfway.
@@ -52,6 +56,8 @@ class LocalDataEraser @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val seedManager: SeedManager,
     private val widgetRefresher: WidgetRefresher,
+    private val regionDefaults: RegionDefaults,
+    private val firstRunStore: FirstRunStore,
     private val logger: AppLogger,
 ) {
     suspend fun eraseEverything() = withContext(NonCancellable) {
@@ -66,8 +72,7 @@ class LocalDataEraser @Inject constructor(
         runCatching { withContext(Dispatchers.IO) { deleteMediaAndCache(context.filesDir, context.cacheDir) } }
             .onFailure { logger.e(TAG, "Deleting media and cache after the wipe failed", it) }
         resetMapCache()
-        runCatching { settingsRepository.replaceAll(UserSettings()) }
-            .onFailure { logger.e(TAG, "Resetting settings after the wipe failed", it) }
+        resetSettingsForFirstRun(settingsRepository, regionDefaults, firstRunStore, logger)
         runCatching { seedManager.seedIfNeeded() }
             .onFailure { logger.e(TAG, "Re-seeding after deleting all data failed", it) }
         runCatching { widgetRefresher.refresh() }
@@ -103,6 +108,43 @@ class LocalDataEraser @Inject constructor(
         const val MAP_CACHE_TIMEOUT_MS = 10_000L
     }
 }
+
+/**
+ * Delete all data's settings step (first-run plan, Decision 7), split out so it is testable
+ * without MapLibre. Every setting goes back to its default, except that the units and the week
+ * start take the region's suggestion instead of kg, km, cm and Monday; then the first-run keys are
+ * removed, so the next cold start shows setup, which preselects those stored values. The tip flags
+ * and the notification prompt's "declined" flag live beside the first-run keys and are kept.
+ *
+ * Each step is logged and skipped on failure: it runs after the wipe has committed. A region lookup
+ * that fails falls back to the plain defaults rather than skipping the reset.
+ */
+internal suspend fun resetSettingsForFirstRun(
+    settingsRepository: SettingsRepository,
+    regionDefaults: RegionDefaults,
+    firstRunStore: FirstRunStore,
+    logger: AppLogger,
+) {
+    // A failed region lookup must not skip the reset itself: the settings then go back to the plain
+    // defaults (kg, km, cm, Monday), as Delete all data did before first-run setup existed.
+    val settings = runCatching { regionDefaults.suggest() }
+        .onFailure { logger.e(ERASER_TAG, "Region lookup after the wipe failed; using the plain defaults", it) }
+        .map { suggestion ->
+            UserSettings().copy(
+                weightUnit = suggestion.weightUnit,
+                distanceUnit = suggestion.distanceUnit,
+                lengthUnit = suggestion.lengthUnit,
+                firstDayOfWeek = suggestion.firstDayOfWeek,
+            )
+        }
+        .getOrDefault(UserSettings())
+    runCatching { settingsRepository.replaceAll(settings) }
+        .onFailure { logger.e(ERASER_TAG, "Resetting settings after the wipe failed", it) }
+    runCatching { firstRunStore.clear() }
+        .onFailure { logger.e(ERASER_TAG, "Removing the first-run flag after the wipe failed", it) }
+}
+
+private const val ERASER_TAG = "LocalDataEraser"
 
 /**
  * Deletes both photo directories, their half-swapped ".old" copies, any staged restore (a full
