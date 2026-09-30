@@ -1,5 +1,6 @@
 package com.enil.logez.feature.onboarding
 
+import com.enil.logez.R
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.RegionDefaults
 import com.enil.logez.core.common.RegionSuggestion
@@ -16,10 +17,13 @@ import com.enil.logez.fakes.FakeRegionDefaults
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeUserDataProbe
 import com.enil.logez.fakes.FakeWidgetRefresher
+import com.enil.logez.feature.settings.RestoreOutcome
 import java.time.DayOfWeek
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
@@ -498,5 +502,316 @@ class FirstRunGateViewModelTest {
         vm.onResume()
 
         assertEquals(before, vm.state.value)
+    }
+
+    // ---- restore from setup (O1e) ----
+
+    private val enPhSetup = FirstRunGateState.ShowSetup(
+        preselected = SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.SUNDAY),
+        regionNoteVisible = true,
+    )
+
+    /** Every message the gate leaves for the app's snackbar from now on, in order. */
+    private fun TestScope.messagesOf(vm: FirstRunGateViewModel): List<FirstRunMessage> {
+        val messages = mutableListOf<FirstRunMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            vm.message.collect { message -> message?.let { messages += it } }
+        }
+        return messages
+    }
+
+    @Test
+    fun `restored with the backup's settings writes the flag with path restore and no setup choices`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+
+        vm.restored(
+            RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = true),
+            SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.MONDAY),
+        )
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(FakeClock.EPOCH_MILLIS, store.doneAt)
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+        assertEquals(0, widget.refreshCount)
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_done)), messages)
+    }
+
+    @Test
+    fun `restored from a backup without settings writes the screen's choices before the flag`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        val onScreen = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.MONDAY)
+        var appliedWhenFlagWritten: List<SetupChoices>? = null
+        var refreshesWhenFlagWritten = -1
+        store.onMarkDone = {
+            appliedWhenFlagWritten = settings.appliedSetupChoices.toList()
+            refreshesWhenFlagWritten = widget.refreshCount
+        }
+
+        vm.restored(RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false), onScreen)
+
+        assertEquals(listOf(onScreen), appliedWhenFlagWritten)
+        assertEquals(1, refreshesWhenFlagWritten)
+        assertEquals(LengthUnit.IN, settings.settings.value.lengthUnit)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_done)), messages)
+    }
+
+    @Test
+    fun `restored with unfinished workouts left out says how many`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+
+        vm.restored(
+            RestoreOutcome(unfinishedWorkoutsLeftOut = 2, backupHadSettings = true),
+            enPhSetup.preselected,
+        )
+
+        assertEquals(listOf(FirstRunMessage(R.plurals.data_restore_done_left_out, count = 2)), messages)
+    }
+
+    @Test
+    fun `restored still opens the app when the setup choices or the flag can't be written`() = runTest {
+        settings.applySetupChoicesError = java.io.IOException("disk full")
+        store.markDoneSucceeds = false
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+
+        vm.restored(RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false), enPhSetup.preselected)
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertFalse(store.isDone())
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_done)), messages)
+        assertEquals(
+            listOf("Saving the setup choices after a restore failed", "Could not record first run after a restore"),
+            logger.messages,
+        )
+    }
+
+    @Test
+    fun `restored is ignored unless setup is showing, and a second call while writing is ignored`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        settings.applySetupChoicesGate = gate
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        val outcome = RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false)
+
+        vm.restored(outcome, enPhSetup.preselected)
+        assertEquals(enPhSetup.copy(working = true), vm.state.value)
+        vm.restored(outcome, enPhSetup.preselected)
+        vm.complete(enPhSetup.preselected)
+        gate.complete(Unit)
+
+        assertEquals(listOf(enPhSetup.preselected), settings.appliedSetupChoices)
+        assertEquals(1, store.markDoneCallCount)
+        assertEquals(1, messages.size)
+
+        vm.restored(outcome, enPhSetup.preselected)
+        assertEquals(1, store.markDoneCallCount)
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+    }
+
+    @Test
+    fun `a restore that failed after the commit opens History with path restore, never Continue`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        // The backup's rows are in the database now.
+        probe.hasContent = true
+
+        vm.restoreFailed(R.string.data_restore_incomplete, backupHadSettings = true, choices = enPhSetup.preselected)
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+        assertEquals(0, widget.refreshCount)
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_incomplete)), messages)
+    }
+
+    @Test
+    fun `a failure after the commit opens History even when the content check would find nothing`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        // A backup of daily step totals and settings only: rows the content check does not count.
+        probe.hasContent = false
+
+        vm.restoreFailed(R.string.data_restore_incomplete, backupHadSettings = true, choices = enPhSetup.preselected)
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_incomplete)), messages)
+        // Only the check that resolved setup: the database is known to hold the backup.
+        assertEquals(1, probe.callCount)
+    }
+
+    @Test
+    fun `a failure after the commit of a backup without settings writes the screen's choices before the flag`() = runTest {
+        val vm = newViewModel()
+        val onScreen = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.MONDAY)
+        var appliedWhenFlagWritten: List<SetupChoices>? = null
+        var refreshesWhenFlagWritten = -1
+        store.onMarkDone = {
+            appliedWhenFlagWritten = settings.appliedSetupChoices.toList()
+            refreshesWhenFlagWritten = widget.refreshCount
+        }
+
+        vm.restoreFailed(R.string.data_restore_incomplete, backupHadSettings = false, choices = onScreen)
+
+        assertEquals(listOf(onScreen), appliedWhenFlagWritten)
+        assertEquals(1, refreshesWhenFlagWritten)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+    }
+
+    @Test
+    fun `a failure before the commit never writes the screen's choices, even for a backup without settings`() = runTest {
+        val vm = newViewModel()
+        probe.hasContent = true
+
+        vm.restoreFailed(
+            R.string.data_restore_blocked_in_progress,
+            backupHadSettings = false,
+            choices = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.MONDAY),
+        )
+
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+        assertEquals(FirstRunPath.EXISTING, store.storedPath)
+    }
+
+    @Test
+    fun `a failed restore that left no content keeps setup, with the flag unwritten and no message`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+
+        vm.restoreFailed(R.string.data_restore_failed, backupHadSettings = true, choices = enPhSetup.preselected)
+
+        assertEquals(enPhSetup, vm.state.value)
+        assertFalse(store.isDone())
+        assertTrue(messages.isEmpty())
+        assertEquals(2, probe.callCount)
+    }
+
+    @Test
+    fun `a failed restore is re-checked before setup takes Continue again`() = runTest {
+        val vm = newViewModel()
+        probe.blockMillis = 1_000L
+
+        vm.restoreFailed(R.string.data_restore_failed, backupHadSettings = true, choices = enPhSetup.preselected)
+        assertEquals(enPhSetup.copy(working = true), vm.state.value)
+        vm.complete(enPhSetup.preselected)
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+
+        advanceTimeBy(1_001L)
+        runCurrent()
+        assertEquals(enPhSetup, vm.state.value)
+    }
+
+    @Test
+    fun `a failure before the commit with content from elsewhere opens the app with its own message and path existing`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        // A second window started a workout while the confirm was open.
+        probe.hasContent = true
+
+        vm.restoreFailed(R.string.data_restore_blocked_in_progress, backupHadSettings = true, choices = enPhSetup.preselected)
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(FirstRunPath.EXISTING, store.storedPath)
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_blocked_in_progress)), messages)
+    }
+
+    @Test
+    fun `a failure before the commit does not overwrite a flag another window already wrote`() = runTest {
+        val vm = newViewModel()
+        store.doneAt = 7L
+        store.storedPath = FirstRunPath.SETUP
+        probe.hasContent = true
+
+        vm.restoreFailed(R.string.data_restore_blocked_in_progress, backupHadSettings = true, choices = enPhSetup.preselected)
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(FirstRunPath.SETUP, store.storedPath)
+        assertEquals(0, store.markDoneCallCount)
+    }
+
+    @Test
+    fun `a failed restore whose content check throws opens the app, flag unwritten`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        probe.error = IllegalStateException("database is locked")
+
+        vm.restoreFailed(R.string.data_restore_failed, backupHadSettings = true, choices = enPhSetup.preselected)
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertFalse(store.isDone())
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_failed)), messages)
+        assertEquals(listOf("Content check after a failed restore failed; opening the app"), logger.messages)
+    }
+
+    @Test
+    fun `a failed restore whose content check hangs opens the app at the timeout, flag unwritten`() = runTest {
+        val vm = newViewModel()
+        val messages = messagesOf(vm)
+        probe.neverReturns = true
+
+        vm.restoreFailed(R.string.data_restore_failed, backupHadSettings = true, choices = enPhSetup.preselected)
+        advanceTimeBy(2_999L)
+        runCurrent()
+        assertEquals(enPhSetup.copy(working = true), vm.state.value)
+
+        advanceTimeBy(2L)
+        runCurrent()
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertFalse(store.isDone())
+        assertEquals(listOf(FirstRunMessage(R.string.data_restore_failed)), messages)
+        assertEquals(
+            listOf("Content check after a failed restore took longer than 3000 ms; opening the app"),
+            logger.messages,
+        )
+    }
+
+    @Test
+    fun `restoreFailed is ignored unless setup is showing`() = runTest {
+        probe.hasContent = true
+        val vm = newViewModel()
+        val calls = probe.callCount
+        val writes = store.markDoneCallCount
+
+        vm.restoreFailed(R.string.data_restore_failed, backupHadSettings = true, choices = enPhSetup.preselected)
+        vm.restoreFailed(R.string.data_restore_incomplete, backupHadSettings = false, choices = enPhSetup.preselected)
+
+        assertEquals(calls, probe.callCount)
+        assertEquals(writes, store.markDoneCallCount)
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+        assertEquals(FirstRunPath.EXISTING, store.storedPath)
+    }
+
+    @Test
+    fun `the restore message is held until messageShown clears it`() = runTest {
+        val vm = newViewModel()
+
+        vm.restored(RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = true), enPhSetup.preselected)
+        assertEquals(FirstRunMessage(R.string.data_restore_done), vm.message.value)
+
+        vm.messageShown()
+        assertNull(vm.message.value)
+    }
+
+    @Test
+    fun `restored records path restore even when another window wrote the flag meanwhile`() = runTest {
+        val vm = newViewModel()
+        // A second window found the restored rows before this one handed the result over.
+        store.doneAt = 7L
+        store.storedPath = FirstRunPath.EXISTING
+        val onScreen = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.MONDAY)
+
+        vm.restored(RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false), onScreen)
+
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(FakeClock.EPOCH_MILLIS, store.doneAt)
+        assertEquals(listOf(onScreen), settings.appliedSetupChoices)
+        assertEquals(FirstRunMessage(R.string.data_restore_done), vm.message.value)
     }
 }

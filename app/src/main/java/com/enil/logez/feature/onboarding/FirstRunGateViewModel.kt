@@ -2,6 +2,7 @@ package com.enil.logez.feature.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.R
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.common.RegionDefaults
@@ -14,6 +15,7 @@ import com.enil.logez.core.domain.repository.FirstRunPath
 import com.enil.logez.core.domain.repository.FirstRunStore
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.UserDataProbe
+import com.enil.logez.feature.settings.RestoreOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -42,7 +44,8 @@ sealed interface FirstRunGateState {
      * @param regionNoteVisible whether "Suggested from your phone's region." is true: every
      *   preselected value matches the region's suggestion, and the region's week start was one the
      *   app offers.
-     * @param working Continue is being written; Continue (and later Restore) are disabled.
+     * @param working Continue, or the end of a restore, is being written, or the database is being
+     *   re-checked after a failed restore; Continue and Restore are disabled.
      */
     data class ShowSetup(
         val preselected: SetupChoices,
@@ -62,6 +65,13 @@ sealed interface FirstRunGateState {
     /** The app as it is today. */
     data object ShowApp : FirstRunGateState
 }
+
+/**
+ * A one-time message for the app's snackbar once the gate opens the app after a restore from setup.
+ *
+ * @param count when set, [messageRes] is a plurals resource shown for this count.
+ */
+data class FirstRunMessage(val messageRes: Int, val count: Int? = null)
 
 /**
  * Decides whether a launch shows first-run setup, and records how first run ended.
@@ -101,6 +111,20 @@ class FirstRunGateViewModel @Inject constructor(
         },
     )
     val state: StateFlow<FirstRunGateState> = _state.asStateFlow()
+
+    private val _message = MutableStateFlow<FirstRunMessage?>(null)
+
+    /**
+     * The snackbar message a restore from setup leaves for the app, until [messageShown]. Held as
+     * state rather than sent once, so a rotation while it shows (which recreates the snackbar host)
+     * shows it again instead of losing it.
+     */
+    val message: StateFlow<FirstRunMessage?> = _message.asStateFlow()
+
+    /** The app has shown [message] for its full time, or the user dismissed it. */
+    fun messageShown() {
+        _message.value = null
+    }
 
     init {
         if (_state.value == FirstRunGateState.Loading) {
@@ -181,6 +205,135 @@ class FirstRunGateViewModel @Inject constructor(
             }
             _state.value = FirstRunGateState.HandOff(current)
         }
+    }
+
+    /**
+     * A restore from setup finished (first-run plan, O1e). A backup without settings kept this
+     * device's settings, so the choices on the screen are written, as Continue would; a backup with
+     * settings has already replaced them, and nothing is written over them. Then the flag (path
+     * `restore`), and the app opens on History, which setup left as the only screen, with
+     * "Restored" or the left-out variant.
+     *
+     * The flag is written even when another window has written one meanwhile: the database now holds
+     * this backup, so `restore` is what happened, whatever that window saw (it can only have found
+     * the restored rows, path `existing`, or have finished setup before the restore replaced it).
+     */
+    fun restored(outcome: RestoreOutcome, choices: SetupChoices) {
+        val current = _state.value as? FirstRunGateState.ShowSetup ?: return
+        if (current.working) return
+        _state.value = current.copy(working = true)
+        viewModelScope.launch {
+            finishRestore(backupHadSettings = outcome.backupHadSettings, choices = choices)
+            val leftOut = outcome.unfinishedWorkoutsLeftOut
+            _message.value = if (leftOut > 0) {
+                FirstRunMessage(R.plurals.data_restore_done_left_out, count = leftOut)
+            } else {
+                FirstRunMessage(R.string.data_restore_done)
+            }
+            _state.value = FirstRunGateState.ShowApp
+        }
+    }
+
+    /**
+     * A confirmed restore from setup failed with [messageRes] (first-run plan, F13). Continue must
+     * never start fresh over a database that already holds the backup.
+     *
+     * - A failure past the commit ([R.string.data_restore_incomplete]): the database holds the backup,
+     *   whatever a content check would say (it doesn't count every restored table, such as daily
+     *   step totals), so no check runs. As after a success, a backup without settings gets the
+     *   screen's choices, since the next launch's resume has none to apply; the flag is written with
+     *   path `restore`, and the app opens on History saying the restore did not finish.
+     * - Any other failure: nothing of the backup arrived, so the database is checked again.
+     *   - Content found: it was made elsewhere, such as a workout started in a second window. The
+     *     flag is written with path `existing` unless another window already wrote one, and the app
+     *     opens with the failure's own message.
+     *   - No content: setup stays, and the screen keeps showing the failure.
+     *   - The check throws or times out: the app opens with the failure's message and the flag stays
+     *     unwritten, so the next launch decides again (fail open).
+     *
+     * @param backupHadSettings whether the backup carried settings; only read after the commit.
+     * @param choices the choices on the screen when the restore failed.
+     */
+    fun restoreFailed(messageRes: Int, backupHadSettings: Boolean, choices: SetupChoices) {
+        val current = _state.value as? FirstRunGateState.ShowSetup ?: return
+        if (current.working) return
+        _state.value = current.copy(working = true)
+        viewModelScope.launch {
+            if (messageRes == R.string.data_restore_incomplete) {
+                finishRestore(backupHadSettings = backupHadSettings, choices = choices)
+                _message.value = FirstRunMessage(messageRes)
+                _state.value = FirstRunGateState.ShowApp
+                return@launch
+            }
+            when (probeWithinTimeout()) {
+                false -> _state.value = current
+                true -> {
+                    // A second window may already have finished first run; its path stays.
+                    if (readFlag() != true) {
+                        markDone(FirstRunPath.EXISTING, "Could not record first run after a failed restore")
+                    }
+                    _message.value = FirstRunMessage(messageRes)
+                    _state.value = FirstRunGateState.ShowApp
+                }
+                null -> {
+                    _message.value = FirstRunMessage(messageRes)
+                    _state.value = FirstRunGateState.ShowApp
+                }
+            }
+        }
+    }
+
+    /**
+     * The writes after a restore that reached the database: the screen's choices when the backup
+     * carried no settings, the widget, then the flag (path `restore`). A failed write is logged and
+     * the app still opens; the restored data is in place, and the settings can be changed later.
+     */
+    private suspend fun finishRestore(backupHadSettings: Boolean, choices: SetupChoices) {
+        if (!backupHadSettings) {
+            try {
+                settingsRepository.applySetupChoices(choices)
+                refreshWidget()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.e(TAG, "Saving the setup choices after a restore failed", e)
+            }
+        }
+        markDone(FirstRunPath.RESTORE, "Could not record first run after a restore")
+    }
+
+    /**
+     * The content check on its own, bounded by [RESOLVE_TIMEOUT_MS] the way [resolve] is: the read
+     * runs in its own coroutine and only the wait is timed. Null when it throws or times out.
+     */
+    private suspend fun probeWithinTimeout(): Boolean? {
+        val work = viewModelScope.async { userDataProbe.hasUserContent() }
+        val found = try {
+            withTimeoutOrNull(RESOLVE_TIMEOUT_MS) { work.await() }
+        } catch (e: CancellationException) {
+            work.cancel()
+            throw e
+        } catch (e: Exception) {
+            logger.e(TAG, "Content check after a failed restore failed; opening the app", e)
+            return null
+        }
+        if (found == null) {
+            work.cancel()
+            logger.e(TAG, "Content check after a failed restore took longer than ${RESOLVE_TIMEOUT_MS} ms; opening the app")
+        }
+        return found
+    }
+
+    private suspend fun markDone(path: FirstRunPath, failureMessage: String) {
+        val written = try {
+            firstRunStore.markDone(path, clock.now().toEpochMilliseconds())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.e(TAG, failureMessage, e)
+            return
+        }
+        if (!written) logger.e(TAG, failureMessage)
     }
 
     /** The app has navigated to the Workout tab under the overlay; remove the overlay. */
