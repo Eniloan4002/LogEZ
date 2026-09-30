@@ -17,6 +17,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 
 /**
@@ -43,6 +45,15 @@ class SeedManager @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
     private val lastAppliedSeedVersionKey = intPreferencesKey("lastAppliedSeedVersion")
 
+    /**
+     * Makes [seedIfNeeded] (read the version, seed, write the version) one step as far as
+     * [resetSeedVersion] is concerned (first-run plan O1d, the seed overlap). A restore in the first
+     * seconds after install resets the version and re-seeds; without this, the first seed's version
+     * write could land between that reset and the re-seed's read, so the re-seed was skipped and
+     * the library the restore's wipe removed never came back.
+     */
+    private val seedMutex = Mutex()
+
     /** Recorded in a backup's manifest, for diagnostics. */
     suspend fun lastAppliedSeedVersion(): Int = dataStore.data.first()[lastAppliedSeedVersionKey] ?: 0
 
@@ -56,14 +67,14 @@ class SeedManager @Inject constructor(
      * alone, and a row the user has edited is exempt from seed updates entirely.
      */
     suspend fun resetSeedVersion() {
-        dataStore.edit { it.remove(lastAppliedSeedVersionKey) }
+        seedMutex.withLock { dataStore.edit { it.remove(lastAppliedSeedVersionKey) } }
     }
 
-    suspend fun seedIfNeeded() {
+    suspend fun seedIfNeeded(): Unit = seedMutex.withLock {
         try {
             val file = readSeedFile()
             val lastApplied = dataStore.data.first()[lastAppliedSeedVersionKey] ?: 0
-            if (file.seedVersion <= lastApplied) return
+            if (file.seedVersion <= lastApplied) return@withLock
 
             val now = System.currentTimeMillis()
             val entities = file.exercises.map { it.toEntity(now) }
