@@ -324,14 +324,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_statistics") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(null) },
-                leadingContent = { Icon(Icons.Outlined.BarChart, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 headlineContent = { Text(stringResource(R.string.profile_nav_statistics)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()
         }
-        // P-208: between Statistics and Calendar, per the approved mockup (profile-nav.png), with
-        // the trophy in lime.
+        // P-208: between Statistics and Calendar, per the approved mockup (profile-nav.png). Every
+        // row's leading icon is lime (Owner, 2026-09-30), not just the trophy.
         item(key = "nav_achievements") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onAchievementsClick),
@@ -344,7 +344,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_calendar") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
-                leadingContent = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
@@ -353,7 +353,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_measurements") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onMeasurementsClick),
-                leadingContent = { Icon(Icons.Outlined.Straighten, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.Straighten, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 headlineContent = { Text(stringResource(R.string.profile_measurements_row)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
@@ -362,7 +362,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_exercises") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
-                leadingContent = { Icon(LogEzIcons.Workout, contentDescription = null) },
+                leadingContent = { Icon(LogEzIcons.Workout, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
@@ -371,7 +371,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
         item(key = "nav_settings") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onSettingsClick),
-                leadingContent = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                leadingContent = { Icon(Icons.Outlined.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 headlineContent = { Text(stringResource(R.string.settings_title)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
