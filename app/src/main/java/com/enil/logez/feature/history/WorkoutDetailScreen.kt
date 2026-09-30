@@ -1,20 +1,14 @@
 package com.enil.logez.feature.history
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import com.enil.logez.feature.workout.finish.HeartRateCard
 import androidx.compose.foundation.lazy.items
@@ -31,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -42,11 +35,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,26 +54,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.ConfirmDialog
-import com.enil.logez.core.designsystem.Danger500
+import com.enil.logez.core.designsystem.EffortExplainerSheet
 import com.enil.logez.core.designsystem.Gold500
+import com.enil.logez.core.designsystem.HistorySetTable
+import com.enil.logez.core.designsystem.HistorySetTableRow
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Radius
+import com.enil.logez.core.designsystem.SetLegend
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
 import com.enil.logez.core.designsystem.SupersetPalette
-import com.enil.logez.core.designsystem.Warning500
-import com.enil.logez.core.designsystem.formatTwoDecimals
 import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.currentLocale
+import com.enil.logez.core.designsystem.historyColumnsFor
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
+import com.enil.logez.core.domain.model.SetDisplayLabel
 import com.enil.logez.core.domain.model.WeightUnit
-import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.feature.activity.map.RouteMapView
 import com.enil.logez.feature.workout.StartResult
+import com.enil.logez.feature.workout.circuitSetLabel
 import com.enil.logez.feature.workout.finish.labelRes
 import com.enil.logez.feature.activity.InterruptedTrackingDialog
 import com.enil.logez.feature.workout.InProgressWorkout
@@ -88,8 +88,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 import com.enil.logez.core.designsystem.rememberClockTimeFormatter
-import androidx.compose.ui.platform.LocalResources
-import android.content.res.Resources
 
 /** PHASE2_PLAN.md §5.2 "Workout Detail": read-only record of one completed workout. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,6 +111,8 @@ fun WorkoutDetailScreen(
     var showResumeDialog by remember { mutableStateOf(false) }
     var conflictingWorkoutId by remember { mutableStateOf<String?>(null) }
     var interruptedRun by remember { mutableStateOf<Pair<String, Long>?>(null) }
+    // P-211 §6: one explainer for the screen, from the legend's effort line or any table's ⓘ.
+    var showEffortExplainer by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isMissing) { if (uiState.isMissing) onBack() }
 
@@ -220,6 +220,18 @@ fun WorkoutDetailScreen(
                         if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
                         if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Outlined.EmojiEvents)
                     }
+
+                    // P-211 decision 5: the key to the tables below. Only the badge types this
+                    // workout holds, the trophy when a set carries one, and the effort line when
+                    // some set has a value (in the saved scale even while tracking is Off, D4).
+                    val sets = uiState.exerciseBlocks.flatMap { it.sets }
+                    SetLegend(
+                        setTypes = sets.mapTo(mutableSetOf()) { it.setType },
+                        showPersonalRecord = sets.any { it.pr != null },
+                        effortScale = uiState.effortScale.takeIf { sets.any { it.rpe != null } },
+                        onEffortInfoClick = { showEffortExplainer = true },
+                        modifier = Modifier.padding(top = Spacing.md),
+                    )
                 }
             }
 
@@ -243,16 +255,19 @@ fun WorkoutDetailScreen(
             if (isCircuit) {
                 // M11: round-grouped record — mirrors the circuit logger's view of the same rows.
                 items(items = detailRounds, key = { it.roundNumber }) { round ->
-                    DetailRoundCard(round, uiState.weightUnit, onExerciseClick)
+                    DetailRoundCard(round, uiState.tableUnits(), onEffortInfoClick = { showEffortExplainer = true }, onExerciseClick)
                 }
             } else {
                 items(items = uiState.exerciseBlocks, key = { it.workoutExercise.id }) { block ->
-                    ExerciseBlockCard(block, uiState.weightUnit, onExerciseClick)
+                    ExerciseBlockCard(block, uiState.tableUnits(), onEffortInfoClick = { showEffortExplainer = true }, onExerciseClick)
                 }
             }
         }
     }
 
+    if (showEffortExplainer) {
+        EffortExplainerSheet(uiState.effortScale, onDismiss = { showEffortExplainer = false })
+    }
 
     interruptedRun?.let { (workoutId, startedAt) ->
         InterruptedTrackingDialog(
@@ -323,8 +338,8 @@ private fun DetailStatCell(label: String, value: String, icon: ImageVector? = nu
 }
 
 /** M11: one round of a completed circuit — the exercises' rows at the same orderIndex, sequence order. */
-private data class DetailRound(val roundNumber: Int, val entries: List<DetailRoundEntry>)
-private data class DetailRoundEntry(val block: DetailExerciseBlock, val set: DetailSetRow?)
+internal data class DetailRound(val roundNumber: Int, val entries: List<DetailRoundEntry>)
+internal data class DetailRoundEntry(val block: DetailExerciseBlock, val set: DetailSetRow?)
 
 /**
  * Groups a circuit workout's post-purge blocks round-first, keyed by each row's `orderIndex`
@@ -344,8 +359,19 @@ private fun buildDetailRounds(blocks: List<DetailExerciseBlock>): List<DetailRou
     }
 }
 
+/** What every set table on this screen formats with: the settings' units and effort scale. */
+internal data class DetailTableUnits(val effortScale: EffortScale, val weightUnit: WeightUnit, val distanceUnit: DistanceUnit)
+
+private fun WorkoutDetailUiState.tableUnits() = DetailTableUnits(effortScale, weightUnit, distanceUnit)
+
+/**
+ * M11 round card. P-211 §2 follows the logger's `CircuitRoundCard` rule: when every exercise in
+ * the round has the same columns, one header under "ROUND N" covers all of them and each name
+ * sits above its row; a mixed round (Push-up with Plank) gets a header per exercise, since one
+ * header can't label both. Rows keep the round's number (decision 9 leaves circuits alone).
+ */
 @Composable
-private fun DetailRoundCard(round: DetailRound, weightUnit: WeightUnit, onExerciseClick: (String) -> Unit) {
+internal fun DetailRoundCard(round: DetailRound, units: DetailTableUnits, onEffortInfoClick: () -> Unit, onExerciseClick: (String) -> Unit) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -354,26 +380,72 @@ private fun DetailRoundCard(round: DetailRound, weightUnit: WeightUnit, onExerci
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 )
             }
-            round.entries.forEach { entry ->
-                val exercise = entry.block.exercise
-                Text(
-                    exercise?.name.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = (if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier)
-                        .padding(top = Spacing.sm),
+            val sharedColumns = round.entries
+                .filter { it.set != null }
+                .map { historyColumnsFor(it.block.exercise?.exerciseType) }
+                .distinct()
+                .singleOrNull()
+            if (sharedColumns != null) {
+                HistorySetTable(
+                    exerciseType = null,
+                    rows = round.entries.map { it.tableRow() },
+                    effortScale = units.effortScale,
+                    weightUnit = units.weightUnit,
+                    distanceUnit = units.distanceUnit,
+                    onEffortInfoClick = onEffortInfoClick,
+                    columns = sharedColumns,
+                    labels = round.entries.map { it.label(round.roundNumber) },
+                    aboveRow = { index -> RoundEntryName(round.entries[index].block.exercise, onExerciseClick) },
+                    modifier = Modifier.padding(top = Spacing.sm),
                 )
-                val set = entry.set
-                if (set == null) {
-                    // Defensive slot: no surviving row for this exercise in this round.
-                    Text("—", style = LogEzMono.dataMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    DetailSetRowView(round.roundNumber, set, exercise?.exerciseType, weightUnit, positionLabel = false)
+            } else {
+                round.entries.forEach { entry ->
+                    RoundEntryName(entry.block.exercise, onExerciseClick, Modifier.padding(top = Spacing.sm))
+                    HistorySetTable(
+                        exerciseType = entry.block.exercise?.exerciseType,
+                        rows = listOf(entry.tableRow()),
+                        effortScale = units.effortScale,
+                        weightUnit = units.weightUnit,
+                        distanceUnit = units.distanceUnit,
+                        onEffortInfoClick = onEffortInfoClick,
+                        labels = listOf(entry.label(round.roundNumber)),
+                        modifier = Modifier.padding(top = Spacing.xs),
+                    )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun RoundEntryName(exercise: Exercise?, onExerciseClick: (String) -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        exercise?.name.orEmpty(),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.then(if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier),
+    )
+}
+
+/**
+ * A round's row for one exercise. Defensive slot: an exercise with no surviving row in this round
+ * reads as a row of "—" (a not-completed row), so gaps and unequal counts render, never crash.
+ */
+private fun DetailRoundEntry.tableRow(): HistorySetTableRow = set?.toTableRow() ?: HistorySetTableRow(setType = SetType.NORMAL, isCompleted = false)
+
+private fun DetailRoundEntry.label(roundNumber: Int): SetDisplayLabel = circuitSetLabel(set?.setType ?: SetType.NORMAL, roundNumber)
+
+private fun DetailSetRow.toTableRow() = HistorySetTableRow(
+    setType = setType,
+    weightKg = weightKg,
+    reps = reps,
+    durationSeconds = durationSeconds,
+    distanceMeters = distanceMeters,
+    customMetric = customMetric,
+    rpe = rpe,
+    isCompleted = isCompleted,
+    prLabelRes = pr?.prType?.labelRes(),
+)
 
 /** M21b/c: the offline Metro Manila map with the recorded GPS route drawn on it, camera fit to the route's bounds. */
 @Composable
@@ -390,117 +462,60 @@ private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
     }
 }
 
+/**
+ * P-211 §2 (Owner, 2026-09-30): the exercise's sets as a headed table (SET | KG | REPS | RPE ⓘ for
+ * lifts, SET | TIME | DISTANCE for a run) in place of the "Set 2: 80kg · 8 reps · @8.0" lines.
+ * The superset stripe is drawn behind the content rather than as a sibling of an
+ * IntrinsicSize.Min row: the table measures its columns in a BoxWithConstraints, which can't
+ * answer an intrinsic-size query.
+ */
 @Composable
-private fun ExerciseBlockCard(block: DetailExerciseBlock, weightUnit: WeightUnit, onExerciseClick: (String) -> Unit) {
+internal fun ExerciseBlockCard(block: DetailExerciseBlock, units: DetailTableUnits, onEffortInfoClick: () -> Unit, onExerciseClick: (String) -> Unit) {
     val supersetColor = block.workoutExercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            if (supersetColor != null) {
-                Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(supersetColor))
-            }
-            Column(modifier = Modifier.padding(Spacing.md)) {
-                val exercise = block.exercise
-                Text(
-                    exercise?.name.orEmpty(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier,
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (supersetColor != null) {
+                        Modifier
+                            .drawBehind { drawRect(supersetColor, size = Size(SUPERSET_STRIPE_WIDTH.toPx(), size.height)) }
+                            .padding(start = SUPERSET_STRIPE_WIDTH)
+                    } else {
+                        Modifier
+                    },
                 )
-                if (!block.workoutExercise.notes.isNullOrBlank()) {
-                    Text(
-                        block.workoutExercise.notes,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = Spacing.xxs),
-                    )
-                }
-                block.sets.forEachIndexed { index, set ->
-                    DetailSetRowView(index + 1, set, block.exercise?.exerciseType, weightUnit)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DetailSetRowView(position: Int, set: DetailSetRow, exerciseType: ExerciseType?, weightUnit: WeightUnit, positionLabel: Boolean = true) {
-    val (badgeLabel, badgeColor) = when (set.setType) {
-        SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
-        SetType.WARMUP -> "W" to Warning500
-        SetType.FAILURE -> "F" to Danger500
-        SetType.DROPSET -> "D" to SupersetPalette[4]
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(6.dp),
-            color = if (set.setType == SetType.NORMAL) Color.Transparent else badgeColor.copy(alpha = 0.15f),
+                .padding(Spacing.md),
         ) {
-            Box(modifier = Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                Text(badgeLabel, color = badgeColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            val exercise = block.exercise
+            Text(
+                exercise?.name.orEmpty(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier,
+            )
+            if (!block.workoutExercise.notes.isNullOrBlank()) {
+                Text(
+                    block.workoutExercise.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
             }
-        }
-        Text(
-            formatDetailSetValue(LocalResources.current, position, set, exerciseType, weightUnit, positionLabel),
-            style = LogEzMono.dataMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = Spacing.sm).weight(1f),
-        )
-        if (set.pr != null) {
-            Icon(
-                Icons.Outlined.EmojiEvents,
-                contentDescription = stringResource(set.pr.prType.labelRes()),
-                tint = Gold500,
-                modifier = Modifier.size(18.dp),
+            HistorySetTable(
+                exerciseType = exercise?.exerciseType,
+                rows = block.sets.map { it.toTableRow() },
+                effortScale = units.effortScale,
+                weightUnit = units.weightUnit,
+                distanceUnit = units.distanceUnit,
+                onEffortInfoClick = onEffortInfoClick,
+                modifier = Modifier.padding(top = Spacing.sm),
             )
         }
     }
 }
 
-private fun formatDetailSetValue(res: Resources, position: Int, set: DetailSetRow, exerciseType: ExerciseType?, weightUnit: WeightUnit, positionLabel: Boolean = true): String {
-    // Plurals, not "$it reps": a one-rep set used to read "1 reps".
-    fun reps(n: Int) = res.getQuantityString(R.plurals.set_reps, n, n)
-    if (!set.isCompleted) return "—"
-    val parts = mutableListOf<String>()
-    when (exerciseType) {
-        ExerciseType.WEIGHT_REPS, ExerciseType.BODYWEIGHT_WEIGHTED, ExerciseType.BODYWEIGHT_ASSISTED -> {
-            set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
-            set.reps?.let { parts.add(reps(it)) }
-        }
-        ExerciseType.REPS_ONLY -> set.reps?.let { parts.add(reps(it)) }
-        ExerciseType.DURATION, ExerciseType.FLOORS_DURATION, ExerciseType.STEPS_DURATION -> {
-            set.durationSeconds?.let { parts.add(formatDetailMmSs(it)) }
-            set.customMetric?.let { parts.add(formatDetailNum(it)) }
-        }
-        ExerciseType.WEIGHT_DURATION -> {
-            set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
-            set.durationSeconds?.let { parts.add(formatDetailMmSs(it)) }
-        }
-        ExerciseType.DISTANCE_DURATION -> {
-            set.distanceMeters?.let { parts.add("${formatDetailNum(it)}m") }
-            set.durationSeconds?.let { parts.add(formatDetailMmSs(it)) }
-        }
-        ExerciseType.WEIGHT_DISTANCE -> {
-            set.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
-            set.distanceMeters?.let { parts.add("${formatDetailNum(it)}m") }
-        }
-        null -> Unit
-    }
-    set.rpe?.let { parts.add("@$it") }
-    if (parts.isEmpty()) return "—"
-    // M11 circuit rounds carry the round number in the card header, so their rows skip the prefix.
-    return if (positionLabel) res.getString(R.string.detail_set_line, position, parts.joinToString(" · ")) else parts.joinToString(" · ")
-}
-
-// Used to fall back to the raw Double.toString() for a non-whole value -- harmless for a set's
-// typed-in customMetric, but a GPS-accumulated distanceMeters sum routinely carries a long
-// floating-point tail (e.g. "3247.8921336m"), which shipped straight to this per-set row. Capped
-// at two decimals to match the walk/run precision convention (Owner request, 2026-09-23).
-private fun formatDetailNum(value: Double): String = formatTwoDecimals(value)
-
-private fun formatDetailMmSs(totalSeconds: Int): String = "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+private val SUPERSET_STRIPE_WIDTH = 4.dp
 
 private fun formatDetailDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600

@@ -115,11 +115,6 @@ class FormattingTest {
         }
     }
 
-    @Test
-    fun `formatTwoDecimals the top-level alias delegates to the same result`() {
-        assertEquals(Formatting.twoDecimals(3247.8921336), formatTwoDecimals(3247.8921336))
-    }
-
     /** A comma-decimal keyboard types "32,5"; it used to be silently discarded (2026-09-25). */
     @Test
     fun `parseDecimalInput accepts a comma or a dot and ignores surrounding spaces`() {

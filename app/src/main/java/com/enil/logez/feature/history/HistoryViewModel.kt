@@ -3,8 +3,11 @@ package com.enil.logez.feature.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.data.entity.WorkoutEntity
+import com.enil.logez.core.domain.calc.BestSetCalculator
+import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.isIncluded
+import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
@@ -93,13 +96,18 @@ class HistoryViewModel @Inject constructor(
                 .entries
                 .sortedBy { (_, blockRows) -> blockRows.first().exerciseOrderIndex }
                 .map { (_, blockRows) ->
+                    val exercise = exercisesById[blockRows.first().exerciseId]
                     ExerciseSummaryLine(
-                        name = exercisesById[blockRows.first().exerciseId]?.name.orEmpty(),
+                        name = exercise?.name.orEmpty(),
                         // Counted through the same `isIncluded` predicate as the card's Sets stat
                         // below (§8.6: one predicate, so warm-up semantics can't drift between
                         // surfaces). Counting raw `isCompleted` here made a card contradict
                         // itself — a workout with warm-ups showed "5 Sets" beside lines summing to 6.
                         setCount = blockRows.count { isIncluded(it.set, includeWarmups) },
+                        exerciseType = exercise?.exerciseType,
+                        // P-211 decision 6: picked from the rows already loaded above, so the BEST
+                        // SET column costs no query. Its candidates are the sets the "3 ×" counts.
+                        bestSet = exercise?.let { BestSetCalculator.best(it.exerciseType, blockRows.map { row -> row.set }, includeWarmups) },
                     )
                 }
 
@@ -152,4 +160,15 @@ data class WorkoutCardModel(
     val rounds: Int = 0,
 )
 
-data class ExerciseSummaryLine(val name: String, val setCount: Int)
+/**
+ * One "3 × Bench Press (Barbell)   80kg × 8" line of a History card. [bestSet] is
+ * [BestSetCalculator.best]'s pick among the sets [setCount] counts (P-211 decision 6, Owner,
+ * 2026-09-30); null, or an [exerciseType] of null for an exercise that no longer resolves, reads
+ * "—" in the BEST SET column.
+ */
+data class ExerciseSummaryLine(
+    val name: String,
+    val setCount: Int,
+    val exerciseType: ExerciseType? = null,
+    val bestSet: StatSet? = null,
+)

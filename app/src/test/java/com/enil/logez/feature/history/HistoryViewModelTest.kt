@@ -196,6 +196,81 @@ class HistoryViewModelTest {
         assertEquals(listOf("Back Squat" to 2, "Bicep Curl" to 1), lines.map { it.name to it.setCount })
     }
 
+    @Test
+    fun `each line carries its exercise type and the best set among the sets it counts`() = runTest {
+        // P-211 README "Sample data": W 40x10, 80x8, 80x8, F 80x6. 80x8's e1RM beats 80x6's, the
+        // tie between the two 80x8 sets goes to the earlier one, and the warm-up is not counted.
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1", startedAt = 1_000L)),
+            exercises = listOf(workoutExercise("we-bench", "w1", exerciseId = "ex-bench")),
+            sets = listOf(
+                aSet("s1", "we-bench", 0, weightKg = 40.0, reps = 10, setType = SetType.WARMUP, isCompleted = true),
+                aSet("s2", "we-bench", 1, weightKg = 80.0, reps = 8, isCompleted = true),
+                aSet("s3", "we-bench", 2, weightKg = 80.0, reps = 8, isCompleted = true),
+                aSet("s4", "we-bench", 3, weightKg = 80.0, reps = 6, setType = SetType.FAILURE, isCompleted = true),
+            ),
+        )
+        val vm = viewModel(workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-bench", "Bench Press (Barbell)"))))
+
+        val line = vm.uiState.value.cards.single().exerciseSummaries.single()
+        assertEquals(3, line.setCount)
+        assertEquals(ExerciseType.WEIGHT_REPS, line.exerciseType)
+        assertEquals("s2", line.bestSet?.setId)
+    }
+
+    @Test
+    fun `a block of warm-ups only has no best set until warm-ups count in stats`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1", startedAt = 1_000L)),
+            exercises = listOf(workoutExercise("we-bench", "w1", exerciseId = "ex-bench")),
+            sets = listOf(
+                aSet("s1", "we-bench", 0, weightKg = 40.0, reps = 10, setType = SetType.WARMUP, isCompleted = true),
+                aSet("s2", "we-bench", 1, weightKg = 60.0, reps = 5, setType = SetType.WARMUP, isCompleted = true),
+            ),
+        )
+        val exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-bench", "Bench Press (Barbell)")))
+
+        val excluded = viewModel(workoutRepo, exerciseRepo = exerciseRepo)
+        assertEquals(null, excluded.uiState.value.cards.single().exerciseSummaries.single().bestSet)
+
+        val included = viewModel(
+            workoutRepo,
+            exerciseRepo = exerciseRepo,
+            settingsRepo = FakeSettingsRepository(UserSettings(includeWarmupsInStats = true)),
+        )
+        // 60x5 (e1RM 67.4) beats 40x10 (e1RM 53.3).
+        assertEquals("s2", included.uiState.value.cards.single().exerciseSummaries.single().bestSet?.setId)
+    }
+
+    @Test
+    fun `an unfinished set is never the best set`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1", startedAt = 1_000L)),
+            exercises = listOf(workoutExercise("we-bench", "w1", exerciseId = "ex-bench")),
+            sets = listOf(
+                aSet("s1", "we-bench", 0, weightKg = 80.0, reps = 8, isCompleted = true),
+                aSet("s2", "we-bench", 1, weightKg = 100.0, reps = 8, isCompleted = false),
+            ),
+        )
+        val vm = viewModel(workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-bench", "Bench Press (Barbell)"))))
+
+        assertEquals("s1", vm.uiState.value.cards.single().exerciseSummaries.single().bestSet?.setId)
+    }
+
+    @Test
+    fun `an exercise that no longer resolves has no type and no best set`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(workout("w1", startedAt = 1_000L)),
+            exercises = listOf(workoutExercise("we-gone", "w1", exerciseId = "ex-gone")),
+            sets = listOf(aSet("s1", "we-gone", 0, weightKg = 80.0, reps = 8, isCompleted = true)),
+        )
+        val vm = viewModel(workoutRepo, exerciseRepo = FakeExerciseRepository(emptyList()))
+
+        val line = vm.uiState.value.cards.single().exerciseSummaries.single()
+        assertEquals(null, line.exerciseType)
+        assertEquals(null, line.bestSet)
+    }
+
     // --- fixture ---
 
     private fun viewModel(

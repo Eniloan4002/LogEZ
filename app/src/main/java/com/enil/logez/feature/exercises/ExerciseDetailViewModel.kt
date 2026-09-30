@@ -14,6 +14,7 @@ import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.calc.WorkoutMuscleTargetCalculator
 import com.enil.logez.core.domain.calc.isIncluded
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
@@ -103,6 +104,7 @@ class ExerciseDetailViewModel @Inject constructor(
                         isLoading = false,
                         exercise = exercise,
                         history = history,
+                        effortScale = settings.effortScale,
                         muscleDiagramVariant = settings.muscleDiagramVariant,
                         muscleIntensity = WorkoutMuscleTargetCalculator.intensities(
                             listOf(WorkoutMuscleTargetCalculator.TargetSet(exercise.primaryMuscleGroup, exercise.secondaryMuscleGroups)),
@@ -239,6 +241,11 @@ data class ExerciseDetailUiState(
     val isLoading: Boolean = true,
     val exercise: Exercise? = null,
     val history: List<ExerciseHistoryEntry> = emptyList(),
+    /**
+     * P-211 (Owner, 2026-09-30): the scale the History tab's effort column and legend use, the
+     * saved one even while tracking is Off (decision 4).
+     */
+    val effortScale: EffortScale = EffortScale.RPE,
     /** Which muscles this exercise (its primary + secondary groups) targets, keyed for [com.enil.logez.core.designsystem.BodyDiagram] -- primary=1.0f, each secondary=0.5f, via [WorkoutMuscleTargetCalculator]. */
     val muscleIntensity: Map<MuscleGroup, Float> = emptyMap(),
     val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,

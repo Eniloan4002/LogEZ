@@ -6,6 +6,7 @@ import com.enil.logez.core.data.entity.ActivityTrackEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
@@ -194,6 +195,17 @@ class WorkoutDetailViewModelTest {
         val state = vm.uiState.value
         assertFalse(state.isLoading)
         assertTrue(state.isMissing)
+    }
+
+    @Test
+    fun `the detail carries the saved effort scale, even while effort tracking is Off`() = runTest {
+        // P-211 decision 4: Off hides only the logger's entry column; History keeps the scale.
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(workouts = listOf(workout("w1"))),
+            settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = false, effortScale = EffortScale.RIR)),
+        )
+
+        assertEquals(EffortScale.RIR, vm.uiState.value.effortScale)
     }
 
     // --- fixture ---

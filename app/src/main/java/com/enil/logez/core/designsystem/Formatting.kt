@@ -126,7 +126,6 @@ object Formatting {
 
 /** Convenience top-level aliases so call sites read naturally. */
 fun formatTargetNumber(value: Double): String = Formatting.wholeOrOneDecimal(value)
-fun formatTwoDecimals(value: Double): String = Formatting.twoDecimals(value)
 fun formatWeightKg(kg: Double): String = Formatting.weightKg(kg)
 fun formatWeightKgShort(kg: Double): String = Formatting.weightKgShort(kg)
 fun formatWeight(kg: Double, unit: WeightUnit): String = Formatting.weight(kg, unit)

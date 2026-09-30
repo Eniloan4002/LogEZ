@@ -37,6 +37,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -54,12 +57,15 @@ import com.enil.logez.core.designsystem.SupersetPalette
 import com.enil.logez.core.designsystem.Warning500
 import com.enil.logez.core.domain.calc.WeightDisplay
 import com.enil.logez.core.domain.model.ExerciseType
+import com.enil.logez.core.domain.model.SetDisplayLabel
+import com.enil.logez.core.domain.model.SetNumbering
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.core.designsystem.parseDecimalInput
 import com.enil.logez.core.designsystem.Warning300
+import com.enil.logez.core.designsystem.setLabelA11y
 
 /**
  * One `routine_exercises` card (PHASE2_PLAN.md §5.1.2): header, notes, rest timer, set table.
@@ -193,9 +199,12 @@ private fun SetTable(exercise: RoutineExerciseDraft, isCircuit: Boolean, weightU
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.width(SetTable.checkCell))
         }
+        // P-211 decision 9: numbered like the logger (W, 1, 2, F). A circuit's rows are its rounds,
+        // so there every row keeps its position.
+        val labels = SetNumbering.labels(exercise.sets.map { it.setType })
         exercise.sets.forEachIndexed { index, set ->
             SetRow(
-                index = index,
+                label = if (isCircuit) SetDisplayLabel(set.setType, if (set.setType == SetType.NORMAL) index + 1 else null) else labels[index],
                 set = set,
                 fields = fields,
                 isCircuit = isCircuit,
@@ -231,7 +240,7 @@ private fun HeaderCell(label: String, modifier: Modifier = Modifier, width: andr
 
 @Composable
 private fun SetRow(
-    index: Int,
+    label: SetDisplayLabel,
     set: RoutineSetDraft,
     fields: Set<TargetField>,
     isCircuit: Boolean,
@@ -252,7 +261,7 @@ private fun SetRow(
         // M18 uniform boxed cells: the badge box fills the cell minus the fields' xxs gutter, so
         // the builder's grid matches the logger's (regular + circuit) exactly.
         Box(modifier = Modifier.width(SetTable.setCell).padding(horizontal = Spacing.xxs), contentAlignment = Alignment.Center) {
-            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth())
+            SetBadge(label = label, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth())
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
                 // M11: no WARMUP row inside a circuit (breaks row-index == round), and no per-row
@@ -308,23 +317,31 @@ private fun SetRow(
 }
 
 /** M18 uniform boxed cells (Owner): same field-height hairline box as the logger's badge — the
- * three set tables must match. Type tint and whole-cell tap target unchanged. */
+ * three set tables must match. Type tint and whole-cell tap target unchanged. P-211 decision 9:
+ * the text is [label]'s, and a screen reader hears its name ("Set 1", "Warm-up set"). */
 @Composable
-private fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val (label, color) = when (setType) {
-        SetType.NORMAL -> position.toString() to MaterialTheme.colorScheme.onSurface
-        SetType.WARMUP -> "W" to Warning500
-        SetType.FAILURE -> "F" to Danger500
-        SetType.DROPSET -> "D" to SupersetPalette[4]
+private fun SetBadge(label: SetDisplayLabel, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val color = when (label.setType) {
+        SetType.NORMAL -> MaterialTheme.colorScheme.onSurface
+        SetType.WARMUP -> Warning500
+        SetType.FAILURE -> Danger500
+        SetType.DROPSET -> SupersetPalette[4]
     }
+    val description = setLabelA11y(label)
     Surface(
         shape = RoundedCornerShape(Radius.sm),
-        color = if (setType == SetType.NORMAL) Color.Transparent else color.copy(alpha = 0.15f),
+        color = if (label.setType == SetType.NORMAL) Color.Transparent else color.copy(alpha = 0.15f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick).semantics { contentDescription = description },
     ) {
         Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
-            Text(label, color = if (setType == SetType.WARMUP) Warning300 else color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(
+                label.text,
+                color = if (label.setType == SetType.WARMUP) Warning300 else color,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clearAndSetSemantics { },
+            )
         }
     }
 }

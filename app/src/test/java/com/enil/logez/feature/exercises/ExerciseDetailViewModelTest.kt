@@ -6,6 +6,7 @@ import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
 import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.designsystem.BodyDiagramRegions
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -292,6 +293,16 @@ class ExerciseDetailViewModelTest {
             settingsRepo = FakeSettingsRepository(UserSettings(muscleDiagramVariant = MuscleDiagramVariant.FEMALE)),
         )
         assertEquals(MuscleDiagramVariant.FEMALE, vm.uiState.value.muscleDiagramVariant)
+    }
+
+    @Test
+    fun `the History tab gets the saved effort scale, even while effort tracking is Off`() = runTest {
+        // P-211 decision 4: Off hides only the logger's entry column; History keeps the scale.
+        val vm = summaryViewModel(
+            seedExercise(),
+            settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = false, effortScale = EffortScale.RIR)),
+        )
+        assertEquals(EffortScale.RIR, vm.uiState.value.effortScale)
     }
 
     /**

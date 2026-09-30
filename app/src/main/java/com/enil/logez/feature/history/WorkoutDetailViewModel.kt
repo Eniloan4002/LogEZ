@@ -16,6 +16,7 @@ import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.PersonalRecordsRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
@@ -170,6 +171,8 @@ class WorkoutDetailViewModel @Inject constructor(
             durationSeconds = workout.durationSeconds,
             weightUnit = settings.weightUnit,
             distanceUnit = settings.distanceUnit,
+            // P-211 decision 4: the saved scale even while tracking is Off, so past values stay visible.
+            effortScale = settings.effortScale,
             volumeKg = volumeKg,
             // A GPS-tracked walk/run never logged weight -- "0kg Volume" would be noise next to
             // its real distance, so the cell is gated on whether it was actually tracked (same
@@ -233,6 +236,8 @@ data class WorkoutDetailUiState(
     val isLoading: Boolean = true,
     val weightUnit: WeightUnit = WeightUnit.KG,
     val distanceUnit: DistanceUnit = DistanceUnit.KM,
+    /** P-211 (Owner, 2026-09-30): the scale the set tables' effort column and the legend use. */
+    val effortScale: EffortScale = EffortScale.RPE,
     val isMissing: Boolean = false,
     val workout: WorkoutEntity? = null,
     val routineName: String? = null,

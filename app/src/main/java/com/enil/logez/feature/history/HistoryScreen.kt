@@ -37,9 +37,12 @@ import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.Gold500
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzIcons
+import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
+import com.enil.logez.core.designsystem.SetFormatting
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.StatCell
+import com.enil.logez.core.designsystem.bestSetText
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import java.time.Instant
@@ -142,13 +145,18 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, weightUnit: WeightUnit, d
 
             if (card.exerciseSummaries.isNotEmpty()) {
                 Column(modifier = Modifier.padding(top = Spacing.sm)) {
-                    card.exerciseSummaries.take(3).forEach { line ->
-                        Text(
-                            "${line.setCount} × ${line.name}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    // P-211 §1 (Owner, 2026-09-30): "fields headers for which is which". The
+                    // logger's HeaderCell style (labelSmall, grey, caps) over the two columns.
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        SummaryHeaderCell(stringResource(R.string.history_card_col_exercise))
+                        SummaryHeaderCell(stringResource(R.string.history_card_col_best_set))
+                    }
+                    card.exerciseSummaries.take(3).forEachIndexed { index, line ->
+                        ExerciseSummaryRow(
+                            line = line,
+                            weightUnit = weightUnit,
+                            distanceUnit = distanceUnit,
+                            modifier = if (index == 0) Modifier.padding(top = Spacing.xxs) else Modifier,
                         )
                     }
                     val remaining = card.exerciseSummaries.size - 3
@@ -163,6 +171,41 @@ private fun WorkoutHistoryCard(card: WorkoutCardModel, weightUnit: WeightUnit, d
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryHeaderCell(label: String) {
+    Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+}
+
+/**
+ * P-211 §1: "3 × Bench Press (Barbell)" with the exercise's best set on the right in mono. The
+ * best set is measured first (the name is the Row's only weighted child), so it is never cut; a
+ * long name wraps to 2 lines and then shortens with "…". Both sit on one baseline, so the best set
+ * lines up with the name's first line.
+ */
+@Composable
+internal fun ExerciseSummaryRow(line: ExerciseSummaryLine, weightUnit: WeightUnit, distanceUnit: DistanceUnit, modifier: Modifier = Modifier) {
+    val type = line.exerciseType
+    val best = if (type == null) SetFormatting.NONE else bestSetText(type, line.bestSet, weightUnit, distanceUnit)
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Text(
+            "${line.setCount} × ${line.name}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).alignByBaseline(),
+        )
+        Text(
+            best,
+            style = LogEzMono.dataMedium,
+            color = if (line.bestSet == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.alignByBaseline(),
+        )
     }
 }
 

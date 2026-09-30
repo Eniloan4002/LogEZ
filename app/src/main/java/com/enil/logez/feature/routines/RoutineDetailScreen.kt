@@ -38,6 +38,7 @@ import com.enil.logez.core.designsystem.CircuitChip
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.domain.model.SetNumbering
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.workout.StartResult
 import com.enil.logez.feature.activity.InterruptedTrackingDialog
@@ -127,13 +128,18 @@ fun RoutineDetailScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
+                            // P-211 decision 9: "Set 1" counts normal sets only; W, F and D keep
+                            // their letter ("W: 40kg · 10 reps"). A circuit's lines are its rounds.
+                            val labels = SetNumbering.labels(row.sets.map { it.setType })
                             row.sets.forEachIndexed { index, set ->
+                                val targets = formatDetailSetTargets(LocalResources.current, set, uiState.weightUnit)
+                                val label = labels[index]
                                 Text(
-                                    stringResource(
-                                        if (isCircuit) R.string.routine_detail_round_line else R.string.routine_detail_set_line,
-                                        index + 1,
-                                        formatDetailSetTargets(LocalResources.current, set, uiState.weightUnit),
-                                    ),
+                                    when {
+                                        isCircuit -> stringResource(R.string.routine_detail_round_line, index + 1, targets)
+                                        label.number != null -> stringResource(R.string.routine_detail_set_line, label.number, targets)
+                                        else -> stringResource(R.string.routine_detail_lettered_set_line, label.text, targets)
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(top = Spacing.xxs),

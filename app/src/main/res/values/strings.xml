@@ -30,7 +30,6 @@
         <item quantity="one">%d rep</item>
         <item quantity="other">%d reps</item>
     </plurals>
-    <string name="detail_set_line">Set %1$d: %2$s</string>
     <string name="routine_detail_rep_range">%1$d-%2$d reps</string>
     <string name="unit_minutes_short">min</string>
     <string name="widget_days_this_week">days this week</string>

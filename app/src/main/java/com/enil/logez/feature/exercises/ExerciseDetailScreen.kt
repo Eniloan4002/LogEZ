@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,24 +52,30 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.BodyDiagram
 import com.enil.logez.core.designsystem.BodyDiagramRegions
 import com.enil.logez.core.designsystem.ConfirmDialog
+import com.enil.logez.core.designsystem.EffortExplainerSheet
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.HistorySetTable
+import com.enil.logez.core.designsystem.HistorySetTableRow
 import com.enil.logez.core.designsystem.LineChart
 import com.enil.logez.core.designsystem.LineChartPoint
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.ScreenTitle
+import com.enil.logez.core.designsystem.SetLegend
 import com.enil.logez.core.designsystem.Spacing
-import com.enil.logez.core.designsystem.formatTwoDecimals
-import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.ChartMetric
 import com.enil.logez.core.domain.calc.ChartRange
+import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
+import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.feature.history.formatCardDateTime
 import com.enil.logez.feature.workout.finish.labelRes
 import java.time.Instant
 import java.time.ZoneId
@@ -195,7 +202,13 @@ fun ExerciseDetailScreen(
                         onRangeSelected = viewModel::selectRange,
                         onMetricSelected = viewModel::selectMetric,
                     )
-                    DetailTab.HISTORY -> HistoryTab(entries = uiState.history, weightUnit = uiState.summary.weightUnit)
+                    DetailTab.HISTORY -> HistoryTab(
+                        entries = uiState.history,
+                        exerciseType = uiState.exercise?.exerciseType,
+                        effortScale = uiState.effortScale,
+                        weightUnit = uiState.summary.weightUnit,
+                        distanceUnit = uiState.summary.distanceUnit,
+                    )
                     DetailTab.HOW_TO -> HowToTab(instructions = uiState.exercise?.instructions.orEmpty())
                 }
             }
@@ -466,8 +479,21 @@ private fun ChartMetric.labelRes(): Int = when (this) {
     ChartMetric.BEST_PACE -> R.string.chart_metric_best_pace
 }
 
+/**
+ * §5.2 History tab, one card per session. P-211 §3 (Owner, 2026-09-30): the key at the top (the
+ * badge types in this history and the effort line, decision 5), the session's date on the card
+ * (decision 8), and the workout detail's headed table with its badges, in place of the
+ * "80kg · 8 reps · @8.0" lines. Values stay lime. No trophies: this tab doesn't load per-set
+ * records (README "Out of scope").
+ */
 @Composable
-private fun HistoryTab(entries: List<ExerciseHistoryEntry>, weightUnit: WeightUnit) {
+private fun HistoryTab(
+    entries: List<ExerciseHistoryEntry>,
+    exerciseType: ExerciseType?,
+    effortScale: EffortScale,
+    weightUnit: WeightUnit,
+    distanceUnit: DistanceUnit,
+) {
     if (entries.isEmpty()) {
         EmptyState(
             icon = Icons.Outlined.BarChart,
@@ -480,44 +506,67 @@ private fun HistoryTab(entries: List<ExerciseHistoryEntry>, weightUnit: WeightUn
         .groupBy { it.workoutId }
         .map { (workoutId, sets) -> HistorySession(workoutId, sets.first().workoutTitle, sets.sortedBy { it.setOrderIndex }) }
         .sortedByDescending { it.sets.first().workoutStartedAt }
+    var showEffortExplainer by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
+        item(key = "legend") {
+            SetLegend(
+                setTypes = entries.mapTo(mutableSetOf()) { it.setType },
+                showPersonalRecord = false,
+                effortScale = effortScale.takeIf { entries.any { it.rpe != null } },
+                onEffortInfoClick = { showEffortExplainer = true },
+                modifier = Modifier.padding(bottom = Spacing.md),
+            )
+        }
         items(items = sessions, key = { it.workoutId }) { session ->
             // Explicitly full-width, like every other card in the app: v4.0's top-edge accent spans
             // the card, so a content-hugging card would end the accent in a seam mid-row.
             LogEzCard(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
                 Column(modifier = Modifier.padding(Spacing.md)) {
-                    Text(
-                        session.workoutTitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    session.sets.forEach { set ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         Text(
-                            formatHistorySet(set, weightUnit),
-                            style = LogEzMono.dataMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = Spacing.xxs),
+                            session.workoutTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f).alignByBaseline(),
+                        )
+                        Text(
+                            formatCardDateTime(session.sets.first().workoutStartedAt),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            modifier = Modifier.alignByBaseline(),
                         )
                     }
+                    HistorySetTable(
+                        exerciseType = exerciseType,
+                        rows = session.sets.map { it.toTableRow() },
+                        effortScale = effortScale,
+                        weightUnit = weightUnit,
+                        distanceUnit = distanceUnit,
+                        onEffortInfoClick = { showEffortExplainer = true },
+                        valueColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = Spacing.sm),
+                    )
                 }
             }
         }
     }
+    if (showEffortExplainer) {
+        EffortExplainerSheet(effortScale, onDismiss = { showEffortExplainer = false })
+    }
 }
 
-private fun formatHistorySet(entry: ExerciseHistoryEntry, weightUnit: WeightUnit): String {
-    val parts = mutableListOf<String>()
-    entry.weightKg?.let { parts.add(formatWeight(it, weightUnit)) }
-    entry.reps?.let { parts.add("${it} reps") }
-    entry.durationSeconds?.let { parts.add("${it}s") }
-    // This literal-interpolated the raw Double with zero formatting -- a GPS-accumulated
-    // distance routinely carries a long floating-point tail (e.g. "3247.8921336m"). Capped at
-    // two decimals to match the walk/run precision convention (Owner request, 2026-09-23).
-    entry.distanceMeters?.let { parts.add("${formatTwoDecimals(it)}m") }
-    entry.rpe?.let { parts.add("@$it") }
-    return if (parts.isEmpty()) "—" else parts.joinToString(" · ")
-}
+/** Every entry comes from a finished workout, whose unfinished sets the finish flow purged, so each is shown as logged. */
+private fun ExerciseHistoryEntry.toTableRow() = HistorySetTableRow(
+    setType = setType,
+    weightKg = weightKg,
+    reps = reps,
+    durationSeconds = durationSeconds,
+    distanceMeters = distanceMeters,
+    customMetric = customMetric,
+    rpe = rpe,
+)
 
 @Composable
 private fun HowToTab(instructions: String) {
