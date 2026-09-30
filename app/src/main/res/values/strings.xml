@@ -81,6 +81,56 @@
     <string name="profile_empty_subtitle">Log a session to begin tracking streaks, charts, and records.</string>
     <string name="profile_nav_exercises">Exercises</string>
     <string name="profile_nav_statistics">Statistics</string>
+    <string name="profile_nav_achievements">Achievements</string>
+
+    <!-- P-208 Achievements. Plain fitness wording (Owner, 2026-09-30), not the mockup's lab names. -->
+    <string name="achievements_title">Achievements</string>
+    <string name="achievements_unlocked_label">Unlocked</string>
+    <!-- "32 / 50": progress toward a locked achievement. -->
+    <string name="achievements_progress">%1$s / %2$s</string>
+    <string name="achievements_steps_hint">These use your steps from Health Connect. Connect it on the Profile tab to start tracking them.</string>
+    <!-- TalkBack: one announcement per card. -->
+    <string name="achievements_cd_unlocked">%1$s, unlocked. %2$s.</string>
+    <string name="achievements_cd_locked">%1$s, locked. %2$s. %3$s so far.</string>
+    <string name="achievements_category_workouts">Workouts</string>
+    <string name="achievements_category_consistency">Consistency</string>
+    <string name="achievements_category_strength">Strength</string>
+    <string name="achievements_category_daily_steps">Daily steps</string>
+    <string name="achievements_category_step_streaks">Step streaks</string>
+    <string name="achievement_first_workout">First Workout</string>
+    <string name="achievement_first_workout_desc">Log your first workout</string>
+    <string name="achievement_workouts_10">10 Workouts</string>
+    <string name="achievement_workouts_10_desc">Log 10 workouts</string>
+    <string name="achievement_workouts_50">50 Workouts</string>
+    <string name="achievement_workouts_50_desc">Log 50 workouts</string>
+    <string name="achievement_day_streak_7">7-Day Streak</string>
+    <string name="achievement_day_streak_7_desc">Train 7 days in a row</string>
+    <string name="achievement_day_streak_30">30-Day Streak</string>
+    <string name="achievement_day_streak_30_desc">Train 30 days in a row</string>
+    <string name="achievement_week_streak_52">52-Week Streak</string>
+    <string name="achievement_week_streak_52_desc">Train every week for a year</string>
+    <string name="achievement_first_pr">First PR</string>
+    <string name="achievement_first_pr_desc">Set your first personal record</string>
+    <string name="achievement_prs_10">10 PRs</string>
+    <string name="achievement_prs_10_desc">Set a personal record in 10 exercises</string>
+    <string name="achievement_full_body_week">Full Body</string>
+    <string name="achievement_full_body_week_desc">Train all 8 muscle groups in one week</string>
+    <string name="achievement_steps_day_20k">20K Steps</string>
+    <string name="achievement_steps_day_20k_desc">20,000 steps in one day</string>
+    <string name="achievement_steps_day_30k">30K Steps</string>
+    <string name="achievement_steps_day_30k_desc">30,000 steps in one day</string>
+    <string name="achievement_steps_day_40k">40K Steps</string>
+    <string name="achievement_steps_day_40k_desc">40,000 steps in one day</string>
+    <string name="achievement_steps_day_50k">50K Steps</string>
+    <string name="achievement_steps_day_50k_desc">50,000 steps in one day</string>
+    <string name="achievement_steps_day_75k">75K Steps</string>
+    <string name="achievement_steps_day_75k_desc">75,000 steps in one day</string>
+    <string name="achievement_steps_day_100k">100K Steps</string>
+    <string name="achievement_steps_day_100k_desc">100,000 steps in one day</string>
+    <string name="achievement_step_streak_30">10K for 30 Days</string>
+    <string name="achievement_step_streak_30_desc">10,000+ steps a day, 30 days in a row</string>
+    <string name="achievement_step_streak_365">10K for a Year</string>
+    <string name="achievement_step_streak_365_desc">10,000+ steps a day, 365 days in a row</string>
     <string name="profile_stat_workouts">Workouts</string>
     <string name="profile_stat_streak">Week streak</string>
     <plurals name="profile_streak_weeks">

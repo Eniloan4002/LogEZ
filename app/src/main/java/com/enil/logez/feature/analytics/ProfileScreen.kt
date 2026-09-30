@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,6 +76,7 @@ fun ProfileScreen(
     onStatisticsClick: (TrainingMetric?) -> Unit = {},
     onMeasurementsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onAchievementsClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -100,6 +102,7 @@ fun ProfileScreen(
                 onStatisticsClick = onStatisticsClick,
                 onMeasurementsClick = onMeasurementsClick,
                 onSettingsClick = onSettingsClick,
+                onAchievementsClick = onAchievementsClick,
             )
             profileStatsItems(
                 uiState = uiState,
@@ -316,12 +319,24 @@ private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
     onStatisticsClick: (TrainingMetric?) -> Unit,
     onMeasurementsClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onAchievementsClick: () -> Unit,
 ) {
         item(key = "nav_statistics") {
             ListItem(
                 modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(null) },
                 leadingContent = { Icon(Icons.Outlined.BarChart, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.profile_nav_statistics)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
+            )
+            HorizontalDivider()
+        }
+        // P-208: between Statistics and Calendar, per the approved mockup (profile-nav.png), with
+        // the trophy in lime.
+        item(key = "nav_achievements") {
+            ListItem(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onAchievementsClick),
+                leadingContent = { Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                headlineContent = { Text(stringResource(R.string.profile_nav_achievements)) },
                 trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
             )
             HorizontalDivider()

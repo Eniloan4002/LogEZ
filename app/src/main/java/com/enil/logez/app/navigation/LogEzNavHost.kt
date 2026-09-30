@@ -29,6 +29,8 @@ import com.enil.logez.feature.history.WorkoutDetailScreen
 import com.enil.logez.feature.measurements.CameraCaptureScreen
 import com.enil.logez.feature.measurements.MeasurementsRoutes
 import com.enil.logez.feature.measurements.MeasurementsScreen
+import com.enil.logez.feature.achievements.AchievementsRoutes
+import com.enil.logez.feature.achievements.AchievementsScreen
 import com.enil.logez.feature.routines.RecentWorkoutsScreen
 import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
@@ -136,7 +138,11 @@ fun LogEzNavHost(
                 onStatisticsClick = { metric -> navController.navigate(AnalyticsRoutes.dashboard(focus = metric?.name)) },
                 onMeasurementsClick = { navController.navigate(MeasurementsRoutes.MEASUREMENTS) },
                 onSettingsClick = { navController.navigate(SettingsRoutes.SETTINGS) { launchSingleTop = true } },
+                onAchievementsClick = { navController.navigate(AchievementsRoutes.ACHIEVEMENTS) { launchSingleTop = true } },
             )
+        }
+        composable(AchievementsRoutes.ACHIEVEMENTS) {
+            AchievementsScreen(onBack = { navController.popBackStack() })
         }
 
         // M22a: the only screen so far that hands a value back to its caller rather than just

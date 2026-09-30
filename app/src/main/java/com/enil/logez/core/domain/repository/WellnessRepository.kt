@@ -8,6 +8,9 @@ interface WellnessRepository {
     suspend fun getByDate(date: String): DailyWellnessTotal?
     fun observeByDate(date: String): Flow<DailyWellnessTotal?>
 
+    /** Every cached day, any order -- step achievements need whole history, not one date (P-208). */
+    suspend fun getAll(): List<DailyWellnessTotal>
+
     /** Deletes every cached daily total -- Settings > Data's Health Connect disconnect. */
     suspend fun deleteAll()
 }
