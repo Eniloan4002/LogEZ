@@ -506,11 +506,19 @@ internal fun SetRow(
             )
         }
         IconButton(onClick = onToggleCheck, modifier = Modifier.width(SetTable.checkCell)) {
-            Icon(
-                Icons.Outlined.Check,
-                contentDescription = stringResource(R.string.workout_check_set),
-                tint = if (set.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            val checkColor = if (set.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .border(1.5.dp, checkColor, RoundedCornerShape(Radius.sm)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Check,
+                    contentDescription = stringResource(R.string.workout_check_set),
+                    tint = checkColor,
+                )
+            }
         }
     }
 
