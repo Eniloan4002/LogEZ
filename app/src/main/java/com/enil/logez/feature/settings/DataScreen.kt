@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -215,20 +216,10 @@ fun DataScreen(
             )
         },
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-            (uiState.job as? DataJob.Working)?.let { working ->
-                item(key = "progress") {
-                    Text(
-                        text = stringResource(working.labelRes),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
-                    )
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md),
-                    )
-                }
-            }
-
+        DataScreenLayout(
+            working = uiState.job as? DataJob.Working,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
             item(key = "section_export") { SettingsSectionHeader(stringResource(R.string.data_section_export)) }
 
             item(key = "export_workouts") {
@@ -324,6 +315,32 @@ fun DataScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * The list with the working label and progress bar pinned above it. They used to be the list's first
+ * item, and a list scrolled even slightly kept its current item in view, so the row was inserted above
+ * the viewport: a long backup read or restore then showed nothing but a dimmed back arrow.
+ */
+@Composable
+internal fun DataScreenLayout(
+    working: DataJob.Working?,
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    Column(modifier = modifier) {
+        if (working != null) {
+            Text(
+                text = stringResource(working.labelRes),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+            )
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md),
+            )
+        }
+        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), content = content)
     }
 }
 
