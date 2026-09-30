@@ -1,6 +1,7 @@
 package com.enil.logez.core.wellness
 
 import android.content.Context
+import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
@@ -64,12 +65,11 @@ class HealthConnectMetricsSource @Inject constructor(
      */
     @Volatile private var revokedInThisProcess = false
 
-    override fun availability(): HealthConnectAvailability =
-        when (HealthConnectClient.getSdkStatus(context)) {
-            HealthConnectClient.SDK_AVAILABLE -> HealthConnectAvailability.Available
-            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthConnectAvailability.UpdateRequired
-            else -> HealthConnectAvailability.Unavailable
-        }
+    override fun availability(): HealthConnectAvailability = healthConnectAvailability(
+        sdkStatus = HealthConnectClient.getSdkStatus(context),
+        sdkInt = Build.VERSION.SDK_INT,
+        providerInstalled = { isHealthConnectAppInstalled(context) },
+    )
 
     // Health Connect calls can throw while its app updates or when a grant is withdrawn mid-read.
     // Every caller runs these from a bare viewModelScope.launch, where an escaped exception kills
