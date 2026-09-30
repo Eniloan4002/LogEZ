@@ -48,7 +48,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,6 +121,7 @@ fun WorkoutTabScreen(
     onNavigateToLogger: (workoutId: String) -> Unit,
     onNavigateToActivityTracking: () -> Unit,
     onNavigateToFinish: (workoutId: String) -> Unit,
+    onSeeAllRecent: () -> Unit,
     viewModel: WorkoutTabViewModel = hiltViewModel(),
     goalsViewModel: GoalsViewModel = hiltViewModel(),
 ) {
@@ -137,7 +137,14 @@ fun WorkoutTabScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var collapsedFolders by rememberSaveable { mutableStateOf(setOf<String>()) }
+    // Owner directive (2026-09-30): folders never remember an open state across a fresh visit to
+    // this screen -- every folder starts collapsed, not just on the very first launch. Tracking
+    // which folders are user-EXPANDED (default empty = all collapsed) rather than which are
+    // user-collapsed (default empty = all expanded, the previous/buggy polarity) gets that for
+    // free, and plain `remember` (not `rememberSaveable`) means it resets on every fresh
+    // composition of this screen, not just process death -- leaving the tab and coming back
+    // re-collapses everything too, matching "should be closed always."
+    var expandedFolders by remember { mutableStateOf(setOf<String>()) }
     // Exposed as MutableState (not just `var x by remember {}`) so WorkoutTabDialogs below can
     // read and write the same instance — same delegate object either way, this just lets it
     // cross a composable-function boundary.
@@ -155,6 +162,10 @@ fun WorkoutTabScreen(
     var pendingStart by pendingStartState
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
     var pendingTrackExercise by remember { mutableStateOf<Exercise?>(null) }
+    // Owner directive (2026-09-30): confirm before starting an empty workout, same as any Recent
+    // start now asks first (RecentSection.kt) -- this is the one path that skipped a confirmation
+    // step, since it needs no target to pick first the way Start Routine/Recent do.
+    var showEmptyConfirm by remember { mutableStateOf(false) }
     val startSession = rememberStartWorkoutSession(onNavigateToLogger)
 
     fun startEmpty() = scope.launch {
@@ -250,7 +261,7 @@ fun WorkoutTabScreen(
                 // vibrant primary green, not FilledTonalButton's muted secondaryContainer default.
                 val ctaShape = RoundedCornerShape(Radius.pill)
                 Button(
-                    onClick = { startEmpty() },
+                    onClick = { showEmptyConfirm = true },
                     shape = ctaShape,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -382,6 +393,18 @@ fun WorkoutTabScreen(
                 }
             }
 
+            // P-205 "Recent": any completed workout, routine or ad hoc, one tap from running again.
+            // Sits above Goals per the approved mockup (workout-tab.png) -- still a "progress"-
+            // adjacent widget, but action-oriented, so it reads before the passive Goals card.
+            item {
+                RecentSection(
+                    onNavigateToLogger = onNavigateToLogger,
+                    onNavigateToActivityTracking = onNavigateToActivityTracking,
+                    onNavigateToFinish = onNavigateToFinish,
+                    onSeeAll = onSeeAllRecent,
+                )
+            }
+
             if (uiState.showGoals) {
                 item {
                     // M8d: Goals card, right below the heatmap — both are "progress" widgets, kept
@@ -438,7 +461,7 @@ fun WorkoutTabScreen(
                     ) { isDragging ->
                         FolderHeaderRow(
                             folder = section.folder,
-                            isCollapsed = section.folder.id in collapsedFolders,
+                            isCollapsed = section.folder.id !in expandedFolders,
                             isDragging = isDragging,
                             dragHandle = {
                                 val index = localFolders.indexOfFirst { it.folder.id == section.folder.id }
@@ -453,7 +476,7 @@ fun WorkoutTabScreen(
                                 )
                             },
                             onToggleCollapse = {
-                                collapsedFolders = if (section.folder.id in collapsedFolders) collapsedFolders - section.folder.id else collapsedFolders + section.folder.id
+                                expandedFolders = if (section.folder.id in expandedFolders) expandedFolders - section.folder.id else expandedFolders + section.folder.id
                             },
                             onRename = { renamingFolder = section.folder },
                             onAddRoutine = { onCreateRoutine(section.folder.id) },
@@ -470,7 +493,7 @@ fun WorkoutTabScreen(
                 // card's centre stays under the still-tracked drag rect, which can re-trigger the
                 // swap and ping-pong the two folders. Hiding routines during a folder drag leaves
                 // only other folder headers as hover targets, which reorderTabRows resolves cleanly.
-                if (section.folder.id !in collapsedFolders && draggingBucket != "folder") {
+                if (section.folder.id in expandedFolders && draggingBucket != "folder") {
                     items(items = section.routines, key = { "routine:${it.routine.id}" }) { card ->
                         ReorderableItem(
                             reorderState,
@@ -569,6 +592,17 @@ fun WorkoutTabScreen(
         scope = scope,
         context = context,
     )
+
+    if (showEmptyConfirm) {
+        ConfirmDialog(
+            onDismissRequest = { showEmptyConfirm = false },
+            title = stringResource(R.string.workout_empty_confirm_title),
+            body = stringResource(R.string.workout_empty_confirm_body),
+            confirmLabel = stringResource(R.string.action_start),
+            dismissLabel = stringResource(R.string.action_cancel),
+            onConfirm = { startEmpty() },
+        )
+    }
 }
 
 /**

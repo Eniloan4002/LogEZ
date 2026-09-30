@@ -6,6 +6,8 @@ import android.net.Uri
 object RoutineRoutes {
     const val DETAIL = "routine_detail/{routineId}"
     const val BUILDER = "routine_builder?routineId={routineId}&folderId={folderId}"
+    /** P-205 "See all" — the full Recent list; no args, it's a global feed, not folder-scoped. */
+    const val RECENT = "recent_workouts"
 
     fun detail(routineId: String) = "routine_detail/$routineId"
 

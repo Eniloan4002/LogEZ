@@ -29,6 +29,7 @@ import com.enil.logez.feature.history.WorkoutDetailScreen
 import com.enil.logez.feature.measurements.CameraCaptureScreen
 import com.enil.logez.feature.measurements.MeasurementsRoutes
 import com.enil.logez.feature.measurements.MeasurementsScreen
+import com.enil.logez.feature.routines.RecentWorkoutsScreen
 import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
 import com.enil.logez.feature.routines.RoutineRoutes
@@ -100,6 +101,15 @@ fun LogEzNavHost(
                 onRoutineClick = { id -> navController.navigate(RoutineRoutes.detail(id)) },
                 onCreateRoutine = { folderId -> navController.navigate(RoutineRoutes.builder(folderId = folderId)) },
                 onEditRoutine = { id -> navController.navigate(RoutineRoutes.builder(routineId = id)) },
+                onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
+                onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+                onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
+                onSeeAllRecent = { navController.navigate(RoutineRoutes.RECENT) },
+            )
+        }
+        composable(RoutineRoutes.RECENT) {
+            RecentWorkoutsScreen(
+                onBack = { navController.popBackStack() },
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
                 onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },

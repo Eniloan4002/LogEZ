@@ -190,6 +190,8 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_rename">Rename</string>
     <string name="action_add">Add</string>
+    <!-- P-205: the Recent list's per-row start button; short on purpose, the row's own title says what it starts. -->
+    <string name="action_start">Start</string>
 
     <string name="exercise_library_title">Exercises</string>
     <string name="exercise_library_create">Create exercise</string>
@@ -274,6 +276,25 @@
     <string name="workout_new_routine">New routine</string>
     <string name="workout_start_empty">Start Empty Workout</string>
     <string name="workout_start_routine">Start Routine</string>
+    <!-- P-205 (Owner, 2026-09-30): confirm before starting a blank session. -->
+    <string name="workout_empty_confirm_title">Start empty workout?</string>
+    <string name="workout_empty_confirm_body">Opens a blank session — add exercises as you go.</string>
+    <!-- P-205 "Recent": any completed workout, routine-backed or not, one tap from running again. -->
+    <string name="workout_recent_title">Recent</string>
+    <string name="workout_recent_see_all">See all</string>
+    <string name="workout_recent_screen_title">Recent</string>
+    <string name="workout_recent_screen_subtitle">Any workout you\'ve logged, saved routine or not — tap Start to begin a new one with the same exercises.</string>
+    <string name="workout_recent_section_this_week">This week</string>
+    <string name="workout_recent_section_last_week">Last week</string>
+    <string name="workout_recent_section_older">Older</string>
+    <!-- "Yesterday, 6:12 PM · 48m · 6 exercises": day, then clock time, then duration, then exercise count. -->
+    <string name="workout_recent_subtitle_full">%1$s, %2$s · %3$s · %4$s</string>
+    <plurals name="workout_recent_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <string name="workout_recent_start_confirm_title">Start this workout again?</string>
+    <string name="workout_recent_start_confirm_body">Opens a new session with the same exercises.</string>
     <!-- M21a "Track a walk/run" (GPS) -->
     <string name="workout_track_walk_run_title">Track a walk/run</string>
     <string name="workout_track_walk_run_running">Running</string>
