@@ -53,6 +53,8 @@ import com.enil.logez.feature.activity.InterruptedTrackingDialog
 import com.enil.logez.feature.onboarding.FirstRunGateState
 import com.enil.logez.feature.onboarding.FirstRunGateViewModel
 import com.enil.logez.feature.onboarding.FirstRunHost
+import com.enil.logez.feature.onboarding.FirstRunMessageSnackbar
+import com.enil.logez.feature.onboarding.rememberSetupRestore
 import com.enil.logez.feature.workout.LocalOpenNotificationPrompts
 import com.enil.logez.feature.workout.OpenNotificationPrompts
 import com.enil.logez.feature.workout.WorkoutMiniBar
@@ -141,6 +143,10 @@ fun LogEzApp() {
                     navController.resetUnderFirstRunSetup()
                 }
             }
+            // A restore from setup opens the app on History with "Restored" (or why it did not finish).
+            // The Scaffold's snackbar host sits under the overlay, which is gone by the time it shows.
+            val gateMessage by gateViewModel.message.collectAsStateWithLifecycle()
+            FirstRunMessageSnackbar(gateMessage, snackbarHostState, onShown = gateViewModel::messageShown)
             // "Fully drawn" once setup or the app is on screen, not the Loading cover, so logcat's
             // "Fully drawn com.enil.logez/.MainActivity" line measures the time to setup (plan: O1c
             // measures the gate's timeout rather than assuming it).
@@ -159,6 +165,15 @@ fun LogEzApp() {
                     runFirstRunHandOff(navController, barSelectedTab = { barSelectedTab.value }, gateViewModel::handoffDone)
                 },
                 onResume = gateViewModel::onResume,
+                // O1e: setup's own Activity-scoped restore, so a rotation mid-restore keeps the job.
+                // Success lands on History, which setup left as the only screen.
+                setupRestore = { choices ->
+                    rememberSetupRestore(
+                        choices = choices,
+                        onRestored = gateViewModel::restored,
+                        onRestoreFailed = gateViewModel::restoreFailed,
+                    )
+                },
             ) { hiddenWhileFirstRun ->
                 Scaffold(
                     modifier = hiddenWhileFirstRun,

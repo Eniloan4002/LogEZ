@@ -26,6 +26,9 @@ import com.enil.logez.core.domain.model.SetupChoices
  *
  * `testTagsAsResourceId` is set here, at the root, so setup's tags (`firstrun_continue`, …) show up
  * as resource ids for UI Automator, adb UI dumps and a Play pre-launch Robo script.
+ *
+ * [setupRestore] supplies setup's Restore (O1e), given the screen's choices. It runs only while
+ * setup is on screen, so the app creates the restore's ViewModel only on installs that show setup.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -34,11 +37,18 @@ fun FirstRunHost(
     onContinue: (SetupChoices) -> Unit,
     onHandOff: suspend () -> Unit,
     onResume: () -> Unit,
+    setupRestore: @Composable (SetupChoicesState) -> SetupRestoreBinding = { SetupRestoreBinding.Inert },
     app: @Composable (Modifier) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
         app(Modifier.hiddenBehindFirstRun(hidden = state != FirstRunGateState.ShowApp))
-        FirstRunOverlay(state = state, onContinue = onContinue, onHandOff = onHandOff, onResume = onResume)
+        FirstRunOverlay(
+            state = state,
+            onContinue = onContinue,
+            onHandOff = onHandOff,
+            onResume = onResume,
+            setupRestore = setupRestore,
+        )
     }
 }
 
@@ -62,6 +72,7 @@ fun FirstRunOverlay(
     onContinue: (SetupChoices) -> Unit,
     onHandOff: suspend () -> Unit,
     onResume: () -> Unit,
+    setupRestore: @Composable (SetupChoicesState) -> SetupRestoreBinding = { SetupRestoreBinding.Inert },
 ) {
     val setup = when (state) {
         is FirstRunGateState.ShowSetup -> state
@@ -72,11 +83,14 @@ fun FirstRunOverlay(
 
     // One call site for both ShowSetup and HandOff, so the screen's saved choices carry across.
     if (setup != null) {
+        val choices = rememberSetupChoicesState(setup.preselected)
         FirstRunSetupScreen(
             preselected = setup.preselected,
             regionNoteVisible = setup.regionNoteVisible,
             working = setup.working,
             onContinue = onContinue,
+            choicesState = choices,
+            restore = setupRestore(choices),
         )
     } else if (state != FirstRunGateState.ShowApp) {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {}

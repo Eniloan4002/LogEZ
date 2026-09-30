@@ -801,6 +801,14 @@
     <string name="first_run_settings_note">Change these any time in Profile &gt; Settings.</string>
     <string name="first_run_backup_note">LogEZ has no cloud copy of your data. To keep a copy off this phone, make a Full backup (.zip) in Profile &gt; Settings &gt; Export &amp; backup and save the file somewhere else.</string>
     <string name="first_run_continue">Continue</string>
+    <!-- First-run plan O1e: Restore from a backup on the setup screen. The counts are the data_count_* plurals. -->
+    <string name="first_run_restore_confirm_title">Restore this backup?</string>
+    <string name="first_run_restore_confirm_contents">Made on %1$s. It has %2$s, %3$s, %4$s, %5$s and %6$s.</string>
+    <string name="first_run_restore_confirm_contents_undated">It has %1$s, %2$s, %3$s, %4$s and %5$s.</string>
+    <string name="first_run_restore_confirm_note">Its settings replace the choices on this screen. Permissions are not part of a backup: LogEZ asks again when a feature needs one, and Health Connect can be connected again from Profile.</string>
+    <string name="first_run_restore_confirm_note_no_settings">This backup has no settings, so the choices on this screen are kept.</string>
+    <string name="first_run_restore_confirm_action">Restore</string>
+    <string name="first_run_restore_too_new_hint">Install a version of LogEZ at least as new as the one that made this backup.</string>
     <!-- M23b: home-screen widget. -->
     <string name="widget_weekly_progress_label">Weekly progress</string>
     <string name="widget_weekly_progress_description">Training days this week, your week streak, and today\'s steps.</string>

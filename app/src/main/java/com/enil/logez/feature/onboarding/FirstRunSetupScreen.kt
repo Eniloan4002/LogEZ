@@ -1,5 +1,6 @@
 package com.enil.logez.feature.onboarding
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,11 +19,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,8 +47,8 @@ import java.time.format.TextStyle
 /**
  * Stable tags for first-run setup's buttons, exposed as resource ids (`testTagsAsResourceId` on the
  * app root) so a Play pre-launch Robo script and adb UI dumps can find them in any language.
- * [RESTORE] and [CONNECT] are reserved for the Restore button (O1e) and Health Connect's Connect
- * (O1f), so the names never change once scripts use them.
+ * [RESTORE] is the Restore button (O1e); [CONNECT] is reserved for Health Connect's Connect (O1f),
+ * so the names never change once scripts use them.
  */
 object FirstRunTestTags {
     const val CONTINUE = "firstrun_continue"
@@ -60,20 +59,25 @@ object FirstRunTestTags {
 /**
  * "Before you start": the one screen a fresh install shows (first-run plan, O1c). It asks only for
  * the units and the first day of the week, all preselected, so Continue works without touching
- * anything. Nothing here requests a permission or moves.
+ * anything. Nothing here requests a permission or moves, except the progress bar during a restore.
  *
  * It draws above the app, outside the Scaffold, so it pads itself for the system bars. The column
- * scrolls; only the bottom area is pinned. That area holds Continue now; Restore from a backup
- * (O1e) goes under it, and the Health Connect section (O1f) goes between the week start and the
- * backup note.
+ * scrolls; only the bottom area is pinned: Continue, and Restore from a backup under it (O1e). The
+ * Health Connect section (O1f) goes between the week start and the backup note.
  *
- * The choices are `rememberSaveable` enums, so they survive rotation and process death; the
- * preselected values are only the starting point. There is no BackHandler: system Back leaves the
- * app, nothing is written, and setup shows again at the next launch.
+ * The choices live in [choicesState] (saveable enums, so they survive rotation and process death);
+ * the preselected values are only the starting point. There is no BackHandler except while a
+ * restore runs or a result is being written: otherwise system Back leaves the app, nothing is
+ * written, and setup shows again at the next launch.
+ *
+ * Restore (O1e): its status and failures sit at the top of the column, under the intro, and the
+ * column jumps to the top without animation when one appears, so the pinned area stays two buttons
+ * tall even at 200% font in landscape.
  *
  * @param regionNoteVisible whether the preselected values are all the region's suggestion. It
  *   describes the preselection, so it stays put when the user changes a value.
- * @param working Continue is being written: the choices and Continue are disabled.
+ * @param working Continue or the end of a restore is being written: the choices, Continue and
+ *   Restore are disabled.
  */
 @Composable
 fun FirstRunSetupScreen(
@@ -82,12 +86,30 @@ fun FirstRunSetupScreen(
     working: Boolean,
     onContinue: (SetupChoices) -> Unit,
     modifier: Modifier = Modifier,
+    choicesState: SetupChoicesState = rememberSetupChoicesState(preselected),
+    restore: SetupRestoreBinding = SetupRestoreBinding.Inert,
 ) {
-    var weightUnit by rememberSaveable { mutableStateOf(preselected.weightUnit) }
-    var distanceUnit by rememberSaveable { mutableStateOf(preselected.distanceUnit) }
-    var firstDayOfWeek by rememberSaveable { mutableStateOf(preselected.firstDayOfWeek) }
-    val choices = SetupChoices(weightUnit, distanceUnit, firstDayOfWeek)
+    val choices = choicesState.choices
     val paneTitle = stringResource(R.string.first_run_pane_title)
+    val restoreUi = restore.ui
+    val buttonsEnabled = !working && !restoreUi.busy
+    val scrollState = rememberScrollState()
+
+    // Back is ignored while a restore is under way, as on Settings > Export & backup, and while the
+    // gate writes its result or Continue's (plan table: `BackHandler(enabled = working)`). Before
+    // API 31, Back finishes the root activity, which would cancel those writes partway: the flag,
+    // or a settings-less backup's choices, would never be written. Enabled only while that lasts;
+    // otherwise Back leaves the app. The confirm dialog handles its own Back (Cancel).
+    BackHandler(enabled = restoreUi.busy || working) { }
+
+    // A status or failure appears at the top of the column: show it, without animation.
+    LaunchedEffect(restoreUi.status) {
+        if (restoreUi.status != null) scrollState.scrollTo(0)
+    }
+
+    restoreUi.confirm?.let { staged ->
+        SetupRestoreConfirmDialog(staged = staged, onConfirm = restore.onConfirm, onCancel = restore.onCancel)
+    }
 
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -106,7 +128,7 @@ fun FirstRunSetupScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(scrollState)
                         .padding(bottom = Spacing.lg),
                 ) {
                     SetupContent(
@@ -115,25 +137,37 @@ fun FirstRunSetupScreen(
                         // change moved everything under the pills, and at the bottom of the scroll the
                         // tapped row jumped.
                         regionNoteVisible = regionNoteVisible,
+                        restoreStatus = restoreUi.status,
                         enabled = !working,
-                        onWeightUnit = { weightUnit = it },
-                        onDistanceUnit = { distanceUnit = it },
-                        onFirstDayOfWeek = { firstDayOfWeek = it },
+                        onWeightUnit = { choicesState.choices = choicesState.choices.copy(weightUnit = it) },
+                        onDistanceUnit = { choicesState.choices = choicesState.choices.copy(distanceUnit = it) },
+                        onFirstDayOfWeek = { choicesState.choices = choicesState.choices.copy(firstDayOfWeek = it) },
                     )
                 }
-                // Built like Start Empty Workout's pinned bar: page black, one full-width pill.
-                // Continue is the only solid green on the screen.
+                // Built like Start Empty Workout's pinned bar: page black, one full-width pill, then
+                // Restore as a text button. Continue is the only solid green on the screen.
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    Button(
-                        onClick = { onContinue(choices) },
-                        enabled = !working,
-                        shape = RoundedCornerShape(Radius.pill),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.md)
-                            .testTag(FirstRunTestTags.CONTINUE),
-                    ) {
-                        Text(stringResource(R.string.first_run_continue))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Button(
+                            onClick = { onContinue(choices) },
+                            enabled = buttonsEnabled,
+                            shape = RoundedCornerShape(Radius.pill),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.md)
+                                .testTag(FirstRunTestTags.CONTINUE),
+                        ) {
+                            Text(stringResource(R.string.first_run_continue))
+                        }
+                        TextButton(
+                            onClick = restore.onRestore,
+                            enabled = buttonsEnabled,
+                            modifier = Modifier
+                                .heightIn(min = MIN_TOUCH_HEIGHT)
+                                .testTag(FirstRunTestTags.RESTORE),
+                        ) {
+                            Text(stringResource(R.string.data_restore))
+                        }
                     }
                 }
             }
@@ -145,6 +179,7 @@ fun FirstRunSetupScreen(
 private fun SetupContent(
     choices: SetupChoices,
     regionNoteVisible: Boolean,
+    restoreStatus: SetupRestoreStatus?,
     enabled: Boolean,
     onWeightUnit: (WeightUnit) -> Unit,
     onDistanceUnit: (DistanceUnit) -> Unit,
@@ -169,6 +204,8 @@ private fun SetupContent(
         color = MaterialTheme.colorScheme.onSurface,
         modifier = inset.padding(top = Spacing.xs),
     )
+    // Reading order (plan, Accessibility): title, intro, restore status, units.
+    restoreStatus?.let { SetupRestoreStatusBlock(it, inset) }
 
     SettingsSectionHeader(
         stringResource(R.string.first_run_section_units),
@@ -264,3 +301,4 @@ private fun DistanceUnit.nameRes(): Int = when (this) {
 /** The same cap as the app's content column (LogEzApp), so a tablet shows setup centred. */
 private val MAX_CONTENT_WIDTH = 720.dp
 private val TITLE_ROW_HEIGHT = 64.dp
+private val MIN_TOUCH_HEIGHT = 48.dp

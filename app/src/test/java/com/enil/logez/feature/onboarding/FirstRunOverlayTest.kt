@@ -105,6 +105,34 @@ class FirstRunOverlayTest {
     }
 
     @Test
+    fun `setup's restore reads the same choices the screen's pills change`() {
+        var restoreChoices: SetupChoicesState? = null
+        state = setup
+        rule.setContent {
+            LogEzTheme {
+                FirstRunHost(
+                    state = state,
+                    onContinue = { continued += it },
+                    onHandOff = { handOffs++ },
+                    onResume = { resumes++ },
+                    setupRestore = { choices ->
+                        restoreChoices = choices
+                        SetupRestoreBinding.Inert
+                    },
+                ) { hidden -> Box(hidden.fillMaxSize()) }
+            }
+        }
+
+        rule.onNodeWithContentDescription("Pounds (lb)").performClick()
+        rule.waitForIdle()
+
+        assertEquals(
+            SetupChoices(WeightUnit.LB, DistanceUnit.KM, DayOfWeek.SUNDAY),
+            restoreChoices?.choices,
+        )
+    }
+
+    @Test
     fun `ShowApp draws nothing over the app`() {
         show(FirstRunGateState.ShowApp)
 
