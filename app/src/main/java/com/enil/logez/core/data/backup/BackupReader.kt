@@ -23,6 +23,11 @@ class BackupReader @Inject constructor() {
 
     class NotABackupException(message: String) : IOException(message)
 
+    private companion object {
+        /** [com.enil.logez.core.domain.model.WorkoutStatus.IN_PROGRESS]'s stored name. */
+        val IN_PROGRESS = com.enil.logez.core.domain.model.WorkoutStatus.IN_PROGRESS.name
+    }
+
     /** Reads the manifest and stops. Cheap, and nothing is written anywhere. */
     fun peekManifest(input: InputStream): BackupManifest {
         ZipInputStream(input.buffered()).use { zip ->
@@ -43,8 +48,12 @@ class BackupReader @Inject constructor() {
      * Every entry name is resolved and checked before a byte is written: the archive is a file the
      * app did not create, and an entry aimed at the live database would otherwise be extracted
      * straight over it.
+     *
+     * Before returning it also reads what the confirm dialog needs to be truthful: how many
+     * unfinished workouts a restore will leave out, whether the backup has settings, and whether
+     * those settings use a value this build does not know (first-run plan, F4 and F5).
      */
-    fun stage(input: InputStream, stagingDir: File, onProgress: (Int) -> Unit = {}): BackupManifest {
+    fun stage(input: InputStream, stagingDir: File, onProgress: (Int) -> Unit = {}): StagedBackup {
         stagingDir.deleteRecursively()
         stagingDir.mkdirs()
 
@@ -89,7 +98,42 @@ class BackupReader @Inject constructor() {
             File(stagingDir, "${BackupFormat.MEDIA_PREFIX}$name").mkdirs()
         }
         verifyRowCounts(stagingDir, read)
-        return read
+
+        val settings = stagedSettings(stagingDir)
+        return StagedBackup(
+            manifest = read,
+            unfinishedWorkoutCount = countUnfinishedWorkouts(stagingDir),
+            hasSettings = settings != null,
+            // Checked here, before anything is replaced. It used to throw after the database had
+            // committed, so the screen said "Your data is unchanged" about data that had changed.
+            settingsTooNew = settings != null &&
+                runCatching { settings.toUserSettings() }.exceptionOrNull() is UnknownSettingValueException,
+        )
+    }
+
+    /**
+     * Checks again, just before a restore wipes anything, that the staged copy is still whole: its
+     * manifest reads and every table has the rows the manifest promised. A table file missing by
+     * then (a staged copy deleted under the restore) would otherwise restore as an empty table.
+     */
+    fun verifyStaged(stagingDir: File): BackupManifest {
+        val file = File(stagingDir, BackupFormat.MANIFEST_ENTRY)
+        if (!file.isFile) throw NotABackupException("The staged backup has no manifest")
+        val manifest = runCatching { BackupFormat.jsonRead.decodeFromString<BackupManifest>(file.readText()) }
+            .getOrElse { throw NotABackupException("The staged backup's manifest could not be read") }
+        verifyRowCounts(stagingDir, manifest)
+        return manifest
+    }
+
+    private fun countUnfinishedWorkouts(stagingDir: File): Int {
+        var count = 0
+        forEachPage(
+            stagingDir,
+            BackupTables.WORKOUTS,
+            decode = { BackupFormat.jsonRead.decodeFromString<WorkoutDto>(it).status },
+            consume = { statuses -> count += statuses.count { it == IN_PROGRESS } },
+        )
+        return count
     }
 
     /**

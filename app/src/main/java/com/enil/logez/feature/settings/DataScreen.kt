@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -46,6 +47,7 @@ import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.enil.logez.core.wellness.openHealthConnectSettings
@@ -72,6 +74,7 @@ fun DataScreen(
     var pendingKind by rememberSaveable { mutableStateOf<ExportKind?>(null) }
     var confirmHealthDisconnect by rememberSaveable { mutableStateOf(false) }
     var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val createDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream"),
@@ -100,38 +103,53 @@ fun DataScreen(
     fun ifIdle(action: () -> Unit): () -> Unit = { if (!busy) action() }
 
     LaunchedEffect(uiState.job) {
-        val job = uiState.job
-        val messageRes = when (job) {
-            is DataJob.Done -> job.messageRes
-            is DataJob.Failed -> job.messageRes
+        val message = when (val job = uiState.job) {
+            is DataJob.Done -> job.count
+                ?.let { resources.getQuantityString(job.messageRes, it, it) }
+                ?: resources.getString(job.messageRes)
+            is DataJob.Failed -> resources.getString(job.messageRes)
             else -> null
         }
-        if (messageRes != null) {
-            snackbarHostState.showSnackbar(resources.getString(messageRes))
+        if (message != null) {
+            snackbarHostState.showSnackbar(message)
             viewModel.dismissJob()
         }
     }
 
     (uiState.job as? DataJob.ConfirmRestore)?.let { confirm ->
-        val m = confirm.manifest
+        val staged = confirm.staged
+        val m = staged.manifest
+        // Unfinished workouts are left out (F5), so the count is the workouts that come back.
+        val workouts = staged.completedWorkoutCount
+        val leftOut = staged.unfinishedWorkoutCount
         AlertDialog(
             onDismissRequest = { viewModel.cancelRestore() },
             title = { Text(stringResource(R.string.data_restore_confirm_title)) },
             text = {
-                Text(
-                    stringResource(
-                        R.string.data_restore_confirm_body,
-                        pluralStringResource(R.plurals.data_count_workouts, m.workoutCount, m.workoutCount),
-                        pluralStringResource(R.plurals.data_count_exercises, m.exerciseCount, m.exerciseCount),
-                        pluralStringResource(R.plurals.data_count_routines, m.routineCount, m.routineCount),
-                        pluralStringResource(R.plurals.data_count_measurements, m.measurementCount, m.measurementCount),
-                        pluralStringResource(R.plurals.data_count_goals, m.goalCount, m.goalCount),
-                        pluralStringResource(R.plurals.data_count_photos, m.mediaFileCount, m.mediaFileCount),
-                    ),
+                val body = stringResource(
+                    R.string.data_restore_confirm_body,
+                    pluralStringResource(R.plurals.data_count_workouts, workouts, workouts),
+                    pluralStringResource(R.plurals.data_count_exercises, m.exerciseCount, m.exerciseCount),
+                    pluralStringResource(R.plurals.data_count_routines, m.routineCount, m.routineCount),
+                    pluralStringResource(R.plurals.data_count_measurements, m.measurementCount, m.measurementCount),
+                    pluralStringResource(R.plurals.data_count_goals, m.goalCount, m.goalCount),
+                    pluralStringResource(R.plurals.data_count_photos, m.mediaFileCount, m.mediaFileCount),
                 )
+                val leftOutLine = if (leftOut > 0) {
+                    pluralStringResource(R.plurals.data_restore_confirm_left_out, leftOut, leftOut)
+                } else {
+                    null
+                }
+                val warning = stringResource(R.string.data_restore_confirm_warning)
+                // The left-out line follows the contents it qualifies, before the warning, as in the
+                // approved mockup: after the warning its "It" read as "what you have now". Scrolls:
+                // with that line the text can clip at 200% font in landscape.
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(listOfNotNull(body, leftOutLine, warning).joinToString("\n\n"))
+                }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmRestore(m) }) {
+                TextButton(onClick = { viewModel.confirmRestore() }) {
                     Text(
                         text = stringResource(R.string.data_restore_confirm_action),
                         color = MaterialTheme.colorScheme.error,
@@ -240,7 +258,12 @@ fun DataScreen(
                     title = stringResource(R.string.data_export_backup),
                     subtitle = stringResource(R.string.data_export_backup_subtitle),
                     value = "",
-                    onClick = ifIdle { startExport(ExportKind.BACKUP_ZIP, fileName("logez_backup", "zip")) },
+                    // Checked before the picker opens (F5): the picker creates the file as it returns.
+                    onClick = ifIdle {
+                        scope.launch {
+                            if (viewModel.backupAllowed()) startExport(ExportKind.BACKUP_ZIP, fileName("logez_backup", "zip"))
+                        }
+                    },
                 )
             }
 

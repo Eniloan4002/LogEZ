@@ -704,9 +704,9 @@
     <string name="data_restore_reading">Reading the backup…</string>
     <string name="data_restore_restoring">Restoring…</string>
     <string name="data_restore_confirm_title">Replace everything?</string>
-    <string name="data_restore_confirm_body">This permanently replaces everything in LogEZ with this backup: %1$s, %2$s, %3$s, %4$s, %5$s and %6$s.
-
-What you have now cannot be recovered afterwards.</string>
+    <string name="data_restore_confirm_body">This permanently replaces everything in LogEZ with this backup: %1$s, %2$s, %3$s, %4$s, %5$s and %6$s.</string>
+    <!-- Split from data_restore_confirm_body (words unchanged) so the O1d left-out line can sit between them. -->
+    <string name="data_restore_confirm_warning">What you have now cannot be recovered afterwards.</string>
     <plurals name="data_count_workouts"><item quantity="one">%d workout</item><item quantity="other">%d workouts</item></plurals>
     <plurals name="data_count_exercises"><item quantity="one">%d exercise</item><item quantity="other">%d exercises</item></plurals>
     <plurals name="data_count_routines"><item quantity="one">%d routine</item><item quantity="other">%d routines</item></plurals>
@@ -721,6 +721,21 @@ What you have now cannot be recovered afterwards.</string>
     <string name="data_restore_blocked_in_progress">Finish or discard your current workout before restoring.</string>
     <string name="data_export_done">Exported</string>
     <string name="data_export_failed">Couldn\'t write the file. Nothing was exported.</string>
+    <!-- First-run plan O1d: restore hardening (F3, F4, F5, F13, F14, the writer's size check). -->
+    <plurals name="data_restore_confirm_left_out">
+        <item quantity="one">It includes %d unfinished workout, which will be left out.</item>
+        <item quantity="other">It includes %d unfinished workouts, which will be left out.</item>
+    </plurals>
+    <plurals name="data_restore_done_left_out">
+        <item quantity="one">Restored. %d unfinished workout in the backup was left out.</item>
+        <item quantity="other">Restored. %d unfinished workouts in the backup were left out.</item>
+    </plurals>
+    <string name="data_restore_too_large">That backup is too large to restore. LogEZ can restore backups of up to 2 GB and 50,000 files.</string>
+    <string name="data_restore_no_space">There isn\'t enough free storage to restore that backup. Your data is unchanged.</string>
+    <string name="data_restore_busy">A restore is already running.</string>
+    <string name="data_restore_incomplete">Restore did not finish. LogEZ will try to finish it the next time it starts.</string>
+    <string name="data_backup_blocked_in_progress">Finish or discard your current workout before making a full backup.</string>
+    <string name="data_backup_too_large">A full backup would be too large to restore. LogEZ can restore backups of up to 2 GB and 50,000 files. Nothing was exported.</string>
     <string name="data_section_health">Health Connect</string>
     <string name="data_health_manage">Manage Health Connect access</string>
     <string name="data_health_manage_subtitle">Choose which of steps, calories burned and heart rate LogEZ can read</string>

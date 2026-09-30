@@ -114,8 +114,9 @@ interface BackupDao {
     suspend fun deleteAllRoutineSets()
 
     // ---- workouts ----
-    // Includes IN_PROGRESS rows, unlike getCompletedWorkouts(): a backup is a snapshot of
-    // everything, and a restore is blocked while a session is live anyway.
+    // Pages every status, unlike getCompletedWorkouts(). A full backup is refused while a workout
+    // is in progress, but backups made before that refusal (46.1) can still carry IN_PROGRESS rows,
+    // which a restore removes again with deleteInProgressWorkouts().
     @Query("SELECT * FROM workouts WHERE id > :after ORDER BY id ASC LIMIT :limit")
     suspend fun pageWorkouts(after: String, limit: Int): List<WorkoutEntity>
 
@@ -127,6 +128,15 @@ interface BackupDao {
 
     @Query("DELETE FROM workouts")
     suspend fun deleteAllWorkouts()
+
+    /**
+     * Leaves a backup's unfinished workouts out of a restore (first-run plan, F5): a restored
+     * session resumes with its timer stuck at 0:00, and a GPS one reports an interruption spanning
+     * the days since the backup. Their exercises, sets, routes and heart-rate samples go with them
+     * through ON DELETE CASCADE. Returns how many workouts were removed.
+     */
+    @Query("DELETE FROM workouts WHERE status = 'IN_PROGRESS'")
+    suspend fun deleteInProgressWorkouts(): Int
 
     // ---- workout_exercises ----
     @Query("SELECT * FROM workout_exercises WHERE id > :after ORDER BY id ASC LIMIT :limit")

@@ -88,19 +88,33 @@ fun UserSettings.toDto() = SettingsDto(
     weeklyActiveDayTarget = weeklyActiveDayTarget,
 )
 
+/**
+ * A settings value this build has no name for, such as a unit added by a newer LogEZ.
+ *
+ * Thrown rather than coerced to a default (project rule: unknown enum values are never coerced and
+ * re-saved). [BackupReader.stage] checks for it before anything is replaced, so such a backup is
+ * refused as "too new"; [BackupRestorer.restore] converts before its transaction for the same reason.
+ */
+class UnknownSettingValueException(val field: String, val value: String) :
+    IllegalArgumentException("settings.json $field has a value this version does not know: $value")
+
+private inline fun <reified E : Enum<E>> known(field: String, name: String): E =
+    enumValues<E>().firstOrNull { it.name == name } ?: throw UnknownSettingValueException(field, name)
+
+/** @throws UnknownSettingValueException for any enum name this build does not have. */
 fun SettingsDto.toUserSettings() = UserSettings(
-    weightUnit = WeightUnit.valueOf(weightUnit),
-    distanceUnit = DistanceUnit.valueOf(distanceUnit),
-    lengthUnit = LengthUnit.valueOf(lengthUnit),
-    muscleDiagramVariant = MuscleDiagramVariant.valueOf(muscleDiagramVariant),
-    firstDayOfWeek = DayOfWeek.valueOf(firstDayOfWeek),
-    perExerciseUnitOverrides = perExerciseUnitOverrides.mapValues { WeightUnit.valueOf(it.value) },
+    weightUnit = known("weight_unit", weightUnit),
+    distanceUnit = known("distance_unit", distanceUnit),
+    lengthUnit = known("length_unit", lengthUnit),
+    muscleDiagramVariant = known("muscle_diagram_variant", muscleDiagramVariant),
+    firstDayOfWeek = known("first_day_of_week", firstDayOfWeek),
+    perExerciseUnitOverrides = perExerciseUnitOverrides.mapValues { known<WeightUnit>("per_exercise_unit_overrides", it.value) },
     defaultRestTimerSeconds = defaultRestTimerSeconds,
     timerSound = timerSound,
     timerVolume = timerVolume,
     setCompleteVolume = setCompleteVolume,
     prVolume = prVolume,
-    previousValuesMode = PreviousValuesMode.valueOf(previousValuesMode),
+    previousValuesMode = known("previous_values_mode", previousValuesMode),
     warmupCalculatorEnabled = warmupCalculatorEnabled,
     warmupMethod = warmupMethod,
     includeWarmupsInStats = includeWarmupsInStats,
@@ -108,13 +122,13 @@ fun SettingsDto.toUserSettings() = UserSettings(
     plateCalculatorEnabled = plateCalculatorEnabled,
     plateEquipment = plateEquipment,
     rpeTrackingEnabled = rpeTrackingEnabled,
-    effortScale = EffortScale.valueOf(effortScale),
+    effortScale = known("effort_scale", effortScale),
     smartSupersetScrolling = smartSupersetScrolling,
     inlineTimerEnabled = inlineTimerEnabled,
     livePrNotificationEnabled = livePrNotificationEnabled,
     maxHeartRateBpm = maxHeartRateBpm,
     showHeatmap = showHeatmap,
     showGoals = showGoals,
-    measurementsTrackingMode = MeasurementsTrackingMode.valueOf(measurementsTrackingMode),
+    measurementsTrackingMode = known("measurements_tracking_mode", measurementsTrackingMode),
     weeklyActiveDayTarget = weeklyActiveDayTarget,
 )

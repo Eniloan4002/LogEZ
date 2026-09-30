@@ -74,7 +74,11 @@ class FakeSettingsRepository(
     override suspend fun setShowGoals(value: Boolean) { state.value = state.value.copy(showGoals = value) }
     override suspend fun setMeasurementsTrackingMode(value: MeasurementsTrackingMode) { state.value = state.value.copy(measurementsTrackingMode = value) }
     override suspend fun setWeeklyActiveDayTarget(value: Int) { state.value = state.value.copy(weeklyActiveDayTarget = value) }
+    /** Thrown from [replaceAll] before anything is written, when set. */
+    var replaceAllError: Exception? = null
+
     override suspend fun replaceAll(settings: UserSettings) {
+        replaceAllError?.let { throw it }
         state.value = settings
         storedSetupValues = StoredSetupValues(settings.weightUnit, settings.distanceUnit, settings.firstDayOfWeek)
     }

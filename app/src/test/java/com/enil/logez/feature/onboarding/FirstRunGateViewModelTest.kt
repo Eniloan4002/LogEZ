@@ -3,6 +3,7 @@ package com.enil.logez.feature.onboarding
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.RegionDefaults
 import com.enil.logez.core.common.RegionSuggestion
+import com.enil.logez.core.data.backup.RestoreLock
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.SetupChoices
@@ -57,8 +58,9 @@ class FirstRunGateViewModelTest {
     private val widget = FakeWidgetRefresher()
     private val clock = FakeClock()
     private val logger = RecordingLogger()
+    private val restoreLock = RestoreLock()
 
-    private fun newViewModel() = FirstRunGateViewModel(store, probe, settings, region, widget, clock, logger)
+    private fun newViewModel() = FirstRunGateViewModel(store, probe, settings, region, widget, restoreLock, clock, logger)
 
     private val usSuggestion = RegionSuggestion(
         weightUnit = WeightUnit.LB,
@@ -234,6 +236,39 @@ class FirstRunGateViewModelTest {
         runCurrent()
         assertEquals(FirstRunGateState.ShowApp, vm.state.value)
         assertEquals(0, store.markDoneCallCount)
+    }
+
+    @Test
+    fun `a restore holding the lock keeps the gate in Loading, then the probe runs once it ends`() = runTest {
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        probe.hasContent = true
+        val vm = newViewModel()
+
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertEquals(FirstRunGateState.Loading, vm.state.value)
+        assertEquals(0, probe.callCount)
+
+        restoreLock.release(restore)
+        runCurrent()
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(1, probe.callCount)
+        assertEquals(FirstRunPath.EXISTING, store.storedPath)
+    }
+
+    @Test
+    fun `a restore that outlasts the timeout opens the app without probing, flag unwritten`() = runTest {
+        restoreLock.tryAcquire(Any())
+        val vm = newViewModel()
+
+        advanceTimeBy(3_001L)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(0, probe.callCount)
+        assertFalse(store.isDone())
+        assertEquals(listOf("First-run check took longer than 3000 ms; opening the app"), logger.messages)
     }
 
     @Test
@@ -444,7 +479,7 @@ class FirstRunGateViewModelTest {
             override fun suggest(): RegionSuggestion =
                 if (lookupThrows) throw IllegalStateException("no locale") else region.suggestion
         }
-        val vm = FirstRunGateViewModel(store, probe, settings, switchable, widget, clock, logger)
+        val vm = FirstRunGateViewModel(store, probe, settings, switchable, widget, restoreLock, clock, logger)
         val before = vm.state.value
         assertTrue(before is FirstRunGateState.ShowSetup)
 

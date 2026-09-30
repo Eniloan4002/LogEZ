@@ -14,23 +14,37 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.GoalMetric
 import com.enil.logez.core.domain.model.GoalPeriod
+import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.MeasurementsTrackingMode
+import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.MuscleHead
+import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.time.DayOfWeek
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 /**
  * Every backed-up table must survive entity → DTO → JSON → DTO → entity unchanged. Anything that
@@ -214,6 +228,27 @@ class BackupDtoRoundTripTest {
         assertEquals("Folder", read.decodeFromString<RoutineFolderDto>(future).toEntity().name)
     }
 
+    // ---- Settings enums (first-run plan O1d, F4) ----
+
+    @get:Rule
+    val temp = TemporaryFolder()
+
+    @Test
+    fun `settings with every non-default enum survive, so known names round-trip`() {
+        val settings = UserSettings(
+            weightUnit = WeightUnit.LB,
+            distanceUnit = DistanceUnit.MILES,
+            lengthUnit = LengthUnit.IN,
+            muscleDiagramVariant = MuscleDiagramVariant.FEMALE,
+            firstDayOfWeek = DayOfWeek.SUNDAY,
+            perExerciseUnitOverrides = mapOf("e1" to WeightUnit.KG, "e2" to WeightUnit.LB),
+            previousValuesMode = PreviousValuesMode.SAME_ROUTINE,
+            measurementsTrackingMode = MeasurementsTrackingMode.SIMPLIFIED,
+            effortScale = EffortScale.RIR,
+        )
+        assertEquals(settings, roundTrip(settings.toDto()).toUserSettings())
+    }
+
     @Test
     fun `the effort scale travels as effort_scale, by name`() {
         val json = write.encodeToString(UserSettings(effortScale = EffortScale.RIR).toDto())
@@ -226,5 +261,85 @@ class BackupDtoRoundTripTest {
         val settings = read.decodeFromString<SettingsDto>(older).toUserSettings()
         assertEquals(EffortScale.RPE, settings.effortScale)
         assertTrue(settings.rpeTrackingEnabled)
+    }
+
+    @Test
+    fun `a settings enum name this build does not know is refused, never coerced`() {
+        val cases = listOf(
+            "weight_unit" to SettingsDto(weightUnit = "STONE"),
+            "distance_unit" to SettingsDto(distanceUnit = "LEAGUES"),
+            "length_unit" to SettingsDto(lengthUnit = "HANDS"),
+            "muscle_diagram_variant" to SettingsDto(muscleDiagramVariant = "OTHER"),
+            "first_day_of_week" to SettingsDto(firstDayOfWeek = "FUNDAY"),
+            "per_exercise_unit_overrides" to SettingsDto(perExerciseUnitOverrides = mapOf("e1" to "STONE")),
+            "previous_values_mode" to SettingsDto(previousValuesMode = "SAME_WEEKDAY"),
+            "measurements_tracking_mode" to SettingsDto(measurementsTrackingMode = "MINIMAL"),
+            "effort_scale" to SettingsDto(effortScale = "BORG"),
+        )
+        cases.forEach { (field, dto) ->
+            val e = assertThrows(UnknownSettingValueException::class.java) { dto.toUserSettings() }
+            assertEquals(field, e.field)
+        }
+    }
+
+    private fun archive(settingsJson: String?): ByteArray {
+        val out = ByteArrayOutputStream()
+        ZipOutputStream(out).use { zip ->
+            zip.putNextEntry(ZipEntry(BackupFormat.MANIFEST_ENTRY))
+            zip.write(write.encodeToString(BackupManifest(roomSchemaVersion = BackupWriter.ROOM_SCHEMA_VERSION)).toByteArray())
+            zip.closeEntry()
+            if (settingsJson != null) {
+                zip.putNextEntry(ZipEntry(BackupFormat.SETTINGS_ENTRY))
+                zip.write(settingsJson.toByteArray())
+                zip.closeEntry()
+            }
+        }
+        return out.toByteArray()
+    }
+
+    private fun stage(settingsJson: String?): StagedBackup =
+        BackupReader().stage(ByteArrayInputStream(archive(settingsJson)), temp.newFolder())
+
+    @Test
+    fun `staging treats an unknown settings enum name as too new, before anything is restored`() {
+        val staged = stage("""{"weight_unit":"STONE"}""")
+        assertTrue(staged.hasSettings)
+        assertTrue(staged.settingsTooNew)
+        assertEquals(BackupManifest.Compatibility.TooNew, staged.compatibility(BackupWriter.ROOM_SCHEMA_VERSION))
+    }
+
+    @Test
+    fun `staging accepts settings whose names this build knows`() {
+        val staged = stage(write.encodeToString(UserSettings(weightUnit = WeightUnit.LB).toDto()))
+        assertTrue(staged.hasSettings)
+        assertFalse(staged.settingsTooNew)
+        assertEquals(BackupManifest.Compatibility.Ok, staged.compatibility(BackupWriter.ROOM_SCHEMA_VERSION))
+    }
+
+    @Test
+    fun `staging treats an unknown effort scale as too new, like the other enums`() {
+        val json = write.encodeToString(UserSettings(effortScale = EffortScale.RIR).toDto())
+            .replace("\"effort_scale\":\"RIR\"", "\"effort_scale\":\"BORG\"")
+        val staged = stage(json)
+        assertTrue(staged.settingsTooNew)
+        assertEquals(BackupManifest.Compatibility.TooNew, staged.compatibility(BackupWriter.ROOM_SCHEMA_VERSION))
+    }
+
+    @Test
+    fun `staging accepts an RIR effort scale, and it reads back as RIR`() {
+        val dir = temp.newFolder()
+        val json = write.encodeToString(UserSettings(effortScale = EffortScale.RIR).toDto())
+        val staged = BackupReader().stage(ByteArrayInputStream(archive(json)), dir)
+        assertFalse(staged.settingsTooNew)
+        assertEquals(BackupManifest.Compatibility.Ok, staged.compatibility(BackupWriter.ROOM_SCHEMA_VERSION))
+        assertEquals(EffortScale.RIR, BackupReader().stagedSettings(dir)?.toUserSettings()?.effortScale)
+    }
+
+    @Test
+    fun `staging notes a backup without settings, which is not too new`() {
+        val staged = stage(settingsJson = null)
+        assertFalse(staged.hasSettings)
+        assertFalse(staged.settingsTooNew)
+        assertEquals(BackupManifest.Compatibility.Ok, staged.compatibility(BackupWriter.ROOM_SCHEMA_VERSION))
     }
 }

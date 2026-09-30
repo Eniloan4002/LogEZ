@@ -201,7 +201,7 @@ class BackupRoundTripTest : RoomDatabaseTestBase() {
         val archive = writeArchive()
 
         val staging = File(filesDir, "staging")
-        val manifest = BackupReader().stage(ByteArrayInputStream(archive), staging)
+        val manifest = BackupReader().stage(ByteArrayInputStream(archive), staging).manifest
 
         // Wipe, then restore from the staged archive using the real ordering.
         val dao = database.backupDao()

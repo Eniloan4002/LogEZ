@@ -5,6 +5,7 @@ import com.enil.logez.core.data.dao.BackupDao
 import com.enil.logez.core.data.seed.SeedManager
 import com.enil.logez.core.domain.repository.SettingsRepository
 import java.io.File
+import java.io.IOException
 import java.io.OutputStream
 import java.time.ZoneId
 import java.util.zip.ZipEntry
@@ -31,8 +32,27 @@ class BackupWriter @Inject constructor(
     private val seedManager: SeedManager,
     private val clock: Clock,
 ) {
-    /** @param mediaRoot the app's filesDir; photo paths in the rows are relative to it. */
-    suspend fun write(out: OutputStream, mediaRoot: File, appVersionName: String, appVersionCode: Long): BackupManifest {
+    /**
+     * A backup this app's own reader would refuse: more than [ZipEntryNames.MAX_TOTAL_UNCOMPRESSED_BYTES]
+     * unpacked, or more than [ZipEntryNames.MAX_ENTRIES] files. Refused rather than written, since
+     * a backup that can't be restored is worse than none (first-run plan, O1d).
+     */
+    class BackupTooLargeException(message: String) : IOException(message)
+
+    /**
+     * @param mediaRoot the app's filesDir; photo paths in the rows are relative to it.
+     * @param maxTotalBytes and [maxEntries] are the reader's limits; tests pass smaller ones.
+     * @throws BackupTooLargeException before anything is written when the photos alone exceed the
+     *   limits, or part-way through when the rows take the total over. The caller deletes the file.
+     */
+    suspend fun write(
+        out: OutputStream,
+        mediaRoot: File,
+        appVersionName: String,
+        appVersionCode: Long,
+        maxTotalBytes: Long = ZipEntryNames.MAX_TOTAL_UNCOMPRESSED_BYTES,
+        maxEntries: Int = ZipEntryNames.MAX_ENTRIES,
+    ): BackupManifest {
         val counts = countsPerTable()
         // Only files a row still references (2026-09-25). Zipping the whole directory also shipped
         // every photo the user had deleted, since deleting a row used to leave its file behind.
@@ -42,6 +62,19 @@ class BackupWriter @Inject constructor(
                 .filter { it.isFile && "${dir.name}/${it.name}" in referenced }
                 .map { dir.name to it }
         }
+
+        // Checked first, on the same measures BackupReader.stage applies: the entry count and the
+        // unpacked bytes. Photos are nearly all of a backup's size and their sizes are known now;
+        // the rows are counted as they are written, below.
+        val entryCount = FIXED_ENTRY_COUNT + mediaFiles.size
+        val mediaBytes = mediaFiles.sumOf { (_, file) -> file.length() }
+        if (entryCount > maxEntries) {
+            throw BackupTooLargeException("A backup would hold $entryCount files; the limit is $maxEntries")
+        }
+        if (mediaBytes > maxTotalBytes) {
+            throw BackupTooLargeException("Photos alone come to $mediaBytes bytes; the limit is $maxTotalBytes")
+        }
+        val budget = ByteBudget(maxTotalBytes)
 
         val manifest = BackupManifest(
             backupSchemaVersion = BackupFormat.SCHEMA_VERSION,
@@ -56,20 +89,22 @@ class BackupWriter @Inject constructor(
         )
 
         ZipOutputStream(out.buffered()).use { zip ->
-            zip.writeText(BackupFormat.MANIFEST_ENTRY, BackupFormat.jsonWrite.encodeToString(manifest))
+            zip.writeText(BackupFormat.MANIFEST_ENTRY, BackupFormat.jsonWrite.encodeToString(manifest), budget)
 
             BackupTables.EXPORT_ORDER.forEach { table ->
                 zip.putNextEntry(ZipEntry(BackupTables.tableEntry(table)))
-                writeTable(zip, table)
+                writeTable(zip, table, budget)
                 zip.closeEntry()
             }
 
             zip.writeText(
                 BackupFormat.SETTINGS_ENTRY,
                 BackupFormat.jsonWrite.encodeToString(settingsRepository.settings.first().toDto()),
+                budget,
             )
 
             mediaFiles.forEach { (dirName, file) ->
+                budget.add(file.length())
                 zip.putNextEntry(ZipEntry("${BackupFormat.MEDIA_PREFIX}$dirName/${file.name}"))
                 file.inputStream().use { it.copyTo(zip) }
                 zip.closeEntry()
@@ -78,14 +113,26 @@ class BackupWriter @Inject constructor(
         return manifest
     }
 
-    private fun ZipOutputStream.writeText(entryName: String, text: String) {
+    /** Unpacked bytes so far, refused past the reader's limit before they are written. */
+    private class ByteBudget(private val max: Long) {
+        private var used = 0L
+
+        fun add(bytes: Long) {
+            used += bytes
+            if (used > max) throw BackupTooLargeException("A backup would unpack to more than $max bytes")
+        }
+    }
+
+    private fun ZipOutputStream.writeText(entryName: String, text: String, budget: ByteBudget) {
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        budget.add(bytes.size.toLong())
         putNextEntry(ZipEntry(entryName))
-        write(text.toByteArray(Charsets.UTF_8))
+        write(bytes)
         closeEntry()
     }
 
     /** One JSON object per line, so a restore can decode without holding the table. */
-    private suspend fun writeTable(zip: ZipOutputStream, table: String) {
+    private suspend fun writeTable(zip: ZipOutputStream, table: String, budget: ByteBudget) {
         val json = BackupFormat.jsonWrite
         forEachPage(table) { rows ->
             val text = buildString {
@@ -94,7 +141,9 @@ class BackupWriter @Inject constructor(
                     append('\n')
                 }
             }
-            zip.write(text.toByteArray(Charsets.UTF_8))
+            val bytes = text.toByteArray(Charsets.UTF_8)
+            budget.add(bytes.size.toLong())
+            zip.write(bytes)
         }
     }
 
@@ -188,6 +237,9 @@ class BackupWriter @Inject constructor(
     companion object {
         /** [com.enil.logez.core.data.LogEzDatabase]'s version, by reference so the two can't drift. */
         const val ROOM_SCHEMA_VERSION = com.enil.logez.core.data.LogEzDatabase.VERSION
+
+        /** The manifest, the settings and one entry per table; photos add one each. */
+        private val FIXED_ENTRY_COUNT = 2 + BackupTables.EXPORT_ORDER.size
 
         const val PROGRESS_PHOTOS_DIR = "progress_photos"
         const val EXERCISE_MEDIA_DIR = "exercise_media"

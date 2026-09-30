@@ -6,6 +6,7 @@ import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.common.RegionDefaults
 import com.enil.logez.core.common.RegionSuggestion
+import com.enil.logez.core.data.backup.RestoreLock
 import com.enil.logez.core.domain.WidgetRefresher
 import com.enil.logez.core.domain.model.SetupChoices
 import com.enil.logez.core.domain.model.StoredSetupValues
@@ -22,6 +23,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -87,6 +89,7 @@ class FirstRunGateViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val regionDefaults: RegionDefaults,
     private val widgetRefresher: WidgetRefresher,
+    private val restoreLock: RestoreLock,
     private val clock: Clock,
     private val logger: AppLogger,
 ) : ViewModel() {
@@ -127,8 +130,13 @@ class FirstRunGateViewModel @Inject constructor(
         return resolved ?: FirstRunGateState.ShowApp
     }
 
-    private suspend fun readFirstRun(): FirstRunGateState =
-        if (userDataProbe.hasUserContent()) {
+    private suspend fun readFirstRun(): FirstRunGateState {
+        // A restore in flight (the launch-time resume, or one started from another window) is
+        // replacing the database, so a probe now could offer setup over data that is about to
+        // arrive (first-run plan, F14). Loading holds until it ends, within RESOLVE_TIMEOUT_MS
+        // like every other read here.
+        restoreLock.held.first { held -> !held }
+        return if (userDataProbe.hasUserContent()) {
             // A probe that outlived the timeout must not write: the app already opened without it.
             currentCoroutineContext().ensureActive()
             if (!firstRunStore.markDone(FirstRunPath.EXISTING, clock.now().toEpochMilliseconds())) {
@@ -139,6 +147,7 @@ class FirstRunGateViewModel @Inject constructor(
             val stored = settingsRepository.readStoredSetupValues()
             setupStateFor(stored, regionDefaults.suggest())
         }
+    }
 
     /** The synchronous flag read; null when it throws, which is logged. */
     private fun readFlag(): Boolean? = try {
