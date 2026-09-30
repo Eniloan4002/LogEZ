@@ -3,6 +3,7 @@ package com.enil.logez.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PlateEquipment
@@ -58,7 +59,19 @@ class SettingsViewModel @Inject constructor(
     fun setInlineTimerEnabled(value: Boolean) = write { setInlineTimerEnabled(value) }
     fun setLivePrNotificationEnabled(value: Boolean) = write { setLivePrNotificationEnabled(value) }
     fun setMaxHeartRateBpm(value: Int?) = write { setMaxHeartRateBpm(value) }
-    fun setRpeTrackingEnabled(value: Boolean) = write { setRpeTrackingEnabled(value) }
+
+    /**
+     * P-211 decision 2: the "Effort tracking" chooser. OFF only turns tracking off and keeps the
+     * saved scale (decision 4); RPE / RIR store the scale first and then turn tracking on, so an
+     * open logger never shows the column in the scale the user just moved away from.
+     */
+    fun setEffortTracking(option: EffortTrackingOption) = write {
+        when (option) {
+            EffortTrackingOption.OFF -> setRpeTrackingEnabled(false)
+            EffortTrackingOption.RPE -> { setEffortScale(EffortScale.RPE); setRpeTrackingEnabled(true) }
+            EffortTrackingOption.RIR -> { setEffortScale(EffortScale.RIR); setRpeTrackingEnabled(true) }
+        }
+    }
     fun setIncludeWarmupsInStats(value: Boolean) = write { setIncludeWarmupsInStats(value) }
     fun setShowHeatmap(value: Boolean) = write { setShowHeatmap(value) }
     fun setShowGoals(value: Boolean) = write { setShowGoals(value) }

@@ -1,6 +1,7 @@
 package com.enil.logez.feature.settings
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.UserSettings
@@ -110,12 +111,37 @@ class SettingsViewModelTest {
         assertFalse(repository.settings.value.livePrNotificationEnabled)
     }
 
+    // --- P-211 Effort tracking ---
+
     @Test
-    fun `setRpeTrackingEnabled writes through both ways`() = runTest {
-        viewModel.setRpeTrackingEnabled(true)
+    fun `choosing RIR stores the scale and turns tracking on`() = runTest {
+        viewModel.setEffortTracking(EffortTrackingOption.RIR)
         assertTrue(repository.settings.value.rpeTrackingEnabled)
-        viewModel.setRpeTrackingEnabled(false)
+        assertEquals(EffortScale.RIR, repository.settings.value.effortScale)
+    }
+
+    @Test
+    fun `choosing Off turns tracking off and keeps the saved scale`() = runTest {
+        viewModel.setEffortTracking(EffortTrackingOption.RIR)
+        viewModel.setEffortTracking(EffortTrackingOption.OFF)
         assertFalse(repository.settings.value.rpeTrackingEnabled)
+        assertEquals(EffortScale.RIR, repository.settings.value.effortScale)
+    }
+
+    @Test
+    fun `choosing RPE after RIR switches the scale back`() = runTest {
+        viewModel.setEffortTracking(EffortTrackingOption.RIR)
+        viewModel.setEffortTracking(EffortTrackingOption.RPE)
+        assertTrue(repository.settings.value.rpeTrackingEnabled)
+        assertEquals(EffortScale.RPE, repository.settings.value.effortScale)
+    }
+
+    @Test
+    fun `the row's value reads the two stored settings`() {
+        assertEquals(EffortTrackingOption.OFF, EffortTrackingOption.of(UserSettings()))
+        assertEquals(EffortTrackingOption.RPE, EffortTrackingOption.of(UserSettings(rpeTrackingEnabled = true)))
+        assertEquals(EffortTrackingOption.RIR, EffortTrackingOption.of(UserSettings(rpeTrackingEnabled = true, effortScale = EffortScale.RIR)))
+        assertEquals(EffortTrackingOption.OFF, EffortTrackingOption.of(UserSettings(rpeTrackingEnabled = false, effortScale = EffortScale.RIR)))
     }
 
     @Test

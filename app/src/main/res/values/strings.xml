@@ -313,7 +313,8 @@
     <string name="rest_timer_off_option">Off</string>
 
     <string name="set_type_normal">Normal Set</string>
-    <string name="set_type_warmup">W — Warmup Set</string>
+    <!-- P-211 small fix 10f: "Warm-up", as the legend, "Add warm-up sets" and the stats setting say it. -->
+    <string name="set_type_warmup">W — Warm-up Set</string>
     <string name="set_type_failure">F — Failure Set</string>
     <string name="set_type_dropset">D — Dropset</string>
 
@@ -823,8 +824,17 @@ What you have now cannot be recovered afterwards.</string>
     <string name="settings_max_heart_rate_dialog_title">Max heart rate</string>
     <string name="settings_max_heart_rate_field_label">Beats per minute</string>
     <string name="settings_max_heart_rate_invalid">Enter a number between 1 and 300</string>
-    <string name="settings_rpe">RPE tracking</string>
-    <string name="settings_rpe_subtitle">Adds an RPE picker to each set so you can log how hard it felt.</string>
+    <!-- P-211 (Owner, 2026-09-30): "Effort tracking" replaces the "RPE tracking" switch. The row
+         opens a chooser; Off keeps the saved scale, so past values keep showing in it. -->
+    <string name="settings_effort_tracking">Effort tracking</string>
+    <string name="settings_effort_tracking_subtitle">Log how hard each set felt, as RPE or RIR.</string>
+    <string name="settings_effort_off">Off</string>
+    <string name="settings_effort_off_description">No effort column while you log.</string>
+    <string name="settings_effort_rpe_option">RPE (rate of perceived exertion)</string>
+    <string name="settings_effort_rpe_description">Score each set from 6 to 10. 10 means you couldn\'t do another rep.</string>
+    <string name="settings_effort_rir_option">RIR (reps in reserve)</string>
+    <string name="settings_effort_rir_description">Count the reps you had left. 0 means you couldn\'t do another rep.</string>
+    <string name="settings_effort_footer">Switching is safe. Past sets are shown in whichever one you pick.</string>
     <string name="settings_show_heatmap">Show progress heatmap</string>
     <string name="settings_show_heatmap_subtitle">Displays the Progress heatmap at the top of the Workout tab.</string>
     <string name="settings_show_goals">Show goals</string>
@@ -969,4 +979,80 @@ What you have now cannot be recovered afterwards.</string>
     <string name="measurements_tracking_mode_complete_short">Complete</string>
     <string name="measurements_tracking_mode_simplified">Simplified — weight, body fat, lean mass</string>
     <string name="measurements_tracking_mode_complete">Complete — all 17 metrics</string>
+
+    <!-- P-211 (Owner, 2026-09-30): history and workout clarity, with effort as RPE or RIR. Every
+         string the logger, History, Exercise history and the routine screens need for it. -->
+    <!-- Effort scale names: column headers, the Settings row value, the legend key, PREVIOUS line 2. -->
+    <string name="effort_scale_rpe">RPE</string>
+    <string name="effort_scale_rir">RIR</string>
+    <!-- "RIR 1–2": a scale name, then a value in it (PREVIOUS line 2, screen-reader text). -->
+    <string name="effort_value_line">%1$s %2$s</string>
+    <!-- Screen reader, an effort cell with nothing logged: "RIR not set". -->
+    <string name="effort_value_not_set">%1$s not set</string>
+    <!-- Screen reader, what a tap on an effort cell does: "Log RIR". -->
+    <string name="effort_cell_click_a11y">Log %1$s</string>
+    <!-- Screen reader, what a tap on an effort header, legend line or picker link does: "Explain RIR". -->
+    <string name="effort_info_click_a11y">Explain %1$s</string>
+    <!-- Picker sheets. -->
+    <string name="effort_picker_title_rpe">Log Set RPE</string>
+    <string name="effort_picker_title_rir">Log Set RIR</string>
+    <string name="effort_picker_link_rpe">What\'s RPE?</string>
+    <string name="effort_picker_link_rir">What\'s RIR?</string>
+    <!-- "RIR 1 — Could have done 1 more rep": the scale, the value, then its plain words. -->
+    <string name="effort_picker_caption">%1$s %2$s — %3$s</string>
+    <!-- The caption while nothing is selected. -->
+    <string name="effort_picker_ask_rpe">How hard was it? 10 = no reps left.</string>
+    <string name="effort_picker_ask_rir">How many more reps could you have done?</string>
+    <!-- Plain words for one effort, shared by both scales (small fix 10j), named by the stored RPE. -->
+    <string name="effort_caption_rpe_10">No reps left</string>
+    <string name="effort_caption_rpe_9_5">Maybe 1 more rep</string>
+    <string name="effort_caption_rpe_9">Could have done 1 more rep</string>
+    <string name="effort_caption_rpe_8_5">Could have done 1 or 2 more reps</string>
+    <string name="effort_caption_rpe_8">Could have done 2 more reps</string>
+    <string name="effort_caption_rpe_7_5">Could have done 2 or 3 more reps</string>
+    <string name="effort_caption_rpe_7">Could have done 3 more reps</string>
+    <!-- Not a picker value: only a hand-edited backup can hold RPE 6.5. -->
+    <string name="effort_caption_rpe_6_5">Could have done 3 or 4 more reps</string>
+    <string name="effort_caption_rpe_6">Could have done 4 or more reps</string>
+    <!-- Explainer sheet, opened from an effort header, the legend line or a picker link. -->
+    <string name="effort_explainer_title_rpe">What is RPE?</string>
+    <string name="effort_explainer_title_rir">What is RIR?</string>
+    <string name="effort_explainer_body_rpe">RPE (rate of perceived exertion) scores how hard a set felt, from 6 to 10. 10 means no reps left. 9 means you could have done 1 more rep, 8 means 2 more, and 6 means 4 or more. Half steps like 8.5 mean somewhere in between. Leave it blank if you\'re not sure.</string>
+    <string name="effort_explainer_body_rir">RIR (reps in reserve) is how many more reps you could have done with good form when you stopped. 0 means no reps left. 2 means you could have done 2 more. A range like 1–2 means somewhere in between. Leave it blank if you\'re not sure.</string>
+    <string name="effort_explainer_strip_caption">Each column is the same effort on both scales.</string>
+    <!-- Shown in RPE mode. -->
+    <string name="effort_explainer_switch_to_rir">Prefer RIR? Switch in Settings › Effort tracking.</string>
+    <!-- Shown in RIR mode. -->
+    <string name="effort_explainer_switch_to_rpe">Prefer RPE? Switch in Settings › Effort tracking.</string>
+    <string name="effort_explainer_got_it">Got it</string>
+    <!-- Legend on the workout detail and at the top of Exercise history (decision 5). -->
+    <string name="legend_warmup">Warm-up</string>
+    <string name="legend_failure">Failure</string>
+    <string name="legend_dropset">Dropset</string>
+    <string name="legend_personal_record">Personal record</string>
+    <string name="legend_effort_rpe">How hard it felt · 10 = no reps left</string>
+    <string name="legend_effort_rir">Reps you had left · 0 = none left</string>
+    <!-- Set labels for screen readers (decision 9): only normal sets carry a number. -->
+    <string name="set_label_numbered_a11y">Set %1$d</string>
+    <string name="set_label_warmup_a11y">Warm-up set</string>
+    <string name="set_label_failure_a11y">Failure set</string>
+    <string name="set_label_dropset_a11y">Dropset</string>
+    <!-- One field of a lettered set, as workout_set_field_a11y is for a numbered one: "Warm-up set, reps". -->
+    <string name="set_field_a11y_warmup">Warm-up set, %1$s</string>
+    <string name="set_field_a11y_failure">Failure set, %1$s</string>
+    <string name="set_field_a11y_dropset">Dropset, %1$s</string>
+    <!-- Routine detail, a lettered set's line: "W: 40kg · 10 reps". Numbered sets keep routine_detail_set_line. -->
+    <string name="routine_detail_lettered_set_line">%1$s: %2$s</string>
+    <!-- History list card headers (the logger's header style). -->
+    <string name="history_card_col_exercise">EXERCISE</string>
+    <string name="history_card_col_best_set">BEST SET</string>
+    <!-- History set table, screen reader: one cell as "reps 8", joined with commas after the set label. -->
+    <string name="history_set_cell_a11y">%1$s %2$s</string>
+    <string name="history_field_time">time</string>
+    <string name="history_field_distance">distance</string>
+    <!-- The weight column of a weighted or assisted bodyweight table, spoken (headed +KG / −KG). -->
+    <string name="history_field_added_weight_kg">added weight in kilograms</string>
+    <string name="history_field_added_weight_lb">added weight in pounds</string>
+    <string name="history_field_assistance_kg">assistance in kilograms</string>
+    <string name="history_field_assistance_lb">assistance in pounds</string>
 </resources>

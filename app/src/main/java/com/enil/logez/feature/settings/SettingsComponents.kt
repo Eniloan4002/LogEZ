@@ -202,6 +202,14 @@ internal fun <T> SettingsRadioDialog(
     optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * P-211 ("Effort tracking", settings-effort-dialog.png): a short explanation under each
+     * option's name. With it, each radio aligns to the top, beside the name, instead of centring
+     * between two or three lines of text.
+     */
+    optionDescription: (@Composable (T) -> String)? = null,
+    /** P-211: one line under the options, above a hairline ("Switching is safe. …"). */
+    footer: String? = null,
 ) {
     // KNOWN LIMITATION (compose-unstyled 2.9.0): the system back gesture does not dismiss this
     // dialog on-device, confirmed with both DialogProperties.dismissOnBackPress = true AND an
@@ -232,20 +240,44 @@ internal fun <T> SettingsRadioDialog(
             Column {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 // The rest-timer picker has ten options — scroll rather than overflow on short screens.
-                Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(top = Spacing.sm)) {
+                // weight(fill = false): the options take only the height left after the title, the
+                // footer and Cancel, so at 2.0× text those two are never pushed out of the panel
+                // (P-211 code review, 2026-09-30).
+                Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(top = Spacing.sm)) {
                     options.forEach { option ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSelect(option); onDismiss() }
                                 .padding(vertical = Spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = if (optionDescription != null) Alignment.Top else Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
                             RadioButton(selected = option == selected, onClick = { onSelect(option); onDismiss() })
-                            Text(optionLabel(option), style = MaterialTheme.typography.bodyLarge)
+                            if (optionDescription != null) {
+                                // Top padding centres the name's 24sp line on the radio's 48dp target.
+                                Column(modifier = Modifier.padding(top = Spacing.sm)) {
+                                    Text(optionLabel(option), style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        optionDescription(option),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
+                                Text(optionLabel(option), style = MaterialTheme.typography.bodyLarge)
+                            }
                         }
                     }
+                }
+                if (footer != null) {
+                    HorizontalDivider(modifier = Modifier.padding(top = Spacing.xs))
+                    Text(
+                        footer,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = Spacing.xxs, end = Spacing.xxs, top = Spacing.sm),
+                    )
                 }
                 Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }

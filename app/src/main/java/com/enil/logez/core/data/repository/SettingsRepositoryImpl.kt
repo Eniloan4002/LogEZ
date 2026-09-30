@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -63,6 +64,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val PLATE_CALCULATOR_ENABLED = booleanPreferencesKey("plateCalculatorEnabled")
         val PLATE_EQUIPMENT = stringPreferencesKey("plateEquipment")
         val RPE_TRACKING_ENABLED = booleanPreferencesKey("rpeTrackingEnabled")
+        // P-211: absent on every install older than the setting, which reads as the RPE default.
+        val EFFORT_SCALE = stringPreferencesKey("effortScale")
         val SMART_SUPERSET_SCROLLING = booleanPreferencesKey("smartSupersetScrolling")
         val INLINE_TIMER_ENABLED = booleanPreferencesKey("inlineTimerEnabled")
         val LIVE_PR_NOTIFICATION_ENABLED = booleanPreferencesKey("livePrNotificationEnabled")
@@ -109,6 +112,7 @@ class SettingsRepositoryImpl @Inject constructor(
             plateCalculatorEnabled = prefs[Keys.PLATE_CALCULATOR_ENABLED] ?: defaults.plateCalculatorEnabled,
             plateEquipment = prefs[Keys.PLATE_EQUIPMENT]?.let { runCatching { json.decodeFromString<PlateEquipment>(it) }.getOrNull() } ?: defaultPlateEquipment,
             rpeTrackingEnabled = prefs[Keys.RPE_TRACKING_ENABLED] ?: defaults.rpeTrackingEnabled,
+            effortScale = prefs[Keys.EFFORT_SCALE]?.toEnumOrNull<EffortScale>() ?: defaults.effortScale,
             smartSupersetScrolling = prefs[Keys.SMART_SUPERSET_SCROLLING] ?: defaults.smartSupersetScrolling,
             inlineTimerEnabled = prefs[Keys.INLINE_TIMER_ENABLED] ?: defaults.inlineTimerEnabled,
             livePrNotificationEnabled = prefs[Keys.LIVE_PR_NOTIFICATION_ENABLED] ?: defaults.livePrNotificationEnabled,
@@ -147,6 +151,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setPlateCalculatorEnabled(value: Boolean) = edit { it[Keys.PLATE_CALCULATOR_ENABLED] = value }
     override suspend fun setPlateEquipment(value: PlateEquipment) = edit { it[Keys.PLATE_EQUIPMENT] = json.encodeToString(value) }
     override suspend fun setRpeTrackingEnabled(value: Boolean) = edit { it[Keys.RPE_TRACKING_ENABLED] = value }
+    override suspend fun setEffortScale(value: EffortScale) = edit { it[Keys.EFFORT_SCALE] = value.name }
     override suspend fun setSmartSupersetScrolling(value: Boolean) = edit { it[Keys.SMART_SUPERSET_SCROLLING] = value }
     override suspend fun setInlineTimerEnabled(value: Boolean) = edit { it[Keys.INLINE_TIMER_ENABLED] = value }
     override suspend fun setLivePrNotificationEnabled(value: Boolean) = edit { it[Keys.LIVE_PR_NOTIFICATION_ENABLED] = value }
@@ -178,6 +183,7 @@ class SettingsRepositoryImpl @Inject constructor(
             prefs[Keys.PLATE_CALCULATOR_ENABLED] = settings.plateCalculatorEnabled
             prefs[Keys.PLATE_EQUIPMENT] = json.encodeToString(settings.plateEquipment)
             prefs[Keys.RPE_TRACKING_ENABLED] = settings.rpeTrackingEnabled
+            prefs[Keys.EFFORT_SCALE] = settings.effortScale.name
             prefs[Keys.SMART_SUPERSET_SCROLLING] = settings.smartSupersetScrolling
             prefs[Keys.INLINE_TIMER_ENABLED] = settings.inlineTimerEnabled
             prefs[Keys.LIVE_PR_NOTIFICATION_ENABLED] = settings.livePrNotificationEnabled

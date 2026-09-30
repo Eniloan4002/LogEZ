@@ -30,7 +30,11 @@ data class UserSettings(
     val keepAwake: Boolean = true,
     val plateCalculatorEnabled: Boolean = true,
     val plateEquipment: PlateEquipment = defaultPlateEquipment,
+    /** P-211: "Effort tracking" on or off. Off hides only the logger's entry column (decision 4). */
     val rpeTrackingEnabled: Boolean = false,
+    /** P-211 (Owner, 2026-09-30): the scale effort is shown and entered in. Kept when tracking is
+     * turned off, so saved values keep showing in it. RPE by default, so no migration is needed. */
+    val effortScale: EffortScale = EffortScale.RPE,
     val smartSupersetScrolling: Boolean = true,
     val inlineTimerEnabled: Boolean = true,
     val livePrNotificationEnabled: Boolean = true,

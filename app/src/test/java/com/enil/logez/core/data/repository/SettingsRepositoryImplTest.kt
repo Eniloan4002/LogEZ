@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.SetupChoices
 import com.enil.logez.core.domain.model.StoredSetupValues
@@ -126,5 +127,42 @@ class SettingsRepositoryImplTest {
         assertEquals(LengthUnit.CM, settings.lengthUnit)
         // Everything else is left as it was.
         assertEquals(120, settings.defaultRestTimerSeconds)
+    }
+
+    // ---- P-211 effort scale ----
+
+    @Test
+    fun `an install from before the effort scale existed reads as RPE, tracking unchanged`() = blocking {
+        dataStore.edit { it[androidx.datastore.preferences.core.booleanPreferencesKey("rpeTrackingEnabled")] = true }
+
+        val settings = repository.settings.first()
+        assertEquals(EffortScale.RPE, settings.effortScale)
+        assertEquals(true, settings.rpeTrackingEnabled)
+    }
+
+    @Test
+    fun `the effort scale persists under its own key and leaves tracking alone`() = blocking {
+        repository.setEffortScale(EffortScale.RIR)
+
+        assertEquals("RIR", dataStore.data.first()[androidx.datastore.preferences.core.stringPreferencesKey("effortScale")])
+        val settings = repository.settings.first()
+        assertEquals(EffortScale.RIR, settings.effortScale)
+        assertEquals(false, settings.rpeTrackingEnabled)
+    }
+
+    @Test
+    fun `replaceAll writes the effort scale, including the RPE default over a stored RIR`() = blocking {
+        repository.setEffortScale(EffortScale.RIR)
+
+        repository.replaceAll(UserSettings())
+
+        assertEquals(EffortScale.RPE, repository.settings.first().effortScale)
+    }
+
+    @Test
+    fun `an effort scale name this build does not know falls back to RPE`() = blocking {
+        dataStore.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("effortScale")] = "BORG" }
+
+        assertEquals(EffortScale.RPE, repository.settings.first().effortScale)
     }
 }

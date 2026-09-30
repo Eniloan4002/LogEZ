@@ -14,6 +14,7 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.GoalMetric
@@ -21,6 +22,7 @@ import com.enil.logez.core.domain.model.GoalPeriod
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.MuscleHead
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
@@ -210,5 +212,19 @@ class BackupDtoRoundTripTest {
     fun `a backup carrying a column this app does not know about still decodes`() {
         val future = """{"id":"f1","name":"Folder","order_index":0,"created_at":1,"updated_at":2,"colour":"red"}"""
         assertEquals("Folder", read.decodeFromString<RoutineFolderDto>(future).toEntity().name)
+    }
+
+    @Test
+    fun `the effort scale travels as effort_scale, by name`() {
+        val json = write.encodeToString(UserSettings(effortScale = EffortScale.RIR).toDto())
+        assertTrue(json, json.contains("\"effort_scale\":\"RIR\""))
+    }
+
+    @Test
+    fun `a backup from before effort_scale existed restores as RPE`() {
+        val older = """{"weight_unit":"LB","rpe_tracking_enabled":true}"""
+        val settings = read.decodeFromString<SettingsDto>(older).toUserSettings()
+        assertEquals(EffortScale.RPE, settings.effortScale)
+        assertTrue(settings.rpeTrackingEnabled)
     }
 }

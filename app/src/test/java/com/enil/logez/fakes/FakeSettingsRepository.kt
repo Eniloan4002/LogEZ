@@ -1,6 +1,7 @@
 package com.enil.logez.fakes
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -64,6 +65,7 @@ class FakeSettingsRepository(
     override suspend fun setPlateCalculatorEnabled(value: Boolean) { state.value = state.value.copy(plateCalculatorEnabled = value) }
     override suspend fun setPlateEquipment(value: PlateEquipment) { state.value = state.value.copy(plateEquipment = value) }
     override suspend fun setRpeTrackingEnabled(value: Boolean) { state.value = state.value.copy(rpeTrackingEnabled = value) }
+    override suspend fun setEffortScale(value: EffortScale) { state.value = state.value.copy(effortScale = value) }
     override suspend fun setSmartSupersetScrolling(value: Boolean) { state.value = state.value.copy(smartSupersetScrolling = value) }
     override suspend fun setInlineTimerEnabled(value: Boolean) { state.value = state.value.copy(inlineTimerEnabled = value) }
     override suspend fun setLivePrNotificationEnabled(value: Boolean) { state.value = state.value.copy(livePrNotificationEnabled = value) }

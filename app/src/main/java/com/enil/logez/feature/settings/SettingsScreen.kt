@@ -34,7 +34,9 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.currentLocale
+import com.enil.logez.core.designsystem.labelRes
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PreviousValuesMode
@@ -51,7 +53,7 @@ import com.enil.logez.feature.workout.openAppNotificationSettings
 import androidx.lifecycle.compose.LifecycleResumeEffect
 
 /** Which selection dialog is open, if any. One at a time — each row opens its own. */
-private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, WEEKLY_ACTIVE_DAY_TARGET, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE }
+private enum class SettingsDialog { WEIGHT_UNIT, DISTANCE_UNIT, LENGTH_UNIT, BODY_DIAGRAM_VARIANT, WEEKLY_ACTIVE_DAY_TARGET, FIRST_DAY, REST_TIMER, PREVIOUS_VALUES, MAX_HEART_RATE, EFFORT_TRACKING }
 
 /**
  * M16 Workout Settings (PHASE2_PLAN.md §5.2 Settings tree). Every editor writes through the
@@ -210,12 +212,14 @@ fun SettingsScreen(
                     onClick = { openDialog = SettingsDialog.MAX_HEART_RATE },
                 )
             }
-            item(key = "rpe_tracking") {
-                SettingsToggleRow(
-                    title = stringResource(R.string.settings_rpe),
-                    subtitle = stringResource(R.string.settings_rpe_subtitle),
-                    checked = settings.rpeTrackingEnabled,
-                    onCheckedChange = viewModel::setRpeTrackingEnabled,
+            // P-211 (Owner, 2026-09-30): one "Effort tracking" row replaces the "RPE tracking"
+            // switch, in the same place, and opens an Off / RPE / RIR chooser.
+            item(key = "effort_tracking") {
+                SettingsValueRow(
+                    title = stringResource(R.string.settings_effort_tracking),
+                    subtitle = stringResource(R.string.settings_effort_tracking_subtitle),
+                    value = effortTrackingShortLabel(EffortTrackingOption.of(settings)),
+                    onClick = { openDialog = SettingsDialog.EFFORT_TRACKING },
                 )
             }
             item(key = "include_warmups") {
@@ -423,6 +427,16 @@ fun SettingsScreen(
             onSelect = viewModel::setPreviousValuesMode,
             onDismiss = { openDialog = null },
         )
+        SettingsDialog.EFFORT_TRACKING -> SettingsRadioDialog(
+            title = stringResource(R.string.settings_effort_tracking),
+            options = EffortTrackingOption.entries,
+            selected = EffortTrackingOption.of(settings),
+            optionLabel = { effortTrackingOptionLabel(it) },
+            optionDescription = { effortTrackingOptionDescription(it) },
+            footer = stringResource(R.string.settings_effort_footer),
+            onSelect = viewModel::setEffortTracking,
+            onDismiss = { openDialog = null },
+        )
         SettingsDialog.MAX_HEART_RATE -> MaxHeartRateDialog(
             initial = settings.maxHeartRateBpm,
             onSave = viewModel::setMaxHeartRateBpm,
@@ -516,6 +530,28 @@ private fun bodyDiagramVariantShortLabel(variant: MuscleDiagramVariant): String 
 private fun previousValuesLabel(mode: PreviousValuesMode): String = when (mode) {
     PreviousValuesMode.ANY_WORKOUT -> stringResource(R.string.settings_previous_values_any)
     PreviousValuesMode.SAME_ROUTINE -> stringResource(R.string.settings_previous_values_same_routine)
+}
+
+/** The Effort tracking row's value: "Off", "RPE" or "RIR". */
+@Composable
+private fun effortTrackingShortLabel(option: EffortTrackingOption): String = when (option) {
+    EffortTrackingOption.OFF -> stringResource(R.string.settings_effort_off)
+    EffortTrackingOption.RPE -> stringResource(EffortScale.RPE.labelRes())
+    EffortTrackingOption.RIR -> stringResource(EffortScale.RIR.labelRes())
+}
+
+@Composable
+private fun effortTrackingOptionLabel(option: EffortTrackingOption): String = when (option) {
+    EffortTrackingOption.OFF -> stringResource(R.string.settings_effort_off)
+    EffortTrackingOption.RPE -> stringResource(R.string.settings_effort_rpe_option)
+    EffortTrackingOption.RIR -> stringResource(R.string.settings_effort_rir_option)
+}
+
+@Composable
+private fun effortTrackingOptionDescription(option: EffortTrackingOption): String = when (option) {
+    EffortTrackingOption.OFF -> stringResource(R.string.settings_effort_off_description)
+    EffortTrackingOption.RPE -> stringResource(R.string.settings_effort_rpe_description)
+    EffortTrackingOption.RIR -> stringResource(R.string.settings_effort_rir_description)
 }
 
 /** "Off" for 0, otherwise m:ss — the same rendering the routine rest-timer picker uses. */

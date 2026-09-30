@@ -1,6 +1,7 @@
 package com.enil.logez.core.data.backup
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -43,6 +44,9 @@ data class SettingsDto(
     @SerialName("plate_calculator_enabled") val plateCalculatorEnabled: Boolean = true,
     @SerialName("plate_equipment") val plateEquipment: PlateEquipment = PlateEquipment(),
     @SerialName("rpe_tracking_enabled") val rpeTrackingEnabled: Boolean = false,
+    // P-211: optional. A backup from before the setting has no key and restores as RPE; an older
+    // app reading a newer backup ignores it (BackupFormat.jsonRead has ignoreUnknownKeys).
+    @SerialName("effort_scale") val effortScale: String = EffortScale.RPE.name,
     @SerialName("smart_superset_scrolling") val smartSupersetScrolling: Boolean = true,
     @SerialName("inline_timer_enabled") val inlineTimerEnabled: Boolean = true,
     @SerialName("live_pr_notification_enabled") val livePrNotificationEnabled: Boolean = true,
@@ -73,6 +77,7 @@ fun UserSettings.toDto() = SettingsDto(
     plateCalculatorEnabled = plateCalculatorEnabled,
     plateEquipment = plateEquipment,
     rpeTrackingEnabled = rpeTrackingEnabled,
+    effortScale = effortScale.name,
     smartSupersetScrolling = smartSupersetScrolling,
     inlineTimerEnabled = inlineTimerEnabled,
     livePrNotificationEnabled = livePrNotificationEnabled,
@@ -103,6 +108,7 @@ fun SettingsDto.toUserSettings() = UserSettings(
     plateCalculatorEnabled = plateCalculatorEnabled,
     plateEquipment = plateEquipment,
     rpeTrackingEnabled = rpeTrackingEnabled,
+    effortScale = EffortScale.valueOf(effortScale),
     smartSupersetScrolling = smartSupersetScrolling,
     inlineTimerEnabled = inlineTimerEnabled,
     livePrNotificationEnabled = livePrNotificationEnabled,

@@ -1,6 +1,7 @@
 package com.enil.logez.core.domain.repository
 
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -42,6 +43,7 @@ interface SettingsRepository {
     suspend fun setPlateCalculatorEnabled(value: Boolean)
     suspend fun setPlateEquipment(value: PlateEquipment)
     suspend fun setRpeTrackingEnabled(value: Boolean)
+    suspend fun setEffortScale(value: EffortScale)
     suspend fun setSmartSupersetScrolling(value: Boolean)
     suspend fun setInlineTimerEnabled(value: Boolean)
     suspend fun setLivePrNotificationEnabled(value: Boolean)
