@@ -595,6 +595,7 @@ private fun ColumnScope.CircuitWorkoutBody(
     var pendingRemoveRoundIndex by pendingRemoveRoundIndexState
     val displayConfig = WorkoutLoggerDisplayConfig(
         rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+        effortScale = uiState.effortScale,
         inlineTimerEnabled = uiState.inlineTimerEnabled,
         isEditMode = uiState.isEditMode,
         plateCalculator = uiState.plateCalculator,
@@ -688,6 +689,7 @@ private fun ColumnScope.RegularWorkoutBody(
     var pendingReplaceTargetId by pendingReplaceTargetIdState
     val displayConfig = WorkoutLoggerDisplayConfig(
         rpeTrackingEnabled = uiState.rpeTrackingEnabled,
+        effortScale = uiState.effortScale,
         inlineTimerEnabled = uiState.inlineTimerEnabled,
         isEditMode = uiState.isEditMode,
         plateCalculator = uiState.plateCalculator,

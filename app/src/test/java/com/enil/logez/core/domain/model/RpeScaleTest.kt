@@ -2,7 +2,6 @@ package com.enil.logez.core.domain.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -14,11 +13,6 @@ class RpeScaleTest {
     @Test
     fun `the scale is exactly the eight plan-specified values, in ascending order`() {
         assertEquals(listOf(6.0, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0), RpeScale.VALUES)
-    }
-
-    @Test
-    fun `every value has a non-blank reserve description`() {
-        RpeScale.VALUES.forEach { assertTrue("$it has no description", RpeScale.reserveDescription(it).isNotBlank()) }
     }
 
     @Test

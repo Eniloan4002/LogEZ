@@ -1,5 +1,6 @@
 package com.enil.logez.feature.workout
 
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.WeightUnit
 
 /**
@@ -18,4 +19,10 @@ data class WorkoutLoggerDisplayConfig(
     /** M18 §5.1.6: gates the "Add warm-up sets" overflow item. Always false in circuits (M11 invariant) -- CircuitRoundCard/CircuitEntry never read this field. */
     val warmupCalculatorEnabled: Boolean = false,
     val weightUnit: WeightUnit = WeightUnit.KG,
+    /**
+     * P-211 (Owner, 2026-09-30): the scale the effort column, its picker and PREVIOUS line 2 use.
+     * Read even when [rpeTrackingEnabled] is off: Off hides only the entry column, and PREVIOUS
+     * keeps showing saved values in this scale (decision 4).
+     */
+    val effortScale: EffortScale = EffortScale.RPE,
 )

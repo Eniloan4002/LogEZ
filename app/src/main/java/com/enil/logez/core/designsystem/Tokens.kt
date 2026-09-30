@@ -58,6 +58,14 @@ object SetTable {
      fractional weight paired with a long distance, e.g. "154.3 lb × 6.2 mi") still ellipsize. */
     val previousCell: Dp = 96.dp
 
+    /**
+     * P-211 small fix 10e (Owner, 2026-09-30): PREVIOUS while the effort column shows. On a phone
+     * 393dp wide or narrower the 44dp effort cell left REPS so little room that its header read
+     * "RE…". The 8dp comes out of the cell's inner side padding, not the value's room (the row
+     * drops that padding at this width), so a pounds value like "185.0 lb × 8" still fits whole.
+     */
+    val previousCellWithEffort: Dp = 88.dp
+
     val rpeCell: Dp = 44.dp
 
     /** Trailing check/action column (also the header row's spacer over it). */

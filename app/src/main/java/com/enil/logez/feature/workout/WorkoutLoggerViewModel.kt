@@ -12,6 +12,7 @@ import com.enil.logez.core.domain.calc.PreviousValueFormatter
 import com.enil.logez.core.domain.calc.WarmupCalculator
 import com.enil.logez.core.domain.reorderedBy
 import com.enil.logez.core.domain.model.DistanceUnit
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.PreviousValuesMode
@@ -87,6 +88,7 @@ private data class EditState(
 /** Intermediate grouping for settings-derived flags. */
 private data class SettingsFlags(
     val rpeTrackingEnabled: Boolean = false,
+    val effortScale: EffortScale = EffortScale.RPE,
     val plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
     val weightUnit: WeightUnit = WeightUnit.KG,
     val warmupCalculatorEnabled: Boolean = true,
@@ -138,6 +140,10 @@ class WorkoutLoggerViewModel @Inject constructor(
      * reachable mid-session from this screen's overflow menu (plain navigation, this ViewModel
      * stays alive underneath), so a one-time load snapshot would go stale on return. */
     private val rpeTrackingEnabled = MutableStateFlow(false)
+    /** P-211: the scale the effort column, its picker and PREVIOUS line 2 draw in. Live for the
+     * same mid-session-Settings reason; nothing is re-queried when it changes, because PREVIOUS
+     * keeps the raw RPE ([WorkoutSetUiModel.previousRpe]) and formats it when drawn. */
+    private val effortScale = MutableStateFlow(EffortScale.RPE)
     /** M17 §5.1.5: gate + equipment + display unit for the Plate Calculator, live for the same
      * mid-session-Settings reason as the flags above. */
     private val plateCalculator = MutableStateFlow(PlateCalculatorConfig())
@@ -231,8 +237,8 @@ class WorkoutLoggerViewModel @Inject constructor(
             EditState(editedStartedAtMillis = startedAt, editedDurationSeconds = duration)
         },
         // Group 5: settings-derived flags
-        combine(rpeTrackingEnabled, plateCalculator, weightUnit, warmupCalculatorEnabled) { rpe, plate, unit, warmup ->
-            SettingsFlags(rpeTrackingEnabled = rpe, plateCalculator = plate, weightUnit = unit, warmupCalculatorEnabled = warmup)
+        combine(rpeTrackingEnabled, effortScale, plateCalculator, weightUnit, warmupCalculatorEnabled) { rpe, scale, plate, unit, warmup ->
+            SettingsFlags(rpeTrackingEnabled = rpe, effortScale = scale, plateCalculator = plate, weightUnit = unit, warmupCalculatorEnabled = warmup)
         },
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
@@ -267,6 +273,7 @@ class WorkoutLoggerViewModel @Inject constructor(
             editedStartedAtMillis = edit.editedStartedAtMillis,
             editedDurationSeconds = edit.editedDurationSeconds,
             rpeTrackingEnabled = settings.rpeTrackingEnabled,
+            effortScale = settings.effortScale,
             plateCalculator = settings.plateCalculator,
             weightUnit = settings.weightUnit,
             // M11/M18 invariant backstop: warm-ups must remain impossible in circuits, so the
@@ -337,7 +344,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             previousLabel = previous?.let {
                                 PreviousValueFormatter.format(it, exercise?.exerciseType ?: ExerciseType.WEIGHT_REPS, currentSettings.weightUnit, currentSettings.distanceUnit)
                             } ?: "—",
-                            previousRpeLabel = previous?.let { PreviousValueFormatter.formatRpeLine(it) },
+                            previousRpe = previous?.rpe,
                         )
                     },
                 )
@@ -356,6 +363,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                 keepAwakeEnabled.value = s.keepAwake
                 inlineTimerEnabled.value = s.inlineTimerEnabled
                 rpeTrackingEnabled.value = s.rpeTrackingEnabled
+                effortScale.value = s.effortScale
                 plateCalculator.value = PlateCalculatorConfig(
                     enabled = s.plateCalculatorEnabled,
                     equipment = s.plateEquipment,
@@ -408,7 +416,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      */
     private suspend fun refreshPreviousLabels(settings: UserSettings) {
         val w = workout.value
-        val labelsBySetId = mutableMapOf<String, Pair<String, String?>>()
+        val labelsBySetId = mutableMapOf<String, Pair<String, Double?>>()
         for (ex in exercises.value) {
             val previousRows = workoutRepository.getPreviousWorkoutSets(
                 ex.exerciseId,
@@ -427,7 +435,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                 }
                 labelsBySetId[s.id] = (previous?.let {
                     PreviousValueFormatter.format(it, ex.exerciseType, settings.weightUnit, settings.distanceUnit)
-                } ?: "—") to previous?.let { PreviousValueFormatter.formatRpeLine(it) }
+                } ?: "—") to previous?.rpe
             }
         }
         // Applied by set id onto whatever the list holds NOW — user edits that landed while the
@@ -435,7 +443,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         updateExercises { list ->
             list.map { ex ->
                 ex.copy(sets = ex.sets.map { s ->
-                    labelsBySetId[s.id]?.let { (label, rpeLabel) -> s.copy(previousLabel = label, previousRpeLabel = rpeLabel) } ?: s
+                    labelsBySetId[s.id]?.let { (label, rpe) -> s.copy(previousLabel = label, previousRpe = rpe) } ?: s
                 })
             }
         }
@@ -742,7 +750,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             previousLabel = p?.let {
                                 PreviousValueFormatter.format(it, exercise.exerciseType, settings.weightUnit, settings.distanceUnit)
                             } ?: "—",
-                            previousRpeLabel = p?.let { PreviousValueFormatter.formatRpeLine(it) },
+                            previousRpe = p?.rpe,
                         ),
                     )
                 } else if (circuitRounds != null) {
@@ -754,7 +762,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             weightKg = p?.weightKg, reps = p?.reps, durationSeconds = p?.durationSeconds,
                             distanceMeters = p?.distanceMeters, customMetric = p?.customMetric,
                             previousLabel = p?.let { PreviousValueFormatter.format(it, exercise.exerciseType, settings.weightUnit, settings.distanceUnit) } ?: "—",
-                            previousRpeLabel = p?.let { PreviousValueFormatter.formatRpeLine(it) },
+                            previousRpe = p?.rpe,
                         )
                     }
                 } else if (previous.isNotEmpty()) {
@@ -764,7 +772,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             weightKg = p.weightKg, reps = p.reps, durationSeconds = p.durationSeconds,
                             distanceMeters = p.distanceMeters, customMetric = p.customMetric,
                             previousLabel = PreviousValueFormatter.format(p, exercise.exerciseType, settings.weightUnit, settings.distanceUnit),
-                            previousRpeLabel = PreviousValueFormatter.formatRpeLine(p),
+                            previousRpe = p.rpe,
                         )
                     }
                 } else {
@@ -1066,6 +1074,8 @@ data class WorkoutLoggerUiState(
     val canSaveEdit: Boolean = false,
     /** §5.1.7: column + picker exist only when this is true — off by default. */
     val rpeTrackingEnabled: Boolean = false,
+    /** P-211: RPE or RIR for the effort column, its picker and PREVIOUS line 2, whether or not tracking is on. */
+    val effortScale: EffortScale = EffortScale.RPE,
     /** M17 §5.1.5: Plate Calculator gate, owned equipment, and display unit for the set tables. */
     val plateCalculator: PlateCalculatorConfig = PlateCalculatorConfig(),
     /** M18: the unit weight cells display and accept — storage stays canonical kg (WeightDisplay). */
@@ -1081,10 +1091,10 @@ data class WorkoutLoggerUiState(
     val showEmptyHint: Boolean get() = !isLoading && !isEditMode && exercises.isEmpty()
 }
 
-private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpeLabel: String? = null) = WorkoutSetUiModel(
+private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpe: Double? = null) = WorkoutSetUiModel(
     id = id, setType = setType, weightKg = weightKg, reps = reps, durationSeconds = durationSeconds,
     distanceMeters = distanceMeters, customMetric = customMetric, rpe = rpe, isCompleted = isCompleted,
-    completedAt = completedAt, previousLabel = previousLabel, previousRpeLabel = previousRpeLabel,
+    completedAt = completedAt, previousLabel = previousLabel, previousRpe = previousRpe,
 )
 
 internal fun WorkoutSetUiModel.toEntity(workoutExerciseId: String) = WorkoutSetEntity(

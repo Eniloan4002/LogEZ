@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.enil.logez.R
+import com.enil.logez.core.designsystem.EffortExplainerSheet
+import com.enil.logez.core.designsystem.EffortHeaderLabel
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.enil.logez.core.designsystem.SetTable
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.currentLocale
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.TargetField
@@ -70,6 +74,8 @@ internal fun CircuitRoundCard(
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    // P-211 §6: one explainer per round card, from any effort header's ⓘ or a row picker's link.
+    var showEffortExplainer by rememberSaveable { mutableStateOf(false) }
 
     LogEzCard(modifier = modifier.fillMaxWidth().padding(bottom = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
@@ -112,6 +118,8 @@ internal fun CircuitRoundCard(
                     showRpe = config.rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
                     showPlateCalculator = uniformColumns.plateCalculator,
                     weightUnit = config.weightUnit,
+                    effortScale = config.effortScale,
+                    onEffortInfoClick = { showEffortExplainer = true },
                     modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
@@ -126,10 +134,14 @@ internal fun CircuitRoundCard(
                     onOpenReplacePicker = { onOpenReplacePicker(entry.exercise.id) },
                     inlineTimerRunning = inlineTimerExerciseId == entry.exercise.id && inlineTimerSetId == entry.set?.id,
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
+                    onEffortInfoClick = { showEffortExplainer = true },
                     config = config,
                 )
             }
         }
+    }
+    if (showEffortExplainer) {
+        EffortExplainerSheet(config.effortScale, onDismiss = { showEffortExplainer = false })
     }
 }
 
@@ -144,6 +156,7 @@ private fun CircuitEntry(
     onOpenReplacePicker: () -> Unit,
     inlineTimerRunning: Boolean,
     inlineTimerSecondsFlow: Flow<Int?>,
+    onEffortInfoClick: () -> Unit,
     config: WorkoutLoggerDisplayConfig,
 ) {
     val exercise = entry.exercise
@@ -191,9 +204,15 @@ private fun CircuitEntry(
         // Same §5.1.5 gate as the regular table: BARBELL rows only, setting on.
         val showPlateCalculator = config.plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
 
-        if (showColumnHeader) CircuitColumnsHeader(fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator, weightUnit = config.weightUnit)
+        if (showColumnHeader) {
+            CircuitColumnsHeader(
+                fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator,
+                weightUnit = config.weightUnit, effortScale = config.effortScale, onEffortInfoClick = onEffortInfoClick,
+            )
+        }
         SetRow(
-            index = roundIndex,
+            // P-211 decision 9 leaves circuits on their round numbers: a row is its round.
+            label = circuitSetLabel(set.setType, roundIndex + 1),
             set = set,
             fields = fields,
             showCustomMetric = showCustomMetric,
@@ -212,6 +231,7 @@ private fun CircuitEntry(
             onStopInlineTimer = { callbacks.onStopInlineTimer(exercise.id, set.id) },
             showRpe = showRpe,
             onRpeChange = { rpe -> callbacks.onUpdateRpe(exercise.id, set.id, rpe) },
+            onEffortInfoClick = onEffortInfoClick,
             allowWarmup = false,
             allowDelete = false,
             showRoundNumber = false,
@@ -252,6 +272,8 @@ private fun CircuitColumnsHeader(
     showRpe: Boolean,
     showPlateCalculator: Boolean = false,
     weightUnit: WeightUnit = WeightUnit.KG,
+    effortScale: EffortScale = EffortScale.RPE,
+    onEffortInfoClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -259,7 +281,7 @@ private fun CircuitColumnsHeader(
         // header above this table — but the Spacer keeps the column width so the row's badge cell
         // (still a Failure/Dropset tap target, see SetBadge's showPosition) stays in register.
         Spacer(modifier = Modifier.width(SetTable.setCell))
-        HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell, textAlign = TextAlign.Center)
+        HeaderCell(stringResource(R.string.workout_col_previous), width = previousCellWidth(showRpe), textAlign = TextAlign.Center)
         if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // Mirrors the row's trailing calculator button (same width) so KG stays over its cell.
@@ -267,7 +289,7 @@ private fun CircuitColumnsHeader(
         if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-        if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell, textAlign = TextAlign.Center)
+        if (showRpe) EffortHeaderLabel(effortScale, onInfoClick = onEffortInfoClick, modifier = Modifier.width(SetTable.rpeCell))
         Spacer(modifier = Modifier.width(SetTable.checkCell))
     }
 }

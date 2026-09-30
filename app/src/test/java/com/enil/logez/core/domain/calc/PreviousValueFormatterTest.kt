@@ -7,7 +7,6 @@ import com.enil.logez.core.domain.model.WeightUnit
 import java.util.Locale
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PreviousValueFormatterTest {
@@ -34,11 +33,11 @@ class PreviousValueFormatterTest {
     // --- WEIGHT_REPS (and its bodyweight siblings, which share the same branch) ---
 
     @Test
-    fun `WEIGHT_REPS formats as value unit x reps, in kg`() {
+    fun `WEIGHT_REPS formats as value unit times reps, in kg`() {
         val result = PreviousValueFormatter.format(
             set(weightKg = 100.0, reps = 8), ExerciseType.WEIGHT_REPS, WeightUnit.KG, DistanceUnit.KM,
         )
-        assertEquals("100 kg x 8", result)
+        assertEquals("100 kg × 8", result)
     }
 
     @Test
@@ -46,7 +45,16 @@ class PreviousValueFormatterTest {
         val result = PreviousValueFormatter.format(
             set(weightKg = 80.0, reps = 8), ExerciseType.WEIGHT_REPS, WeightUnit.LB, DistanceUnit.KM,
         )
-        assertEquals("176.4 lb x 8", result)
+        assertEquals("176.4 lb × 8", result)
+    }
+
+    @Test
+    fun `a whole number of pounds logged in lb shows without a trailing decimal`() {
+        // 185 lb as stored (185 × 0.45359237 kg); it converts back to 184.99999…, not 185.
+        val result = PreviousValueFormatter.format(
+            set(weightKg = 83.91458845, reps = 8), ExerciseType.WEIGHT_REPS, WeightUnit.LB, DistanceUnit.KM,
+        )
+        assertEquals("185 lb × 8", result)
     }
 
     @Test
@@ -56,9 +64,9 @@ class PreviousValueFormatterTest {
     }
 
     @Test
-    fun `BODYWEIGHT_WEIGHTED and BODYWEIGHT_ASSISTED share WEIGHT_REPS's value-unit-x-reps formatting`() {
+    fun `BODYWEIGHT_WEIGHTED and BODYWEIGHT_ASSISTED share WEIGHT_REPS's value-unit-times-reps formatting`() {
         val s = set(weightKg = 20.0, reps = 6)
-        val expected = "20 kg x 6"
+        val expected = "20 kg × 6"
         assertEquals(expected, PreviousValueFormatter.format(s, ExerciseType.BODYWEIGHT_WEIGHTED, WeightUnit.KG, DistanceUnit.KM))
         assertEquals(expected, PreviousValueFormatter.format(s, ExerciseType.BODYWEIGHT_ASSISTED, WeightUnit.KG, DistanceUnit.KM))
     }
@@ -99,10 +107,10 @@ class PreviousValueFormatterTest {
     // --- WEIGHT_DURATION ---
 
     @Test
-    fun `WEIGHT_DURATION formats as weight unit x mm colon ss, in kg and lb`() {
+    fun `WEIGHT_DURATION formats as weight unit times mm colon ss, in kg and lb`() {
         val s = set(weightKg = 20.0, durationSeconds = 45)
-        assertEquals("20 kg x 0:45", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DURATION, WeightUnit.KG, DistanceUnit.KM))
-        assertEquals("44.1 lb x 0:45", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DURATION, WeightUnit.LB, DistanceUnit.KM))
+        assertEquals("20 kg × 0:45", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DURATION, WeightUnit.KG, DistanceUnit.KM))
+        assertEquals("44.1 lb × 0:45", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DURATION, WeightUnit.LB, DistanceUnit.KM))
     }
 
     @Test
@@ -134,9 +142,9 @@ class PreviousValueFormatterTest {
     // --- WEIGHT_DISTANCE (e.g. a weighted carry) ---
 
     @Test
-    fun `WEIGHT_DISTANCE formats as weight unit x distance unit`() {
+    fun `WEIGHT_DISTANCE formats as weight unit times distance unit`() {
         val s = set(weightKg = 40.0, distanceMeters = 2500.0)
-        assertEquals("40 kg x 2.5 km", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DISTANCE, WeightUnit.KG, DistanceUnit.KM))
+        assertEquals("40 kg × 2.5 km", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DISTANCE, WeightUnit.KG, DistanceUnit.KM))
     }
 
     @Test
@@ -145,21 +153,20 @@ class PreviousValueFormatterTest {
         assertEquals("—", PreviousValueFormatter.format(set(weightKg = 40.0, distanceMeters = null), ExerciseType.WEIGHT_DISTANCE, WeightUnit.KG, DistanceUnit.KM))
     }
 
-    // --- formatRpeLine ---
+    // --- P-211 small fix 10h ---
 
     @Test
-    fun `formatRpeLine renders RPE with its label when present`() {
-        assertEquals("RPE 8.5", PreviousValueFormatter.formatRpeLine(set(rpe = 8.5)))
+    fun `every joined value line uses the multiplication sign, never an ASCII x`() {
+        val s = set(weightKg = 80.0, reps = 8, durationSeconds = 45, distanceMeters = 2500.0)
+        assertEquals("80 kg × 8", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_REPS, WeightUnit.KG, DistanceUnit.KM))
+        assertEquals("80 kg × 0:45", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DURATION, WeightUnit.KG, DistanceUnit.KM))
+        assertEquals("80 kg × 2.5 km", PreviousValueFormatter.format(s, ExerciseType.WEIGHT_DISTANCE, WeightUnit.KG, DistanceUnit.KM))
     }
 
     @Test
-    fun `formatRpeLine is null when the previous set has no RPE`() {
-        assertNull(PreviousValueFormatter.formatRpeLine(set(rpe = null)))
-    }
-
-    @Test
-    fun `formatRpeLine renders a whole-number RPE without a trailing decimal`() {
-        assertEquals("RPE 9", PreviousValueFormatter.formatRpeLine(set(rpe = 9.0)))
+    fun `the value line never carries the effort, which the logger draws from the raw RPE`() {
+        // P-211: PREVIOUS line 2 is formatted when drawn, in the current scale (effortValueLine).
+        assertEquals("80 kg × 8", PreviousValueFormatter.format(set(weightKg = 80.0, reps = 8, rpe = 8.5), ExerciseType.WEIGHT_REPS, WeightUnit.KG, DistanceUnit.KM))
     }
 
     // --- Locale.ROOT guard (comma-decimal regression) ---
@@ -170,6 +177,6 @@ class PreviousValueFormatterTest {
         val result = PreviousValueFormatter.format(
             set(weightKg = 80.0, reps = 8), ExerciseType.WEIGHT_REPS, WeightUnit.LB, DistanceUnit.KM,
         )
-        assertEquals("176.4 lb x 8", result)
+        assertEquals("176.4 lb × 8", result)
     }
 }

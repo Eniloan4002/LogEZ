@@ -47,8 +47,13 @@ data class WorkoutSetUiModel(
     val completedAt: Long? = null,
     /** Formatted via `PreviousValueFormatter`, resolved once per exercise at load (§8.10). "—" when none. */
     val previousLabel: String = "—",
-    /** PREVIOUS cell's second line ("RPE 8.5"), via `PreviousValueFormatter.formatRpeLine`. Null when the previous set has no RPE. */
-    val previousRpeLabel: String? = null,
+    /**
+     * The previous set's stored RPE, for the PREVIOUS cell's second line. Kept raw and formatted
+     * when drawn ("RIR 1–2" / "RPE 8.5", `effortValueLine`), not as ready-made text: Settings is
+     * reachable mid-workout, and a label built at load would still say "RPE 8" after a switch to
+     * RIR (P-211, README §4 build note). Null when the previous set has no effort value.
+     */
+    val previousRpe: Double? = null,
     /** §5.1.3 check-off validation: a FAILURE set checked with 0/blank reps is rejected, not silently accepted. */
     val failureError: Boolean = false,
 )

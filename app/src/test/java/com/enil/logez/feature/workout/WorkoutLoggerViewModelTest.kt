@@ -6,6 +6,7 @@ import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.model.ActiveSessionSnapshot
+import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
@@ -245,11 +246,93 @@ class WorkoutLoggerViewModelTest {
         )
         val settingsRepo = FakeSettingsRepository()
         val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = exerciseRepo, settingsRepo = settingsRepo)
-        assertEquals("80 kg x 8", vm.uiState.value.exercises[0].sets[0].previousLabel)
+        assertEquals("80 kg × 8", vm.uiState.value.exercises[0].sets[0].previousLabel)
 
         settingsRepo.setPreviousValuesMode(PreviousValuesMode.SAME_ROUTINE)
 
-        assertEquals("50 kg x 5", vm.uiState.value.exercises[0].sets[0].previousLabel)
+        assertEquals("50 kg × 5", vm.uiState.value.exercises[0].sets[0].previousLabel)
+    }
+
+    // --- P-211 (Owner, 2026-09-30): RIR. PREVIOUS line 2 keeps the previous set's raw RPE and is
+    // formatted when drawn, so a mid-workout scale switch relabels it without a re-query ---
+
+    private fun previousRpeFixture(): FakeWorkoutRepository = FakeWorkoutRepository(
+        workouts = listOf(anInProgressWorkout("w1", routineId = "r1")),
+        exercises = listOf(WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null)),
+        sets = listOf(
+            WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.WARMUP, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            WorkoutSetEntity(id = "s2", workoutExerciseId = "we1", orderIndex = 1, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            WorkoutSetEntity(id = "s3", workoutExerciseId = "we1", orderIndex = 2, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+        ),
+        statSetsByExercise = mapOf(
+            "ex-1" to listOf(
+                // The most recent session (outside the routine): the README's bench, W / RPE 8 / RPE 8.5.
+                StatSet(setId = "a0", workoutId = "wAny", workoutStartedAt = 3_000L, orderIndex = 0, setType = SetType.WARMUP, weightKg = 40.0, reps = 10, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = null, routineId = null),
+                StatSet(setId = "a1", workoutId = "wAny", workoutStartedAt = 3_000L, orderIndex = 1, setType = SetType.NORMAL, weightKg = 80.0, reps = 8, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = 8.0, routineId = null),
+                StatSet(setId = "a2", workoutId = "wAny", workoutStartedAt = 3_000L, orderIndex = 2, setType = SetType.NORMAL, weightKg = 80.0, reps = 8, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = 8.5, routineId = null),
+                // The last same-routine session logged a different effort on its first working set.
+                StatSet(setId = "r0", workoutId = "wSame", workoutStartedAt = 2_000L, orderIndex = 0, setType = SetType.WARMUP, weightKg = 40.0, reps = 10, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = null, routineId = "r1"),
+                StatSet(setId = "r1", workoutId = "wSame", workoutStartedAt = 2_000L, orderIndex = 1, setType = SetType.NORMAL, weightKg = 77.5, reps = 8, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = 9.5, routineId = "r1"),
+            ),
+        ),
+    )
+
+    @Test
+    fun `PREVIOUS keeps each previous set's raw RPE, and none for a set without one`() = runTest {
+        val vm = newViewModel(workoutRepo = previousRpeFixture(), exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+        val sets = vm.uiState.value.exercises[0].sets
+        assertEquals(listOf(null, 8.0, 8.5), sets.map { it.previousRpe })
+        assertEquals("80 kg × 8", sets[1].previousLabel)
+    }
+
+    @Test
+    fun `switching previous-values mode re-resolves the raw RPE along with the value line`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val vm = newViewModel(workoutRepo = previousRpeFixture(), exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))), settingsRepo = settingsRepo)
+
+        settingsRepo.setPreviousValuesMode(PreviousValuesMode.SAME_ROUTINE)
+
+        val sets = vm.uiState.value.exercises[0].sets
+        assertEquals(listOf(null, 9.5, null), sets.map { it.previousRpe })
+        assertEquals("77.5 kg × 8", sets[1].previousLabel)
+    }
+
+    @Test
+    fun `the effort scale applies mid-session and leaves PREVIOUS and stored RPE as they were`() = runTest {
+        val settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = true))
+        val vm = newViewModel(workoutRepo = previousRpeFixture(), exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))), settingsRepo = settingsRepo)
+        assertEquals(EffortScale.RPE, vm.uiState.value.effortScale)
+
+        settingsRepo.setEffortScale(EffortScale.RIR)
+
+        assertEquals(EffortScale.RIR, vm.uiState.value.effortScale)
+        assertEquals(listOf(null, 8.0, 8.5), vm.uiState.value.exercises[0].sets.map { it.previousRpe })
+    }
+
+    @Test
+    fun `the saved scale is exposed with tracking Off, for PREVIOUS line 2 (decision 4)`() = runTest {
+        val vm = newViewModel(settingsRepo = FakeSettingsRepository(UserSettings(rpeTrackingEnabled = false, effortScale = EffortScale.RIR)))
+        assertFalse(vm.uiState.value.rpeTrackingEnabled)
+        assertEquals(EffortScale.RIR, vm.uiState.value.effortScale)
+    }
+
+    @Test
+    fun `an added exercise's rows carry the previous sets' raw RPE`() = runTest {
+        val workoutRepo = FakeWorkoutRepository(
+            workouts = listOf(anInProgressWorkout("w1")),
+            statSetsByExercise = mapOf(
+                "ex-1" to listOf(
+                    StatSet(setId = "p1", workoutId = "old", workoutStartedAt = 1L, orderIndex = 0, setType = SetType.NORMAL, weightKg = 80.0, reps = 6, durationSeconds = null, distanceMeters = null, customMetric = null, isCompleted = true, rpe = 10.0, routineId = null),
+                ),
+            ),
+        )
+        val vm = newViewModel(workoutRepo = workoutRepo, exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))))
+
+        vm.addExercises(listOf(exercise("ex-1", "Bench Press")))
+
+        val set = vm.uiState.value.exercises.single().sets.single()
+        assertEquals(10.0, set.previousRpe)
+        assertEquals("80 kg × 6", set.previousLabel)
     }
 
     @Test
@@ -846,7 +929,7 @@ class WorkoutLoggerViewModelTest {
         val set = vm.uiState.value.exercises.single().sets.single()
         assertNull(set.weightKg)
         assertNull(set.reps)
-        assertEquals("55 kg x 9", set.previousLabel)
+        assertEquals("55 kg × 9", set.previousLabel)
         assertEquals(1, workoutRepo.getSetsForWorkoutExercise(vm.uiState.value.exercises.single().id).size)
     }
 

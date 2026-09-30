@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,11 +22,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Check
@@ -52,14 +52,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
@@ -88,9 +92,24 @@ import com.enil.logez.core.domain.model.targetFields
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import com.enil.logez.core.designsystem.parseDecimalInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import com.enil.logez.core.designsystem.EffortExplainerSheet
+import com.enil.logez.core.designsystem.EffortHeaderLabel
+import com.enil.logez.core.designsystem.EffortInfoLink
 import com.enil.logez.core.designsystem.Warning300
+import com.enil.logez.core.designsystem.effortPickerCaption
+import com.enil.logez.core.designsystem.effortValueLine
+import com.enil.logez.core.designsystem.labelRes
+import com.enil.logez.core.designsystem.pickerTitleRes
+import com.enil.logez.core.designsystem.setFieldA11y
+import com.enil.logez.core.designsystem.setLabelA11y
+import com.enil.logez.core.domain.model.EffortScale
+import com.enil.logez.core.domain.model.SetDisplayLabel
+import com.enil.logez.core.domain.model.SetNumbering
 
 /** REPS never needs more than 1-2 digits, so it's the weighted column that shrinks to fund the
  * wider PREVIOUS cell (Owner, 2026-09-03) — KG/TIME/DISTANCE keep the full share so 5-char values
@@ -258,10 +277,15 @@ private fun SetTable(
     // §5.1.5: the Plate Calculator affordance exists only for BARBELL exercises with the setting
     // on — "assisted/weighted bodyweight exercises never show the button (equipment ≠ BARBELL)".
     val showPlateCalculator = config.plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
+    // P-211 decision 9: normal sets count 1..n and W/F/D keep their letter (W, 1, 2, F). Display
+    // only: rows stay in orderIndex order and PREVIOUS still pairs by position.
+    val labels = SetNumbering.labels(exercise.sets.map { it.setType })
+    // P-211 §6: one explainer per card, opened from the header's ⓘ or a row picker's link.
+    var showEffortExplainer by rememberSaveable { mutableStateOf(false) }
     Column(modifier = Modifier.padding(top = Spacing.sm)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             HeaderCell(stringResource(R.string.routine_builder_col_set), width = SetTable.setCell, textAlign = TextAlign.Center)
-            HeaderCell(stringResource(R.string.workout_col_previous), width = SetTable.previousCell, textAlign = TextAlign.Center)
+            HeaderCell(stringResource(R.string.workout_col_previous), width = previousCellWidth(showRpe), textAlign = TextAlign.Center)
             if (showCustomMetric) HeaderCell(stringResource(R.string.workout_col_custom_metric), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(config.weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             // Mirrors the row's trailing calculator button so the KG header stays over its cell.
@@ -272,13 +296,13 @@ private fun SetTable(
             if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(REPS_COLUMN_WEIGHT), textAlign = TextAlign.Center)
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            if (showRpe) HeaderCell(stringResource(R.string.workout_col_rpe), width = SetTable.rpeCell, textAlign = TextAlign.Center)
+            if (showRpe) EffortHeaderLabel(config.effortScale, onInfoClick = { showEffortExplainer = true }, modifier = Modifier.width(SetTable.rpeCell))
             Spacer(modifier = Modifier.width(SetTable.checkCell))
         }
         exercise.sets.forEachIndexed { index, set ->
             Column {
                 SetRow(
-                    index = index,
+                    label = labels[index],
                     set = set,
                     fields = fields,
                     showCustomMetric = showCustomMetric,
@@ -297,6 +321,7 @@ private fun SetTable(
                     onStopInlineTimer = { onStopInlineTimer(set.id) },
                     showRpe = showRpe,
                     onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
+                    onEffortInfoClick = { showEffortExplainer = true },
                     showPlateCalculator = showPlateCalculator,
                     onOpenPlateCalculator = { callbacks.onOpenPlateCalculator(exercise.id, set.id, set.weightKg) },
                     config = config,
@@ -312,26 +337,56 @@ private fun SetTable(
             }
         }
     }
+    if (showEffortExplainer) {
+        EffortExplainerSheet(config.effortScale, onDismiss = { showEffortExplainer = false })
+    }
 }
+
+/** P-211 small fix 10e: PREVIOUS gives up 8dp while the effort column shows, so REPS keeps its
+ * header whole at 392dp. Shared by every header and row so the columns stay in register. */
+internal fun previousCellWidth(showEffort: Boolean): Dp = if (showEffort) SetTable.previousCellWithEffort else SetTable.previousCell
 
 @Composable
 internal fun HeaderCell(label: String, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = null, textAlign: TextAlign? = null) {
+    // Letter spacing in em, the same 0.5sp at 11sp, so it shrinks with the text under [shrinkToFit];
+    // in sp it stayed twice as wide at 2.0× and still cut REPS to "RE…".
+    val style = MaterialTheme.typography.labelSmall.let {
+        if (it.letterSpacing.isSp && it.fontSize.isSp) it.copy(letterSpacing = (it.letterSpacing.value / it.fontSize.value).em) else it
+    }
     Text(
         label,
-        style = MaterialTheme.typography.labelSmall,
+        style = style,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = textAlign,
         // Cells are sized so every label fits whole (SetTable); this is the backstop that turns a
         // future regression into an ellipsis instead of a mid-word break ("PREVIO/US").
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
+        // P-211 device QA: fix 10e keeps REPS whole only at the default size; at 1.3× it read
+        // "RE…" beside the effort header. A label now shrinks to fit first.
+        autoSize = shrinkToFit(style),
         modifier = if (width != null) modifier.width(width) else modifier,
     )
 }
 
+/**
+ * P-211 device QA, 2026-09-30: under a large system font size, text in a fixed-width logger cell
+ * shrinks to fit the cell instead of being cut ("RE…", "8." for 8.5), but never below the size it
+ * has at the default scale, where every cell is sized to fit. Null at the default scale or smaller,
+ * where nothing needs to shrink.
+ */
+@Composable
+private fun shrinkToFit(style: TextStyle): TextAutoSize? {
+    val density = LocalDensity.current
+    if (density.fontScale <= 1f) return null
+    return TextAutoSize.StepBased(minFontSize = with(density) { style.fontSize.value.dp.toSp() }, maxFontSize = style.fontSize)
+}
+
 @Composable
 internal fun SetRow(
-    index: Int,
+    /** P-211 decision 9: what the SET badge and the screen-reader labels call this set. Circuit
+     * rows pass their round number instead ([circuitSetLabel]). */
+    label: SetDisplayLabel,
     set: WorkoutSetUiModel,
     fields: Set<TargetField>,
     showCustomMetric: Boolean,
@@ -350,6 +405,8 @@ internal fun SetRow(
     onStopInlineTimer: () -> Unit = {},
     showRpe: Boolean = false,
     onRpeChange: (Double?) -> Unit = {},
+    /** P-211 §6: the picker's "What's RIR?" link. The caller owns the one explainer sheet. */
+    onEffortInfoClick: () -> Unit = {},
     /** M11 circuit rows: WARMUP leaves the badge menu (breaks row-index == round) ... */
     allowWarmup: Boolean = true,
     /** ... and so does per-row Delete (rounds are removed whole via the round header). */
@@ -362,8 +419,8 @@ internal fun SetRow(
     /** M20d: opens the screen-hoisted (non-modal) plate calculator sheet for this exact set. Only
      *  called when [showPlateCalculator] is true, so the no-op default is never actually reached. */
     onOpenPlateCalculator: () -> Unit = {},
-    /** Only isEditMode and weightUnit are read here -- the other fields exist so a future
-     * screen-wide toggle can reach this row without a signature change. */
+    /** Only isEditMode, weightUnit and effortScale are read here -- the other fields exist so a
+     * future screen-wide toggle can reach this row without a signature change. */
     config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
@@ -387,7 +444,7 @@ internal fun SetRow(
         // value cell 12dp off its header. The badge box fills the cell minus the same xxs gutter
         // the text fields carry, so the M18 uniform-box grid lines up across every column.
         Box(modifier = Modifier.width(SetTable.setCell).padding(horizontal = Spacing.xxs), contentAlignment = Alignment.Center) {
-            SetBadge(setType = set.setType, position = index + 1, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), showPosition = showRoundNumber)
+            SetBadge(label = label, onClick = { typeMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), showPosition = showRoundNumber)
             DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.set_type_normal)) }, onClick = { typeMenuExpanded = false; onSetTypeChange(SetType.NORMAL) })
                 if (allowWarmup) {
@@ -410,14 +467,16 @@ internal fun SetRow(
         // centers within that taller row via the Row's own verticalAlignment, unchanged.
         Box(
             modifier = Modifier
-                .width(SetTable.previousCell)
+                .width(previousCellWidth(showRpe))
                 .padding(horizontal = Spacing.xxs)
                 .heightIn(min = SetTable.cellHeight)
                 .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(Radius.sm)),
             contentAlignment = Alignment.Center,
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = Spacing.xxs, vertical = Spacing.xxs),
+                // P-211 small fix 10e: the narrower cell gives up its inner side padding, not text
+                // room, so a pounds value like "185.0 lb × 8" still fits whole beside the effort column.
+                modifier = Modifier.padding(horizontal = if (showRpe) 0.dp else Spacing.xxs, vertical = Spacing.xxs),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // Primary text on a completed row: the muted colour measured 3.4:1 on the green
@@ -429,9 +488,11 @@ internal fun SetRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                set.previousRpeLabel?.let { rpeLine ->
+                // P-211: formatted here from the raw RPE, in the scale chosen now (decision 4: shown
+                // even with tracking Off), so a mid-workout switch relabels it at once.
+                set.previousRpe?.let { previousRpe ->
                     Text(
-                        rpeLine,
+                        effortValueLine(previousRpe, config.effortScale),
                         style = LogEzMono.dataSmall.copy(color = previousColor.copy(alpha = 0.8f)),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -440,12 +501,12 @@ internal fun SetRow(
             }
         }
         if (showCustomMetric) {
-            NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f), label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_value)))
+            NumberCell(value = set.customMetric, onValueChange = onCustomMetricChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f), label = setFieldA11y(label, stringResource(R.string.workout_field_value)))
         }
         if (TargetField.WEIGHT in fields) {
             WeightCell(
                 valueKg = set.weightKg, unit = config.weightUnit, onValueChange = onWeightChange, enabled = fieldsEnabled, modifier = Modifier.weight(1f),
-                label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(if (config.weightUnit == WeightUnit.LB) R.string.workout_field_weight_lb else R.string.workout_field_weight_kg)),
+                label = setFieldA11y(label, stringResource(if (config.weightUnit == WeightUnit.LB) R.string.workout_field_weight_lb else R.string.workout_field_weight_kg)),
             )
             if (showPlateCalculator) {
                 // Trails the KG cell inside the same fixed width the header row spaces over, so
@@ -465,7 +526,7 @@ internal fun SetRow(
             }
         }
         if (TargetField.REPS in fields) {
-            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(REPS_COLUMN_WEIGHT), label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_reps)))
+            IntCell(value = set.reps, onValueChange = onRepsChange, enabled = fieldsEnabled, modifier = Modifier.weight(REPS_COLUMN_WEIGHT), label = setFieldA11y(label, stringResource(R.string.workout_field_reps)))
         }
         if (TargetField.DURATION in fields) {
             // Leaf-scoped (spine rule): only collected/ticking while this exact row is the running inline timer.
@@ -476,7 +537,7 @@ internal fun SetRow(
                 enabled = fieldsEnabled && !inlineTimerRunning,
                 modifier = Modifier.weight(1f),
                 suffix = stringResource(R.string.workout_unit_suffix_seconds),
-                label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_seconds)),
+                label = setFieldA11y(label, stringResource(R.string.workout_field_seconds)),
             )
             if (showInlineTimer && !set.isCompleted) {
                 IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(32.dp)) {
@@ -494,12 +555,15 @@ internal fun SetRow(
                 enabled = fieldsEnabled,
                 modifier = Modifier.weight(1f),
                 suffix = stringResource(R.string.workout_unit_suffix_meters),
-                label = stringResource(R.string.workout_set_field_a11y, index + 1, stringResource(R.string.workout_field_meters)),
+                label = setFieldA11y(label, stringResource(R.string.workout_field_meters)),
             )
         }
         if (showRpe) {
             RpeCell(
                 value = set.rpe,
+                scale = config.effortScale,
+                label = label,
+                isCompleted = set.isCompleted,
                 enabled = fieldsEnabled,
                 onClick = { showRpeSheet = true },
                 modifier = Modifier.width(SetTable.rpeCell).padding(horizontal = Spacing.xxs),
@@ -525,8 +589,10 @@ internal fun SetRow(
     if (showRpeSheet) {
         RpePickerSheet(
             initialRpe = set.rpe,
+            scale = config.effortScale,
             onDismiss = { showRpeSheet = false },
             onConfirm = { rpe -> onRpeChange(rpe); showRpeSheet = false },
+            onEffortInfoClick = onEffortInfoClick,
         )
     }
 
@@ -537,30 +603,47 @@ internal fun SetRow(
  * box — same outlineVariant border, Radius token, and [SetTable.cellHeight] as the value fields —
  * instead of the old free-floating 32dp pill. The set-type tint (W/F/D at 0.15 alpha) and the
  * whole-cell tap target (opens the type menu) are unchanged.
+ *
+ * P-211 decision 9: the text is [label]'s ("1", "W"), and a screen reader hears its name
+ * ("Set 1", "Warm-up set") instead of a bare letter.
  */
 @Composable
-internal fun SetBadge(setType: SetType, position: Int, onClick: () -> Unit, modifier: Modifier = Modifier, showPosition: Boolean = true) {
-    val (label, color) = when (setType) {
+internal fun SetBadge(label: SetDisplayLabel, onClick: () -> Unit, modifier: Modifier = Modifier, showPosition: Boolean = true) {
+    val (text, color) = when (label.setType) {
         // Circuit rows (Owner, 2026-09-03): the round number is redundant — each round already has
         // its own "ROUND N" section header — so it's blank here, but the cell stays the tap target
         // for Failure/Dropset, which a circuit row can still be marked as (WARMUP is the only type
         // excluded in a circuit, per the M11 invariant).
-        SetType.NORMAL -> (if (showPosition) position.toString() else "") to MaterialTheme.colorScheme.onSurface
-        SetType.WARMUP -> "W" to Warning500
-        SetType.FAILURE -> "F" to Danger500
-        SetType.DROPSET -> "D" to SupersetPalette[4]
+        SetType.NORMAL -> (if (showPosition) label.text else "") to MaterialTheme.colorScheme.onSurface
+        SetType.WARMUP -> label.text to Warning500
+        SetType.FAILURE -> label.text to Danger500
+        SetType.DROPSET -> label.text to SupersetPalette[4]
     }
+    val description = setLabelA11y(label)
     Surface(
         shape = RoundedCornerShape(Radius.sm),
-        color = if (setType == SetType.NORMAL) Color.Transparent else color.copy(alpha = 0.15f),
+        color = if (label.setType == SetType.NORMAL) Color.Transparent else color.copy(alpha = 0.15f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick).semantics { contentDescription = description },
     ) {
         Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
-            Text(label, color = if (setType == SetType.WARMUP) Warning300 else color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(
+                text,
+                color = if (label.setType == SetType.WARMUP) Warning300 else color,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clearAndSetSemantics { },
+            )
         }
     }
 }
+
+/**
+ * A circuit row's label: its round number for a normal set (circuits keep round-based numbering,
+ * P-211 decision 9), its letter for a failure or drop set.
+ */
+internal fun circuitSetLabel(type: SetType, roundNumber: Int): SetDisplayLabel =
+    SetDisplayLabel(type, if (type == SetType.NORMAL) roundNumber else null)
 
 /**
  * M18 (Owner directive): the completed-row band. `primary.copy(alpha = 0.15f)` over the dark
@@ -720,21 +803,46 @@ private fun CompactBoxedTextField(
 
 /** §5.1.7 entry point: "tap the RPE cell". A tappable box, not a text field — RPE is never free
  * text. M18 uniform boxed cells: field-height hairline box like every other cell; the filled
- * primaryContainer state (an RPE is logged) keeps its tint inside the same chrome. */
+ * primaryContainer state (an RPE is logged) keeps its tint inside the same chrome.
+ *
+ * P-211 (Owner, 2026-09-30): the value is in the user's [scale] ("2", "1–2", "8.5"), in primary at
+ * the REPS field's text size (small fix 10g; it was 11sp mono, half the size of the reps beside
+ * it). A screen reader hears the set and the value, "Set 1, RIR 2" / "Warm-up set, RIR not set". */
 @Composable
-private fun RpeCell(value: Double?, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun RpeCell(
+    value: Double?,
+    scale: EffortScale,
+    label: SetDisplayLabel,
+    isCompleted: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scaleName = stringResource(scale.labelRes())
+    val description = setFieldA11y(label, value?.let { effortValueLine(it, scale) } ?: stringResource(R.string.effort_value_not_set, scaleName))
+    val clickLabel = stringResource(R.string.effort_cell_click_a11y, scaleName)
     Surface(
         shape = RoundedCornerShape(Radius.sm),
-        color = if (value != null) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        // P-211 small fix 10d: no fill on a completed row, so the green band shows through the
+        // cell instead of a dark primaryContainer box sitting on it.
+        color = if (value != null && !isCompleted) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.clickable(enabled = enabled, onClick = onClick),
+        modifier = modifier
+            .clickable(enabled = enabled, onClickLabel = clickLabel, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description },
     ) {
         Box(modifier = Modifier.height(SetTable.cellHeight), contentAlignment = Alignment.Center) {
+            val style = MaterialTheme.typography.bodyMedium
             Text(
-                value?.let { RpeScale.format(it) } ?: "—",
-                style = LogEzMono.dataSmall.copy(
-                    color = if (value != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                value?.let { RpeScale.format(it, scale) } ?: "—",
+                style = style.copy(
+                    color = if (value != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
+                maxLines = 1,
+                // The bigger 10g text no longer fits 3 characters ("8.5", "1–2") in the fixed
+                // 44dp cell at 2.0×; it read "8." (device QA).
+                autoSize = shrinkToFit(style),
+                modifier = Modifier.clearAndSetSemantics { },
             )
         }
     }
@@ -745,39 +853,70 @@ private fun RpeCell(value: Double?, enabled: Boolean, onClick: () -> Unit, modif
  * description that updates with the selection, Clear (writes null — blank is a valid RPE, e.g.
  * warm-ups), and Done. Tapping a value only updates the pending selection so the description is
  * visible before committing; Clear and Done are the only actions that actually write.
+ *
+ * P-211 (Owner, 2026-09-30) §5: the sheet follows [scale]. "Log Set RIR" has the five chips
+ * 0 1 2 3 4+ on one row (decision 3); RPE keeps its eight, wrapped to 2 rows of 4 so 9.5 and 10
+ * are no longer off-screen (decision 7). Either way a chip is a stored RPE value, so entering
+ * RIR 2 writes 8. The caption is the shared plain words (small fix 10j), or a question while
+ * nothing is picked, and a "What's RIR?" link opens the explainer. A value no chip matches (a
+ * half step in RIR mode, an off-scale backup value) selects nothing and is kept by Done.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RpePickerSheet(initialRpe: Double?, onDismiss: () -> Unit, onConfirm: (Double?) -> Unit) {
+private fun RpePickerSheet(
+    initialRpe: Double?,
+    scale: EffortScale,
+    onDismiss: () -> Unit,
+    onConfirm: (Double?) -> Unit,
+    onEffortInfoClick: () -> Unit,
+) {
     var selected by remember { mutableStateOf(initialRpe) }
+    val selectedChip = RpeScale.selectedChip(selected, scale)
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.md)) {
             Text(
-                stringResource(R.string.workout_rpe_sheet_title),
+                stringResource(scale.pickerTitleRes()),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            LazyRow(modifier = Modifier.padding(top = Spacing.md)) {
-                items(items = RpeScale.VALUES, key = { it }) { rpe ->
+            FlowRow(
+                modifier = Modifier.padding(top = Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                maxItemsInEachRow = if (scale == EffortScale.RPE) RPE_CHIPS_PER_ROW else Int.MAX_VALUE,
+            ) {
+                RpeScale.chipValues(scale).forEach { rpe ->
+                    // RPE chips share one width so the two rows form a grid; RIR's five fit
+                    // their labels, as the old single row did.
+                    val fixedWidth = scale == EffortScale.RPE
                     FilterChip(
-                        selected = selected == rpe,
+                        selected = selectedChip == rpe,
                         onClick = { selected = rpe },
-                        label = { Text(RpeScale.format(rpe)) },
-                        modifier = Modifier.padding(end = Spacing.xs),
+                        label = {
+                            Text(
+                                RpeScale.format(rpe, scale),
+                                textAlign = TextAlign.Center,
+                                modifier = if (fixedWidth) Modifier.fillMaxWidth() else Modifier,
+                            )
+                        },
+                        modifier = if (fixedWidth) Modifier.width(RPE_CHIP_WIDTH) else Modifier,
                     )
                 }
             }
             Text(
-                selected?.let { "${stringResource(R.string.workout_rpe_label_prefix)} ${RpeScale.format(it)} — ${RpeScale.reserveDescription(it)}" }
-                    ?: stringResource(R.string.workout_rpe_none),
+                effortPickerCaption(selected, scale),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = Spacing.md),
+                modifier = Modifier.padding(top = Spacing.xs),
             )
-            Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.lg), horizontalArrangement = Arrangement.SpaceBetween) {
+            EffortInfoLink(scale, onClick = onEffortInfoClick, modifier = Modifier.padding(top = Spacing.xs))
+            Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.md), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { onConfirm(null) }) { Text(stringResource(R.string.workout_rpe_clear)) }
                 Button(onClick = { onConfirm(selected) }) { Text(stringResource(R.string.action_done)) }
             }
         }
     }
 }
+
+/** P-211 decision 7: the RPE picker's chips per row; 4 × 64dp plus gaps fits a 320dp phone. */
+private const val RPE_CHIPS_PER_ROW = 4
+private val RPE_CHIP_WIDTH = 64.dp
