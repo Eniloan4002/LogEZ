@@ -265,7 +265,7 @@ fun DataScreen(
                     title = stringResource(R.string.data_restore),
                     subtitle = stringResource(R.string.data_restore_subtitle),
                     value = "",
-                    onClick = ifIdle { openDocument.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
+                    onClick = ifIdle { openDocument.launch(RESTORE_MIME_TYPES) },
                 )
             }
 
@@ -343,6 +343,12 @@ internal fun DataScreenLayout(
         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), content = content)
     }
 }
+
+/**
+ * What the restore file picker offers. Shared with first-run setup's Restore (O1e). The catch-all
+ * last: some file managers label a .zip as neither type.
+ */
+internal val RESTORE_MIME_TYPES = arrayOf("application/zip", "application/octet-stream", "*/*")
 
 private fun fileName(prefix: String, extension: String): String {
     val stamp = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ROOT))

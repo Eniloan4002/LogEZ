@@ -269,7 +269,14 @@ class DataViewModelRestoreTest : RoomDatabaseTestBase() {
         vm.confirmRestore()
         val done = vm.awaitJob { it is DataJob.Done || it is DataJob.Failed }
 
-        assertEquals(DataJob.Done(R.plurals.data_restore_done_left_out, count = 1), done)
+        assertEquals(
+            DataJob.Done(
+                R.plurals.data_restore_done_left_out,
+                count = 1,
+                restore = RestoreOutcome(unfinishedWorkoutsLeftOut = 1, backupHadSettings = true),
+            ),
+            done,
+        )
         assertEquals(null, database.workoutDao().getById("w2"))
         assertFalse(lock.held.value)
         assertFalse(stagingDir.exists())
@@ -285,7 +292,10 @@ class DataViewModelRestoreTest : RoomDatabaseTestBase() {
         vm.awaitSettled() as DataJob.ConfirmRestore
         vm.confirmRestore()
 
-        assertEquals(DataJob.Done(R.string.data_restore_done), vm.awaitJob { it is DataJob.Done || it is DataJob.Failed })
+        assertEquals(
+            DataJob.Done(R.string.data_restore_done, restore = RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = true)),
+            vm.awaitJob { it is DataJob.Done || it is DataJob.Failed },
+        )
     }
 
     @Test
@@ -299,7 +309,10 @@ class DataViewModelRestoreTest : RoomDatabaseTestBase() {
         settings.replaceAllError = IllegalStateException("preferences store unavailable")
         vm.confirmRestore()
 
-        assertEquals(DataJob.Failed(R.string.data_restore_incomplete), vm.awaitJob { it is DataJob.Done || it is DataJob.Failed })
+        assertEquals(
+            DataJob.Failed(R.string.data_restore_incomplete, afterConfirm = true, backupHadSettings = true),
+            vm.awaitJob { it is DataJob.Done || it is DataJob.Failed },
+        )
         assertFalse(lock.held.value)
     }
 
@@ -378,10 +391,110 @@ class DataViewModelRestoreTest : RoomDatabaseTestBase() {
         database.backupDao().insertWorkoutsBulk(listOf(workout("w9", WorkoutStatus.IN_PROGRESS)))
         vm.confirmRestore()
 
-        assertEquals(DataJob.Failed(R.string.data_restore_blocked_in_progress), vm.awaitJob { it is DataJob.Failed || it is DataJob.Done })
+        assertEquals(
+            DataJob.Failed(R.string.data_restore_blocked_in_progress, afterConfirm = true, backupHadSettings = true),
+            vm.awaitJob { it is DataJob.Failed || it is DataJob.Done },
+        )
         assertEquals("Session w9", database.workoutDao().getById("w9")?.title)
         assertFalse(lock.held.value)
         assertFalse(stagingDir.exists())
+    }
+
+    /** A copy of the backup at [uri] with each entry passed through [edit]; null drops the entry. */
+    private fun editedBackup(uri: Uri, edit: (name: String, bytes: ByteArray) -> ByteArray?): Uri {
+        val edited = File(context.cacheDir, "edited_${System.nanoTime()}.zip")
+        java.util.zip.ZipInputStream(File(uri.path!!).inputStream()).use { input ->
+            java.util.zip.ZipOutputStream(edited.outputStream()).use { output ->
+                while (true) {
+                    val entry = input.nextEntry ?: break
+                    val bytes = edit(entry.name, input.readBytes()) ?: continue
+                    output.putNextEntry(java.util.zip.ZipEntry(entry.name))
+                    output.write(bytes)
+                    output.closeEntry()
+                }
+            }
+        }
+        return Uri.fromFile(edited)
+    }
+
+    @Test
+    fun `a restored backup without settings says so, for first-run setup to write its own choices`() = runBlocking {
+        seed(withUnfinished = false)
+        val uri = editedBackup(backupFile()) { name, bytes -> bytes.takeIf { name != "settings.json" } }
+        val vm = viewModel()
+
+        vm.prepareRestore(uri)
+        val confirm = vm.awaitSettled() as DataJob.ConfirmRestore
+        assertFalse(confirm.staged.hasSettings)
+        vm.confirmRestore()
+
+        assertEquals(
+            DataJob.Done(R.string.data_restore_done, restore = RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false)),
+            vm.awaitJob { it is DataJob.Done || it is DataJob.Failed },
+        )
+    }
+
+    @Test
+    fun `a confirmed restore of a backup without settings that fails says the backup had none`() = runBlocking {
+        seed(withUnfinished = false)
+        val uri = editedBackup(backupFile()) { name, bytes -> bytes.takeIf { name != "settings.json" } }
+        val vm = viewModel()
+        vm.prepareRestore(uri)
+        vm.awaitSettled() as DataJob.ConfirmRestore
+
+        database.backupDao().insertWorkoutsBulk(listOf(workout("w9", WorkoutStatus.IN_PROGRESS)))
+        vm.confirmRestore()
+
+        assertEquals(
+            DataJob.Failed(R.string.data_restore_blocked_in_progress, afterConfirm = true, backupHadSettings = false),
+            vm.awaitJob { it is DataJob.Failed || it is DataJob.Done },
+        )
+    }
+
+    @Test
+    fun `choosing a file shows Reading the backup at once, before any check suspends`() = runBlocking {
+        seed(withUnfinished = false)
+        val uri = backupFile()
+        val vm = viewModel()
+
+        vm.prepareRestore(uri)
+
+        // First-run setup reads this to turn Continue and Restore off; Idle here left them on
+        // while the checks and a cancelled confirm's cleanup ran.
+        assertEquals(DataJob.Working(R.string.data_restore_reading), vm.uiState.value.job)
+        assertTrue(vm.awaitSettled() is DataJob.ConfirmRestore)
+    }
+
+    @Test
+    fun `a staging failure is not marked as after the confirm`() = runBlocking {
+        val notABackup = File(context.cacheDir, "notes_${System.nanoTime()}.txt").apply { writeText("shopping list") }
+        val vm = viewModel()
+
+        vm.prepareRestore(Uri.fromFile(notABackup))
+
+        assertEquals(DataJob.Failed(R.string.data_restore_unreadable, afterConfirm = false), vm.awaitSettled())
+    }
+
+    @Test
+    fun `restoreFailureHandled keeps the message but clears the after-confirm mark, and leaves other jobs alone`() = runBlocking {
+        seed(withUnfinished = false)
+        val uri = backupFile()
+        val vm = viewModel()
+        vm.prepareRestore(uri)
+        vm.awaitSettled() as DataJob.ConfirmRestore
+        settings.replaceAllError = IllegalStateException("preferences store unavailable")
+        vm.confirmRestore()
+        vm.awaitJob { it is DataJob.Done || it is DataJob.Failed }
+
+        vm.restoreFailureHandled()
+        assertEquals(
+            DataJob.Failed(R.string.data_restore_incomplete, afterConfirm = false, backupHadSettings = true),
+            vm.uiState.value.job,
+        )
+
+        vm.dismissJob()
+        vm.restoreFailureHandled()
+        assertEquals(DataJob.Idle, vm.uiState.value.job)
     }
 
     @Test
@@ -433,7 +546,10 @@ class DataViewModelRestoreTest : RoomDatabaseTestBase() {
         assertEquals(DataJob.Working(R.string.data_restore_restoring), vm.uiState.value.job)
         vm.confirmRestore()
 
-        assertEquals(DataJob.Done(R.string.data_restore_done), vm.awaitJob { it is DataJob.Done || it is DataJob.Failed })
+        assertEquals(
+            DataJob.Done(R.string.data_restore_done, restore = RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = true)),
+            vm.awaitJob { it is DataJob.Done || it is DataJob.Failed },
+        )
         awaitLockFree()
         assertEquals(1, widget.refreshCount)
     }
@@ -507,7 +623,10 @@ class DataViewModelRestoreTest : RoomDatabaseTestBase() {
         vm.awaitSettled() as DataJob.ConfirmRestore
         settings.replaceAllError = IllegalStateException("preferences store unavailable")
         vm.confirmRestore()
-        assertEquals(DataJob.Failed(R.string.data_restore_incomplete), vm.awaitJob { it is DataJob.Done || it is DataJob.Failed })
+        assertEquals(
+            DataJob.Failed(R.string.data_restore_incomplete, afterConfirm = true, backupHadSettings = true),
+            vm.awaitJob { it is DataJob.Done || it is DataJob.Failed },
+        )
         vm.dismissJob()
 
         vm.prepareRestore(backupFile())

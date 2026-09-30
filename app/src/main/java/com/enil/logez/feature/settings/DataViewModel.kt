@@ -49,10 +49,36 @@ sealed interface DataJob {
     /** Staged and verified; nothing has been replaced yet. The user decides from here. */
     data class ConfirmRestore(val staged: StagedBackup) : DataJob
 
-    /** @param count when set, [messageRes] is a plurals resource shown for this count. */
-    data class Done(val messageRes: Int, val count: Int? = null) : DataJob
-    data class Failed(val messageRes: Int) : DataJob
+    /**
+     * @param count when set, [messageRes] is a plurals resource shown for this count.
+     * @param restore set when this is a confirmed restore that finished: first-run setup reads it to
+     *   decide whether its own choices still need writing (O1e).
+     */
+    data class Done(val messageRes: Int, val count: Int? = null, val restore: RestoreOutcome? = null) : DataJob
+
+    /**
+     * @param afterConfirm the failure came from a confirmed restore, which may have committed before
+     *   it failed. First-run setup then re-checks the database before it offers Continue again
+     *   (first-run plan, F13); [DataViewModel.restoreFailureHandled] clears it once it has.
+     * @param backupHadSettings set with [afterConfirm]: whether the backup carried settings. After a
+     *   failure past the commit, first-run setup writes its own choices when it did not, since the
+     *   next launch's resume has no settings to apply either (O1e).
+     */
+    data class Failed(
+        val messageRes: Int,
+        val afterConfirm: Boolean = false,
+        val backupHadSettings: Boolean? = null,
+    ) : DataJob
 }
+
+/**
+ * What a finished restore did, beyond its message.
+ *
+ * @param unfinishedWorkoutsLeftOut IN_PROGRESS workouts the backup held and the restore dropped (F5).
+ * @param backupHadSettings false when the backup carried no readable settings, so the device's own
+ *   settings were kept.
+ */
+data class RestoreOutcome(val unfinishedWorkoutsLeftOut: Int, val backupHadSettings: Boolean)
 
 data class DataUiState(
     val workoutSetCount: Int? = null,
@@ -199,6 +225,10 @@ class DataViewModel @Inject constructor(
      */
     fun prepareRestore(uri: Uri) {
         if (busy || _uiState.value.job is DataJob.ConfirmRestore) return
+        // Working before anything suspends: the checks below can wait seconds (a cancelled confirm's
+        // cleanup of a large backup), and first-run setup must not offer Continue or a second
+        // Restore meanwhile (O1e). Each refusal below replaces it with its own message.
+        _uiState.update { it.copy(job = DataJob.Working(R.string.data_restore_reading)) }
         viewModelScope.launch {
             // A cancel's cleanup may still be deleting the last staged copy.
             stagingCleanup?.join()
@@ -227,7 +257,6 @@ class DataViewModel @Inject constructor(
                 _uiState.update { it.copy(job = DataJob.Failed(R.string.data_restore_incomplete)) }
                 return@launch
             }
-            _uiState.update { it.copy(job = DataJob.Working(R.string.data_restore_reading)) }
             var confirming = false
             // Cleaned up before the result shows, so a retry straight after it finds the lock free.
             val job: DataJob = try {
@@ -259,7 +288,7 @@ class DataViewModel @Inject constructor(
     /** The destructive half. Only reachable from [DataJob.ConfirmRestore]. */
     fun confirmRestore() {
         if (busy) return
-        if (_uiState.value.job !is DataJob.ConfirmRestore) return
+        val staged = (_uiState.value.job as? DataJob.ConfirmRestore)?.staged ?: return
         // Out of ConfirmRestore before anything suspends, so the dialog goes at once: a second tap,
         // or a cancel deleting the staged copy, can no longer run alongside this restore.
         _uiState.update { it.copy(job = DataJob.Working(R.string.data_restore_restoring)) }
@@ -279,20 +308,29 @@ class DataViewModel @Inject constructor(
                     // A workout started meanwhile, e.g. from a second window, would have its rows wiped.
                     if (workoutRepository.getInProgress() != null) {
                         stagingDir.deleteRecursively()
-                        DataJob.Failed(R.string.data_restore_blocked_in_progress)
+                        DataJob.Failed(
+                            R.string.data_restore_blocked_in_progress,
+                            afterConfirm = true,
+                            backupHadSettings = staged.hasSettings,
+                        )
                     } else {
                         runCatching { backupRestorer.restore(stagingDir, context.filesDir) }.fold(
                             onSuccess = { result ->
                                 val leftOut = result.unfinishedWorkoutsLeftOut
+                                val outcome = RestoreOutcome(leftOut, backupHadSettings = staged.hasSettings)
                                 if (leftOut > 0) {
-                                    DataJob.Done(R.plurals.data_restore_done_left_out, count = leftOut)
+                                    DataJob.Done(R.plurals.data_restore_done_left_out, count = leftOut, restore = outcome)
                                 } else {
-                                    DataJob.Done(R.string.data_restore_done)
+                                    DataJob.Done(R.string.data_restore_done, restore = outcome)
                                 }
                             },
                             onFailure = { t ->
                                 logger.e(TAG, "Restore failed", t)
-                                DataJob.Failed(restoreFailureMessage(t))
+                                DataJob.Failed(
+                                    restoreFailureMessage(t),
+                                    afterConfirm = true,
+                                    backupHadSettings = staged.hasSettings,
+                                )
                             },
                         )
                     }
@@ -405,6 +443,15 @@ class DataViewModel @Inject constructor(
                 _uiState.update { it.copy(job = DataJob.Failed(R.string.data_delete_all_failed)) }
             }
         }
+    }
+
+    /**
+     * First-run setup has re-checked the database after a confirmed restore failed. The message
+     * stays on screen, but the check is not run again when the screen is recreated.
+     */
+    fun restoreFailureHandled() = _uiState.update {
+        val job = it.job
+        if (job is DataJob.Failed && job.afterConfirm) it.copy(job = job.copy(afterConfirm = false)) else it
     }
 
     /** The picker was dismissed — nothing was created, nothing to clean up. */
