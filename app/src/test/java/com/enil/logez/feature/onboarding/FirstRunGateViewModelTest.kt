@@ -1,5 +1,6 @@
 package com.enil.logez.feature.onboarding
 
+import androidx.lifecycle.SavedStateHandle
 import com.enil.logez.R
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.RegionDefaults
@@ -13,10 +14,13 @@ import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.repository.FirstRunPath
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeFirstRunStore
+import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeRegionDefaults
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeUserDataProbe
 import com.enil.logez.fakes.FakeWidgetRefresher
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthDataType
 import com.enil.logez.feature.settings.RestoreOutcome
 import java.time.DayOfWeek
 import kotlinx.coroutines.CompletableDeferred
@@ -63,8 +67,11 @@ class FirstRunGateViewModelTest {
     private val clock = FakeClock()
     private val logger = RecordingLogger()
     private val restoreLock = RestoreLock()
+    private val health = FakeHealthMetricsSource()
+    private var savedState = SavedStateHandle()
 
-    private fun newViewModel() = FirstRunGateViewModel(store, probe, settings, region, widget, restoreLock, clock, logger)
+    private fun newViewModel(sdkInt: Int = 34) =
+        FirstRunGateViewModel(store, probe, settings, region, widget, restoreLock, clock, logger, health, savedState, sdkInt)
 
     private val usSuggestion = RegionSuggestion(
         weightUnit = WeightUnit.LB,
@@ -483,7 +490,7 @@ class FirstRunGateViewModelTest {
             override fun suggest(): RegionSuggestion =
                 if (lookupThrows) throw IllegalStateException("no locale") else region.suggestion
         }
-        val vm = FirstRunGateViewModel(store, probe, settings, switchable, widget, restoreLock, clock, logger)
+        val vm = FirstRunGateViewModel(store, probe, settings, switchable, widget, restoreLock, clock, logger, health, savedState, 34)
         val before = vm.state.value
         assertTrue(before is FirstRunGateState.ShowSetup)
 
@@ -813,5 +820,320 @@ class FirstRunGateViewModelTest {
         assertEquals(FakeClock.EPOCH_MILLIS, store.doneAt)
         assertEquals(listOf(onScreen), settings.appliedSetupChoices)
         assertEquals(FirstRunMessage(R.string.data_restore_done), vm.message.value)
+    }
+
+    // ---- Health Connect section (O1f) ----
+
+    @Test
+    fun `setup's first value comes with Connect when Health Connect is usable and nothing is granted`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+
+        val vm = newViewModel()
+
+        assertTrue(vm.state.value is FirstRunGateState.ShowSetup)
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+    }
+
+    @Test
+    fun `a partial grant made before setup shows as readable, with no action`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesOverride = setOf(HealthDataType.STEPS, HealthDataType.HEART_RATE)
+
+        val vm = newViewModel()
+
+        assertEquals(SetupHealth.Readable(setOf(HealthDataType.STEPS, HealthDataType.HEART_RATE)), vm.health.value)
+    }
+
+    @Test
+    fun `Health Connect needing an update shows the update state`() {
+        health.availabilityValue = HealthConnectAvailability.UpdateRequired
+
+        val vm = newViewModel()
+
+        assertEquals(SetupHealth.UpdateRequired, vm.health.value)
+        assertEquals(0, health.grantedTypesCallCount)
+    }
+
+    @Test
+    fun `with the flag set Health Connect is never read`() {
+        store.doneAt = 1L
+        health.availabilityValue = HealthConnectAvailability.Available
+
+        val vm = newViewModel()
+        vm.onResume()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(0, health.grantedTypesCallCount)
+        assertEquals(SetupHealth.Hidden, vm.health.value)
+    }
+
+    @Test
+    fun `a Health Connect that never answers still shows setup in time, with the section hidden`() = runTest {
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesNeverReturns = true
+        val vm = newViewModel()
+
+        advanceTimeBy(1_001L)
+        runCurrent()
+
+        assertTrue(vm.state.value is FirstRunGateState.ShowSetup)
+        assertEquals(SetupHealth.Hidden, vm.health.value)
+    }
+
+    @Test
+    fun `a slow probe and a Health Connect that never answers still show setup at the gate's timeout`() = runTest {
+        // A first launch: the probe waits behind the seed, and Health Connect's process is cold.
+        probe.blockMillis = 2_500L
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesNeverReturns = true
+        val vm = newViewModel()
+
+        advanceTimeBy(2_999L)
+        runCurrent()
+        assertEquals(FirstRunGateState.Loading, vm.state.value)
+
+        advanceTimeBy(2L)
+        runCurrent()
+        assertTrue(vm.state.value is FirstRunGateState.ShowSetup)
+        assertEquals(SetupHealth.Hidden, vm.health.value)
+        assertTrue(logger.messages.isEmpty())
+    }
+
+    @Test
+    fun `Health Connect is read alongside a slow probe, so setup shows with it as soon as the probe answers`() = runTest {
+        probe.blockMillis = 2_500L
+        health.availabilityValue = HealthConnectAvailability.Available
+        val answer = CompletableDeferred<Set<HealthDataType>>()
+        health.pendingGrantedTypes.addLast(answer)
+        val vm = newViewModel()
+
+        advanceTimeBy(1_000L)
+        runCurrent()
+        assertEquals(FirstRunGateState.Loading, vm.state.value)
+        assertEquals(1, health.grantedTypesCallCount)
+        answer.complete(setOf(HealthDataType.STEPS))
+        advanceTimeBy(1_501L)
+        runCurrent()
+
+        assertTrue(vm.state.value is FirstRunGateState.ShowSetup)
+        assertEquals(SetupHealth.Readable(setOf(HealthDataType.STEPS)), vm.health.value)
+    }
+
+    @Test
+    fun `a Connect with nothing granted shows the refusal at once`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+        // The re-read that follows never answers, so only the at-once refusal can show it.
+        health.grantedTypesNeverReturns = true
+
+        vm.onHealthConnectResult(anyGranted = false)
+
+        assertEquals(SetupHealth.Refused, vm.health.value)
+        assertEquals(0, health.regrantedCallCount)
+    }
+
+    @Test
+    fun `a refusal survives a resume re-check that still finds nothing granted`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+        vm.onHealthConnectResult(anyGranted = false)
+        val readsBefore = health.grantedTypesCallCount
+
+        vm.onResume()
+
+        assertEquals(readsBefore + 1, health.grantedTypesCallCount)
+        assertEquals(SetupHealth.Refused, vm.health.value)
+    }
+
+    @Test
+    fun `a refusal survives process death through saved state`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        newViewModel().onHealthConnectResult(anyGranted = false)
+
+        // The same saved state, handed to the ViewModel the recreated Activity gets.
+        val restored = newViewModel()
+
+        assertEquals(SetupHealth.Refused, restored.health.value)
+    }
+
+    @Test
+    fun `a grant made in Health Connect's settings clears the refusal on resume`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+        vm.onHealthConnectResult(anyGranted = false)
+
+        health.grantedTypesOverride = setOf(HealthDataType.CALORIES)
+        vm.onResume()
+        assertEquals(SetupHealth.Readable(setOf(HealthDataType.CALORIES)), vm.health.value)
+
+        // The refusal is gone, not just outranked: withdrawn again, the section offers Connect.
+        health.grantedTypesOverride = emptySet()
+        vm.onResume()
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+    }
+
+    @Test
+    fun `a Connect that grants something ends a same-session disconnect and reads the grants again`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+
+        health.permissionsGranted = true
+        vm.onHealthConnectResult(anyGranted = true)
+
+        assertEquals(1, health.regrantedCallCount)
+        assertEquals(SetupHealth.Readable(HealthDataType.entries.toSet()), vm.health.value)
+    }
+
+    @Test
+    fun `a Connect that grants something after a refusal clears it`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+        vm.onHealthConnectResult(anyGranted = false)
+
+        health.grantedTypesOverride = setOf(HealthDataType.STEPS)
+        vm.onHealthConnectResult(anyGranted = true)
+        assertEquals(SetupHealth.Readable(setOf(HealthDataType.STEPS)), vm.health.value)
+
+        health.grantedTypesOverride = emptySet()
+        vm.onResume()
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+    }
+
+    @Test
+    fun `returning from Google Play after an update re-checks and offers Connect`() {
+        health.availabilityValue = HealthConnectAvailability.UpdateRequired
+        val vm = newViewModel()
+        assertEquals(SetupHealth.UpdateRequired, vm.health.value)
+
+        health.availabilityValue = HealthConnectAvailability.Available
+        vm.onResume()
+
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+    }
+
+    @Test
+    fun `a Health Connect read that fails on resume keeps the section as it was`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesOverride = setOf(HealthDataType.STEPS)
+        val vm = newViewModel()
+
+        health.grantedTypesReadFails = true
+        vm.onResume()
+
+        assertEquals(SetupHealth.Readable(setOf(HealthDataType.STEPS)), vm.health.value)
+        assertEquals(listOf("Reading Health Connect for setup failed"), logger.messages)
+    }
+
+    @Test
+    fun `back from installing Health Connect, a failed grants read still offers Connect instead of the install`() {
+        health.availabilityValue = HealthConnectAvailability.Unavailable
+        val vm = newViewModel(sdkInt = 33)
+        assertEquals(SetupHealth.NotInstalled, vm.health.value)
+
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesReadFails = true
+        vm.onResume()
+
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+        assertEquals(listOf("Reading Health Connect for setup failed"), logger.messages)
+    }
+
+    @Test
+    fun `back from updating Health Connect, a failed grants read keeps an earlier refusal`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+        vm.onHealthConnectResult(anyGranted = false)
+        health.availabilityValue = HealthConnectAvailability.UpdateRequired
+        vm.onResume()
+        assertEquals(SetupHealth.UpdateRequired, vm.health.value)
+
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesReadFails = true
+        vm.onResume()
+
+        assertEquals(SetupHealth.Refused, vm.health.value)
+    }
+
+    @Test
+    fun `a usable Health Connect whose first grants read fails still shows the section with Connect`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        health.grantedTypesReadFails = true
+
+        val vm = newViewModel()
+
+        assertTrue(vm.state.value is FirstRunGateState.ShowSetup)
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+    }
+
+    @Test
+    fun `an older read that finishes after a newer one can't overwrite it`() {
+        health.availabilityValue = HealthConnectAvailability.Available
+        val vm = newViewModel()
+        val older = CompletableDeferred<Set<HealthDataType>>()
+        val newer = CompletableDeferred<Set<HealthDataType>>()
+        health.pendingGrantedTypes.addLast(older)
+        health.pendingGrantedTypes.addLast(newer)
+
+        vm.onResume()
+        vm.onHealthConnectResult(anyGranted = true)
+        newer.complete(setOf(HealthDataType.STEPS))
+        older.complete(emptySet())
+
+        assertEquals(SetupHealth.Readable(setOf(HealthDataType.STEPS)), vm.health.value)
+    }
+
+    @Test
+    fun `on Android 9 to 13 a missing Health Connect offers the install, then Connect once it is installed`() {
+        health.availabilityValue = HealthConnectAvailability.Unavailable
+        val vm = newViewModel(sdkInt = 33)
+        assertEquals(SetupHealth.NotInstalled, vm.health.value)
+
+        health.availabilityValue = HealthConnectAvailability.Available
+        vm.onResume()
+
+        assertEquals(SetupHealth.CanConnect, vm.health.value)
+    }
+
+    @Test
+    fun `on Android 8 and on an unsupported Android 14 device the section is hidden`() {
+        health.availabilityValue = HealthConnectAvailability.Unavailable
+
+        assertEquals(SetupHealth.Hidden, newViewModel(sdkInt = 26).health.value)
+        assertEquals(SetupHealth.Hidden, newViewModel(sdkInt = 34).health.value)
+    }
+
+    @Test
+    fun `resume does not read Health Connect while Continue is being written`() = runTest {
+        health.availabilityValue = HealthConnectAvailability.Available
+        settings.applySetupChoicesGate = CompletableDeferred()
+        val vm = newViewModel()
+        val setup = vm.state.value as FirstRunGateState.ShowSetup
+        vm.complete(setup.preselected)
+        val readsBefore = health.grantedTypesCallCount
+
+        vm.onResume()
+
+        assertEquals(readsBefore, health.grantedTypesCallCount)
+    }
+
+    @Test
+    fun `the section's state maps from availability, grants, the refusal and the API level`() {
+        val available = HealthConnectAvailability.Available
+        val unavailable = HealthConnectAvailability.Unavailable
+        val some = setOf(HealthDataType.HEART_RATE)
+
+        assertEquals(SetupHealth.CanConnect, setupHealthFor(available, emptySet(), refused = false, sdkInt = 34))
+        assertEquals(SetupHealth.Refused, setupHealthFor(available, emptySet(), refused = true, sdkInt = 34))
+        assertEquals(SetupHealth.Readable(some), setupHealthFor(available, some, refused = true, sdkInt = 34))
+        assertEquals(SetupHealth.UpdateRequired, setupHealthFor(HealthConnectAvailability.UpdateRequired, emptySet(), refused = true, sdkInt = 26))
+        // Android 8.x: no Health Connect app exists for it.
+        assertEquals(SetupHealth.Hidden, setupHealthFor(unavailable, emptySet(), refused = false, sdkInt = 26))
+        assertEquals(SetupHealth.Hidden, setupHealthFor(unavailable, emptySet(), refused = false, sdkInt = 27))
+        // Android 9-13: the app can be installed from Google Play.
+        assertEquals(SetupHealth.NotInstalled, setupHealthFor(unavailable, emptySet(), refused = false, sdkInt = 28))
+        assertEquals(SetupHealth.NotInstalled, setupHealthFor(unavailable, emptySet(), refused = false, sdkInt = 33))
+        // Android 14+: built in, so unavailable means unsupported.
+        assertEquals(SetupHealth.Hidden, setupHealthFor(unavailable, emptySet(), refused = false, sdkInt = 34))
+        assertEquals(SetupHealth.Hidden, setupHealthFor(unavailable, emptySet(), refused = false, sdkInt = 35))
     }
 }

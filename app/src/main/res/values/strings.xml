@@ -162,6 +162,7 @@
     <string name="wellness_update_title">Update Health Connect</string>
     <string name="wellness_update_body">Health Connect needs an update from Google Play before LogEZ can show your steps, calories burned and heart rate.</string>
     <string name="wellness_install_action">Open Google Play</string>
+    <string name="wellness_connect_refused">Nothing was allowed. You can allow it in Health Connect\'s settings.</string>
 
     <string name="analytics_title">Statistics</string>
     <string name="analytics_training_title">Training</string>
@@ -799,6 +800,8 @@
     <string name="first_run_length_note">Body measurements will use cm with kg, or inches with lb. You can change them separately in Settings.</string>
     <string name="first_run_region_note">Suggested from your phone\'s region.</string>
     <string name="first_run_settings_note">Change these any time in Profile &gt; Settings.</string>
+    <string name="first_run_section_health">Health Connect (optional)</string>
+    <string name="first_run_health_body">LogEZ can read steps and calories burned for your daily totals, and heart rate for your workouts. Heart rate needs a watch and often syncs after the workout. What LogEZ reads stays on this phone.</string>
     <string name="first_run_backup_note">LogEZ has no cloud copy of your data. To keep a copy off this phone, make a Full backup (.zip) in Profile &gt; Settings &gt; Export &amp; backup and save the file somewhere else.</string>
     <string name="first_run_continue">Continue</string>
     <!-- First-run plan O1e: Restore from a backup on the setup screen. The counts are the data_count_* plurals. -->

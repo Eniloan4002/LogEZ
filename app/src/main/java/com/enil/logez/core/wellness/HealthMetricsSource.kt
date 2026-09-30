@@ -57,6 +57,15 @@ interface HealthMetricsSource {
     suspend fun grantedTypes(): Set<HealthDataType>
 
     /**
+     * [grantedTypes], but null when Health Connect was usable and asking it failed (it can throw
+     * while its app updates). [grantedTypes] answers such a failure as "nothing granted"; first-run
+     * setup uses this instead, so a failed read keeps its section as it was rather than turning a
+     * grant, or a grant just made in Health Connect's settings, into Connect or a refusal
+     * (first-run plan, O1f).
+     */
+    suspend fun grantedTypesOrNull(): Set<HealthDataType>? = grantedTypes()
+
+    /**
      * Today's local-calendar-day totals, reading only the granted types: Health Connect rejects
      * an aggregate that names a metric the app may not read, so asking for both with one granted
      * failed the whole call. Zero steps / null calories if a type is not granted or has nothing

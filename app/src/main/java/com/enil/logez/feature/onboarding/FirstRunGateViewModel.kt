@@ -1,5 +1,7 @@
 package com.enil.logez.feature.onboarding
 
+import android.os.Build
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.R
@@ -15,6 +17,9 @@ import com.enil.logez.core.domain.repository.FirstRunPath
 import com.enil.logez.core.domain.repository.FirstRunStore
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.UserDataProbe
+import com.enil.logez.core.wellness.HealthConnectAvailability
+import com.enil.logez.core.wellness.HealthDataType
+import com.enil.logez.core.wellness.HealthMetricsSource
 import com.enil.logez.feature.settings.RestoreOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -91,9 +96,12 @@ data class FirstRunMessage(val messageRes: Int, val count: Int? = null)
  * so a timeout wrapped straight around the probe would last as long as a read stuck behind the
  * seed transaction or a migration. The reads therefore run in their own coroutine, and only the
  * cancellable `await()` is timed.
+ *
+ * @param sdkInt the device's API level, which decides whether a missing Health Connect can be
+ *   installed ([setupHealthFor]); a parameter so tests can run the Android 9-13 path.
  */
 @HiltViewModel
-class FirstRunGateViewModel @Inject constructor(
+class FirstRunGateViewModel internal constructor(
     private val firstRunStore: FirstRunStore,
     private val userDataProbe: UserDataProbe,
     private val settingsRepository: SettingsRepository,
@@ -102,7 +110,27 @@ class FirstRunGateViewModel @Inject constructor(
     private val restoreLock: RestoreLock,
     private val clock: Clock,
     private val logger: AppLogger,
+    /** Public for the screen's permission launcher, which needs the exact permissions to request. */
+    val healthMetricsSource: HealthMetricsSource,
+    private val savedStateHandle: SavedStateHandle,
+    private val sdkInt: Int,
 ) : ViewModel() {
+    @Inject constructor(
+        firstRunStore: FirstRunStore,
+        userDataProbe: UserDataProbe,
+        settingsRepository: SettingsRepository,
+        regionDefaults: RegionDefaults,
+        widgetRefresher: WidgetRefresher,
+        restoreLock: RestoreLock,
+        clock: Clock,
+        logger: AppLogger,
+        healthMetricsSource: HealthMetricsSource,
+        savedStateHandle: SavedStateHandle,
+    ) : this(
+        firstRunStore, userDataProbe, settingsRepository, regionDefaults, widgetRefresher, restoreLock, clock, logger,
+        healthMetricsSource, savedStateHandle, Build.VERSION.SDK_INT,
+    )
+
     private val _state = MutableStateFlow(
         when (readFlag()) {
             // A flag that can't be read opens the app (fail open) and is left as it is.
@@ -126,6 +154,29 @@ class FirstRunGateViewModel @Inject constructor(
         _message.value = null
     }
 
+    private val _health = MutableStateFlow<SetupHealth>(SetupHealth.Hidden)
+
+    /**
+     * Setup's Health Connect section (first-run plan, O1f). Read with the setup values, so the
+     * section is there on setup's first frame, and again on every resume while setup shows: the
+     * Google Play link returns the user to Health Connect's own onboarding, not to LogEZ, and a
+     * grant can also be made in Health Connect's settings.
+     */
+    val health: StateFlow<SetupHealth> = _health.asStateFlow()
+
+    /**
+     * A Connect came back with nothing granted. Kept in saved state, so it outlives process death
+     * while setup shows; only a later read that finds a grant clears it.
+     */
+    private var healthRefused: Boolean
+        get() = savedStateHandle.get<Boolean>(KEY_HEALTH_REFUSED) ?: false
+        set(value) {
+            savedStateHandle[KEY_HEALTH_REFUSED] = value
+        }
+
+    /** Only the newest Health Connect read may set [health]; an older one finishing late is dropped. */
+    private var healthReadGeneration = 0
+
     init {
         if (_state.value == FirstRunGateState.Loading) {
             viewModelScope.launch { _state.value = resolve() }
@@ -133,18 +184,36 @@ class FirstRunGateViewModel @Inject constructor(
     }
 
     private suspend fun resolve(): FirstRunGateState {
+        // Health Connect is read alongside the probe, not after it, so its answer is usually in by
+        // the time setup is decided. Not a child of the timed block either (readHealth never throws).
+        val healthRead = viewModelScope.async { readHealth() }
         // Not a child of the timed block: see the class comment. viewModelScope's SupervisorJob keeps
         // a failure here from cancelling the scope, and `async` hands it to await() instead.
         val work = viewModelScope.async { readFirstRun() }
-        val resolved = try {
-            withTimeoutOrNull(RESOLVE_TIMEOUT_MS) { work.await() }
+        var resolved: FirstRunGateState? = null
+        try {
+            withTimeoutOrNull(RESOLVE_TIMEOUT_MS) {
+                val answer = work.await()
+                resolved = answer
+                // Setup is decided. It waits for Health Connect at most HEALTH_READ_TIMEOUT_MS, and
+                // never past RESOLVE_TIMEOUT_MS: that timeout then ends only this wait, and setup
+                // still shows, with the section hidden until setup's first resume reads again.
+                if (answer is FirstRunGateState.ShowSetup) {
+                    withTimeoutOrNull(HEALTH_READ_TIMEOUT_MS) { healthRead.await() }?.let { _health.value = it }
+                }
+            }
         } catch (e: CancellationException) {
             work.cancel()
+            healthRead.cancel()
             throw e
         } catch (e: Exception) {
+            healthRead.cancel()
             logger.e(TAG, "First-run check failed; opening the app", e)
             return FirstRunGateState.ShowApp
         }
+        // Finished or not, the first read is over: a late answer is dropped, since the resume
+        // re-check (or nothing, if the app opened) takes over.
+        healthRead.cancel()
         if (resolved == null) {
             // The reads finish on their own thread and their answer is dropped; readFirstRun checks
             // for this cancellation before writing, so the flag stays unwritten (plan: fail open).
@@ -359,6 +428,7 @@ class FirstRunGateViewModel @Inject constructor(
             _state.value = FirstRunGateState.ShowApp
             return
         }
+        refreshHealth()
         val suggestion = try {
             regionDefaults.suggest()
         } catch (e: Exception) {
@@ -369,6 +439,69 @@ class FirstRunGateViewModel @Inject constructor(
         if (noteVisible != current.regionNoteVisible) {
             _state.value = current.copy(regionNoteVisible = noteVisible)
         }
+    }
+
+    /**
+     * Health Connect's permission screen answered Connect. Any grant ends a disconnect made earlier
+     * in this process ([HealthMetricsSource.onPermissionsRegranted]), as on Profile. Nothing granted
+     * records a refusal and shows it at once, since Health Connect won't show its screen again.
+     * Either way the grants are then read again.
+     */
+    fun onHealthConnectResult(anyGranted: Boolean) {
+        if (anyGranted) {
+            healthMetricsSource.onPermissionsRegranted()
+        } else {
+            healthRefused = true
+            if (_health.value == SetupHealth.CanConnect) _health.value = SetupHealth.Refused
+        }
+        refreshHealth()
+    }
+
+    private fun refreshHealth() {
+        val generation = ++healthReadGeneration
+        viewModelScope.launch {
+            val read = readHealth() ?: return@launch
+            if (generation == healthReadGeneration) _health.value = read
+        }
+    }
+
+    /**
+     * The section's state now; null when Health Connect can't be read, which keeps the section as it
+     * was. A refusal is cleared only by a read that finds a grant (first-run plan, O1f).
+     *
+     * When Health Connect is usable but its grants can't be read (it can fail while its app has just
+     * been installed or updated), a section that still says it is missing or out of date, or no
+     * section at all, would be wrong; it offers Connect (or the refusal) instead, since Connect's own
+     * request reports the grants anyway. A section that already shows Connect, a refusal or the
+     * grants keeps them.
+     */
+    private suspend fun readHealth(): SetupHealth? {
+        val availability: HealthConnectAvailability
+        val granted: Set<HealthDataType>?
+        try {
+            availability = healthMetricsSource.availability()
+            granted = if (availability == HealthConnectAvailability.Available) {
+                healthMetricsSource.grantedTypesOrNull()
+            } else {
+                emptySet()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.e(TAG, HEALTH_READ_FAILED, e)
+            return null
+        }
+        if (granted == null) {
+            // The source has logged why; a failed read is not "nothing granted".
+            logger.e(TAG, HEALTH_READ_FAILED)
+            return when (_health.value) {
+                SetupHealth.Hidden, SetupHealth.NotInstalled, SetupHealth.UpdateRequired ->
+                    setupHealthFor(availability, emptySet(), refused = healthRefused, sdkInt = sdkInt)
+                else -> null
+            }
+        }
+        if (granted.isNotEmpty()) healthRefused = false
+        return setupHealthFor(availability, granted, refused = healthRefused, sdkInt = sdkInt)
     }
 
     private suspend fun refreshWidget() {
@@ -387,6 +520,17 @@ class FirstRunGateViewModel @Inject constructor(
 
         /** The starting point from the plan; O1c measures the real time to setup and tunes it. */
         const val RESOLVE_TIMEOUT_MS = 3_000L
+
+        /**
+         * How long setup, once decided, may still wait for the first Health Connect read, which
+         * started with the probe. Never past [RESOLVE_TIMEOUT_MS]: a slow Health Connect can delay
+         * setup a little, but never skip it.
+         */
+        const val HEALTH_READ_TIMEOUT_MS = 1_000L
+
+        private const val HEALTH_READ_FAILED = "Reading Health Connect for setup failed"
+
+        private const val KEY_HEALTH_REFUSED = "first_run_health_refused"
     }
 }
 

@@ -54,6 +54,7 @@ import com.enil.logez.feature.onboarding.FirstRunGateState
 import com.enil.logez.feature.onboarding.FirstRunGateViewModel
 import com.enil.logez.feature.onboarding.FirstRunHost
 import com.enil.logez.feature.onboarding.FirstRunMessageSnackbar
+import com.enil.logez.feature.onboarding.rememberSetupHealth
 import com.enil.logez.feature.onboarding.rememberSetupRestore
 import com.enil.logez.feature.workout.LocalOpenNotificationPrompts
 import com.enil.logez.feature.workout.OpenNotificationPrompts
@@ -174,6 +175,8 @@ fun LogEzApp() {
                         onRestoreFailed = gateViewModel::restoreFailed,
                     )
                 },
+                // O1f: the optional Health Connect section, read with setup and again on every resume.
+                setupHealth = { rememberSetupHealth(gateViewModel) },
             ) { hiddenWhileFirstRun ->
                 Scaffold(
                     modifier = hiddenWhileFirstRun,

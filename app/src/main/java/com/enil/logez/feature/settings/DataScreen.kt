@@ -51,6 +51,7 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.enil.logez.core.wellness.healthAccessSummary
 import com.enil.logez.core.wellness.openHealthConnectSettings
 
 /**
@@ -353,28 +354,6 @@ internal val RESTORE_MIME_TYPES = arrayOf("application/zip", "application/octet-
 private fun fileName(prefix: String, extension: String): String {
     val stamp = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ROOT))
     return "${prefix}_$stamp.$extension"
-}
-
-/** "LogEZ can read: Steps, Heart rate. Not allowed: Calories burned." in the app's type order. */
-@Composable
-private fun healthAccessSummary(granted: Set<com.enil.logez.core.wellness.HealthDataType>): String {
-    val names = com.enil.logez.core.wellness.HealthDataType.entries.associateWith { type ->
-        stringResource(
-            when (type) {
-                com.enil.logez.core.wellness.HealthDataType.STEPS -> R.string.data_health_type_steps
-                com.enil.logez.core.wellness.HealthDataType.CALORIES -> R.string.data_health_type_calories
-                com.enil.logez.core.wellness.HealthDataType.HEART_RATE -> R.string.data_health_type_heart_rate
-            },
-        )
-    }
-    if (granted.isEmpty()) return stringResource(R.string.data_health_access_none)
-    val reading = names.filterKeys { it in granted }.values.joinToString(", ")
-    val missing = names.filterKeys { it !in granted }.values.joinToString(", ")
-    return if (missing.isEmpty()) {
-        stringResource(R.string.data_health_access_all, reading)
-    } else {
-        stringResource(R.string.data_health_access_partial, reading, missing)
-    }
 }
 
 /**

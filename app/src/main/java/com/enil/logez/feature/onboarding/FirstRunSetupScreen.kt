@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,7 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -40,6 +43,7 @@ import com.enil.logez.core.designsystem.currentLocale
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.SetupChoices
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.wellness.healthAccessSummary
 import com.enil.logez.feature.settings.SettingsSectionHeader
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -47,8 +51,8 @@ import java.time.format.TextStyle
 /**
  * Stable tags for first-run setup's buttons, exposed as resource ids (`testTagsAsResourceId` on the
  * app root) so a Play pre-launch Robo script and adb UI dumps can find them in any language.
- * [RESTORE] is the Restore button (O1e); [CONNECT] is reserved for Health Connect's Connect (O1f),
- * so the names never change once scripts use them.
+ * [RESTORE] is the Restore button (O1e); [CONNECT] is Health Connect's Connect (O1f). The names never
+ * change once scripts use them.
  */
 object FirstRunTestTags {
     const val CONTINUE = "firstrun_continue"
@@ -63,7 +67,8 @@ object FirstRunTestTags {
  *
  * It draws above the app, outside the Scaffold, so it pads itself for the system bars. The column
  * scrolls; only the bottom area is pinned: Continue, and Restore from a backup under it (O1e). The
- * Health Connect section (O1f) goes between the week start and the backup note.
+ * optional Health Connect section (O1f) sits between the week start's notes and the backup note, and
+ * is absent where Health Connect can't be used or installed; its Connect is the only way it asks.
  *
  * The choices live in [choicesState] (saveable enums, so they survive rotation and process death);
  * the preselected values are only the starting point. There is no BackHandler except while a
@@ -78,6 +83,7 @@ object FirstRunTestTags {
  *   describes the preselection, so it stays put when the user changes a value.
  * @param working Continue or the end of a restore is being written: the choices, Continue and
  *   Restore are disabled.
+ * @param health the Health Connect section's state and buttons; disabled with Continue and Restore.
  */
 @Composable
 fun FirstRunSetupScreen(
@@ -88,6 +94,7 @@ fun FirstRunSetupScreen(
     modifier: Modifier = Modifier,
     choicesState: SetupChoicesState = rememberSetupChoicesState(preselected),
     restore: SetupRestoreBinding = SetupRestoreBinding.Inert,
+    health: SetupHealthBinding = SetupHealthBinding.Inert,
 ) {
     val choices = choicesState.choices
     val paneTitle = stringResource(R.string.first_run_pane_title)
@@ -138,6 +145,8 @@ fun FirstRunSetupScreen(
                         // tapped row jumped.
                         regionNoteVisible = regionNoteVisible,
                         restoreStatus = restoreUi.status,
+                        health = health,
+                        healthEnabled = buttonsEnabled,
                         enabled = !working,
                         onWeightUnit = { choicesState.choices = choicesState.choices.copy(weightUnit = it) },
                         onDistanceUnit = { choicesState.choices = choicesState.choices.copy(distanceUnit = it) },
@@ -180,6 +189,8 @@ private fun SetupContent(
     choices: SetupChoices,
     regionNoteVisible: Boolean,
     restoreStatus: SetupRestoreStatus?,
+    health: SetupHealthBinding,
+    healthEnabled: Boolean,
     enabled: Boolean,
     onWeightUnit: (WeightUnit) -> Unit,
     onDistanceUnit: (DistanceUnit) -> Unit,
@@ -250,12 +261,75 @@ private fun SetupContent(
     }
     Note(stringResource(R.string.first_run_settings_note), secondary, inset)
 
+    HealthConnectSection(health, enabled = healthEnabled, modifier = inset)
+
     Text(
         stringResource(R.string.first_run_backup_note),
         style = MaterialTheme.typography.bodyMedium,
         color = secondary,
         modifier = inset.padding(top = Spacing.lg),
     )
+}
+
+/**
+ * "Health Connect (optional)" (first-run plan, O1f): a short body in the page's main text colour, then
+ * at most one action, left-aligned under it. No section at all where Health Connect can't be used or
+ * installed. The body and action change in place; nothing counts toward progress.
+ */
+@Composable
+private fun HealthConnectSection(
+    binding: SetupHealthBinding,
+    enabled: Boolean,
+    // The column's side inset, for the body and the action; the header pads itself.
+    modifier: Modifier = Modifier,
+) {
+    val health = binding.health
+    if (health == SetupHealth.Hidden) return
+    SettingsSectionHeader(
+        stringResource(R.string.first_run_section_health),
+        modifier = Modifier.semantics { heading() },
+    )
+    val body = when (health) {
+        SetupHealth.CanConnect -> stringResource(R.string.first_run_health_body)
+        is SetupHealth.Readable -> healthAccessSummary(health.granted)
+        SetupHealth.Refused -> stringResource(R.string.wellness_connect_refused)
+        SetupHealth.UpdateRequired -> stringResource(R.string.wellness_update_body)
+        SetupHealth.NotInstalled -> stringResource(R.string.wellness_install_body)
+        SetupHealth.Hidden -> return
+    }
+    Text(
+        body,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        // The body changes in place when Health Connect answers, and a refusal removes the Connect
+        // TalkBack was on: a polite live region reads the new text out (plan: accessibility).
+        modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
+    val action = modifier.padding(top = Spacing.xs)
+    when (health) {
+        SetupHealth.CanConnect -> OutlinedButton(
+            onClick = binding.onConnect,
+            enabled = enabled,
+            modifier = action.testTag(FirstRunTestTags.CONNECT),
+        ) {
+            Text(stringResource(R.string.wellness_connect_action))
+        }
+        SetupHealth.Refused -> TextButton(
+            onClick = binding.onOpenSettings,
+            enabled = enabled,
+            modifier = action.heightIn(min = MIN_TOUCH_HEIGHT),
+        ) {
+            Text(stringResource(R.string.activity_tracking_heart_rate_open_settings))
+        }
+        SetupHealth.UpdateRequired, SetupHealth.NotInstalled -> OutlinedButton(
+            onClick = binding.onOpenPlay,
+            enabled = enabled,
+            modifier = action,
+        ) {
+            Text(stringResource(R.string.wellness_install_action))
+        }
+        is SetupHealth.Readable, SetupHealth.Hidden -> Unit
+    }
 }
 
 @Composable

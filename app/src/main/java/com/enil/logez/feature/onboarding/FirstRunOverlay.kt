@@ -29,6 +29,8 @@ import com.enil.logez.core.domain.model.SetupChoices
  *
  * [setupRestore] supplies setup's Restore (O1e), given the screen's choices. It runs only while
  * setup is on screen, so the app creates the restore's ViewModel only on installs that show setup.
+ * [setupHealth] supplies setup's Health Connect section (O1f), and likewise runs only while setup
+ * is on screen.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -38,6 +40,7 @@ fun FirstRunHost(
     onHandOff: suspend () -> Unit,
     onResume: () -> Unit,
     setupRestore: @Composable (SetupChoicesState) -> SetupRestoreBinding = { SetupRestoreBinding.Inert },
+    setupHealth: @Composable () -> SetupHealthBinding = { SetupHealthBinding.Inert },
     app: @Composable (Modifier) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
@@ -48,6 +51,7 @@ fun FirstRunHost(
             onHandOff = onHandOff,
             onResume = onResume,
             setupRestore = setupRestore,
+            setupHealth = setupHealth,
         )
     }
 }
@@ -64,7 +68,8 @@ fun FirstRunHost(
  *   Activity is recreated mid-hand-off, so it must be safe to repeat.
  * - [FirstRunGateState.ShowApp]: nothing.
  *
- * [onResume] runs on every resume while setup shows (a second window may have finished setup).
+ * [onResume] runs on every resume while setup shows (a second window may have finished setup, and
+ * the Health Connect section reads its state again).
  */
 @Composable
 fun FirstRunOverlay(
@@ -73,6 +78,7 @@ fun FirstRunOverlay(
     onHandOff: suspend () -> Unit,
     onResume: () -> Unit,
     setupRestore: @Composable (SetupChoicesState) -> SetupRestoreBinding = { SetupRestoreBinding.Inert },
+    setupHealth: @Composable () -> SetupHealthBinding = { SetupHealthBinding.Inert },
 ) {
     val setup = when (state) {
         is FirstRunGateState.ShowSetup -> state
@@ -91,6 +97,7 @@ fun FirstRunOverlay(
             onContinue = onContinue,
             choicesState = choices,
             restore = setupRestore(choices),
+            health = setupHealth(),
         )
     } else if (state != FirstRunGateState.ShowApp) {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {}

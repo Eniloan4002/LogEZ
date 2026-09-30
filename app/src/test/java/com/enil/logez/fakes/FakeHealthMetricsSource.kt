@@ -8,13 +8,17 @@ import com.enil.logez.core.wellness.HealthMetricsSource
 import com.enil.logez.core.wellness.HeartRateSample
 import java.time.Instant
 import java.time.LocalDate
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 
 /** In-memory fake (PHASE2_PLAN.md §10.1 rule 2). */
 class FakeHealthMetricsSource(
-    private val availabilityValue: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
-    private val permissionsGranted: Boolean = false,
+    /** Mutable so a test can simulate Health Connect being installed or updated while the app is away. */
+    var availabilityValue: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
+    /** Mutable so a test can simulate a grant made in Health Connect's own settings. */
+    var permissionsGranted: Boolean = false,
     /** Overrides [permissionsGranted] with an exact partial grant; null means all-or-nothing per [permissionsGranted]. */
-    private val grantedTypesOverride: Set<HealthDataType>? = null,
+    var grantedTypesOverride: Set<HealthDataType>? = null,
     private val totals: DailyTotals = DailyTotals(steps = 0L, caloriesBurned = null),
     private val latestHeartRate: HeartRateSample? = null,
     /** Mutable so a test can simulate readings that reach Health Connect after a workout was saved. */
@@ -23,8 +27,9 @@ class FakeHealthMetricsSource(
     private val throwOnReadHeartRateSamples: Throwable? = null,
     private val throwOnReadLatestHeartRate: Throwable? = null,
     private val throwOnRevoke: Throwable? = null,
+    /** Tests that launch Health Connect's real permission contract pass real permission names, which it checks. */
+    override val requiredPermissions: Set<String> = setOf("fake.permission.READ_STEPS", "fake.permission.READ_HEART_RATE"),
 ) : HealthMetricsSource {
-    override val requiredPermissions: Set<String> = setOf("fake.permission.READ_STEPS", "fake.permission.READ_HEART_RATE")
 
     /** Every (start, end) window this fake was asked for -- lets a test assert the exact query range used. */
     val queriedRanges = mutableListOf<Pair<Instant, Instant>>()
@@ -36,7 +41,34 @@ class FakeHealthMetricsSource(
     var readLatestHeartRateCallCount = 0
         private set
 
+    /** How many times [onPermissionsRegranted] was called. */
+    var regrantedCallCount = 0
+        private set
+
+    /** How many times the grants were read, through [grantedTypes] or [grantedTypesOrNull]. */
+    var grantedTypesCallCount = 0
+        private set
+
+    /**
+     * When true, asking Health Connect for the grants fails the way the real source's does: it
+     * catches the failure, so [grantedTypes] answers empty and [grantedTypesOrNull] null.
+     */
+    var grantedTypesReadFails: Boolean = false
+
+    /**
+     * Answers for the next grants reads, one per read in order: each read waits for its own, so a
+     * test can finish two overlapping reads in either order. Empty means answer at once.
+     */
+    val pendingGrantedTypes = ArrayDeque<CompletableDeferred<Set<HealthDataType>>>()
+
+    /** When true, [grantedTypes] suspends until cancelled, standing in for a Health Connect that never answers. */
+    var grantedTypesNeverReturns: Boolean = false
+
     override fun availability(): HealthConnectAvailability = availabilityValue
+
+    override fun onPermissionsRegranted() {
+        regrantedCallCount++
+    }
 
     override fun permissionFor(type: HealthDataType): String = "fake.permission.READ_${type.name}"
     /** How many times [revokeAllPermissions] was called. */
@@ -44,8 +76,14 @@ class FakeHealthMetricsSource(
         private set
 
     // Mirrors the real source: nothing is granted while Health Connect is not usable.
-    override suspend fun grantedTypes(): Set<HealthDataType> {
+    override suspend fun grantedTypes(): Set<HealthDataType> = grantedTypesOrNull() ?: emptySet()
+
+    override suspend fun grantedTypesOrNull(): Set<HealthDataType>? {
+        grantedTypesCallCount++
+        pendingGrantedTypes.removeFirstOrNull()?.let { return it.await() }
+        if (grantedTypesNeverReturns) awaitCancellation()
         if (availabilityValue != HealthConnectAvailability.Available) return emptySet()
+        if (grantedTypesReadFails) return null
         return grantedTypesOverride ?: if (permissionsGranted) HealthDataType.entries.toSet() else emptySet()
     }
 

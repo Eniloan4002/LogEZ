@@ -74,10 +74,13 @@ class HealthConnectMetricsSource @Inject constructor(
     // Health Connect calls can throw while its app updates or when a grant is withdrawn mid-read.
     // Every caller runs these from a bare viewModelScope.launch, where an escaped exception kills
     // the process, so each read answers "nothing to show" instead (2026-09-25 review).
-    override suspend fun grantedTypes(): Set<HealthDataType> {
+    override suspend fun grantedTypes(): Set<HealthDataType> = grantedTypesOrNull() ?: emptySet()
+
+    override suspend fun grantedTypesOrNull(): Set<HealthDataType>? {
         if (revokedInThisProcess) return emptySet()
         if (availability() != HealthConnectAvailability.Available) return emptySet()
-        val granted = safely("grantedTypes", emptySet()) { client().permissionController.getGrantedPermissions() }
+        val granted = safely<Set<String>?>("grantedTypes", null) { client().permissionController.getGrantedPermissions() }
+            ?: return null
         return permissionByType.filterValues { it in granted }.keys
     }
 
