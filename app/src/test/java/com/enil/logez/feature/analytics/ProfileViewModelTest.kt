@@ -18,6 +18,7 @@ import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWellnessRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
+import androidx.lifecycle.SavedStateHandle
 import com.enil.logez.core.wellness.HealthConnectAvailability
 import java.time.LocalDate
 import java.time.ZoneId
@@ -79,9 +80,10 @@ class ProfileViewModelTest {
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
         healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
         wellnessRepo: FakeWellnessRepository = FakeWellnessRepository(),
+        savedState: SavedStateHandle = SavedStateHandle(),
     ): ProfileViewModel {
         return ProfileViewModel(
-            workoutRepo, exerciseRepo, settingsRepo, healthMetricsSource, wellnessRepo, FakeClock(currentMillis = nowMillis),
+            workoutRepo, exerciseRepo, settingsRepo, healthMetricsSource, wellnessRepo, FakeClock(currentMillis = nowMillis), savedState,
         )
             // The screen's RefreshOnResume drives the first load (no init load) — mirror it here.
             .also { it.refresh() }
@@ -258,7 +260,7 @@ class ProfileViewModelTest {
         )
         val vm = ProfileViewModel(
             FakeWorkoutRepository(), FakeExerciseRepository(), FakeSettingsRepository(),
-            healthMetricsSource, FakeWellnessRepository(), FakeClock(currentMillis = nowMillis),
+            healthMetricsSource, FakeWellnessRepository(), FakeClock(currentMillis = nowMillis), SavedStateHandle(),
         )
         assertEquals(true, vm.uiState.value.isLoading) // never refreshed yet -- no init load
 
@@ -322,5 +324,63 @@ class ProfileViewModelTest {
         assertEquals(setOf(HealthDataType.HEART_RATE), state.wellnessGranted)
         assertEquals(null, state.todaySteps)
         assertEquals(null, state.todayCaloriesBurned)
+    }
+
+    // --- Refusal rule (first-run plan O1f, F6) ---
+
+    @Test
+    fun `a full refusal sets the refused state, and a resume with nothing granted keeps it`() = runTest {
+        val source = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available)
+        val vm = newViewModel(healthMetricsSource = source)
+        assertFalse(vm.uiState.value.wellnessRefused)
+
+        vm.onWellnessPermissionResult(anyGranted = false)
+        assertTrue(vm.uiState.value.wellnessRefused)
+
+        vm.refresh() // RefreshOnResume on the way back from Health Connect
+        assertTrue(vm.uiState.value.wellnessRefused)
+        assertTrue(vm.uiState.value.wellnessGranted.isEmpty())
+        assertEquals(0, source.regrantedCallCount)
+    }
+
+    @Test
+    fun `a refusal is kept across process death through saved state`() = runTest {
+        val source = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available)
+        val savedState = SavedStateHandle()
+        newViewModel(healthMetricsSource = source, savedState = savedState).onWellnessPermissionResult(anyGranted = false)
+
+        val restored = newViewModel(healthMetricsSource = source, savedState = savedState)
+
+        assertTrue(restored.uiState.value.wellnessRefused)
+    }
+
+    @Test
+    fun `a grant made in Health Connect's settings clears the refusal on the next refresh`() = runTest {
+        val source = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available)
+        val vm = newViewModel(healthMetricsSource = source)
+        vm.onWellnessPermissionResult(anyGranted = false)
+
+        source.grantedTypesOverride = setOf(HealthDataType.STEPS)
+        vm.refresh()
+        assertFalse(vm.uiState.value.wellnessRefused)
+
+        // Cleared, not just hidden behind the grant: withdrawn again, Connect is offered.
+        source.grantedTypesOverride = emptySet()
+        vm.refresh()
+        assertFalse(vm.uiState.value.wellnessRefused)
+    }
+
+    @Test
+    fun `a Connect that grants something after a refusal clears it`() = runTest {
+        val source = FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available)
+        val vm = newViewModel(healthMetricsSource = source)
+        vm.onWellnessPermissionResult(anyGranted = false)
+
+        source.permissionsGranted = true
+        vm.onWellnessPermissionResult(anyGranted = true)
+
+        assertFalse(vm.uiState.value.wellnessRefused)
+        assertEquals(1, source.regrantedCallCount)
+        assertEquals(HealthDataType.entries.toSet(), vm.uiState.value.wellnessGranted)
     }
 }

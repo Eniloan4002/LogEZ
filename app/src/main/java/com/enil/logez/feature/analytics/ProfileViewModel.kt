@@ -1,5 +1,6 @@
 package com.enil.logez.feature.analytics
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.enil.logez.core.common.Clock
@@ -48,9 +49,23 @@ class ProfileViewModel @Inject constructor(
     val healthMetricsSource: HealthMetricsSource,
     private val wellnessRepository: WellnessRepository,
     private val clock: Clock,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    /**
+     * Connect came back with nothing granted (first-run plan, O1f, F6). Health Connect can't report a
+     * refusal (nothing is granted before asking either), and after one it answers every later
+     * request at once without showing anything, so Connect would look dead. This flag keeps the
+     * card on its settings fallback instead. Saved state, so it outlives process death; only a
+     * refresh that finds a grant clears it.
+     */
+    private var wellnessRefused: Boolean
+        get() = savedStateHandle.get<Boolean>(KEY_WELLNESS_REFUSED) ?: false
+        set(value) {
+            savedStateHandle[KEY_WELLNESS_REFUSED] = value
+        }
 
     /** The screen's single load trigger — RefreshOnResume calls this on every ON_RESUME (no init load). */
     fun refresh() {
@@ -91,6 +106,7 @@ class ProfileViewModel @Inject constructor(
             // Connect's screen used to see nothing, because this required all three grants.
             val wellnessAvailability = healthMetricsSource.availability()
             val wellnessGranted = healthMetricsSource.grantedTypes()
+            if (wellnessGranted.isNotEmpty()) wellnessRefused = false
             val stepsGranted = HealthDataType.STEPS in wellnessGranted
             var todaySteps: Long? = null
             var todayCalories: Double? = null
@@ -129,18 +145,30 @@ class ProfileViewModel @Inject constructor(
                 muscleDiagramVariant = settings.muscleDiagramVariant,
                 wellnessAvailability = wellnessAvailability,
                 wellnessGranted = wellnessGranted,
+                wellnessRefused = wellnessRefused,
                 todaySteps = todaySteps,
                 todayCaloriesBurned = todayCalories,
             )
         }
     }
 
-    /** Called after the Compose permission launcher resolves — re-runs the one load path rather than duplicating it. */
+    /**
+     * Called after the Compose permission launcher resolves. A grant re-runs the one load path
+     * rather than duplicating it. Nothing granted records the refusal and shows it at once, without
+     * a load: the card then points to Health Connect's settings.
+     */
     fun onWellnessPermissionResult(anyGranted: Boolean) {
         if (anyGranted) {
             healthMetricsSource.onPermissionsRegranted()
             refresh()
+        } else {
+            wellnessRefused = true
+            _uiState.value = _uiState.value.copy(wellnessRefused = true)
         }
+    }
+
+    private companion object {
+        const val KEY_WELLNESS_REFUSED = "profile_wellness_refused"
     }
 }
 
@@ -158,6 +186,11 @@ data class ProfileUiState(
     val wellnessAvailability: HealthConnectAvailability = HealthConnectAvailability.Unavailable,
     /** The Health Connect types the user granted. Empty shows the Connect card; each stat shows only for its own type. */
     val wellnessGranted: Set<HealthDataType> = emptySet(),
+    /**
+     * A Connect came back with nothing granted. While nothing is granted, the Connect card then says
+     * so and offers Health Connect's settings instead of a Connect that would do nothing.
+     */
+    val wellnessRefused: Boolean = false,
     val todaySteps: Long? = null,
     val todayCaloriesBurned: Double? = null,
 )

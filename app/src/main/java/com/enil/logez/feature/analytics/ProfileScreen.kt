@@ -25,12 +25,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,6 +61,7 @@ import java.util.Locale
 import kotlin.math.roundToLong
 import com.enil.logez.core.wellness.canInstallOrUpdate
 import com.enil.logez.core.wellness.openHealthConnectInPlayStore
+import com.enil.logez.core.wellness.openHealthConnectSettings
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.OutlinedButton
 
@@ -109,6 +114,7 @@ fun ProfileScreen(
                 onStatisticsClick = onStatisticsClick,
                 onConnectWellness = requestWellnessPermissions,
                 onInstallHealthConnect = { openHealthConnectInPlayStore(context) },
+                onOpenHealthConnectSettings = { openHealthConnectSettings(context) },
             )
         }
     }
@@ -126,6 +132,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
     onStatisticsClick: (TrainingMetric?) -> Unit,
     onConnectWellness: () -> Unit,
     onInstallHealthConnect: () -> Unit,
+    onOpenHealthConnectSettings: () -> Unit,
 ) {
         item(key = "headline") {
             if (uiState.isLoading) return@item
@@ -200,8 +207,22 @@ private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    Text(stringResource(R.string.wellness_connect_body), style = MaterialTheme.typography.bodyMedium)
-                    Button(onClick = onConnectWellness) { Text(stringResource(R.string.wellness_connect_action)) }
+                    // After a full refusal Health Connect answers Connect at once without showing
+                    // anything, so the card says what happened and opens its settings instead.
+                    // One body Text for both, so the refusal replaces its words in place, and a polite
+                    // live region reads it out after the Connect TalkBack was on is gone.
+                    Text(
+                        stringResource(if (uiState.wellnessRefused) R.string.wellness_connect_refused else R.string.wellness_connect_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    if (uiState.wellnessRefused) {
+                        TextButton(onClick = onOpenHealthConnectSettings) {
+                            Text(stringResource(R.string.activity_tracking_heart_rate_open_settings))
+                        }
+                    } else {
+                        Button(onClick = onConnectWellness) { Text(stringResource(R.string.wellness_connect_action)) }
+                    }
                 }
             }
         }
