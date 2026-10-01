@@ -4,6 +4,7 @@ import com.enil.logez.core.data.dao.MeasurementDao
 import com.enil.logez.core.data.entity.BodyMeasurementEntity
 import com.enil.logez.core.data.entity.ProgressPhotoEntity
 import com.enil.logez.core.domain.repository.BodyMeasurement
+import com.enil.logez.core.domain.repository.DatedWeight
 import com.enil.logez.core.domain.repository.MeasurementRepository
 import com.enil.logez.core.domain.repository.ProgressPhoto
 import javax.inject.Inject
@@ -19,6 +20,9 @@ class MeasurementRepositoryImpl @Inject constructor(
     override suspend fun deleteByDate(date: String) = dao.deleteByDate(date)
     override suspend fun getLatestWeightKgOnOrBefore(date: String): Double? =
         dao.getLatestWeightOnOrBefore(date)?.weightKg
+
+    override suspend fun getLatestWeightOnOrBefore(date: String): DatedWeight? =
+        dao.getLatestWeightOnOrBefore(date)?.let { entity -> entity.weightKg?.let { DatedWeight(entity.date, it) } }
 
     override fun observeAllPhotos(): Flow<List<ProgressPhoto>> = dao.observeAllPhotos().map { list -> list.map { it.toDomain() } }
     override suspend fun upsertPhoto(photo: ProgressPhoto) = dao.upsertPhoto(photo.toEntity())

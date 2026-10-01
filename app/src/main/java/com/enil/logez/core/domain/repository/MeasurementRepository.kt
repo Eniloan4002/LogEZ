@@ -12,11 +12,17 @@ interface MeasurementRepository {
     /** §8.1 bodyweight resolution: newest entry on/before [date] with a non-null weight. */
     suspend fun getLatestWeightKgOnOrBefore(date: String): Double?
 
+    /** The same entry as [getLatestWeightKgOnOrBefore], with the date it was logged on (Profile's Measurements tile). */
+    suspend fun getLatestWeightOnOrBefore(date: String): DatedWeight?
+
     fun observeAllPhotos(): Flow<List<ProgressPhoto>>
     suspend fun upsertPhoto(photo: ProgressPhoto)
     suspend fun getPhotoByDate(date: String): ProgressPhoto?
     suspend fun deletePhoto(photo: ProgressPhoto)
 }
+
+/** A logged bodyweight and its ISO `yyyy-MM-dd` [date]. */
+data class DatedWeight(val date: String, val weightKg: Double)
 
 /** Domain model mirroring [com.enil.logez.core.data.entity.BodyMeasurementEntity] field-for-field. */
 data class BodyMeasurement(

@@ -2,6 +2,7 @@ package com.enil.logez.core.domain.calc
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 /**
@@ -50,5 +51,27 @@ object StreakCalculator {
             anchor = anchor.minusDays(1)
         }
         return streak
+    }
+
+    /**
+     * The longest run of consecutive calendar days in [days] -- ever, not the one ending today. This is
+     * the strict counterpart of [dailyStreak] (it counts every day with a workout, nothing else), so
+     * Profile's "Longest" line always compares like with like against its current value.
+     */
+    fun longestDailyStreak(days: Collection<LocalDate>): Int = longestRun(days.toSortedSet().toList(), stepDays = 1)
+
+    /** The longest run of consecutive weeks (starting on [firstDayOfWeek]) with at least one day in [days]. */
+    fun longestWeeklyStreak(days: Collection<LocalDate>, firstDayOfWeek: DayOfWeek): Int =
+        longestRun(days.map { weekStart(it, firstDayOfWeek) }.distinct().sorted(), stepDays = 7)
+
+    private fun longestRun(sorted: List<LocalDate>, stepDays: Long): Int {
+        if (sorted.isEmpty()) return 0
+        var best = 1
+        var run = 1
+        for (i in 1 until sorted.size) {
+            run = if (ChronoUnit.DAYS.between(sorted[i - 1], sorted[i]) == stepDays) run + 1 else 1
+            if (run > best) best = run
+        }
+        return best
     }
 }

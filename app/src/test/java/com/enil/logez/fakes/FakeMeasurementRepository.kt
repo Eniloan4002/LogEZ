@@ -1,6 +1,7 @@
 package com.enil.logez.fakes
 
 import com.enil.logez.core.domain.repository.BodyMeasurement
+import com.enil.logez.core.domain.repository.DatedWeight
 import com.enil.logez.core.domain.repository.MeasurementRepository
 import com.enil.logez.core.domain.repository.ProgressPhoto
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +37,12 @@ class FakeMeasurementRepository(
         queriedDates += date
         if (weightsByDate.isEmpty()) return bodyweightKg
         return weightsByDate.entries.filter { it.key <= date }.maxByOrNull { it.key }?.value
+    }
+
+    override suspend fun getLatestWeightOnOrBefore(date: String): DatedWeight? {
+        queriedDates += date
+        if (weightsByDate.isEmpty()) return bodyweightKg?.let { DatedWeight(date, it) }
+        return weightsByDate.entries.filter { it.key <= date }.maxByOrNull { it.key }?.let { DatedWeight(it.key, it.value) }
     }
 
     override fun observeAllPhotos(): Flow<List<ProgressPhoto>> = photos

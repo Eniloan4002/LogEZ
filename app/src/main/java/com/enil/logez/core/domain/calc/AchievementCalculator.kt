@@ -2,7 +2,6 @@ package com.enil.logez.core.domain.calc
 
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /**
  * P-208 achievements, grouped for the Achievements screen's sections, in display order.
@@ -103,11 +102,11 @@ object AchievementCalculator {
     }
 
     /** The longest run of consecutive calendar days in [days] -- ever, not the one ending today. */
-    internal fun longestDailyRun(days: Set<LocalDate>): Int = longestRun(days.sorted(), stepDays = 1)
+    internal fun longestDailyRun(days: Set<LocalDate>): Int = StreakCalculator.longestDailyStreak(days)
 
     /** The longest run of consecutive weeks (starting on [firstDayOfWeek]) with at least one day in [days]. */
     internal fun longestWeeklyRun(days: Set<LocalDate>, firstDayOfWeek: DayOfWeek): Int =
-        longestRun(days.map { StreakCalculator.weekStart(it, firstDayOfWeek) }.distinct().sorted(), stepDays = 7)
+        StreakCalculator.longestWeeklyStreak(days, firstDayOfWeek)
 
     /** The most distinct [BodyRegion]s trained inside any single week. */
     internal fun bestWeekRegionCount(trained: List<Pair<LocalDate, BodyRegion>>, firstDayOfWeek: DayOfWeek): Int =
@@ -115,14 +114,19 @@ object AchievementCalculator {
             .values
             .maxOfOrNull { it.toSet().size } ?: 0
 
-    private fun longestRun(sorted: List<LocalDate>, stepDays: Long): Int {
-        if (sorted.isEmpty()) return 0
-        var best = 1
-        var run = 1
-        for (i in 1 until sorted.size) {
-            run = if (ChronoUnit.DAYS.between(sorted[i - 1], sorted[i]) == stepDays) run + 1 else 1
-            if (run > best) best = run
-        }
-        return best
-    }
+    /**
+     * The headline Profile shows for the whole list: how many are unlocked, and which locked one the
+     * user is closest to. "Closest" is current / target, the highest first; a tie goes to the one
+     * declared first, so a brand-new user (everything at 0) is pointed at First Workout. Null [AchievementSummary.next]
+     * when every achievement is unlocked.
+     */
+    fun summarize(progress: List<AchievementProgress>): AchievementSummary =
+        AchievementSummary(
+            unlocked = progress.count { it.unlocked },
+            total = progress.size,
+            next = progress.filterNot { it.unlocked }.maxByOrNull { it.current.toDouble() / it.target },
+        )
 }
+
+/** What [AchievementCalculator.summarize] returns. */
+data class AchievementSummary(val unlocked: Int, val total: Int, val next: AchievementProgress?)

@@ -132,4 +132,30 @@ class AchievementCalculatorTest {
         val steps = (1..30).filter { it != 10 }.associate { day(it) to 11_000L }
         assertEquals(20L, AchievementCalculator.evaluate(input(steps = steps)).of(Achievement.STEP_STREAK_30).current)
     }
+
+    // --- Profile's Achievements tile (2026-10-01) ---
+
+    @Test
+    fun `summarize with nothing logged counts zero and points at First Workout`() {
+        val summary = AchievementCalculator.summarize(AchievementCalculator.evaluate(input()))
+        assertEquals(0, summary.unlocked)
+        assertEquals(17, summary.total)
+        assertEquals(Achievement.FIRST_WORKOUT, summary.next?.achievement)
+    }
+
+    @Test
+    fun `summarize points at the locked achievement closest to its target`() {
+        // One workout today: First Workout is unlocked. 7-Day Streak is 1 of 7, 10 Workouts 1 of 10.
+        val summary = AchievementCalculator.summarize(AchievementCalculator.evaluate(input(workoutDates = listOf(day(1)))))
+        assertEquals(1, summary.unlocked)
+        assertEquals(Achievement.DAY_STREAK_7, summary.next?.achievement)
+    }
+
+    @Test
+    fun `summarize has no next once every achievement is unlocked`() {
+        val all = Achievement.entries.map { AchievementProgress(it, it.target) }
+        val summary = AchievementCalculator.summarize(all)
+        assertEquals(17, summary.unlocked)
+        assertEquals(null, summary.next)
+    }
 }

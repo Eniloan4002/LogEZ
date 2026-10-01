@@ -109,4 +109,31 @@ class StreakCalculatorTest {
         val dates = listOf(monday, monday, monday)
         assertEquals(1, StreakCalculator.dailyStreak(dates, monday))
     }
+
+    // --- Profile's "Longest" lines (2026-10-01): strict, the counterpart of the current streaks ---
+
+    @Test
+    fun `longestDailyStreak is the longest run of consecutive days, not the one ending today`() {
+        val dates = listOf(
+            LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 4),
+            LocalDate.of(2026, 8, 21), LocalDate.of(2026, 8, 22),
+        )
+        assertEquals(4, StreakCalculator.longestDailyStreak(dates))
+        assertEquals(2, StreakCalculator.dailyStreak(dates, LocalDate.of(2026, 8, 22)))
+    }
+
+    @Test
+    fun `longestDailyStreak counts several workouts on one day once and is zero for none`() {
+        val day = LocalDate.of(2026, 8, 5)
+        assertEquals(1, StreakCalculator.longestDailyStreak(listOf(day, day, day)))
+        assertEquals(0, StreakCalculator.longestDailyStreak(emptyList()))
+    }
+
+    @Test
+    fun `longestWeeklyStreak follows the first day of week`() {
+        // Sun 2 Aug and Mon 3 Aug are the same Sunday-first week but different Monday-first weeks.
+        val dates = listOf(LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 10))
+        assertEquals(3, StreakCalculator.longestWeeklyStreak(dates, DayOfWeek.MONDAY))
+        assertEquals(2, StreakCalculator.longestWeeklyStreak(dates, DayOfWeek.SUNDAY))
+    }
 }
