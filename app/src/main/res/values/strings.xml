@@ -623,8 +623,12 @@
 
     <string name="notification_channel_workout_ongoing_name">Workout in progress</string>
     <string name="notification_channel_workout_ongoing_description">The persistent notification shown while a workout is being logged.</string>
-    <string name="notification_channel_rest_timer_name">Rest timer</string>
-    <string name="notification_channel_rest_timer_description">Alerts when your rest timer finishes.</string>
+    <string name="notification_channel_rest_timer_name">Timers</string>
+    <string name="notification_channel_rest_timer_description">Alerts when a rest timer or a countdown ends.</string>
+    <string name="notification_timer_countdown_from">Countdown from %1$s</string>
+    <string name="notification_timer_stopwatch">Stopwatch</string>
+    <string name="notification_countdown_done_title">Countdown done</string>
+    <string name="notification_countdown_done_text">%1$s · %2$s</string>
     <string name="notification_action_complete_set">Complete set</string>
     <string name="notification_action_rest_minus_15">−15s</string>
     <string name="notification_action_rest_plus_15">+15s</string>
@@ -965,7 +969,7 @@
     <string name="settings_sounds_row">Sounds</string>
     <string name="settings_sounds_row_subtitle">Timer tone and volume levels for timer, set complete, and PR sounds.</string>
     <string name="settings_timer_sound">Timer sound</string>
-    <string name="settings_timer_sound_subtitle">Plays when the rest timer ends. Selecting a tone previews it.</string>
+    <string name="settings_timer_sound_subtitle">Plays when a rest timer or a countdown ends. Selecting a tone previews it.</string>
     <string name="settings_timer_sound_option">Tone %1$d</string>
     <string name="settings_timer_volume">Timer volume</string>
     <string name="settings_set_complete_volume">Set complete volume</string>

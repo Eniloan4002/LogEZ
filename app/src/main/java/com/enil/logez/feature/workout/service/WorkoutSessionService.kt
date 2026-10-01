@@ -15,11 +15,19 @@ import com.enil.logez.MainActivity
 import com.enil.logez.R
 import com.enil.logez.core.common.AppLogger
 import com.enil.logez.core.common.ElapsedRealtimeClock
+import com.enil.logez.core.designsystem.formatElapsedClock
+import com.enil.logez.core.domain.model.TimerMode
+import com.enil.logez.core.domain.repository.ExerciseRepository
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.workout.audio.WorkoutAudioPlayer
 import com.enil.logez.feature.workout.audio.WorkoutHapticsPlayer
+import com.enil.logez.feature.workout.session.CountdownFinisher
+import com.enil.logez.feature.workout.session.InlineTimerLog
+import com.enil.logez.feature.workout.session.InlineTimerState
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
+import com.enil.logez.feature.workout.session.TimedSetNotificationContent
+import com.enil.logez.feature.workout.session.TimerWakeLock
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,6 +55,7 @@ class WorkoutSessionService : Service() {
     @Inject lateinit var sessionController: WorkoutSessionController
     @Inject lateinit var setCompletionUseCase: SetCompletionUseCase
     @Inject lateinit var workoutRepository: WorkoutRepository
+    @Inject lateinit var exerciseRepository: ExerciseRepository
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var audioPlayer: WorkoutAudioPlayer
     @Inject lateinit var hapticsPlayer: WorkoutHapticsPlayer
@@ -61,6 +70,14 @@ class WorkoutSessionService : Service() {
     private var collectorsStarted = false
     /** True while this instance holds a live foreground session; see the notification-action check. */
     private var promoted = false
+    /**
+     * The name of the timed set: the last one the logger pushed while a set timer ran, or, when no
+     * logger is alive (a timer restored after process death), one read from Room. Written from one
+     * service coroutine and read from others, hence @Volatile.
+     */
+    @Volatile private var lastTimedSet: TimedSetNotificationContent? = null
+    private val countdownFinisher by lazy { CountdownFinisher(workoutRepository, settingsRepository, audioPlayer, hapticsPlayer) }
+
     private var wakeLock: PowerManager.WakeLock? = null
     /** Guards [wakeLock]: the wake-lock collector runs on [serviceScope]'s (non-main) dispatcher
      * while [onDestroy] runs on the main thread — without this, acquire-then-assign in
@@ -114,6 +131,19 @@ class WorkoutSessionService : Service() {
                 val setId = intent.getStringExtra(EXTRA_SET_ID)
                 if (isForCurrentSession(intent) && workoutId != null && workoutExerciseId != null && setId != null) {
                     serviceScope.launch {
+                        NotificationManagerCompat.from(this@WorkoutSessionService).cancel(COUNTDOWN_DONE_NOTIFICATION_ID)
+                        // A stale action (the "Countdown done" heads-up stays for 15 s) for a set the user
+                        // has since checked in the app must not re-stamp it or restart its rest timer.
+                        val alreadyDone = workoutRepository.getSetsForWorkoutExercise(workoutExerciseId).find { it.id == setId }?.isCompleted == true
+                        if (alreadyDone) return@launch
+                        // The set's own running timer stops and logs what it held first: the check that
+                        // follows would otherwise lose the time. A timer on ANOTHER set is left running.
+                        if (sessionController.state.value.inlineTimer?.setId == setId) {
+                            sessionController.stopRunningInlineTimer()?.let { log ->
+                                workoutRepository.updateWorkoutSetDuration(log.setId, log.seconds)
+                                sessionController.notifyInlineTimerLoggedExternally(log)
+                            }
+                        }
                         if (setCompletionUseCase.completeSet(workoutId, workoutExerciseId, setId)) {
                             sessionController.notifySetCompletedExternally(workoutExerciseId, setId)
                         }
@@ -175,7 +205,31 @@ class WorkoutSessionService : Service() {
         // live seconds natively; we must not call notify() every tick.
         serviceScope.launch {
             sessionController.state
-                .map { NotificationDisplayKey(it.notificationContent, it.isPaused, it.restDeadlineElapsedRealtimeMillis != null, it.accumulatedActiveSeconds) }
+                .map { it.notificationContent?.timedSet to it.inlineTimer }
+                .distinctUntilChanged()
+                .collect { (pushed, timer) ->
+                    if (pushed != null) {
+                        lastTimedSet = pushed
+                    } else if (timer != null && lastTimedSet?.setId != timer.setId) {
+                        // No logger has named this set (a timer restored after process death): read it from Room.
+                        val workoutId = sessionController.state.value.workoutId
+                        val resolved = workoutId?.let { resolveTimedSet(it, timer.exerciseId, timer.setId) }
+                        if (resolved != null) {
+                            lastTimedSet = resolved
+                            postNotification(buildNotification(sessionController.state.value))
+                        }
+                    }
+                }
+        }
+        // A new set timer replaces the 15 s "Countdown done" heads-up of the one before it.
+        serviceScope.launch {
+            sessionController.state.map { it.inlineTimer?.setId }.distinctUntilChanged().collect { setId ->
+                if (setId != null) NotificationManagerCompat.from(this@WorkoutSessionService).cancel(COUNTDOWN_DONE_NOTIFICATION_ID)
+            }
+        }
+        serviceScope.launch {
+            sessionController.state
+                .map { NotificationDisplayKey(it.notificationContent, it.isPaused, it.restDeadlineElapsedRealtimeMillis != null, it.accumulatedActiveSeconds, it.inlineTimer) }
                 .distinctUntilChanged()
                 .collect { postNotification(buildNotification(sessionController.state.value)) }
         }
@@ -191,12 +245,36 @@ class WorkoutSessionService : Service() {
             }
         }
 
-        // §9.4 point 4: a bounded PARTIAL_WAKE_LOCK only while a rest countdown is active.
+        // A set countdown's expiry, watched the same way as the rest deadline: the Service owns it,
+        // so a countdown that ends with the app closed still logs. After a restart a deadline that
+        // already passed fires at once (the full time, one late alert).
         serviceScope.launch {
-            sessionController.state.map { it.restDeadlineElapsedRealtimeMillis }.distinctUntilChanged().collect { deadline ->
-                releaseWakeLock()
-                if (deadline != null) acquireWakeLock(deadline)
+            sessionController.state.map { it.inlineTimer?.deadlineElapsedRealtimeMillis }.distinctUntilChanged().collectLatest { deadline ->
+                if (deadline != null) {
+                    while (true) {
+                        val remaining = deadline - elapsedRealtimeClock.elapsedRealtimeMillis()
+                        if (remaining <= 0) break
+                        delay(remaining)
+                    }
+                    // The write, sound, buzz and heads-up run off the log this returns, not off a flow
+                    // subscription: see [CountdownFinisher]. Null when the timer was stopped meanwhile.
+                    // Launched on its own, not run inline: finishing clears the timer, which makes this
+                    // collectLatest's deadline flow emit null and CANCEL this block, and with it the write.
+                    sessionController.finishCountdown()?.let { log -> serviceScope.launch { countdownFinisher.finish(log, ::postCountdownDoneHeadsUp) } }
+                }
             }
+        }
+
+        // §9.4 point 4: a bounded PARTIAL_WAKE_LOCK only while a rest or set countdown is active,
+        // sized by [TimerWakeLock].
+        serviceScope.launch {
+            sessionController.state
+                .map { s -> s.restDeadlineElapsedRealtimeMillis to s.inlineTimer?.deadlineElapsedRealtimeMillis }
+                .distinctUntilChanged()
+                .collect { (restDeadline, countdownDeadline) ->
+                    releaseWakeLock()
+                    TimerWakeLock.timeoutMs(restDeadline, countdownDeadline, elapsedRealtimeClock.elapsedRealtimeMillis())?.let { acquireWakeLock(it) }
+                }
         }
 
         // §9.7: sound + vibration + a short-lived heads-up companion notification on rest-end.
@@ -210,11 +288,9 @@ class WorkoutSessionService : Service() {
         }
     }
 
-    private fun acquireWakeLock(deadlineElapsedRealtimeMillis: Long) = synchronized(wakeLockGuard) {
-        val remainingMs = (deadlineElapsedRealtimeMillis - elapsedRealtimeClock.elapsedRealtimeMillis()).coerceAtLeast(0)
-        val timeoutMs = (remainingMs + WAKE_LOCK_SLACK_MS).coerceAtMost(MAX_REST_TIMER_MS + WAKE_LOCK_SLACK_MS)
+    private fun acquireWakeLock(timeoutMs: Long) = synchronized(wakeLockGuard) {
         val powerManager = getSystemService(POWER_SERVICE) as? PowerManager ?: return@synchronized
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "logez:restTimer").apply {
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "logez:timers").apply {
             setReferenceCounted(false)
             acquire(timeoutMs)
         }
@@ -278,12 +354,63 @@ class WorkoutSessionService : Service() {
         NotificationManagerCompat.from(this).notify(REST_END_NOTIFICATION_ID, notification)
     }
 
+    /** "Countdown done" / "Plank · set 2 · 1:00", with a Complete set action for the set that was timed. */
+    @SuppressLint("MissingPermission")
+    private suspend fun postCountdownDoneHeadsUp(log: InlineTimerLog) {
+        val workoutId = sessionController.state.value.workoutId
+        // The timer is already cleared and the logger may have dropped the timed-set content, so the
+        // name comes from the last one seen while the timer ran, else from Room.
+        val named = (sessionController.state.value.notificationContent?.timedSet?.takeIf { it.setId == log.setId })
+            ?: lastTimedSet?.takeIf { it.setId == log.setId }
+            ?: workoutId?.let { resolveTimedSet(it, log.exerciseId, log.setId) }
+        val label = named?.label ?: getString(R.string.notification_workout_fallback_title)
+        val builder = NotificationCompat.Builder(this, WorkoutNotificationChannels.REST_TIMER)
+            .setSmallIcon(R.drawable.ic_stat_logez)
+            .setContentTitle(getString(R.string.notification_countdown_done_title))
+            .setContentText(getString(R.string.notification_countdown_done_text, label, formatElapsedClock(log.seconds)))
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .setAutoCancel(true)
+            .setContentIntent(openAppPendingIntent())
+            .setTimeoutAfter(REST_END_HEADS_UP_TIMEOUT_MS)
+        if (workoutId != null) {
+            builder.addAction(0, getString(R.string.notification_action_complete_set), completeSetPendingIntent(workoutId, log.exerciseId, log.setId, REQUEST_COUNTDOWN_COMPLETE_SET))
+        }
+        NotificationManagerCompat.from(this).notify(COUNTDOWN_DONE_NOTIFICATION_ID, builder.build())
+    }
+
+    /** "Plank · set 2 of 3" for a set, read from Room: the fallback when no logger has named it. Null if it cannot be found. */
+    private suspend fun resolveTimedSet(workoutId: String, workoutExerciseId: String, setId: String): TimedSetNotificationContent? {
+        val workoutExercise = workoutRepository.getExercisesForWorkout(workoutId).find { it.id == workoutExerciseId } ?: return null
+        val name = exerciseRepository.getById(workoutExercise.exerciseId)?.name ?: return null
+        val sets = workoutRepository.getSetsForWorkoutExercise(workoutExerciseId).sortedBy { it.orderIndex }
+        val index = sets.indexOfFirst { it.id == setId }
+        if (index < 0) return null
+        return TimedSetNotificationContent(
+            exerciseId = workoutExerciseId,
+            setId = setId,
+            title = "$name · set ${index + 1} of ${sets.size}",
+            label = "$name · set ${index + 1}",
+        )
+    }
+
     private fun buildNotification(state: WorkoutSessionState): Notification {
         val content = state.notificationContent
+        val timer = state.inlineTimer
+        // While a set timer runs, the title follows the TIMED set. The VM names it in
+        // [content.timedSet]; with no ViewModel alive (a timer restored after process death) it
+        // falls back to the generic title, but the clock and Complete set still follow the timer.
+        val timedSet = timer?.let { t -> content?.timedSet?.takeIf { it.setId == t.setId } ?: lastTimedSet?.takeIf { it.setId == t.setId } }
+        val title = if (timer != null) timedSet?.title ?: getString(R.string.notification_workout_fallback_title) else content?.title ?: getString(R.string.notification_workout_fallback_title)
+        val text = when {
+            timer == null -> content?.text.orEmpty()
+            timer.mode == TimerMode.COUNTDOWN && timer.targetSeconds != null -> getString(R.string.notification_timer_countdown_from, formatElapsedClock(timer.targetSeconds))
+            else -> getString(R.string.notification_timer_stopwatch)
+        }
         val builder = NotificationCompat.Builder(this, WorkoutNotificationChannels.WORKOUT_ONGOING)
             .setSmallIcon(R.drawable.ic_stat_logez)
-            .setContentTitle(content?.title ?: getString(R.string.notification_workout_fallback_title))
-            .setContentText(content?.text.orEmpty())
+            .setContentTitle(title)
+            .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
@@ -293,6 +420,14 @@ class WorkoutSessionService : Service() {
         val restDeadline = state.restDeadlineElapsedRealtimeMillis
         val workoutId = state.workoutId
         when {
+            // A running set timer wins: its clock counts down to the deadline (a countdown) or up
+            // from its start (a stopwatch), and Complete set stops it and checks THAT set.
+            timer != null -> {
+                addTimerChronometer(builder, timer)
+                if (workoutId != null) {
+                    builder.addAction(0, getString(R.string.notification_action_complete_set), completeSetPendingIntent(workoutId, timer.exerciseId, timer.setId))
+                }
+            }
             // Actions are only offered once a session id exists to scope them to — without it a
             // tapped action could not be validated against the session it was built for.
             restDeadline != null -> {
@@ -319,6 +454,17 @@ class WorkoutSessionService : Service() {
         return builder.build()
     }
 
+    private fun addTimerChronometer(builder: NotificationCompat.Builder, timer: InlineTimerState) {
+        val now = elapsedRealtimeClock.elapsedRealtimeMillis()
+        val wallNow = System.currentTimeMillis()
+        val deadline = timer.deadlineElapsedRealtimeMillis
+        if (deadline != null) {
+            builder.setUsesChronometer(true).setChronometerCountDown(true).setWhen(wallNow + (deadline - now))
+        } else {
+            builder.setUsesChronometer(true).setChronometerCountDown(false).setWhen(wallNow - (now - timer.startElapsedRealtimeMillis))
+        }
+    }
+
     private fun openAppPendingIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -326,8 +472,8 @@ class WorkoutSessionService : Service() {
         return PendingIntent.getActivity(this, REQUEST_OPEN_APP, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun completeSetPendingIntent(workoutId: String, workoutExerciseId: String, setId: String): PendingIntent =
-        servicePendingIntent(REQUEST_COMPLETE_SET, ACTION_COMPLETE_SET, workoutId) {
+    private fun completeSetPendingIntent(workoutId: String, workoutExerciseId: String, setId: String, requestCode: Int = REQUEST_COMPLETE_SET): PendingIntent =
+        servicePendingIntent(requestCode, ACTION_COMPLETE_SET, workoutId) {
             putExtra(EXTRA_WORKOUT_EXERCISE_ID, workoutExerciseId)
             putExtra(EXTRA_SET_ID, setId)
         }
@@ -362,6 +508,7 @@ class WorkoutSessionService : Service() {
         val isPaused: Boolean,
         val isResting: Boolean,
         val accumulatedActiveSeconds: Long,
+        val inlineTimer: InlineTimerState?,
     )
 
     companion object {
@@ -380,14 +527,14 @@ class WorkoutSessionService : Service() {
         private val NOTIFICATION_ACTIONS = setOf(ACTION_COMPLETE_SET, ACTION_REST_ADJUST, ACTION_REST_SKIP)
         private const val NOTIFICATION_ID = 1001
         private const val REST_END_NOTIFICATION_ID = 1002
+        private const val COUNTDOWN_DONE_NOTIFICATION_ID = 1003
         private const val REST_END_HEADS_UP_TIMEOUT_MS = 15_000L
-        private const val WAKE_LOCK_SLACK_MS = 10_000L
-        private const val MAX_REST_TIMER_MS = 5 * 60_000L
 
         private const val REQUEST_OPEN_APP = 1
         private const val REQUEST_COMPLETE_SET = 2
         private const val REQUEST_REST_MINUS = 3
         private const val REQUEST_REST_PLUS = 4
         private const val REQUEST_REST_SKIP = 5
+        private const val REQUEST_COUNTDOWN_COMPLETE_SET = 6
     }
 }

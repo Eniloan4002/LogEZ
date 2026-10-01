@@ -1,5 +1,6 @@
 package com.enil.logez.fakes
 
+import com.enil.logez.core.domain.model.ActiveInlineTimerSnapshot
 import com.enil.logez.core.domain.model.ActiveSessionSnapshot
 import com.enil.logez.core.domain.repository.ActiveSessionRepository
 
@@ -25,6 +26,10 @@ class FakeActiveSessionRepository(initial: ActiveSessionSnapshot = ActiveSession
 
     override suspend fun updateDurationBookkeeping(isPaused: Boolean, accumulatedActiveSeconds: Long, lastResumedAtMillis: Long?) {
         snapshot = snapshot.copy(isPaused = isPaused, accumulatedActiveSeconds = accumulatedActiveSeconds, lastResumedAtMillis = lastResumedAtMillis)
+    }
+
+    override suspend fun updateInlineTimer(timer: ActiveInlineTimerSnapshot?) {
+        snapshot = snapshot.copy(inlineTimer = timer)
     }
 
     override suspend fun updateRestTimer(deadlineElapsedRealtimeMillis: Long?, exerciseId: String?) {

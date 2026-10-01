@@ -2,6 +2,8 @@ package com.enil.logez.feature.workout.session
 
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.common.ElapsedRealtimeClock
+import com.enil.logez.core.domain.model.ActiveInlineTimerSnapshot
+import com.enil.logez.core.domain.model.TimerMode
 import com.enil.logez.core.domain.repository.ActiveSessionRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class WorkoutNotificationContent(
     val title: String,
@@ -23,9 +27,36 @@ data class WorkoutNotificationContent(
     /** §9.3 "Complete set" action target — the exercise/set the notification's primary action would complete. */
     val actionableExerciseId: String? = null,
     val actionableSetId: String? = null,
+    /**
+     * What the ongoing notification shows instead of [title]/[text] while a set timer runs: it
+     * follows the TIMED set, wherever it is in the workout (not the first exercise with an open set).
+     * Null when no set timer runs. Only used while [WorkoutSessionState.inlineTimer] is for the same set.
+     */
+    val timedSet: TimedSetNotificationContent? = null,
 )
 
-data class InlineTimerState(val exerciseId: String, val setId: String, val startElapsedRealtimeMillis: Long)
+/** Names the timed set for the ongoing notification and the countdown-done heads-up: [title] "Plank · set 2 of 3", [label] "Plank · set 2". */
+data class TimedSetNotificationContent(val exerciseId: String, val setId: String, val title: String, val label: String)
+
+/**
+ * A running inline set timer. [targetSeconds] is a countdown's length (null for a stopwatch);
+ * [startWallMillis] is the start on the wall clock, saved beside the elapsedRealtime start so a
+ * restore can tell a reboot from a process death ([InlineTimerEngine.isRestorable]).
+ */
+data class InlineTimerState(
+    val exerciseId: String,
+    val setId: String,
+    val startElapsedRealtimeMillis: Long,
+    val mode: TimerMode = TimerMode.STOPWATCH,
+    val targetSeconds: Int? = null,
+    val startWallMillis: Long = 0L,
+) {
+    /** The moment a countdown reaches 0:00, or null for a stopwatch. */
+    val deadlineElapsedRealtimeMillis: Long? get() = InlineTimerEngine.deadline(mode, startElapsedRealtimeMillis, targetSeconds)
+}
+
+/** A set timer that ended: the seconds to write into the set's TIME. */
+data class InlineTimerLog(val exerciseId: String, val setId: String, val seconds: Int)
 
 data class WorkoutSessionState(
     val workoutId: String? = null,
@@ -77,6 +108,21 @@ class WorkoutSessionController @Inject constructor(
         _setCompletedExternally.tryEmit(workoutExerciseId to setId)
     }
 
+    private val _countdownFinished = MutableSharedFlow<InlineTimerLog>(extraBufferCapacity = 4)
+    /**
+     * Emits once when a countdown reaches 0:00 (fired by the Service, which owns watching the
+     * deadline, like the rest timer). The Service writes the full time to Room and plays the alert;
+     * an open logger mirrors the time into its own state.
+     */
+    val countdownFinished: Flow<InlineTimerLog> = _countdownFinished.asSharedFlow()
+
+    private val _inlineTimerLoggedExternally = MutableSharedFlow<InlineTimerLog>(extraBufferCapacity = 4)
+    /** A set timer stopped by something other than the logger's own Stop (the notification's "Complete set"): the Service has written [InlineTimerLog.seconds] to Room, and an open logger mirrors it. */
+    val inlineTimerLoggedExternally: Flow<InlineTimerLog> = _inlineTimerLoggedExternally.asSharedFlow()
+    fun notifyInlineTimerLoggedExternally(log: InlineTimerLog) {
+        _inlineTimerLoggedExternally.tryEmit(log)
+    }
+
     private var rehydrated = false
 
     /** §9.5 process-death recovery: loads the persisted snapshot once. Safe to call repeatedly (no-ops after the first). */
@@ -93,8 +139,36 @@ class WorkoutSessionController @Inject constructor(
                 isEmptyWorkoutTimerMode = snapshot.isEmptyWorkoutTimerMode,
                 restDeadlineElapsedRealtimeMillis = snapshot.restDeadlineElapsedRealtimeMillis,
                 restExerciseId = snapshot.restExerciseId,
+                inlineTimer = restoredInlineTimer(snapshot.inlineTimer),
             )
         }
+    }
+
+    /**
+     * The saved set timer if it can still be trusted. After a reboot (or a clock change) the two
+     * clocks disagree and it is dropped, saved as gone, rather than shown with a wrong time. A
+     * countdown whose deadline passed while the app was dead is kept: the Service (or the logger,
+     * whichever is up first) then finishes it at once, logging the full time. A stopwatch older
+     * than [InlineTimerEngine.MAX_RESTORED_STOPWATCH_MS] is dropped too: a plank held for a day is
+     * not a measurement, and logging it would put a bogus duration into records.
+     */
+    private fun restoredInlineTimer(saved: ActiveInlineTimerSnapshot?): InlineTimerState? {
+        if (saved == null) return null
+        val nowWall = clock.now().toEpochMilliseconds()
+        val nowElapsed = elapsedRealtimeClock.elapsedRealtimeMillis()
+        if (!InlineTimerEngine.isRestorable(saved, nowWall, nowElapsed)) {
+            // Persisted as gone, so it is not offered again. The write reads the live state, see persistInlineTimer.
+            persistInlineTimer()
+            return null
+        }
+        return InlineTimerState(
+            exerciseId = saved.exerciseId,
+            setId = saved.setId,
+            startElapsedRealtimeMillis = saved.startElapsedRealtimeMillis,
+            mode = TimerMode.of(saved.mode),
+            targetSeconds = saved.targetSeconds,
+            startWallMillis = saved.startWallMillis,
+        )
     }
 
     /**
@@ -217,27 +291,111 @@ class WorkoutSessionController @Inject constructor(
         }
     }
 
-    // --- Inline timer (§5.1.3: DURATION-family TIME-cell stopwatch, one at a time, in-memory only — not process-death-critical) ---
+    // --- Inline timer (§5.1.3: a DURATION-family TIME-cell timer, one at a time -- a stopwatch or a countdown, per workout exercise) ---
 
-    fun startInlineTimer(exerciseId: String, setId: String) {
-        _state.update { it.copy(inlineTimer = InlineTimerState(exerciseId, setId, elapsedRealtimeClock.elapsedRealtimeMillis())) }
+    /**
+     * Starts a set timer. A [TimerMode.COUNTDOWN] needs a positive [targetSeconds] (its length);
+     * without one nothing starts and this returns false. A stopwatch ignores [targetSeconds]. It
+     * replaces any running timer without logging it, so the caller stops and logs that one first
+     * ([stopRunningInlineTimer]). Saved with the session, so it survives process death.
+     */
+    fun startInlineTimer(exerciseId: String, setId: String, mode: TimerMode = TimerMode.STOPWATCH, targetSeconds: Int? = null): Boolean {
+        if (mode == TimerMode.COUNTDOWN && (targetSeconds ?: 0) <= 0) return false
+        val timer = InlineTimerState(
+            exerciseId = exerciseId,
+            setId = setId,
+            startElapsedRealtimeMillis = elapsedRealtimeClock.elapsedRealtimeMillis(),
+            mode = mode,
+            targetSeconds = targetSeconds.takeIf { mode == TimerMode.COUNTDOWN },
+            startWallMillis = clock.now().toEpochMilliseconds(),
+        )
+        _state.update { it.copy(inlineTimer = timer) }
+        persistInlineTimer()
+        return true
     }
 
     /** Returns elapsed seconds to commit into `durationSeconds`, or null if no inline timer was running for this exact set. */
     fun stopInlineTimer(exerciseId: String, setId: String): Int? {
         val running = _state.value.inlineTimer ?: return null
         if (running.exerciseId != exerciseId || running.setId != setId) return null
-        val elapsedMs = elapsedRealtimeClock.elapsedRealtimeMillis() - running.startElapsedRealtimeMillis
-        _state.update { it.copy(inlineTimer = null) }
-        return (elapsedMs / 1000).toInt().coerceAtLeast(0)
+        return stopRunningInlineTimer()?.seconds
     }
 
-    /** Ticks once/sec while an inline timer is running, for the TIME cell's live stopwatch display. */
+    /** Stops whichever set timer is running and returns what to log into that set's TIME, or null when none runs. */
+    fun stopRunningInlineTimer(): InlineTimerLog? {
+        val running = _state.value.inlineTimer ?: return null
+        val seconds = InlineTimerEngine.loggedSeconds(
+            running.mode, running.startElapsedRealtimeMillis, running.targetSeconds, elapsedRealtimeClock.elapsedRealtimeMillis(),
+        )
+        // Only the caller that actually clears this timer logs it: a stop on one thread and a
+        // countdown finishing on another can both have read it, and the loser gets null.
+        if (!clearInlineTimerIf(running)) return null
+        persistInlineTimer()
+        return InlineTimerLog(running.exerciseId, running.setId, seconds)
+    }
+
+    /** Clears the running timer only if it is still [running], atomically. False when something else already cleared or replaced it. */
+    private fun clearInlineTimerIf(running: InlineTimerState): Boolean {
+        while (true) {
+            val current = _state.value
+            if (current.inlineTimer != running) return false
+            if (_state.compareAndSet(current, current.copy(inlineTimer = null))) return true
+        }
+    }
+
+    /**
+     * Called by the Service when its watcher sees a countdown's deadline pass (or finds it already
+     * past after a restart). Clears the timer and emits the full target time once on [countdownFinished].
+     * Returns null, and does nothing, if no countdown is running or it has not reached 0:00 yet.
+     */
+    fun finishCountdown(): InlineTimerLog? {
+        val running = _state.value.inlineTimer ?: return null
+        val target = running.targetSeconds ?: return null
+        if (!InlineTimerEngine.isFinished(running.mode, running.startElapsedRealtimeMillis, target, elapsedRealtimeClock.elapsedRealtimeMillis())) return null
+        if (!clearInlineTimerIf(running)) return null
+        persistInlineTimer()
+        val log = InlineTimerLog(running.exerciseId, running.setId, target)
+        _countdownFinished.tryEmit(log)
+        return log
+    }
+
+    /** Serialises the saves of the running timer, see [persistInlineTimer]. */
+    private val inlineTimerWriteLock = Mutex()
+
+    /**
+     * Saves the timer as it is when the write runs, not as it was when this was called. The scope
+     * is multi-threaded, so two quick calls (stop one set's timer, start another's) can reach the
+     * store in either order; each write takes the lock and reads the live state, so whichever runs
+     * last always writes the latest, and a late "remove" can never erase a newer timer.
+     */
+    private fun persistInlineTimer() {
+        scope.launch {
+            inlineTimerWriteLock.withLock {
+                val snapshot = _state.value.inlineTimer?.let {
+                    ActiveInlineTimerSnapshot(
+                        exerciseId = it.exerciseId,
+                        setId = it.setId,
+                        mode = it.mode.stored,
+                        startWallMillis = it.startWallMillis,
+                        startElapsedRealtimeMillis = it.startElapsedRealtimeMillis,
+                        targetSeconds = it.targetSeconds,
+                    )
+                }
+                activeSessionRepository.updateInlineTimer(snapshot)
+            }
+        }
+    }
+
+    /**
+     * What the TIME cell shows while a set timer runs: whole seconds elapsed for a stopwatch, seconds
+     * left for a countdown. Wakes on each display change, not on a fixed tick, so it does not drift.
+     */
     val inlineTimerSecondsFlow: Flow<Int?> = flow {
         while (true) {
             val running = _state.value.inlineTimer
-            emit(running?.let { ((elapsedRealtimeClock.elapsedRealtimeMillis() - it.startElapsedRealtimeMillis) / 1000).toInt().coerceAtLeast(0) })
-            delay(1_000)
+            val now = elapsedRealtimeClock.elapsedRealtimeMillis()
+            emit(running?.let { InlineTimerEngine.displaySeconds(it.mode, it.startElapsedRealtimeMillis, it.targetSeconds, now) })
+            delay(running?.let { InlineTimerEngine.millisUntilNextDisplayChange(it.mode, it.startElapsedRealtimeMillis, it.targetSeconds, now) } ?: 1_000L)
         }
     }
 

@@ -1,5 +1,7 @@
 package com.enil.logez.feature.workout.session
 
+import com.enil.logez.core.domain.model.ActiveInlineTimerSnapshot
+import com.enil.logez.core.domain.model.TimerMode
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeElapsedRealtimeClock
@@ -12,6 +14,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -219,6 +222,112 @@ class WorkoutSessionControllerTest {
         assertEquals("s1", controller.state.value.inlineTimer?.setId)
     }
 
+    // --- set timer modes (Owner, 2026-10-01) ---
+
+    @Test
+    fun `a countdown records its deadline and needs a positive target`() = runTest {
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 5_000L)
+        val controller = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+
+        assertFalse(controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, null))
+        assertFalse(controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 0))
+        assertNull(controller.state.value.inlineTimer)
+
+        assertTrue(controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60))
+        assertEquals(65_000L, controller.state.value.inlineTimer?.deadlineElapsedRealtimeMillis)
+    }
+
+    @Test
+    fun `a countdown stopped with 41 seconds left of 60 logs the 19 held`() = runTest {
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60)
+
+        elapsedClock.currentMillis = 19_000L
+        val log = controller.stopRunningInlineTimer()
+
+        assertEquals(InlineTimerLog("we1", "s1", 19), log)
+        assertNull(controller.state.value.inlineTimer)
+    }
+
+    @Test
+    fun `finishCountdown does nothing before the deadline, then logs the full target once and clears the timer`() = runTest {
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 0L)
+        val repo = FakeActiveSessionRepository()
+        val controller = WorkoutSessionController(repo, FakeClock(), elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60)
+        val emitted = mutableListOf<InlineTimerLog>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { controller.countdownFinished.collect { emitted += it } }
+
+        elapsedClock.currentMillis = 59_999L
+        assertNull(controller.finishCountdown())
+        assertEquals("s1", controller.state.value.inlineTimer?.setId)
+
+        elapsedClock.currentMillis = 60_000L
+        assertEquals(InlineTimerLog("we1", "s1", 60), controller.finishCountdown())
+        assertNull(controller.state.value.inlineTimer)
+        assertNull(repo.snapshot.inlineTimer)
+        assertNull(controller.finishCountdown())
+        assertEquals(listOf(InlineTimerLog("we1", "s1", 60)), emitted)
+        job.cancel()
+    }
+
+    @Test
+    fun `a running timer is persisted and rehydrated after process death, keeping its deadline`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 50_000L)
+        val first = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        first.startSession("w1")
+        first.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60)
+        assertEquals("COUNTDOWN", repo.snapshot.inlineTimer?.mode)
+
+        // 12 s pass with the process dead: both clocks moved together.
+        clock.currentMillis = 1_012_000L
+        elapsedClock.currentMillis = 62_000L
+        val second = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        second.rehydrate()
+
+        val timer = second.state.value.inlineTimer!!
+        assertEquals(TimerMode.COUNTDOWN, timer.mode)
+        assertEquals(110_000L, timer.deadlineElapsedRealtimeMillis)
+        assertEquals(48, InlineTimerEngine.displaySeconds(timer.mode, timer.startElapsedRealtimeMillis, timer.targetSeconds, 62_000L))
+    }
+
+    @Test
+    fun `a saved timer is dropped, and saved as gone, when a reboot made the two clocks disagree`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 500_000L)
+        val first = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        first.startSession("w1")
+        first.startInlineTimer("we1", "s1")
+
+        // An hour later on the wall clock, but elapsedRealtime restarted from 30 s: a reboot.
+        clock.currentMillis = 4_600_000L
+        elapsedClock.currentMillis = 30_000L
+        val second = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        second.rehydrate()
+
+        assertNull(second.state.value.inlineTimer)
+        assertNull(repo.snapshot.inlineTimer)
+        assertEquals("w1", second.state.value.workoutId)
+    }
+
+    @Test
+    fun `the TIME cell's live value counts down for a countdown and up for a stopwatch`() = runTest {
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60)
+        elapsedClock.currentMillis = 18_500L
+        assertEquals(42, controller.inlineTimerSecondsFlow.first())
+
+        controller.stopRunningInlineTimer()
+        controller.startInlineTimer("we1", "s2")
+        elapsedClock.currentMillis = 18_500L + 38_900L
+        assertEquals(38, controller.inlineTimerSecondsFlow.first())
+    }
+
     @Test
     fun `rehydrate restores a persisted snapshot -- process-death recovery`() = runTest {
         val repo = FakeActiveSessionRepository()
@@ -280,5 +389,107 @@ class WorkoutSessionControllerTest {
         elapsedClock.currentMillis = 30_000L
 
         assertEquals(60_000L, controller.restRemainingMillisFlow.first())
+    }
+
+    // --- review fixes: races, ordering, restore bounds ---
+
+    @Test
+    fun `a countdown that expired while the process was dead is restored and finishes exactly once with the full time`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 50_000L)
+        val first = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        first.startSession("w1")
+        first.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60)
+
+        // 10 minutes pass with the process dead: both clocks moved together, the deadline is long gone.
+        clock.currentMillis = 1_600_000L
+        elapsedClock.currentMillis = 650_000L
+        val second = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        second.rehydrate()
+
+        assertEquals("s1", second.state.value.inlineTimer?.setId)
+        assertEquals(InlineTimerLog("we1", "s1", 60), second.finishCountdown())
+        assertNull(second.state.value.inlineTimer)
+        assertNull(repo.snapshot.inlineTimer)
+        assertNull(second.finishCountdown())
+    }
+
+    @Test
+    fun `a stopwatch left running for over four hours is dropped on restore, not logged as a record-sized duration`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 50_000L)
+        val first = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        first.startSession("w1")
+        first.startInlineTimer("we1", "s1")
+
+        // The next morning: 24 hours on both clocks.
+        clock.currentMillis = 1_000_000L + 86_400_000L
+        elapsedClock.currentMillis = 50_000L + 86_400_000L
+        val second = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        second.rehydrate()
+
+        assertNull(second.state.value.inlineTimer)
+        assertNull(repo.snapshot.inlineTimer)
+    }
+
+    @Test
+    fun `a stopwatch of two hours is still restored`() = runTest {
+        val repo = FakeActiveSessionRepository()
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 50_000L)
+        val first = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        first.startSession("w1")
+        first.startInlineTimer("we1", "s1")
+
+        clock.currentMillis = 1_000_000L + 7_200_000L
+        elapsedClock.currentMillis = 50_000L + 7_200_000L
+        val second = WorkoutSessionController(repo, clock, elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        second.rehydrate()
+
+        assertEquals("s1", second.state.value.inlineTimer?.setId)
+    }
+
+    @Test
+    fun `finishCountdown after the countdown was stopped does nothing and never emits, so a stopped timer raises no late alert`() = runTest {
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 0L)
+        val controller = WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), elapsedClock, CoroutineScope(UnconfinedTestDispatcher()))
+        controller.startInlineTimer("we1", "s1", TimerMode.COUNTDOWN, 60)
+        val emitted = mutableListOf<InlineTimerLog>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { controller.countdownFinished.collect { emitted += it } }
+
+        elapsedClock.currentMillis = 60_000L
+        assertEquals(InlineTimerLog("we1", "s1", 60), controller.stopRunningInlineTimer())
+        assertNull(controller.finishCountdown())
+        assertNull(controller.stopRunningInlineTimer())
+
+        assertEquals(emptyList<InlineTimerLog>(), emitted)
+        job.cancel()
+    }
+
+    @Test
+    fun `stopping one timer and starting another saves the new timer however the writes are ordered`() = runTest {
+        // Every save writes the timer as it is when the write RUNS, so a late "remove" for the old
+        // timer cannot land after (and erase) the save of the new one.
+        val writes = mutableListOf<ActiveInlineTimerSnapshot?>()
+        val repo = object : com.enil.logez.core.domain.repository.ActiveSessionRepository by FakeActiveSessionRepository() {
+            override suspend fun updateInlineTimer(timer: ActiveInlineTimerSnapshot?) {
+                writes += timer
+            }
+        }
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val elapsedClock = FakeElapsedRealtimeClock(currentMillis = 1_000L)
+        val controller = WorkoutSessionController(repo, FakeClock(currentMillis = 9_000L), elapsedClock, CoroutineScope(dispatcher))
+
+        controller.startInlineTimer("we1", "sA")
+        elapsedClock.currentMillis = 4_000L
+        controller.stopRunningInlineTimer()
+        controller.startInlineTimer("we1", "sB", TimerMode.COUNTDOWN, 30)
+        runCurrent()
+
+        val expected = ActiveInlineTimerSnapshot("we1", "sB", "COUNTDOWN", startWallMillis = 9_000L, startElapsedRealtimeMillis = 4_000L, targetSeconds = 30)
+        assertEquals(3, writes.size)
+        assertTrue(writes.all { it == expected })
     }
 }

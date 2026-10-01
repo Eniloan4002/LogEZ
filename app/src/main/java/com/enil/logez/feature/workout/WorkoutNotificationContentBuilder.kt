@@ -4,6 +4,7 @@ import com.enil.logez.core.designsystem.formatWeight
 import com.enil.logez.core.designsystem.formatMmSs
 import com.enil.logez.core.designsystem.formatTargetNumber
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.feature.workout.session.TimedSetNotificationContent
 import com.enil.logez.feature.workout.session.WorkoutNotificationContent
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 
@@ -15,7 +16,12 @@ import com.enil.logez.feature.workout.session.WorkoutSessionController
 class WorkoutNotificationContentBuilder(
     private val sessionController: WorkoutSessionController,
 ) {
-    fun push(exercises: List<WorkoutExerciseUiModel>, restingExerciseId: String?, weightUnit: WeightUnit) {
+    /**
+     * [timedSet] is the (exerciseId, setId) of a running set timer, if any: the notification then
+     * follows that set (title, clock and Complete set), wherever it is in the workout, instead of
+     * the first exercise with an open set.
+     */
+    fun push(exercises: List<WorkoutExerciseUiModel>, restingExerciseId: String?, weightUnit: WeightUnit, timedSet: Pair<String, String>? = null) {
         if (exercises.isEmpty()) {
             sessionController.updateNotificationContent(null)
             return
@@ -37,7 +43,21 @@ class WorkoutNotificationContentBuilder(
                 isResting = isResting,
                 actionableExerciseId = if (!isResting) current.id else null,
                 actionableSetId = if (!isResting) nextSet?.id else null,
+                timedSet = timedSetContent(exercises, timedSet),
             ),
+        )
+    }
+
+    private fun timedSetContent(exercises: List<WorkoutExerciseUiModel>, timedSet: Pair<String, String>?): TimedSetNotificationContent? {
+        val (exerciseId, setId) = timedSet ?: return null
+        val exercise = exercises.find { it.id == exerciseId } ?: return null
+        val index = exercise.sets.indexOfFirst { it.id == setId }
+        if (index < 0) return null
+        return TimedSetNotificationContent(
+            exerciseId = exerciseId,
+            setId = setId,
+            title = "${exercise.exerciseName} · set ${index + 1} of ${exercise.sets.size}",
+            label = "${exercise.exerciseName} · set ${index + 1}",
         )
     }
 

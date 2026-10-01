@@ -13,6 +13,10 @@ import com.enil.logez.R
  */
 object WorkoutNotificationChannels {
     const val WORKOUT_ONGOING = "workout_ongoing"
+    /**
+     * The alert channel for a rest timer and a countdown ending. Its name and description now say
+     * "Timers", but the ID stays "rest_timer" so people's per-channel settings survive.
+     */
     const val REST_TIMER = "rest_timer"
 
     /**
