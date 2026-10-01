@@ -643,6 +643,8 @@ class WorkoutLoggerViewModel @Inject constructor(
                 method = settings.warmupMethod,
                 barbell = exercise.equipment == Equipment.BARBELL,
                 equipment = settings.plateEquipment,
+                // F9: a pounds user's ladder lands on pound plates and the 5 lb grid.
+                unit = settings.weightUnit,
             )
             if (plan.isEmpty()) return@launch
             val newSets = plan.map {

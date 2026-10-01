@@ -60,9 +60,10 @@ data class WorkoutSetUiModel(
 
 /**
  * M17: everything the set tables need to decide on and render the Plate Calculator (§5.1.5) —
- * the setting gate, the owned bars/plates, and the display unit (solve always runs in kg; LB is
- * a display/entry conversion inside the sheet only). Kept current by the ViewModel's settings
- * collector so a mid-session Settings change applies immediately.
+ * the setting gate, the owned bars/plates, and the display unit. F9: the sheet solves in the
+ * display unit with that unit's own equipment set (pound plates for LB) and converts only the
+ * applied total back to canonical kg. Kept current by the ViewModel's settings collector so a
+ * mid-session Settings change applies immediately.
  */
 data class PlateCalculatorConfig(
     val enabled: Boolean = true,

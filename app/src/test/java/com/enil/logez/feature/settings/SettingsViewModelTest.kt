@@ -168,36 +168,67 @@ class SettingsViewModelTest {
 
     @Test
     fun `addBar persists a second bar in sorted order`() = runTest {
-        viewModel.addBar(15.0)
+        viewModel.addBar(WeightUnit.KG, 15.0)
         assertEquals(listOf(15.0, 20.0), repository.settings.value.plateEquipment.barsKg)
     }
 
     @Test
     fun `addBar rounds to the quarter-kg grid and skips duplicates`() = runTest {
-        viewModel.addBar(17.4) // stored as 17.5
-        viewModel.addBar(20.0) // already owned — no-op
+        viewModel.addBar(WeightUnit.KG, 17.4) // stored as 17.5
+        viewModel.addBar(WeightUnit.KG, 20.0) // already owned — no-op
         assertEquals(listOf(17.5, 20.0), repository.settings.value.plateEquipment.barsKg)
     }
 
     @Test
     fun `removeBar never removes the last bar`() = runTest {
-        viewModel.removeBar(20.0)
+        viewModel.removeBar(WeightUnit.KG, 20.0)
         assertEquals(listOf(20.0), repository.settings.value.plateEquipment.barsKg)
     }
 
     @Test
     fun `removeBar drops a bar once a second one exists`() = runTest {
-        viewModel.addBar(15.0)
-        viewModel.removeBar(20.0)
+        viewModel.addBar(WeightUnit.KG, 15.0)
+        viewModel.removeBar(WeightUnit.KG, 20.0)
         assertEquals(listOf(15.0), repository.settings.value.plateEquipment.barsKg)
     }
 
     @Test
     fun `addPlate and removePlate persist the transformed denomination list`() = runTest {
-        viewModel.addPlate(0.5)
+        viewModel.addPlate(WeightUnit.KG, 0.5)
         assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0, 25.0), repository.settings.value.plateEquipment.platesKg)
-        viewModel.removePlate(25.0)
+        viewModel.removePlate(WeightUnit.KG, 25.0)
         assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0), repository.settings.value.plateEquipment.platesKg)
+    }
+
+    // --- F9: the pound set, edited separately and kept across unit switches ---
+
+    @Test
+    fun `pound edits change only the pound set`() = runTest {
+        viewModel.addBar(WeightUnit.LB, 35.0)
+        viewModel.addPlate(WeightUnit.LB, 1.25)
+        viewModel.removePlate(WeightUnit.LB, 35.0)
+        val equipment = repository.settings.value.plateEquipment
+        assertEquals(listOf(35.0, 45.0), equipment.barsLb)
+        assertEquals(listOf(1.25, 2.5, 5.0, 10.0, 25.0, 45.0), equipment.platesLb)
+        assertEquals(listOf(20.0), equipment.barsKg)
+        assertEquals(listOf(1.25, 2.5, 5.0, 10.0, 15.0, 20.0, 25.0), equipment.platesKg)
+    }
+
+    @Test
+    fun `switching units keeps the custom equipment of both units`() = runTest {
+        viewModel.setWeightUnit(WeightUnit.KG)
+        viewModel.addPlate(WeightUnit.KG, 0.5)
+        viewModel.setWeightUnit(WeightUnit.LB)
+        viewModel.addBar(WeightUnit.LB, 15.0)
+        viewModel.setWeightUnit(WeightUnit.KG)
+        viewModel.setWeightUnit(WeightUnit.LB)
+
+        val equipment = repository.settings.value.plateEquipment
+        assertEquals(listOf(0.5, 1.25, 2.5, 5.0, 10.0, 15.0, 20.0, 25.0), equipment.platesKg)
+        assertEquals(listOf(20.0), equipment.barsKg)
+        assertEquals(listOf(15.0, 45.0), equipment.barsLb)
+        assertEquals(listOf(2.5, 5.0, 10.0, 25.0, 35.0, 45.0), equipment.platesLb)
+        assertEquals(WeightUnit.LB, repository.settings.value.weightUnit)
     }
 
     // --- M18 Warm-up Sets editor (persisted whole through setWarmupMethod) ---

@@ -1,5 +1,6 @@
 package com.enil.logez.feature.settings
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,6 +37,9 @@ import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.calc.PlateCalculator
+import com.enil.logez.core.domain.calc.WeightDisplay
+import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.setFor
 import com.enil.logez.core.designsystem.parseDecimalInput
 
 /** Which add dialog is open, if any. */
@@ -45,8 +49,12 @@ private enum class PlateEquipmentDialog { ADD_BAR, ADD_PLATE }
  * M17 Plate Equipment sub-page (§5.1.5's "Manage", relocated into the Settings tree): the bars and
  * plate denominations the Plate Calculator can load. Every add/remove persists instantly through
  * [SettingsViewModel] — no Save button, back = done, matching the rest of the tree. Adds are
- * validated (> 0), rounded to the calculator's quarter-kg grid, and deduplicated; the last bar is
+ * validated (> 0), rounded to the calculator's quarter-unit grid, and deduplicated; the last bar is
  * not removable (its remove control disappears — a calculator without a bar is meaningless).
+ *
+ * F9: the editor shows and edits the set for the current weight unit, in that unit (pound plates
+ * for a pounds user), and says so at the top. The other unit's set is kept untouched, so switching
+ * units and back finds the custom equipment as it was.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,32 +62,49 @@ fun PlateEquipmentScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val equipment = settings.plateEquipment
     var openDialog by remember { mutableStateOf<PlateEquipmentDialog?>(null) }
+    val topBar: @Composable () -> Unit = {
+        TopAppBar(
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            colors = logEzTopAppBarColors(),
+            title = { ScreenTitle(stringResource(R.string.settings_plate_equipment_row)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
+                }
+            },
+        )
+    }
+    // F9: wait for the stored settings. The defaults say KG, so showing them first would flash
+    // the kg set to a pounds user, and a tap in that moment would edit the wrong set.
+    val settings = viewModel.loadedSettings.collectAsStateWithLifecycle().value
+    if (settings == null) {
+        Scaffold(topBar = topBar) { padding -> Box(Modifier.fillMaxSize().padding(padding)) }
+        return
+    }
+    val unit = settings.weightUnit
+    val plateSet = settings.plateEquipment.setFor(unit)
+    val unitSymbol = stringResource(if (unit == WeightUnit.LB) R.string.unit_symbol_lb else R.string.unit_symbol_kg)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                colors = logEzTopAppBarColors(),
-                title = { ScreenTitle(stringResource(R.string.settings_plate_equipment_row)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-            )
-        },
-    ) { padding ->
+    Scaffold(topBar = topBar) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            item(key = "unit_note") {
+                Text(
+                    stringResource(if (unit == WeightUnit.LB) R.string.settings_plate_unit_note_lb else R.string.settings_plate_unit_note_kg),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                )
+            }
+            // Keys carry the index: nothing tidies a restored list, so a hand-edited backup with a
+            // duplicate weight must not crash the list with a duplicate key.
             item(key = "section_bars") { SettingsSectionHeader(stringResource(R.string.settings_plate_bars_section)) }
-            items(count = equipment.barsKg.size, key = { "bar_${equipment.barsKg[it]}" }) { index ->
-                val bar = equipment.barsKg[index]
+            items(count = plateSet.bars.size, key = { "bar_${unit}_${it}_${plateSet.bars[it]}" }) { index ->
+                val bar = plateSet.bars[index]
                 EquipmentWeightRow(
-                    label = formatEquipmentKg(bar),
-                    removable = equipment.barsKg.size > 1,
-                    onRemove = { viewModel.removeBar(bar) },
+                    label = formatEquipmentWeight(bar, unitSymbol),
+                    removable = plateSet.bars.size > 1,
+                    onRemove = { viewModel.removeBar(unit, bar) },
                 )
             }
             item(key = "add_bar") {
@@ -97,12 +122,12 @@ fun PlateEquipmentScreen(
             }
 
             item(key = "section_plates") { SettingsSectionHeader(stringResource(R.string.settings_plate_plates_section)) }
-            items(count = equipment.platesKg.size, key = { "plate_${equipment.platesKg[it]}" }) { index ->
-                val plate = equipment.platesKg[index]
+            items(count = plateSet.plates.size, key = { "plate_${unit}_${it}_${plateSet.plates[it]}" }) { index ->
+                val plate = plateSet.plates[index]
                 EquipmentWeightRow(
-                    label = formatEquipmentKg(plate),
+                    label = formatEquipmentWeight(plate, unitSymbol),
                     removable = true,
-                    onRemove = { viewModel.removePlate(plate) },
+                    onRemove = { viewModel.removePlate(unit, plate) },
                 )
             }
             item(key = "add_plate") {
@@ -112,7 +137,7 @@ fun PlateEquipmentScreen(
             }
             item(key = "rounding_note") {
                 Text(
-                    stringResource(R.string.settings_plate_rounding_note),
+                    stringResource(roundingNoteRes(unit)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
@@ -124,14 +149,16 @@ fun PlateEquipmentScreen(
     when (openDialog) {
         PlateEquipmentDialog.ADD_BAR -> AddWeightDialog(
             title = stringResource(R.string.settings_plate_add_bar),
-            existing = equipment.barsKg,
-            onConfirm = { viewModel.addBar(it); openDialog = null },
+            unit = unit,
+            existing = plateSet.bars,
+            onConfirm = { viewModel.addBar(unit, it); openDialog = null },
             onDismiss = { openDialog = null },
         )
         PlateEquipmentDialog.ADD_PLATE -> AddWeightDialog(
             title = stringResource(R.string.settings_plate_add_plate),
-            existing = equipment.platesKg,
-            onConfirm = { viewModel.addPlate(it); openDialog = null },
+            unit = unit,
+            existing = plateSet.plates,
+            onConfirm = { viewModel.addPlate(unit, it); openDialog = null },
             onDismiss = { openDialog = null },
         )
         null -> Unit
@@ -161,18 +188,20 @@ private fun EquipmentWeightRow(label: String, removable: Boolean, onRemove: () -
 
 /**
  * Numeric-input dialog for a new bar or plate. Validation mirrors what the persist path enforces
- * (positive, quarter-kg rounded, no duplicates) so Add is only enabled when the write would
- * actually change the list — a disabled Add plus the inline reason beats a silent no-op.
+ * (positive, rounded to the quarter of [unit], no duplicates) so Add is only enabled when the
+ * write would actually change the list — a disabled Add plus the inline reason beats a silent
+ * no-op. [existing] and the confirmed value are in [unit].
  */
 @Composable
 private fun AddWeightDialog(
     title: String,
+    unit: WeightUnit,
     existing: List<Double>,
     onConfirm: (Double) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var text by remember { mutableStateOf("") }
-    val rounded = parseDecimalInput(text)?.let { PlateCalculator.roundToQuarterKg(it) }
+    val rounded = parseDecimalInput(text)?.let { PlateCalculator.roundToQuarterUnit(it) }
     val error = when {
         text.isEmpty() -> null
         rounded == null || rounded <= 0.0 -> stringResource(R.string.settings_plate_invalid_weight)
@@ -188,11 +217,11 @@ private fun AddWeightDialog(
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text(stringResource(R.string.settings_plate_weight_label)) },
+                label = { Text(stringResource(if (unit == WeightUnit.LB) R.string.settings_plate_weight_label_lb else R.string.settings_plate_weight_label_kg)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 isError = error != null,
-                supportingText = { Text(error ?: stringResource(R.string.settings_plate_rounding_note)) },
+                supportingText = { Text(error ?: stringResource(roundingNoteRes(unit))) },
                 modifier = Modifier.fillMaxWidth(),
             )
         },
@@ -207,8 +236,9 @@ private fun AddWeightDialog(
     )
 }
 
-/** "20 kg", "1.25 kg" — the editor is kg-native (plates are physical kg denominations). */
-private fun formatEquipmentKg(kg: Double): String {
-    val number = if (kg == Math.floor(kg)) kg.toLong().toString() else "%.2f".format(java.util.Locale.ROOT, kg).trimEnd('0').trimEnd('.')
-    return "$number kg"
-}
+private fun roundingNoteRes(unit: WeightUnit): Int =
+    if (unit == WeightUnit.LB) R.string.settings_plate_rounding_note_lb else R.string.settings_plate_rounding_note_kg
+
+/** "20 kg", "1.25 kg", "45 lb" — the weight is already in the unit [unitSymbol] names. */
+private fun formatEquipmentWeight(weight: Double, unitSymbol: String): String =
+    "${WeightDisplay.format(weight)} $unitSymbol"

@@ -41,6 +41,15 @@ class SettingsViewModel @Inject constructor(
     val settings: StateFlow<UserSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
 
+    /**
+     * F9: the same settings, but null until DataStore's first emission instead of the
+     * [UserSettings] defaults. The plate equipment editor waits on this, because the defaults say
+     * KG: a pounds user would otherwise see the kg set for a moment, and a tap in that moment
+     * would edit the kg set.
+     */
+    val loadedSettings: StateFlow<UserSettings?> = settingsRepository.settings
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     // Preferences
     fun setWeightUnit(value: WeightUnit) = write { setWeightUnit(value) }
     fun setDistanceUnit(value: DistanceUnit) = write { setDistanceUnit(value) }
@@ -82,10 +91,12 @@ class SettingsViewModel @Inject constructor(
 
     // M17 plate equipment — the rounding/dedupe/last-bar rules live on PlateEquipment itself
     // (pure, tested); each call persists the whole transformed value through setPlateEquipment.
-    fun addBar(kg: Double) = persistPlateEquipment { it.withBarAdded(kg) }
-    fun removeBar(kg: Double) = persistPlateEquipment { it.withBarRemoved(kg) }
-    fun addPlate(kg: Double) = persistPlateEquipment { it.withPlateAdded(kg) }
-    fun removePlate(kg: Double) = persistPlateEquipment { it.withPlateRemoved(kg) }
+    // F9: each edit names the unit of the set it changes (the one the editor is showing), and
+    // leaves the other unit's set untouched.
+    fun addBar(unit: WeightUnit, weight: Double) = persistPlateEquipment { it.withBarAdded(unit, weight) }
+    fun removeBar(unit: WeightUnit, weight: Double) = persistPlateEquipment { it.withBarRemoved(unit, weight) }
+    fun addPlate(unit: WeightUnit, weight: Double) = persistPlateEquipment { it.withPlateAdded(unit, weight) }
+    fun removePlate(unit: WeightUnit, weight: Double) = persistPlateEquipment { it.withPlateRemoved(unit, weight) }
 
     private fun persistPlateEquipment(transform: (PlateEquipment) -> PlateEquipment) {
         // Read the CURRENT persisted equipment inside the coroutine, not the eager stateIn

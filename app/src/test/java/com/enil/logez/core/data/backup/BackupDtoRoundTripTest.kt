@@ -25,6 +25,7 @@ import com.enil.logez.core.domain.model.MeasurementsTrackingMode
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.MuscleHead
+import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
@@ -38,6 +39,8 @@ import java.time.DayOfWeek
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -261,6 +264,40 @@ class BackupDtoRoundTripTest {
         val settings = read.decodeFromString<SettingsDto>(older).toUserSettings()
         assertEquals(EffortScale.RPE, settings.effortScale)
         assertTrue(settings.rpeTrackingEnabled)
+    }
+
+    // ---- F9: the pound plate set ----
+
+    @Test
+    fun `custom kg and pound plate equipment both survive a backup`() {
+        val settings = UserSettings(
+            weightUnit = WeightUnit.LB,
+            plateEquipment = PlateEquipment(
+                barsKg = listOf(15.0, 20.0),
+                platesKg = listOf(0.5, 25.0),
+                barsLb = listOf(35.0, 45.0),
+                platesLb = listOf(1.25, 2.5, 45.0),
+            ),
+        )
+        assertEquals(settings, roundTrip(settings.toDto()).toUserSettings())
+    }
+
+    @Test
+    fun `the pound set travels inside plate_equipment as barsLb and platesLb`() {
+        val json = write.encodeToString(UserSettings().toDto())
+        val plateEquipment = Json.parseToJsonElement(json).jsonObject.getValue("plate_equipment").jsonObject
+        assertEquals("[45.0]", plateEquipment.getValue("barsLb").toString())
+        assertEquals("[2.5,5.0,10.0,25.0,35.0,45.0]", plateEquipment.getValue("platesLb").toString())
+    }
+
+    @Test
+    fun `a backup from before the pound set restores its kg equipment and the default pound set`() {
+        val older = """{"weight_unit":"LB","plate_equipment":{"barsKg":[15.0,20.0],"platesKg":[0.5,25.0]}}"""
+        val settings = read.decodeFromString<SettingsDto>(older).toUserSettings()
+        assertEquals(listOf(15.0, 20.0), settings.plateEquipment.barsKg)
+        assertEquals(listOf(0.5, 25.0), settings.plateEquipment.platesKg)
+        assertEquals(listOf(45.0), settings.plateEquipment.barsLb)
+        assertEquals(listOf(2.5, 5.0, 10.0, 25.0, 35.0, 45.0), settings.plateEquipment.platesLb)
     }
 
     @Test

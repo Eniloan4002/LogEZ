@@ -20,8 +20,8 @@ class PlateCalculatorTest {
     @Test
     fun `102_5 on a 20 bar loads 25 - 15 - 1_25 per side exactly`() {
         val result = PlateCalculator.solve(102.5, 20.0, defaultPlates)
-        assertEquals(listOf(25.0, 15.0, 1.25), result.perSideKg)
-        assertEquals(102.5, result.achievedKg, 0.0)
+        assertEquals(listOf(25.0, 15.0, 1.25), result.perSide)
+        assertEquals(102.5, result.achieved, 0.0)
         assertTrue(result.exact)
         assertFalse(result.belowBar)
     }
@@ -29,24 +29,24 @@ class PlateCalculatorTest {
     @Test
     fun `60 on a 20 bar is a single 20 per side`() {
         val result = PlateCalculator.solve(60.0, 20.0, defaultPlates)
-        assertEquals(listOf(20.0), result.perSideKg)
-        assertEquals(60.0, result.achievedKg, 0.0)
+        assertEquals(listOf(20.0), result.perSide)
+        assertEquals(60.0, result.achieved, 0.0)
         assertTrue(result.exact)
     }
 
     @Test
     fun `fractional stacking - 22_5 on a 20 bar is one 1_25 per side`() {
         val result = PlateCalculator.solve(22.5, 20.0, defaultPlates)
-        assertEquals(listOf(1.25), result.perSideKg)
-        assertEquals(22.5, result.achievedKg, 0.0)
+        assertEquals(listOf(1.25), result.perSide)
+        assertEquals(22.5, result.achieved, 0.0)
         assertTrue(result.exact)
     }
 
     @Test
     fun `target equal to the bar is exact with nothing loaded`() {
         val result = PlateCalculator.solve(20.0, 20.0, defaultPlates)
-        assertEquals(emptyList<Double>(), result.perSideKg)
-        assertEquals(20.0, result.achievedKg, 0.0)
+        assertEquals(emptyList<Double>(), result.perSide)
+        assertEquals(20.0, result.achieved, 0.0)
         assertTrue(result.exact)
         assertFalse(result.belowBar)
     }
@@ -55,7 +55,7 @@ class PlateCalculatorTest {
     fun `heavy exact load stacks heaviest-first`() {
         // 170 on a 20 bar: 75 per side = 25 + 25 + 25.
         val result = PlateCalculator.solve(170.0, 20.0, defaultPlates)
-        assertEquals(listOf(25.0, 25.0, 25.0), result.perSideKg)
+        assertEquals(listOf(25.0, 25.0, 25.0), result.perSide)
         assertTrue(result.exact)
     }
 
@@ -64,8 +64,8 @@ class PlateCalculatorTest {
     @Test
     fun `101 on a 20 bar falls back to the closest achievable 100`() {
         val result = PlateCalculator.solve(101.0, 20.0, defaultPlates)
-        assertEquals(listOf(25.0, 15.0), result.perSideKg)
-        assertEquals(100.0, result.achievedKg, 0.0)
+        assertEquals(listOf(25.0, 15.0), result.perSide)
+        assertEquals(100.0, result.achieved, 0.0)
         assertFalse(result.exact)
         assertFalse(result.belowBar)
     }
@@ -75,8 +75,8 @@ class PlateCalculatorTest {
         // Only 5s owned, 20 bar, target 29: totals step by 10 (20, 30, 40...).
         // 30 is 1 away, 20 is 9 away -> 30 via one 5 per side.
         val result = PlateCalculator.solve(29.0, 20.0, listOf(5.0))
-        assertEquals(listOf(5.0), result.perSideKg)
-        assertEquals(30.0, result.achievedKg, 0.0)
+        assertEquals(listOf(5.0), result.perSide)
+        assertEquals(30.0, result.achieved, 0.0)
         assertFalse(result.exact)
     }
 
@@ -84,8 +84,8 @@ class PlateCalculatorTest {
     fun `equidistant closest weights tie toward the lower total`() {
         // Only 5s owned, 20 bar, target 25: 20 and 30 are both 5 away -> keep 20 (bar alone).
         val result = PlateCalculator.solve(25.0, 20.0, listOf(5.0))
-        assertEquals(emptyList<Double>(), result.perSideKg)
-        assertEquals(20.0, result.achievedKg, 0.0)
+        assertEquals(emptyList<Double>(), result.perSide)
+        assertEquals(20.0, result.achieved, 0.0)
         assertFalse(result.exact)
         assertFalse(result.belowBar)
     }
@@ -96,16 +96,16 @@ class PlateCalculatorTest {
     fun `target below the bar signals bar-alone`() {
         val result = PlateCalculator.solve(15.0, 20.0, defaultPlates)
         assertTrue(result.belowBar)
-        assertEquals(emptyList<Double>(), result.perSideKg)
-        assertEquals(20.0, result.achievedKg, 0.0)
+        assertEquals(emptyList<Double>(), result.perSide)
+        assertEquals(20.0, result.achieved, 0.0)
         assertFalse(result.exact)
     }
 
     @Test
     fun `no plate denominations makes the bar the closest achievable weight`() {
         val result = PlateCalculator.solve(100.0, 20.0, emptyList())
-        assertEquals(emptyList<Double>(), result.perSideKg)
-        assertEquals(20.0, result.achievedKg, 0.0)
+        assertEquals(emptyList<Double>(), result.perSide)
+        assertEquals(20.0, result.achieved, 0.0)
         assertFalse(result.exact)
         assertFalse(result.belowBar)
     }
@@ -117,8 +117,8 @@ class PlateCalculatorTest {
         // Plates of 4 and 3, 20 bar, target 32 -> 6 per side. Greedy heaviest-first loads a 4,
         // cannot fit anything else (6 - 4 = 2), and would stop at 28. The DP finds 3 + 3 exactly.
         val result = PlateCalculator.solve(32.0, 20.0, listOf(4.0, 3.0))
-        assertEquals(listOf(3.0, 3.0), result.perSideKg)
-        assertEquals(32.0, result.achievedKg, 0.0)
+        assertEquals(listOf(3.0, 3.0), result.perSide)
+        assertEquals(32.0, result.achieved, 0.0)
         assertTrue(result.exact)
     }
 
@@ -126,34 +126,34 @@ class PlateCalculatorTest {
     fun `default denominations still load like greedy where greedy is right`() {
         // 142.5 on a 20 bar: 61.25 per side = 25 + 25 + 10 + 1.25 (fewest plates, heaviest first).
         val result = PlateCalculator.solve(142.5, 20.0, defaultPlates)
-        assertEquals(listOf(25.0, 25.0, 10.0, 1.25), result.perSideKg)
+        assertEquals(listOf(25.0, 25.0, 10.0, 1.25), result.perSide)
         assertTrue(result.exact)
     }
 
-    // --- Quarter-kg entry rounding ---
+    // --- Quarter-unit entry rounding ---
 
     @Test
-    fun `roundToQuarterKg snaps to the nearest quarter`() {
-        assertEquals(1.0, PlateCalculator.roundToQuarterKg(1.1), 0.0)
-        assertEquals(1.25, PlateCalculator.roundToQuarterKg(1.13), 0.0)
-        assertEquals(2.5, PlateCalculator.roundToQuarterKg(2.5), 0.0)
-        assertEquals(20.0, PlateCalculator.roundToQuarterKg(20.0), 0.0)
+    fun `roundToQuarterUnit snaps to the nearest quarter`() {
+        assertEquals(1.0, PlateCalculator.roundToQuarterUnit(1.1), 0.0)
+        assertEquals(1.25, PlateCalculator.roundToQuarterUnit(1.13), 0.0)
+        assertEquals(2.5, PlateCalculator.roundToQuarterUnit(2.5), 0.0)
+        assertEquals(20.0, PlateCalculator.roundToQuarterUnit(20.0), 0.0)
     }
 
     @Test
     fun `an off-grid denomination is rounded to the quarter grid before solving`() {
         // 1.1 rounds to 1.0, so 22 on a 20 bar is exactly one 1 kg plate per side.
         val result = PlateCalculator.solve(22.0, 20.0, listOf(1.1))
-        assertEquals(listOf(1.0), result.perSideKg)
-        assertEquals(22.0, result.achievedKg, 0.0)
+        assertEquals(listOf(1.0), result.perSide)
+        assertEquals(22.0, result.achieved, 0.0)
         assertTrue(result.exact)
     }
 
     @Test
     fun `duplicate and non-positive denominations are ignored, not double-counted`() {
         val result = PlateCalculator.solve(30.0, 20.0, listOf(5.0, 5.0, 0.0, -2.5))
-        assertEquals(listOf(5.0), result.perSideKg)
-        assertEquals(30.0, result.achievedKg, 0.0)
+        assertEquals(listOf(5.0), result.perSide)
+        assertEquals(30.0, result.achieved, 0.0)
         assertTrue(result.exact)
     }
 
@@ -161,9 +161,65 @@ class PlateCalculatorTest {
     fun `long 1_25 stacks accumulate with no float drift`() {
         // 32.5 per side out of pure 1.25s = 26 plates; any Double accumulation would drift off 85.
         val result = PlateCalculator.solve(85.0, 20.0, listOf(1.25))
-        assertEquals(26, result.perSideKg.size)
-        assertTrue(result.perSideKg.all { it == 1.25 })
-        assertEquals(85.0, result.achievedKg, 0.0)
+        assertEquals(26, result.perSide.size)
+        assertTrue(result.perSide.all { it == 1.25 })
+        assertEquals(85.0, result.achieved, 0.0)
         assertTrue(result.exact)
+    }
+
+    // --- F9: pound plates, solved in pounds ---
+    // The US gym set, written out literally: a 45 lb bar and 2.5/5/10/25/35/45 lb plates.
+
+    private val poundPlates = listOf(2.5, 5.0, 10.0, 25.0, 35.0, 45.0)
+
+    @Test
+    fun `225 lb on a 45 lb bar is two 45s per side`() {
+        // 225 − 45 = 180, so 90 per side = 45 + 45.
+        val result = PlateCalculator.solve(225.0, 45.0, poundPlates)
+        assertEquals(listOf(45.0, 45.0), result.perSide)
+        assertEquals(225.0, result.achieved, 0.0)
+        assertTrue(result.exact)
+        assertFalse(result.belowBar)
+    }
+
+    @Test
+    fun `135 lb is one 45 per side and 315 lb is three`() {
+        assertEquals(listOf(45.0), PlateCalculator.solve(135.0, 45.0, poundPlates).perSide)
+        assertEquals(listOf(45.0, 45.0, 45.0), PlateCalculator.solve(315.0, 45.0, poundPlates).perSide)
+    }
+
+    @Test
+    fun `185 lb loads 45 and 25 per side, and 95 lb loads 25`() {
+        // 185 − 45 = 140 → 70 per side = 45 + 25 · 95 − 45 = 50 → 25 per side.
+        val heavy = PlateCalculator.solve(185.0, 45.0, poundPlates)
+        assertEquals(listOf(45.0, 25.0), heavy.perSide)
+        assertTrue(heavy.exact)
+        assertEquals(listOf(25.0), PlateCalculator.solve(95.0, 45.0, poundPlates).perSide)
+    }
+
+    @Test
+    fun `150 lb uses the 2_5 lb plate - 45 then 5 and 2_5 per side`() {
+        // 150 − 45 = 105 → 52.5 per side = 45 + 5 + 2.5.
+        val result = PlateCalculator.solve(150.0, 45.0, poundPlates)
+        assertEquals(listOf(45.0, 5.0, 2.5), result.perSide)
+        assertEquals(150.0, result.achieved, 0.0)
+        assertTrue(result.exact)
+    }
+
+    @Test
+    fun `an off-grid pound target lands on the closest 5 lb total`() {
+        // 231 − 45 = 186 → 93 per side. Per-side loads step by 2.5: 92.5 (total 230, 1 away) and
+        // 95 (total 235, 4 away) → 230, as 45 + 45 + 2.5.
+        val result = PlateCalculator.solve(231.0, 45.0, poundPlates)
+        assertEquals(listOf(45.0, 45.0, 2.5), result.perSide)
+        assertEquals(230.0, result.achieved, 0.0)
+        assertFalse(result.exact)
+    }
+
+    @Test
+    fun `a pound target below the 45 lb bar signals bar-alone at 45`() {
+        val result = PlateCalculator.solve(40.0, 45.0, poundPlates)
+        assertTrue(result.belowBar)
+        assertEquals(45.0, result.achieved, 0.0)
     }
 }

@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,8 +26,11 @@ import com.enil.logez.R
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.domain.calc.PlateCalculator
+import com.enil.logez.core.domain.calc.WeightDisplay
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.setFor
+import com.enil.logez.core.domain.model.standardBar
 import com.skydoves.flexible.bottomsheet.material3.FlexibleBottomSheet
 import com.skydoves.flexible.core.FlexibleSheetSize
 import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
@@ -36,8 +39,12 @@ import com.enil.logez.core.designsystem.parseDecimalInput
 /**
  * §5.1.5 Plate Calculator sheet (M17). Deliberately thin — every solve goes through the tested
  * [PlateCalculator]; this composable only converts between the display unit and canonical kg and
- * renders the result. The solve itself always runs in kg: when the user's unit is LB, the target
- * field displays and accepts pounds, but [onApply] still hands back the canonical kg total.
+ * renders the result.
+ *
+ * F9: the solve runs in the user's weight unit with that unit's own equipment set. A pounds user
+ * types pounds and loads a 45 lb bar with pound plates; the target, bars, plates and totals are
+ * all pounds, and only [onApply] converts, handing back the canonical kg total. (Before F9 the
+ * solve ran in kg for everyone, so a pounds user saw a 44.09 lb bar and 22.05 lb plates.)
  *
  * §5.1.5's Canvas bar-loading diagram is deliberately not built (M17 keeps the text list + totals;
  * the diagram is pure decoration over the same numbers and can land later without data changes).
@@ -63,8 +70,10 @@ import com.enil.logez.core.designsystem.parseDecimalInput
  * the same call site rather than tearing it down), so [targetText] is keyed on [setId] to reseed
  * from the new set's weight — found retargeting without dismissing during the M20a-h code audit
  * (2026-09-08); before this it kept the previous set's prefilled number and "Use X" would have
- * applied it to the newly-targeted set. [selectedBarKg] stays unkeyed on purpose: which bar you're
- * loading plates onto is a per-session choice, not a per-set one, so it should carry over.
+ * applied it to the newly-targeted set. [selectedBar] is not keyed on the set on purpose: which bar
+ * you're loading plates onto is a per-session choice, not a per-set one, so it should carry over.
+ * Both are keyed on the unit (F9), because a unit change mid-session swaps the equipment set and
+ * makes a typed number mean something else.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,12 +85,16 @@ internal fun PlateCalculatorSheet(
     onApply: (Double) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // F9: the bars and plates for the user's unit, in that unit's own numbers.
+    val plateSet = equipment.setFor(weightUnit)
     // Defensive: the equipment editor never persists zero bars, but an empty list here would make
-    // every solve meaningless — fall back to the standard 20 kg bar.
-    val bars = equipment.barsKg.ifEmpty { listOf(20.0) }
-    var selectedBarKg by remember { mutableStateOf(bars.first()) }
-    var targetText by remember(setId) {
-        mutableStateOf(initialWeightKg?.let { formatWeightNumber(toDisplay(it, weightUnit)) }.orEmpty())
+    // every solve meaningless — fall back to the unit's standard bar (20 kg or 45 lb).
+    val bars = plateSet.bars.ifEmpty { listOf(standardBar(weightUnit)) }
+    var selectedBar by remember(weightUnit) { mutableStateOf(bars.first()) }
+    // A bar removed in Settings while the sheet is open falls back to the first one.
+    val activeBar = selectedBar.takeIf { it in bars } ?: bars.first()
+    var targetText by remember(setId, weightUnit) {
+        mutableStateOf(initialWeightKg?.let { formatWeightNumber(WeightDisplay.toDisplay(it, weightUnit)) }.orEmpty())
     }
 
     FlexibleBottomSheet(
@@ -118,10 +131,11 @@ internal fun PlateCalculatorSheet(
                     modifier = Modifier.padding(top = Spacing.md),
                 )
                 LazyRow(modifier = Modifier.padding(top = Spacing.xxs)) {
-                    items(items = bars, key = { it }) { bar ->
+                    // Index in the key: a hand-edited backup could carry the same bar twice.
+                    itemsIndexed(items = bars, key = { index, bar -> "${index}_$bar" }) { _, bar ->
                         FilterChip(
-                            selected = selectedBarKg == bar,
-                            onClick = { selectedBarKg = bar },
+                            selected = activeBar == bar,
+                            onClick = { selectedBar = bar },
                             label = { Text(formatWeight(bar, weightUnit)) },
                             modifier = Modifier.padding(end = Spacing.xs),
                         )
@@ -129,8 +143,9 @@ internal fun PlateCalculatorSheet(
                 }
             }
 
-            val targetKg = parseDecimalInput(targetText)?.let { toKg(it, weightUnit) }
-            if (targetKg == null || targetKg <= 0.0) {
+            // The typed target is already in the solve's unit, so it is solved as typed.
+            val target = parseDecimalInput(targetText)
+            if (target == null || target <= 0.0) {
                 Text(
                     stringResource(R.string.workout_plate_enter_target),
                     style = MaterialTheme.typography.bodyMedium,
@@ -139,15 +154,22 @@ internal fun PlateCalculatorSheet(
                 )
             } else {
                 // Live solve: recomputed only when target, bar, or equipment actually changes.
-                val result = remember(targetKg, selectedBarKg, equipment.platesKg) {
-                    PlateCalculator.solve(targetKg, selectedBarKg, equipment.platesKg)
+                val result = remember(target, activeBar, plateSet.plates) {
+                    PlateCalculator.solve(target, activeBar, plateSet.plates)
                 }
-                PlateSolveResult(result = result, weightUnit = weightUnit, platesEmpty = equipment.platesKg.isEmpty(), onApply = onApply, onDismiss = onDismiss)
+                PlateSolveResult(
+                    result = result,
+                    weightUnit = weightUnit,
+                    platesEmpty = plateSet.plates.isEmpty(),
+                    onApply = { achieved -> onApply(WeightDisplay.toKg(achieved, weightUnit)) },
+                    onDismiss = onDismiss,
+                )
             }
         }
     }
 }
 
+/** [result] and the value handed to [onApply] are in [weightUnit], not kg. */
 @Composable
 private fun PlateSolveResult(
     result: PlateCalculator.Result,
@@ -159,17 +181,17 @@ private fun PlateSolveResult(
     if (result.belowBar) {
         // §5.1.5 edge case: "Target < bar weight → 'Bar alone weighs Y'."
         Text(
-            stringResource(R.string.workout_plate_bar_alone, formatWeight(result.achievedKg, weightUnit)),
+            stringResource(R.string.workout_plate_bar_alone, formatWeight(result.achieved, weightUnit)),
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = Spacing.md),
         )
         return
     }
 
-    val perSideLabel = if (result.perSideKg.isEmpty()) {
+    val perSideLabel = if (result.perSide.isEmpty()) {
         "—"
     } else {
-        result.perSideKg.joinToString(" · ") { formatWeightNumber(toDisplay(it, weightUnit)) }
+        result.perSide.joinToString(" · ") { formatWeightNumber(it) }
     }
     Text(
         stringResource(R.string.workout_plate_per_side, perSideLabel),
@@ -177,7 +199,7 @@ private fun PlateSolveResult(
         modifier = Modifier.padding(top = Spacing.md),
     )
     Text(
-        stringResource(R.string.workout_plate_total, formatWeight(result.achievedKg, weightUnit)),
+        stringResource(R.string.workout_plate_total, formatWeight(result.achieved, weightUnit)),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = Spacing.xxs),
@@ -193,15 +215,16 @@ private fun PlateSolveResult(
                 modifier = Modifier.padding(top = Spacing.md),
             )
         }
-        // §5.1.5 fallback: closest banner + "Use X" writing the achieved total into the cell (kg).
+        // §5.1.5 fallback: closest banner + "Use X" writing the achieved total into the cell (the
+        // caller converts it to kg).
         Text(
-            stringResource(R.string.workout_plate_closest, formatWeight(result.achievedKg, weightUnit)),
+            stringResource(R.string.workout_plate_closest, formatWeight(result.achieved, weightUnit)),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = Spacing.md),
         )
         Row(modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
-            Button(onClick = { onApply(result.achievedKg); onDismiss() }) {
-                Text(stringResource(R.string.workout_plate_use, formatWeight(result.achievedKg, weightUnit)))
+            Button(onClick = { onApply(result.achieved); onDismiss() }) {
+                Text(stringResource(R.string.workout_plate_use, formatWeight(result.achieved, weightUnit)))
             }
         }
     }
@@ -210,19 +233,17 @@ private fun PlateSolveResult(
 private fun WeightUnit.shortLabel(): String = if (this == WeightUnit.KG) "kg" else "lb"
 
 // M18: the sheet's kg ↔ display conversions delegate to WeightDisplay — the same single boundary
-// the weight cells use — so the two surfaces can never disagree about what "100 lb" means. The
-// apply path stays canonical kg end-to-end (solve → achievedKg → onApply → the cell's kg value),
-// so the sheet's internal conversion and the cell's display conversion never stack.
-private fun toDisplay(kg: Double, unit: WeightUnit): Double = com.enil.logez.core.domain.calc.WeightDisplay.toDisplay(kg, unit)
+// the weight cells use — so the two surfaces can never disagree about what "100 lb" means. F9:
+// the solve itself is in the display unit, so the only conversions left are the prefilled target
+// (kg → unit) and the applied total (unit → kg, in the sheet's onApply wrapper above).
 
-private fun toKg(display: Double, unit: WeightUnit): Double = com.enil.logez.core.domain.calc.WeightDisplay.toKg(display, unit)
-
-private fun formatWeight(kg: Double, unit: WeightUnit): String =
-    "${formatWeightNumber(toDisplay(kg, unit))} ${unit.shortLabel()}"
+/** A weight already in [unit] (a bar, plate or solved total), with its unit symbol. */
+private fun formatWeight(weight: Double, unit: WeightUnit): String =
+    "${formatWeightNumber(weight)} ${unit.shortLabel()}"
 
 /**
  * Whole numbers bare, otherwise up to two decimals with trailing zeros trimmed ("1.25", "2.5").
  * Locale.ROOT keeps the decimal separator a dot on comma-decimal locales — the pre-filled target
  * text must round-trip through [String.toDoubleOrNull], which only parses dots.
  */
-private fun formatWeightNumber(value: Double): String = com.enil.logez.core.domain.calc.WeightDisplay.format(value)
+private fun formatWeightNumber(value: Double): String = WeightDisplay.format(value)

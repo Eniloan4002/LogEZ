@@ -925,11 +925,15 @@
     <string name="settings_plate_plates_section">Plates</string>
     <string name="settings_plate_add_bar">Add bar</string>
     <string name="settings_plate_add_plate">Add plate</string>
-    <string name="settings_plate_weight_label">Weight (kg)</string>
+    <string name="settings_plate_weight_label_kg">Weight (kg)</string>
+    <string name="settings_plate_weight_label_lb">Weight (lb)</string>
     <string name="settings_plate_invalid_weight">Enter a weight greater than zero.</string>
     <string name="settings_plate_duplicate_weight">Already in the list.</string>
     <string name="settings_plate_last_bar_note">The calculator needs a bar, so the last one cannot be removed.</string>
-    <string name="settings_plate_rounding_note">Weights are rounded to the nearest 0.25 kg.</string>
+    <string name="settings_plate_rounding_note_kg">Weights are rounded to the nearest 0.25 kg.</string>
+    <string name="settings_plate_rounding_note_lb">Weights are rounded to the nearest 0.25 lb.</string>
+    <string name="settings_plate_unit_note_kg">Used while weights are in kilograms. Your pound bars and plates are kept for when you switch to pounds.</string>
+    <string name="settings_plate_unit_note_lb">Used while weights are in pounds. Your kilogram bars and plates are kept for when you switch to kilograms.</string>
     <string name="settings_plate_remove">Remove</string>
     <string name="workout_plate_calc_open">Plate calculator</string>
     <string name="workout_plate_sheet_title">Plate calculator</string>

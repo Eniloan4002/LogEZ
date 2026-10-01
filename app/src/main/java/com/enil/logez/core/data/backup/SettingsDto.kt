@@ -19,7 +19,9 @@ import kotlinx.serialization.Serializable
  *
  * `PlateEquipment` and `WarmupStep` are embedded directly rather than restated, because they are
  * already serializable and are already exactly what the settings store writes to disk — so the
- * backup's shape for them is the shape they already have.
+ * backup's shape for them is the shape they already have. F9 added the pound set to
+ * `PlateEquipment` (`barsLb`, `platesLb`); a backup from before it has neither key and restores
+ * with the default pound set, a 45 lb bar and 2.5 to 45 lb plates.
  *
  * `firstDayOfWeek` is a `java.time.DayOfWeek`, which has no serializer, so it travels as its name.
  */

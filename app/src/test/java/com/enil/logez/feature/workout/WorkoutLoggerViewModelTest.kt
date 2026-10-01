@@ -1643,6 +1643,59 @@ class WorkoutLoggerViewModelTest {
     }
 
     @Test
+    fun `addWarmupSets for a pounds user lands on pound plates - 225 lb gives 90-135-180 lb`() = runTest {
+        // F9: 225 lb is stored as 102.05828325 kg. The ladder is worked out on the default pound
+        // set (45 lb bar), so the rows store the exact kg of 90, 135 and 180 lb.
+        val workoutRepo = warmupFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 102.05828325, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            settingsRepo = FakeSettingsRepository(UserSettings(weightUnit = WeightUnit.LB)),
+        )
+
+        vm.addWarmupSets("we1")
+
+        val weights = vm.uiState.value.exercises[0].sets.map { it.weightKg!! }
+        assertEquals(4, weights.size)
+        assertEquals(40.8233133, weights[0], 1e-9)
+        assertEquals(61.23496995, weights[1], 1e-9)
+        assertEquals(81.6466266, weights[2], 1e-9)
+        assertEquals(102.05828325, weights[3], 1e-9)
+    }
+
+    @Test
+    fun `addWarmupSets for a pounds user rounds a barbell to the custom pound set, not the 5 lb grid`() = runTest {
+        // F9: 135 lb is stored as 61.23496995 kg. With only 10 lb plates on a 35 lb bar the
+        // loadable totals are 35, 55, 75, 95, 115 and 135 lb. 40% = 54 → 55, 60% = 81 → 75,
+        // 80% = 108 → 115. The 5 lb grid would have given 55, 80 and 110.
+        val workoutRepo = warmupFixture(
+            sets = listOf(
+                WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 61.23496995, reps = 5, durationSeconds = null, distanceMeters = null, rpe = null, customMetric = null, isCompleted = false, completedAt = null),
+            ),
+        )
+        val vm = newViewModel(
+            workoutRepo = workoutRepo,
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-1", "Bench Press"))),
+            settingsRepo = FakeSettingsRepository(
+                UserSettings(weightUnit = WeightUnit.LB, plateEquipment = PlateEquipment(barsLb = listOf(35.0), platesLb = listOf(10.0))),
+            ),
+        )
+
+        vm.addWarmupSets("we1")
+
+        val weights = vm.uiState.value.exercises[0].sets.map { it.weightKg!! }
+        assertEquals(4, weights.size)
+        assertEquals(24.94758035, weights[0], 1e-9) // 55 lb
+        assertEquals(34.01942775, weights[1], 1e-9) // 75 lb
+        assertEquals(52.16312255, weights[2], 1e-9) // 115 lb
+        assertEquals(61.23496995, weights[3], 1e-9)
+    }
+
+    @Test
     fun `addWarmupSets takes the working weight from the first non-WARMUP set, skipping existing warm-ups`() = runTest {
         val workoutRepo = warmupFixture(
             sets = listOf(

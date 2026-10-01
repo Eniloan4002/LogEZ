@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.LengthUnit
+import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.SetupChoices
 import com.enil.logez.core.domain.model.StoredSetupValues
 import com.enil.logez.core.domain.model.UserSettings
@@ -164,5 +165,32 @@ class SettingsRepositoryImplTest {
         dataStore.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("effortScale")] = "BORG" }
 
         assertEquals(EffortScale.RPE, repository.settings.first().effortScale)
+    }
+
+    // ---- F9 pound plate set ----
+
+    @Test
+    fun `stored equipment from before the pound set keeps its kg values and reads the default pound set`() = blocking {
+        dataStore.edit {
+            it[androidx.datastore.preferences.core.stringPreferencesKey("plateEquipment")] =
+                """{"barsKg":[15.0,20.0],"platesKg":[0.5,25.0]}"""
+        }
+
+        val equipment = repository.settings.first().plateEquipment
+        assertEquals(listOf(15.0, 20.0), equipment.barsKg)
+        assertEquals(listOf(0.5, 25.0), equipment.platesKg)
+        assertEquals(listOf(45.0), equipment.barsLb)
+        assertEquals(listOf(2.5, 5.0, 10.0, 25.0, 35.0, 45.0), equipment.platesLb)
+    }
+
+    @Test
+    fun `custom pound equipment persists, and replaceAll writes it`() = blocking {
+        val custom = PlateEquipment(barsLb = listOf(35.0, 45.0), platesLb = listOf(1.25, 45.0))
+        repository.setPlateEquipment(custom)
+        assertEquals(custom, repository.settings.first().plateEquipment)
+
+        val restored = PlateEquipment(platesKg = listOf(25.0), barsLb = listOf(15.0), platesLb = listOf(10.0))
+        repository.replaceAll(UserSettings(plateEquipment = restored))
+        assertEquals(restored, repository.settings.first().plateEquipment)
     }
 }

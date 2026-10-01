@@ -41,6 +41,7 @@ import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.setFor
 import com.enil.logez.feature.onboarding.TipsViewModel
 import com.enil.logez.feature.privacy.PrivacyPolicyActivity
 import java.time.DayOfWeek
@@ -272,13 +273,15 @@ fun SettingsScreen(
                 )
             }
             item(key = "plate_equipment") {
+                // F9: counts for the set the calculators use, the one for the current weight unit.
+                val plateSet = settings.plateEquipment.setFor(settings.weightUnit)
                 SettingsValueRow(
                     title = stringResource(R.string.settings_plate_equipment_row),
                     subtitle = stringResource(R.string.settings_plate_equipment_subtitle),
                     value = stringResource(
                         R.string.settings_plate_equipment_value,
-                        pluralStringResource(R.plurals.settings_plate_bar_count, settings.plateEquipment.barsKg.size, settings.plateEquipment.barsKg.size),
-                        pluralStringResource(R.plurals.settings_plate_plate_count, settings.plateEquipment.platesKg.size, settings.plateEquipment.platesKg.size),
+                        pluralStringResource(R.plurals.settings_plate_bar_count, plateSet.bars.size, plateSet.bars.size),
+                        pluralStringResource(R.plurals.settings_plate_plate_count, plateSet.plates.size, plateSet.plates.size),
                     ),
                     onClick = onPlateEquipmentClick,
                 )
