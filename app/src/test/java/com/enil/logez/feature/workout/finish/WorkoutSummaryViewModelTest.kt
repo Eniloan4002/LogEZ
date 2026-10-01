@@ -3,6 +3,7 @@ package com.enil.logez.feature.workout.finish
 import androidx.lifecycle.SavedStateHandle
 import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.ActivityTrackEntity
+import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
@@ -14,6 +15,7 @@ import com.enil.logez.core.domain.model.GpsActivity
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.MuscleGroup
+import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WorkoutKind
@@ -437,6 +439,174 @@ class WorkoutSummaryViewModelTest {
     }
 
     // --- fixture ---
+
+    // --- First-run plan (O1g, Decision 13): the note above Personal records ---
+
+    @Test
+    fun `the note shows on the first workout, whose medals are for a first log`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+        )
+        assertTrue(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `the note does not show on a later workout whose medals are for an exercise logged before`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w0", startedAt = 1_000L), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we0", "w0"), workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+        )
+        assertFalse(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `the note shows on a later workout when one medal is for an exercise logged for the first time`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w0", startedAt = 1_000L), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(
+                workoutExercise("we0", "w0"),
+                workoutExercise("we1", "w1"),
+                workoutExercise("we2", "w1", orderIndex = 1, exerciseId = "ex-2"),
+            ),
+            prs = listOf(pr("w1", "ex-1"), pr("w1", "ex-2")),
+        )
+        assertTrue(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `the note does not show without medals, even on a first workout`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we1", "w1")),
+            prs = emptyList(),
+        )
+        assertFalse(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `a workout started after this one does not make this one's log a repeat`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w1", startedAt = 5_000L), workout("w2", startedAt = 9_000L)),
+            exercises = listOf(workoutExercise("we1", "w1"), workoutExercise("we2", "w2")),
+            prs = listOf(pr("w1", "ex-1")),
+        )
+        assertTrue(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `an exact start-time tie is ordered by id, like the workout number`() = runTest {
+        val earlierById = noteViewModel(
+            workouts = listOf(workout("w0", startedAt = 5_000L), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we0", "w0"), workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+        )
+        assertFalse(earlierById.uiState.value.showFirstLogNote)
+
+        val laterById = noteViewModel(
+            workouts = listOf(workout("w9", startedAt = 5_000L), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we9", "w9"), workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+        )
+        assertTrue(laterById.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `an unfinished workout that holds the exercise does not count as an earlier log`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w0", startedAt = 1_000L).copy(status = WorkoutStatus.IN_PROGRESS), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we0", "w0"), workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+        )
+        assertTrue(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `the note shows on a first walk, and not on the second`() = runTest {
+        val walkId = GpsActivity.WALKING_OUTDOOR_EXERCISE_ID
+        val firstWalk = noteViewModel(
+            workouts = listOf(workout("w1", kind = WorkoutKind.GPS_TRACKED, startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we1", "w1", exerciseId = walkId)),
+            prs = listOf(pr("w1", walkId, PrType.LONGEST_DISTANCE)),
+            distanceMeters = 2_000.0,
+        )
+        assertTrue(firstWalk.uiState.value.isGpsTracked)
+        assertTrue(firstWalk.uiState.value.showFirstLogNote)
+
+        val secondWalk = noteViewModel(
+            workouts = listOf(
+                workout("w0", kind = WorkoutKind.GPS_TRACKED, startedAt = 1_000L),
+                workout("w1", kind = WorkoutKind.GPS_TRACKED, startedAt = 5_000L),
+            ),
+            exercises = listOf(workoutExercise("we0", "w0", exerciseId = walkId), workoutExercise("we1", "w1", exerciseId = walkId)),
+            prs = listOf(pr("w1", walkId, PrType.LONGEST_DISTANCE)),
+            distanceMeters = 2_000.0,
+        )
+        assertFalse(secondWalk.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `an earlier workout with only a warm-up set is not an earlier log, since warm-ups set no records`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w0", startedAt = 1_000L), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we0", "w0"), workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+            setTypes = mapOf("we0" to SetType.WARMUP),
+        )
+        assertTrue(vm.uiState.value.showFirstLogNote)
+    }
+
+    @Test
+    fun `an earlier warm-up counts as an earlier log when warm-ups are included in stats`() = runTest {
+        val vm = noteViewModel(
+            workouts = listOf(workout("w0", startedAt = 1_000L), workout("w1", startedAt = 5_000L)),
+            exercises = listOf(workoutExercise("we0", "w0"), workoutExercise("we1", "w1")),
+            prs = listOf(pr("w1", "ex-1")),
+            setTypes = mapOf("we0" to SetType.WARMUP),
+            settings = UserSettings(includeWarmupsInStats = true),
+        )
+        assertFalse(vm.uiState.value.showFirstLogNote)
+    }
+
+    /**
+     * The summary of "w1"; every workout exercise gets one completed set, of the type [setTypes]
+     * gives its workout exercise id (NORMAL otherwise).
+     */
+    private fun noteViewModel(
+        workouts: List<WorkoutEntity>,
+        exercises: List<WorkoutExerciseEntity>,
+        prs: List<PersonalRecordEntity>,
+        distanceMeters: Double? = null,
+        setTypes: Map<String, SetType> = emptyMap(),
+        settings: UserSettings = UserSettings(),
+    ) = WorkoutSummaryViewModel(
+        savedStateHandle = SavedStateHandle(mapOf(WorkoutSummaryViewModel.WORKOUT_ID_ARG to "w1")),
+        workoutRepository = FakeWorkoutRepository(
+            workouts = workouts,
+            exercises = exercises,
+            sets = exercises.map { we ->
+                val type = setTypes[we.id] ?: SetType.NORMAL
+                if (distanceMeters != null) {
+                    aSet("s-${we.id}", we.id, 0, reps = null, setType = type, weightKg = null, distanceMeters = distanceMeters)
+                } else {
+                    aSet("s-${we.id}", we.id, 0, reps = 8, setType = type)
+                }
+            },
+        ),
+        exerciseRepository = FakeExerciseRepository(listOf(exercise("ex-1"), exercise("ex-2"))),
+        personalRecordsRepository = FakePersonalRecordsRepository(prs),
+        settingsRepository = FakeSettingsRepository(settings),
+        activityTrackRepository = FakeActivityTrackRepository(),
+        heartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+        heartRateBackfill = noBackfill(),
+    )
+
+    private fun pr(workoutId: String, exerciseId: String, type: PrType = PrType.HEAVIEST_WEIGHT) = PersonalRecordEntity(
+        id = "pr-$workoutId-$exerciseId-$type", exerciseId = exerciseId, workoutId = workoutId, workoutSetId = null,
+        prType = type, value = 50.0, achievedAt = 5_000L,
+    )
 
     /** A backfill that never finds anything new: Health Connect unavailable. */
     private fun noBackfill(repo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository()) =

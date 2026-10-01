@@ -197,6 +197,21 @@ class WorkoutSummaryViewModel @Inject constructor(
             }
             val gpsExerciseId = if (isGpsTracked) sets.firstOrNull()?.exerciseId else null
 
+            // First-run plan (O1g, Decision 13): records are rebuilt on every save, so the first
+            // session that logs an exercise always gets a medal for each record type it can set.
+            // The note explains those medals, so it shows whenever one of them is for an exercise
+            // no earlier completed workout logged a set of that could count toward a record.
+            // "Could count" is the records' own filter (`isIncluded`, as PrRebuilder uses), so an
+            // earlier session with only warm-ups (excluded by default) is not an earlier log.
+            // "Earlier" is the same total order as the "Workout #N" count: started_at, then id on
+            // an exact tie.
+            val showFirstLogNote = workoutPrs.map { it.exerciseId }.distinct().any { exerciseId ->
+                workoutRepository.getStatSetsForExercise(exerciseId).none { row ->
+                    row.workoutId != workout.id && isIncluded(row, settings.includeWarmupsInStats) &&
+                        (row.workoutStartedAt < workout.startedAt || (row.workoutStartedAt == workout.startedAt && row.workoutId < workout.id))
+                }
+            }
+
             val prs = workoutPrs.map { pr ->
                 PrMedal(
                     exerciseName = exercisesById[pr.exerciseId]?.name.orEmpty(),
@@ -253,6 +268,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 muscleDiagramVariant = settings.muscleDiagramVariant,
                 muscleBalance = muscleBalance,
                 prMedals = prs,
+                showFirstLogNote = showFirstLogNote,
                 exerciseLines = exerciseLines,
                 structure = workout.structure,
                 // M11, exactly HistoryViewModel's derivation: the saved rows are post-purge, so
@@ -296,6 +312,11 @@ data class WorkoutSummaryUiState(
     val muscleDiagramVariant: MuscleDiagramVariant = MuscleDiagramVariant.MALE,
     val muscleBalance: List<RegionShare> = emptyList(),
     val prMedals: List<PrMedal> = emptyList(),
+    /**
+     * First-run plan (O1g, Decision 13): true when a medal is for an exercise this workout logs for
+     * the first time, which shows the note above Personal records.
+     */
+    val showFirstLogNote: Boolean = false,
     val exerciseLines: List<SummaryExerciseLine> = emptyList(),
     /** M11: CIRCUIT summaries add a "CIRCUIT · N rounds" line on screen and card. */
     val structure: WorkoutStructure = WorkoutStructure.REGULAR,

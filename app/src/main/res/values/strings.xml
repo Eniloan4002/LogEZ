@@ -613,6 +613,8 @@
         <item quantity="other">%1$d days</item>
     </plurals>
     <string name="summary_prs_header">Personal records</string>
+    <!-- First-run plan (O1g, Decision 13): above Personal records when a medal is for an exercise logged for the first time. -->
+    <string name="summary_first_session_note">The first time you log an exercise sets its starting records. Later sessions that beat them set new ones.</string>
     <string name="summary_done">Done</string>
     <string name="summary_share">Share</string>
     <!-- Walk/run summary: GPS-tracked workouts get a route-first layout with no muscle charts (2026-09-26) -->

@@ -167,7 +167,11 @@ internal fun GpsWorkoutSummary(
                 }
 
                 if (uiState.prMedals.isNotEmpty()) {
-                    CardHeading(stringResource(R.string.summary_prs_header), Modifier.padding(top = Spacing.lg, bottom = Spacing.sm))
+                    if (uiState.showFirstLogNote) FirstLogNote(Modifier.padding(top = Spacing.lg))
+                    CardHeading(
+                        stringResource(R.string.summary_prs_header),
+                        Modifier.padding(top = if (uiState.showFirstLogNote) Spacing.sm else Spacing.lg, bottom = Spacing.sm),
+                    )
                     uiState.prMedals.forEach { medal -> GpsPrMedalCard(medal, uiState.distanceUnit) }
                 }
 

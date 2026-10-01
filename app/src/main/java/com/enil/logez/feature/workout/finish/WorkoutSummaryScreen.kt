@@ -201,11 +201,14 @@ fun WorkoutSummaryScreen(
             }
 
             if (uiState.prMedals.isNotEmpty()) {
+                if (uiState.showFirstLogNote) FirstLogNote(Modifier.padding(top = Spacing.lg))
                 Text(
                     stringResource(R.string.summary_prs_header),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = Spacing.lg, bottom = Spacing.sm).fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(top = if (uiState.showFirstLogNote) Spacing.sm else Spacing.lg, bottom = Spacing.sm)
+                        .fillMaxWidth(),
                 )
                 uiState.prMedals.forEach { medal -> PrMedalCard(medal, uiState.weightUnit, uiState.distanceUnit) }
             }
@@ -272,6 +275,20 @@ fun WorkoutSummaryScreen(
             )
         }
     }
+}
+
+/**
+ * First-run plan (O1g, Decision 13): explains why a first log earns medals, above Personal records
+ * on both the strength and the walk/run summary. Plain text in reading order.
+ */
+@Composable
+internal fun FirstLogNote(modifier: Modifier = Modifier) {
+    Text(
+        stringResource(R.string.summary_first_session_note),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.fillMaxWidth(),
+    )
 }
 
 /**
