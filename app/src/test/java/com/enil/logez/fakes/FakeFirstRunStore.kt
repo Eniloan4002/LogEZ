@@ -18,10 +18,14 @@ class FakeFirstRunStore(
     /** Thrown from [isDone] when set, standing in for preferences that fail to load. */
     var isDoneError: Exception? = null
 
+    /** Runs at the start of every [isDone], so a test can change things at that exact point. */
+    var onIsDone: () -> Unit = {}
+
     var markDoneCallCount = 0
         private set
 
     override fun isDone(): Boolean {
+        onIsDone()
         isDoneError?.let { throw it }
         return doneAt != null
     }

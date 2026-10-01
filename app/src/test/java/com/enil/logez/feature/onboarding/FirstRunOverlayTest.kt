@@ -16,8 +16,11 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onRoot
@@ -130,6 +133,42 @@ class FirstRunOverlayTest {
             SetupChoices(WeightUnit.LB, DistanceUnit.KM, DayOfWeek.SUNDAY),
             restoreChoices?.choices,
         )
+    }
+
+    @Test
+    fun `RestoreBusy shows setup's restore-running message with nothing to tap`() {
+        show(FirstRunGateState.RestoreBusy)
+
+        rule.onNodeWithText("BEFORE YOU START").assertExists()
+        rule.onNodeWithText("A restore is already running.")
+            .assertExists()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        rule.onNode(SemanticsMatcher.expectValue(SemanticsProperties.PaneTitle, "LogEZ setup")).assertExists()
+        rule.onNodeWithTag("firstrun_continue").assertDoesNotExist()
+        rule.onNodeWithTag("firstrun_restore").assertDoesNotExist()
+        assertEquals(0, handOffs)
+        assertEquals(0, resumes)
+    }
+
+    @Test
+    fun `RestoreBusy takes touches and hides the app from TalkBack`() {
+        show(FirstRunGateState.RestoreBusy)
+
+        tapMiddle()
+
+        assertEquals(0, appClicks)
+        rule.onNodeWithText("History underneath").assertDoesNotExist()
+    }
+
+    @Test
+    fun `RestoreBusy gives way to the app once the gate decides again`() {
+        show(FirstRunGateState.RestoreBusy)
+
+        state = FirstRunGateState.ShowApp
+        rule.waitForIdle()
+
+        rule.onNodeWithText("A restore is already running.").assertDoesNotExist()
+        rule.onNodeWithText("History underneath").assertExists()
     }
 
     @Test

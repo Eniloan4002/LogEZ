@@ -268,18 +268,264 @@ class FirstRunGateViewModelTest {
         assertEquals(FirstRunPath.EXISTING, store.storedPath)
     }
 
+    // ---- a restore still running at the timeout (P-229, FX1) ----
+
     @Test
-    fun `a restore that outlasts the timeout opens the app without probing, flag unwritten`() = runTest {
+    fun `a restore that outlasts the timeout shows RestoreBusy, not the app, without probing or writing`() = runTest {
         restoreLock.tryAcquire(Any())
         val vm = newViewModel()
 
+        advanceTimeBy(2_999L)
+        runCurrent()
+        assertEquals(FirstRunGateState.Loading, vm.state.value)
+
+        advanceTimeBy(2L)
+        runCurrent()
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+        assertEquals(0, probe.callCount)
+        assertFalse(store.isDone())
+        assertEquals(0, store.markDoneCallCount)
+        // Not a failure: nothing is logged.
+        assertTrue(logger.messages.isEmpty())
+    }
+
+    @Test
+    fun `RestoreBusy has no timeout of its own, as while the other window's confirm dialog stays open`() = runTest {
+        restoreLock.tryAcquire(Any())
+        val vm = newViewModel()
+
+        advanceTimeBy(600_000L)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+        assertEquals(0, probe.callCount)
+        assertFalse(store.isDone())
+    }
+
+    @Test
+    fun `once the restore ends, its restored rows open the app without writing the flag`() = runTest {
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        val vm = newViewModel()
         advanceTimeBy(3_001L)
+        runCurrent()
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+
+        probe.hasContent = true
+        restoreLock.release(restore)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(1, probe.callCount)
+        // The restoring window writes path restore; this one leaves the flag to it.
+        assertFalse(store.isDone())
+        assertEquals(0, store.markDoneCallCount)
+        assertNull(vm.message.value)
+        assertTrue(logger.messages.isEmpty())
+    }
+
+    @Test
+    fun `the restoring window's resume stays on setup and hands its restore over after the second window opened`() = runTest {
+        // Window 1: setup on an empty install, then its restore takes the lock.
+        val window1 = newViewModel()
+        assertEquals(enPhSetup, window1.state.value)
+        restoreLock.tryAcquire(window1)
+
+        // Window 2, from a widget tap: busy, then the restored rows once the lock is free.
+        val window2 = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+        assertEquals(FirstRunGateState.RestoreBusy, window2.state.value)
+        probe.hasContent = true
+        restoreLock.release(window1)
+        runCurrent()
+        assertEquals(FirstRunGateState.ShowApp, window2.state.value)
+
+        // Window 1 comes back before its restore has been handed to the gate: setup stays.
+        window1.onResume()
+        assertEquals(enPhSetup, window1.state.value)
+
+        val onScreen = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.SUNDAY)
+        window1.restored(RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false), onScreen)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, window1.state.value)
+        assertEquals(listOf(onScreen), settings.appliedSetupChoices)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(1, store.markDoneCallCount)
+        assertEquals(FirstRunMessage(R.string.data_restore_done), window1.message.value)
+    }
+
+    @Test
+    fun `with the flag written a held restore lock opens the app at once, without waiting or probing`() = runTest {
+        store.doneAt = 1L
+        store.storedPath = FirstRunPath.SETUP
+        restoreLock.tryAcquire(Any())
+
+        val vm = newViewModel()
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        advanceTimeBy(600_000L)
         runCurrent()
 
         assertEquals(FirstRunGateState.ShowApp, vm.state.value)
         assertEquals(0, probe.callCount)
+        assertEquals(0, store.markDoneCallCount)
+        assertTrue(logger.messages.isEmpty())
+    }
+
+    @Test
+    fun `once the restore ends, a flag the restoring window already wrote opens the app without probing`() = runTest {
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        val vm = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+
+        store.doneAt = 7L
+        store.storedPath = FirstRunPath.RESTORE
+        restoreLock.release(restore)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(0, probe.callCount)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(0, store.markDoneCallCount)
+    }
+
+    @Test
+    fun `once a restore that failed before its commit ends, an empty database shows setup`() = runTest {
+        region.suggestion = usSuggestion
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        val vm = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+
+        restoreLock.release(restore)
+        runCurrent()
+
+        assertEquals(
+            FirstRunGateState.ShowSetup(
+                preselected = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.SUNDAY),
+                regionNoteVisible = true,
+            ),
+            vm.state.value,
+        )
+        assertFalse(store.isDone())
+    }
+
+    @Test
+    fun `a flag read that throws after the restore still decides from the database`() = runTest {
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        val vm = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+
+        store.isDoneError = IllegalStateException("preferences failed to load")
+        probe.hasContent = true
+        restoreLock.release(restore)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(1, probe.callCount)
+        assertEquals(
+            listOf("Could not read the first-run flag after a restore; deciding again from the database"),
+            logger.messages,
+        )
+    }
+
+    @Test
+    fun `the re-check after a restore gets its own timeout and still fails open when the probe hangs`() = runTest {
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        val vm = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+
+        probe.neverReturns = true
+        restoreLock.release(restore)
+        runCurrent()
+        // The busy message stays up during the re-check, rather than a blank cover.
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+
+        advanceTimeBy(2_999L)
+        runCurrent()
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+
+        advanceTimeBy(2L)
+        runCurrent()
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
         assertFalse(store.isDone())
         assertEquals(listOf("First-run check took longer than 3000 ms; opening the app"), logger.messages)
+    }
+
+    @Test
+    fun `a second restore that takes the lock during the re-check keeps RestoreBusy until it ends too`() = runTest {
+        val first = Any()
+        restoreLock.tryAcquire(first)
+        val vm = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+
+        // Freed, then taken by a second restore before the gate's re-check reaches the lock: the
+        // gate reads the flag first, and the fake takes the lock right there.
+        val second = Any()
+        store.onIsDone = {
+            store.onIsDone = {}
+            restoreLock.tryAcquire(second)
+        }
+        restoreLock.release(first)
+        runCurrent()
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+        advanceTimeBy(3_001L)
+        runCurrent()
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+        assertEquals(0, probe.callCount)
+
+        probe.hasContent = true
+        restoreLock.release(second)
+        runCurrent()
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(1, probe.callCount)
+    }
+
+    @Test
+    fun `a probe that hangs after the lock was freed in time still fails open, not RestoreBusy`() = runTest {
+        val restore = Any()
+        restoreLock.tryAcquire(restore)
+        probe.neverReturns = true
+        val vm = newViewModel()
+
+        advanceTimeBy(1_000L)
+        restoreLock.release(restore)
+        runCurrent()
+        advanceTimeBy(2_001L)
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertEquals(1, probe.callCount)
+        assertEquals(listOf("First-run check took longer than 3000 ms; opening the app"), logger.messages)
+    }
+
+    @Test
+    fun `setup's actions and resume do nothing while RestoreBusy shows`() = runTest {
+        restoreLock.tryAcquire(Any())
+        val vm = newViewModel()
+        advanceTimeBy(3_001L)
+        runCurrent()
+        val choices = SetupChoices(WeightUnit.KG, DistanceUnit.KM, DayOfWeek.MONDAY)
+
+        vm.complete(choices)
+        vm.restored(RestoreOutcome(unfinishedWorkoutsLeftOut = 0, backupHadSettings = false), choices)
+        vm.restoreFailed(R.string.data_restore_failed, backupHadSettings = false, choices = choices)
+        vm.onResume()
+        runCurrent()
+
+        assertEquals(FirstRunGateState.RestoreBusy, vm.state.value)
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+        assertEquals(0, store.markDoneCallCount)
+        assertEquals(0, probe.callCount)
     }
 
     @Test
@@ -328,6 +574,40 @@ class FirstRunGateViewModelTest {
 
         vm.handoffDone()
         assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+    }
+
+    @Test
+    fun `complete after another window finished first run opens the app and writes nothing over it`() = runTest {
+        val vm = newViewModel()
+        assertEquals(enPhSetup, vm.state.value)
+        // Another window's restore (settings only, which the content check doesn't count) wrote the flag.
+        store.doneAt = 7L
+        store.storedPath = FirstRunPath.RESTORE
+
+        vm.complete(SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.SUNDAY))
+        runCurrent()
+
+        assertEquals(FirstRunGateState.ShowApp, vm.state.value)
+        assertTrue(settings.appliedSetupChoices.isEmpty())
+        assertEquals(0, widget.refreshCount)
+        assertEquals(0, store.markDoneCallCount)
+        assertEquals(FirstRunPath.RESTORE, store.storedPath)
+        assertEquals(7L, store.doneAt)
+    }
+
+    @Test
+    fun `complete still saves setup when the flag can't be read`() = runTest {
+        val vm = newViewModel()
+        store.isDoneError = IllegalStateException("preferences failed to load")
+        val choices = SetupChoices(WeightUnit.LB, DistanceUnit.MILES, DayOfWeek.SUNDAY)
+
+        vm.complete(choices)
+        runCurrent()
+
+        assertEquals(listOf(choices), settings.appliedSetupChoices)
+        assertEquals(FirstRunPath.SETUP, store.storedPath)
+        assertTrue(vm.state.value is FirstRunGateState.HandOff)
+        assertEquals(listOf("Could not read the first-run flag before saving setup; saving it"), logger.messages)
     }
 
     @Test

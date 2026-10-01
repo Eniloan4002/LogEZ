@@ -67,6 +67,14 @@ sealed interface FirstRunGateState {
      */
     data class HandOff(val setup: ShowSetup) : FirstRunGateState
 
+    /**
+     * A restore still held [RestoreLock] when [FirstRunGateViewModel.RESOLVE_TIMEOUT_MS] ran out
+     * (P-229, FX1): typically one started from setup in another window, which a widget tap opened
+     * this one beside. Setup's "A restore is already running." covers the app instead of an empty,
+     * usable one; once the lock is free the gate decides again, from the start.
+     */
+    data object RestoreBusy : FirstRunGateState
+
     /** The app as it is today. */
     data object ShowApp : FirstRunGateState
 }
@@ -86,6 +94,14 @@ data class FirstRunMessage(val messageRes: Int, val count: Int? = null)
  * app opens as it does today. Everything fails open: a read that throws or takes longer than
  * [RESOLVE_TIMEOUT_MS] opens the app and leaves the flag unwritten, so setup is offered again at
  * the next launch.
+ *
+ * The one exception is a restore that still holds [RestoreLock] at the timeout (P-229, FX1): the
+ * database is being replaced, so an open app would be empty and usable (a workout started there
+ * would even stop the restore). The gate shows [FirstRunGateState.RestoreBusy] instead, waits for
+ * the lock with no timeout, since every holder frees it in a `finally` or when its screen goes,
+ * and then decides again with a fresh timeout. A flag written meanwhile opens the app at once.
+ * That second decision never writes the flag itself: restored rows open the app with it unwritten,
+ * and the window that restored writes path `restore` (or the next launch writes `existing`).
  *
  * The state is a plain [MutableStateFlow] set from the constructor, not a `stateIn` over an endless
  * Flow: a launch that has already passed setup starts at [FirstRunGateState.ShowApp] with no
@@ -179,17 +195,45 @@ class FirstRunGateViewModel internal constructor(
 
     init {
         if (_state.value == FirstRunGateState.Loading) {
-            viewModelScope.launch { _state.value = resolve() }
+            viewModelScope.launch { decide() }
         }
     }
 
-    private suspend fun resolve(): FirstRunGateState {
+    /**
+     * [resolve], and again each time it ends on a restore that is still running: the busy message
+     * shows until the lock is free.
+     *
+     * The window that restored writes the flag only after it frees the lock (and after counting the
+     * restored rows), so the re-check usually finds the restored rows with the flag still unwritten.
+     * It then opens the app without writing `existing`: a flag written here would make that window's
+     * resume open its app before its restore is handed to [restored], losing the screen's choices
+     * for a backup without settings, the "Restored" message and path `restore`.
+     */
+    private suspend fun decide() {
+        var afterRestore = false
+        while (true) {
+            val decided = resolve(recordExisting = !afterRestore)
+            _state.value = decided
+            if (decided != FirstRunGateState.RestoreBusy) return
+            restoreLock.held.first { held -> !held }
+            if (readFlag(FLAG_READ_FAILED_AFTER_RESTORE) == true) {
+                _state.value = FirstRunGateState.ShowApp
+                return
+            }
+            afterRestore = true
+        }
+    }
+
+    /** @param recordExisting whether content found writes the flag with path `existing`. */
+    private suspend fun resolve(recordExisting: Boolean): FirstRunGateState {
         // Health Connect is read alongside the probe, not after it, so its answer is usually in by
         // the time setup is decided. Not a child of the timed block either (readHealth never throws).
         val healthRead = viewModelScope.async { readHealth() }
         // Not a child of the timed block: see the class comment. viewModelScope's SupervisorJob keeps
         // a failure here from cancelling the scope, and `async` hands it to await() instead.
-        val work = viewModelScope.async { readFirstRun() }
+        // Set once readFirstRun is past the restore lock; read only on the main thread, like it.
+        var pastRestoreLock = false
+        val work = viewModelScope.async { readFirstRun(recordExisting, onRestoreLockFree = { pastRestoreLock = true }) }
         var resolved: FirstRunGateState? = null
         try {
             withTimeoutOrNull(RESOLVE_TIMEOUT_MS) {
@@ -218,21 +262,24 @@ class FirstRunGateViewModel internal constructor(
             // The reads finish on their own thread and their answer is dropped; readFirstRun checks
             // for this cancellation before writing, so the flag stays unwritten (plan: fail open).
             work.cancel()
+            // Still waiting on a restore: not a failure, and the app must not open empty (FX1).
+            if (!pastRestoreLock) return FirstRunGateState.RestoreBusy
             logger.e(TAG, "First-run check took longer than ${RESOLVE_TIMEOUT_MS} ms; opening the app")
         }
         return resolved ?: FirstRunGateState.ShowApp
     }
 
-    private suspend fun readFirstRun(): FirstRunGateState {
+    private suspend fun readFirstRun(recordExisting: Boolean, onRestoreLockFree: () -> Unit): FirstRunGateState {
         // A restore in flight (the launch-time resume, or one started from another window) is
         // replacing the database, so a probe now could offer setup over data that is about to
-        // arrive (first-run plan, F14). Loading holds until it ends, within RESOLVE_TIMEOUT_MS
-        // like every other read here.
+        // arrive (first-run plan, F14). Loading holds until it ends, within RESOLVE_TIMEOUT_MS;
+        // past it, the gate shows RestoreBusy rather than opening the app (FX1).
         restoreLock.held.first { held -> !held }
+        onRestoreLockFree()
         return if (userDataProbe.hasUserContent()) {
             // A probe that outlived the timeout must not write: the app already opened without it.
             currentCoroutineContext().ensureActive()
-            if (!firstRunStore.markDone(FirstRunPath.EXISTING, clock.now().toEpochMilliseconds())) {
+            if (recordExisting && !firstRunStore.markDone(FirstRunPath.EXISTING, clock.now().toEpochMilliseconds())) {
                 logger.e(TAG, "Could not record first run for an install that already has data")
             }
             FirstRunGateState.ShowApp
@@ -242,11 +289,11 @@ class FirstRunGateViewModel internal constructor(
         }
     }
 
-    /** The synchronous flag read; null when it throws, which is logged. */
-    private fun readFlag(): Boolean? = try {
+    /** The synchronous flag read; null when it throws, which is logged with [failureMessage]. */
+    private fun readFlag(failureMessage: String = FLAG_READ_FAILED): Boolean? = try {
         firstRunStore.isDone()
     } catch (e: Exception) {
-        logger.e(TAG, "Could not read the first-run flag; opening the app", e)
+        logger.e(TAG, failureMessage, e)
         null
     }
 
@@ -255,10 +302,18 @@ class FirstRunGateViewModel internal constructor(
      * app is ever opened, and it counts weeks from the first day), then writes the flag last, so a
      * process death in between shows setup again with the chosen values preselected. A failed
      * write still opens the app; setup then returns at the next launch.
+     *
+     * If another window has finished first run while this setup showed (for example a restore
+     * there, whose rows the content check doesn't count, such as settings or step totals only),
+     * nothing is written over it: this window opens the app, as [onResume] would.
      */
     fun complete(choices: SetupChoices) {
         val current = _state.value as? FirstRunGateState.ShowSetup ?: return
         if (current.working) return
+        if (readFlag(FLAG_READ_FAILED_BEFORE_SETUP) == true) {
+            _state.value = FirstRunGateState.ShowApp
+            return
+        }
         _state.value = current.copy(working = true)
         viewModelScope.launch {
             try {
@@ -284,8 +339,10 @@ class FirstRunGateViewModel internal constructor(
      * "Restored" or the left-out variant.
      *
      * The flag is written even when another window has written one meanwhile: the database now holds
-     * this backup, so `restore` is what happened, whatever that window saw (it can only have found
-     * the restored rows, path `existing`, or have finished setup before the restore replaced it).
+     * this backup, so `restore` is what happened, whatever that window saw. A window that waited out
+     * this restore behind [FirstRunGateState.RestoreBusy] writes nothing; one whose check ran before
+     * the restore took the lock, or ended within [RESOLVE_TIMEOUT_MS] of it, may have written
+     * `existing` or finished setup, and this replaces it.
      */
     fun restored(outcome: RestoreOutcome, choices: SetupChoices) {
         val current = _state.value as? FirstRunGateState.ShowSetup ?: return
@@ -529,6 +586,11 @@ class FirstRunGateViewModel internal constructor(
         const val HEALTH_READ_TIMEOUT_MS = 1_000L
 
         private const val HEALTH_READ_FAILED = "Reading Health Connect for setup failed"
+
+        private const val FLAG_READ_FAILED = "Could not read the first-run flag; opening the app"
+        private const val FLAG_READ_FAILED_AFTER_RESTORE =
+            "Could not read the first-run flag after a restore; deciding again from the database"
+        private const val FLAG_READ_FAILED_BEFORE_SETUP = "Could not read the first-run flag before saving setup; saving it"
 
         private const val KEY_HEALTH_REFUSED = "first_run_health_refused"
     }

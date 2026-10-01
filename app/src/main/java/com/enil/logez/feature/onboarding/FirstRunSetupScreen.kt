@@ -184,6 +184,53 @@ fun FirstRunSetupScreen(
     }
 }
 
+/**
+ * What a second window shows while another window's restore holds the restore lock past the gate's
+ * timeout (P-229, FX1): setup's title and its own "A restore is already running.", and nothing to
+ * tap, so neither setup nor an empty app can be used under a restore. The gate decides again once
+ * the restore ends. No BackHandler: Back leaves this window, which writes nothing.
+ */
+@Composable
+fun FirstRunRestoreBusyScreen(modifier: Modifier = Modifier) {
+    val paneTitle = stringResource(R.string.first_run_pane_title)
+    val inset = Modifier.padding(horizontal = Spacing.md)
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        modifier = modifier
+            .fillMaxSize()
+            .semantics { this.paneTitle = paneTitle },
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = MAX_CONTENT_WIDTH)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Box(modifier = inset.heightIn(min = TITLE_ROW_HEIGHT), contentAlignment = Alignment.CenterStart) {
+                    ScreenTitle(
+                        stringResource(R.string.first_run_title),
+                        modifier = Modifier.semantics { heading() },
+                    )
+                }
+                Text(
+                    stringResource(R.string.data_restore_busy),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    // It replaces the blank Loading cover in place; a polite live region reads it out.
+                    modifier = inset
+                        .padding(vertical = Spacing.xs)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun SetupContent(
     choices: SetupChoices,

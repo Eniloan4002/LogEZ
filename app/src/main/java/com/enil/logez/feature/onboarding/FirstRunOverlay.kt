@@ -66,6 +66,8 @@ fun FirstRunHost(
  *   [onHandOff] moves the app to the Workout tab underneath, so History never flashes. [onHandOff]
  *   must end by removing the overlay ([FirstRunGateViewModel.handoffDone]); it runs again if the
  *   Activity is recreated mid-hand-off, so it must be safe to repeat.
+ * - [FirstRunGateState.RestoreBusy]: [FirstRunRestoreBusyScreen], setup's "A restore is already
+ *   running." with nothing to tap, while another window's restore holds the lock (FX1).
  * - [FirstRunGateState.ShowApp]: nothing.
  *
  * [onResume] runs on every resume while setup shows (a second window may have finished setup, and
@@ -99,6 +101,8 @@ fun FirstRunOverlay(
             restore = setupRestore(choices),
             health = setupHealth(),
         )
+    } else if (state == FirstRunGateState.RestoreBusy) {
+        FirstRunRestoreBusyScreen()
     } else if (state != FirstRunGateState.ShowApp) {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {}
     }
