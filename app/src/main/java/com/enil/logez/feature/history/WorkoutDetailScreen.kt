@@ -1,7 +1,9 @@
 package com.enil.logez.feature.history
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,6 +24,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -357,7 +360,7 @@ internal data class DetailRoundEntry(val block: DetailExerciseBlock, val set: De
  * Defensive by construction: a block with no surviving row at a round contributes a null
  * (rendered "—") entry — gaps and unequal counts must render, never crash.
  */
-private fun buildDetailRounds(blocks: List<DetailExerciseBlock>): List<DetailRound> {
+internal fun buildDetailRounds(blocks: List<DetailExerciseBlock>): List<DetailRound> {
     val rounds = blocks.maxOfOrNull { block -> block.sets.maxOfOrNull { it.orderIndex + 1 } ?: 0 } ?: 0
     return (0 until rounds).map { roundIndex ->
         DetailRound(
@@ -377,9 +380,19 @@ private fun WorkoutDetailUiState.tableUnits() = DetailTableUnits(effortScale, we
  * the round has the same columns, one header under "ROUND N" covers all of them and each name
  * sits above its row; a mixed round (Push-up with Plank) gets a header per exercise, since one
  * header can't label both. Rows keep the round's number (decision 9 leaves circuits alone).
+ *
+ * [preview] is the Recent workout detail's reading (see [ExerciseBlockCard]): an exercise deleted
+ * from the library is muted and not a link, and the card says once that Start still adds it.
  */
 @Composable
-internal fun DetailRoundCard(round: DetailRound, units: DetailTableUnits, onEffortInfoClick: () -> Unit, onExerciseClick: (String) -> Unit) {
+internal fun DetailRoundCard(
+    round: DetailRound,
+    units: DetailTableUnits,
+    onEffortInfoClick: () -> Unit,
+    onExerciseClick: (String) -> Unit,
+    preview: Boolean = false,
+) {
+    val hasDeleted = preview && round.entries.any { val exercise = it.block.exercise; exercise == null || exercise.isDeleted }
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -403,12 +416,12 @@ internal fun DetailRoundCard(round: DetailRound, units: DetailTableUnits, onEffo
                     onEffortInfoClick = onEffortInfoClick,
                     columns = sharedColumns,
                     labels = round.entries.map { it.label(round.roundNumber) },
-                    aboveRow = { index -> RoundEntryName(round.entries[index].block.exercise, onExerciseClick) },
+                    aboveRow = { index -> RoundEntryName(round.entries[index].block.exercise, onExerciseClick, preview = preview) },
                     modifier = Modifier.padding(top = Spacing.sm),
                 )
             } else {
                 round.entries.forEach { entry ->
-                    RoundEntryName(entry.block.exercise, onExerciseClick, Modifier.padding(top = Spacing.sm))
+                    RoundEntryName(entry.block.exercise, onExerciseClick, Modifier.padding(top = Spacing.sm), preview = preview)
                     HistorySetTable(
                         exerciseType = entry.block.exercise?.exerciseType,
                         rows = listOf(entry.tableRow()),
@@ -421,17 +434,26 @@ internal fun DetailRoundCard(round: DetailRound, units: DetailTableUnits, onEffo
                     )
                 }
             }
+            if (hasDeleted) {
+                Text(
+                    stringResource(R.string.recent_detail_deleted_exercise),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun RoundEntryName(exercise: Exercise?, onExerciseClick: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun RoundEntryName(exercise: Exercise?, onExerciseClick: (String) -> Unit, modifier: Modifier = Modifier, preview: Boolean = false) {
+    val isDeleted = preview && (exercise == null || exercise.isDeleted)
     Text(
         exercise?.name.orEmpty(),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.then(if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier),
+        color = if (isDeleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+        modifier = modifier.then(if (exercise != null && !isDeleted) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier),
     )
 }
 
@@ -476,10 +498,23 @@ private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
  * The superset stripe is drawn behind the content rather than as a sibling of an
  * IntrinsicSize.Min row: the table measures its columns in a BoxWithConstraints, which can't
  * answer an intrinsic-size query.
+ *
+ * [preview] is the Recent workout detail's reading of the same card (R-1, 2026-10-01): what Start
+ * would add rather than a record. A superset also carries the logger's "Superset" label above the
+ * name, and an exercise deleted from the library is muted, says "Start still adds it" and isn't
+ * a link. The caller strips effort and trophies from the rows it passes.
  */
 @Composable
-internal fun ExerciseBlockCard(block: DetailExerciseBlock, units: DetailTableUnits, onEffortInfoClick: () -> Unit, onExerciseClick: (String) -> Unit) {
+internal fun ExerciseBlockCard(
+    block: DetailExerciseBlock,
+    units: DetailTableUnits,
+    onEffortInfoClick: () -> Unit,
+    onExerciseClick: (String) -> Unit,
+    preview: Boolean = false,
+) {
     val supersetColor = block.workoutExercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
+    val exercise = block.exercise
+    val isDeleted = preview && (exercise == null || exercise.isDeleted)
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(
             modifier = Modifier
@@ -495,13 +530,31 @@ internal fun ExerciseBlockCard(block: DetailExerciseBlock, units: DetailTableUni
                 )
                 .padding(Spacing.md),
         ) {
-            val exercise = block.exercise
+            if (preview && supersetColor != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = Spacing.xs)) {
+                    Box(modifier = Modifier.size(10.dp).background(supersetColor, CircleShape))
+                    Text(
+                        stringResource(R.string.routine_builder_superset_chip),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = supersetColor,
+                        modifier = Modifier.padding(start = Spacing.xxs),
+                    )
+                }
+            }
             Text(
                 exercise?.name.orEmpty(),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = if (exercise != null) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier,
+                color = if (isDeleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                modifier = if (exercise != null && !isDeleted) Modifier.clickable { onExerciseClick(exercise.id) } else Modifier,
             )
+            if (isDeleted) {
+                Text(
+                    stringResource(R.string.recent_detail_deleted_exercise),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xxs),
+                )
+            }
             if (!block.workoutExercise.notes.isNullOrBlank()) {
                 Text(
                     block.workoutExercise.notes,

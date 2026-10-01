@@ -1,6 +1,7 @@
 package com.enil.logez.feature.routines
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,6 +65,7 @@ fun RecentSection(
     onNavigateToActivityTracking: () -> Unit,
     onNavigateToFinish: (workoutId: String) -> Unit,
     onSeeAll: () -> Unit,
+    onOpenWorkout: (workoutId: String) -> Unit,
     viewModel: RecentWorkoutsViewModel = hiltViewModel(),
 ) {
     val recent by viewModel.cardState.collectAsState()
@@ -84,16 +86,38 @@ fun RecentSection(
         // The card's query already carries LIMIT 3.
         recent.forEachIndexed { index, card ->
             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            RecentWorkoutRow(card = card, compactDate = true, onStart = { start(card.workoutId) }, modifier = Modifier.padding(horizontal = Spacing.md))
+            RecentWorkoutRow(
+                card = card,
+                compactDate = true,
+                onOpen = { onOpenWorkout(card.workoutId) },
+                onStart = { start(card.workoutId) },
+            )
         }
         Spacer(Modifier.size(Spacing.xs))
     }
 }
 
-/** Shared row: [RecentSection]'s inline card and [RecentWorkoutsScreen]'s full list render the identical row. */
+/**
+ * Shared row: [RecentSection]'s inline card and [RecentWorkoutsScreen]'s full list render the
+ * identical row. The row opens the workout's detail ([onOpen], R-1); the Start pill stays the
+ * one-tap quick start ([onStart]).
+ */
 @Composable
-internal fun RecentWorkoutRow(card: RecentWorkoutCardModel, compactDate: Boolean, onStart: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier = modifier.fillMaxWidth().padding(vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+internal fun RecentWorkoutRow(
+    card: RecentWorkoutCardModel,
+    compactDate: Boolean,
+    onOpen: () -> Unit,
+    onStart: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = stringResource(R.string.workout_recent_open_a11y, card.title), onClick = onOpen)
+            // After the click target, so the ripple and the tap reach both card edges.
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         // The full list marks routine vs ad hoc with a leading icon; the compact inline card
         // leaves it out, as in the approved mockups (workout-tab.png vs recent-routines.png).
         if (!compactDate) {
@@ -141,7 +165,7 @@ internal fun RecentWorkoutRow(card: RecentWorkoutCardModel, compactDate: Boolean
 }
 
 @Composable
-private fun recentSubtitle(card: RecentWorkoutCardModel, compact: Boolean): String {
+internal fun recentSubtitle(card: RecentWorkoutCardModel, compact: Boolean): String {
     val zoned = Instant.ofEpochMilli(card.startedAtMillis).atZone(ZoneId.systemDefault())
     val today = LocalDate.now(ZoneId.systemDefault())
     val days = java.time.temporal.ChronoUnit.DAYS.between(zoned.toLocalDate(), today)
@@ -160,7 +184,7 @@ private fun recentSubtitle(card: RecentWorkoutCardModel, compact: Boolean): Stri
     }
 }
 
-private fun formatRecentDuration(totalSeconds: Int): String {
+internal fun formatRecentDuration(totalSeconds: Int): String {
     val h = totalSeconds / 3600
     val m = (totalSeconds % 3600) / 60
     return if (h > 0) "${h}h ${m}m" else "${m}m"

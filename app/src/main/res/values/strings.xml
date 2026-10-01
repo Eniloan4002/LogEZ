@@ -397,7 +397,9 @@
     <string name="workout_recent_title">Recent</string>
     <string name="workout_recent_see_all">See all</string>
     <string name="workout_recent_screen_title">Recent</string>
-    <string name="workout_recent_screen_subtitle">Any workout you\'ve logged, saved routine or not — tap Start to begin a new one with the same exercises.</string>
+    <string name="workout_recent_screen_subtitle">Any workout you\'ve logged, saved routine or not. Tap one to see its exercises, or Start to do it again.</string>
+    <!-- R-1: the row opens the workout, so the row itself needs a spoken action. -->
+    <string name="workout_recent_open_a11y">Open %1$s</string>
     <string name="workout_recent_section_this_week">This week</string>
     <string name="workout_recent_section_last_week">Last week</string>
     <string name="workout_recent_section_older">Older</string>
@@ -407,6 +409,12 @@
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
     </plurals>
+    <!-- R-1 "Recent workout detail": a finished workout opened like a routine, with Start on top. -->
+    <string name="recent_detail_start">Start this workout</string>
+    <string name="recent_detail_start_hint">Starts a new workout filled in with these sets. Notes and effort start blank.</string>
+    <string name="recent_detail_open_in_history">Open in History</string>
+    <string name="recent_detail_deleted_exercise">Deleted from your exercise list. Start still adds it.</string>
+    <string name="recent_detail_empty">No exercises were logged in this workout.</string>
     <string name="workout_recent_start_confirm_title">Start this workout again?</string>
     <string name="workout_recent_start_confirm_body">Opens a new session with the same exercises.</string>
     <!-- M21a "Track a walk/run" (GPS) -->

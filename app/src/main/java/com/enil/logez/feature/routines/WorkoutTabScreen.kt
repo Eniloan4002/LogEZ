@@ -122,6 +122,7 @@ fun WorkoutTabScreen(
     onNavigateToActivityTracking: () -> Unit,
     onNavigateToFinish: (workoutId: String) -> Unit,
     onSeeAllRecent: () -> Unit,
+    onOpenRecent: (workoutId: String) -> Unit,
     viewModel: WorkoutTabViewModel = hiltViewModel(),
     goalsViewModel: GoalsViewModel = hiltViewModel(),
 ) {
@@ -397,6 +398,7 @@ fun WorkoutTabScreen(
                     onNavigateToActivityTracking = onNavigateToActivityTracking,
                     onNavigateToFinish = onNavigateToFinish,
                     onSeeAll = onSeeAllRecent,
+                    onOpenWorkout = onOpenRecent,
                 )
             }
 

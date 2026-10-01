@@ -9,6 +9,11 @@ object RoutineRoutes {
     /** P-205 "See all" — the full Recent list; no args, it's a global feed, not folder-scoped. */
     const val RECENT = "recent_workouts"
 
+    /** Recent workout detail (R-1, 2026-10-01): a finished workout opened like a routine, with Start on top. */
+    const val RECENT_DETAIL = "recent_workout/{workoutId}"
+
+    fun recentDetail(workoutId: String) = "recent_workout/$workoutId"
+
     fun detail(routineId: String) = "routine_detail/$routineId"
 
     fun builder(routineId: String? = null, folderId: String? = null): String {

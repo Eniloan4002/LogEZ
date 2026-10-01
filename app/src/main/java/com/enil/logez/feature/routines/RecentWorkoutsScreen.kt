@@ -45,6 +45,7 @@ fun RecentWorkoutsScreen(
     onNavigateToLogger: (workoutId: String) -> Unit,
     onNavigateToActivityTracking: () -> Unit,
     onNavigateToFinish: (workoutId: String) -> Unit,
+    onOpenWorkout: (workoutId: String) -> Unit,
     viewModel: RecentWorkoutsViewModel = hiltViewModel(),
 ) {
     val recent by viewModel.uiState.collectAsState()
@@ -101,8 +102,8 @@ fun RecentWorkoutsScreen(
                             RecentWorkoutRow(
                                 card = card,
                                 compactDate = false,
+                                onOpen = { onOpenWorkout(card.workoutId) },
                                 onStart = { start(card.workoutId) },
-                                modifier = Modifier.padding(horizontal = Spacing.md),
                             )
                         }
                     }

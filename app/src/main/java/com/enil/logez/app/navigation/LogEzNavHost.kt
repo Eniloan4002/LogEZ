@@ -31,6 +31,7 @@ import com.enil.logez.feature.measurements.MeasurementsRoutes
 import com.enil.logez.feature.measurements.MeasurementsScreen
 import com.enil.logez.feature.achievements.AchievementsRoutes
 import com.enil.logez.feature.achievements.AchievementsScreen
+import com.enil.logez.feature.routines.RecentWorkoutDetailScreen
 import com.enil.logez.feature.routines.RecentWorkoutsScreen
 import com.enil.logez.feature.routines.RoutineBuilderScreen
 import com.enil.logez.feature.routines.RoutineDetailScreen
@@ -107,6 +108,7 @@ fun LogEzNavHost(
                 onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
                 onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
                 onSeeAllRecent = { navController.navigate(RoutineRoutes.RECENT) },
+                onOpenRecent = { id -> navController.navigate(RoutineRoutes.recentDetail(id)) },
             )
         }
         composable(RoutineRoutes.RECENT) {
@@ -115,6 +117,21 @@ fun LogEzNavHost(
                 onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
                 onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
                 onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
+                onOpenWorkout = { id -> navController.navigate(RoutineRoutes.recentDetail(id)) },
+            )
+        }
+        composable(
+            route = RoutineRoutes.RECENT_DETAIL,
+            arguments = listOf(navArgument("workoutId") { type = NavType.StringType }),
+        ) {
+            RecentWorkoutDetailScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToLogger = { workoutId -> navController.navigate(WorkoutRoutes.logger(workoutId)) },
+                onNavigateToActivityTracking = { navController.navigate(ActivityTrackingRoutes.LIVE_TRACKING) },
+                onNavigateToFinish = { workoutId -> navController.navigate(WorkoutRoutes.finish(workoutId)) },
+                onSavedAsRoutine = { routineId -> navController.navigate(RoutineRoutes.builder(routineId = routineId)) },
+                onOpenInHistory = { id -> navController.navigate(HistoryRoutes.detail(id)) },
+                onExerciseClick = { id -> navController.navigate(ExerciseRoutes.detail(id)) },
             )
         }
         composable(ActivityTrackingRoutes.LIVE_TRACKING) {
