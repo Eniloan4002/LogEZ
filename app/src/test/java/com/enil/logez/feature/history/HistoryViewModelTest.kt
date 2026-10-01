@@ -1,15 +1,18 @@
 package com.enil.logez.feature.history
 
+import com.enil.logez.core.data.backup.RestoreLock
 import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeExerciseRepository
@@ -271,6 +274,50 @@ class HistoryViewModelTest {
         assertEquals(null, line.bestSet)
     }
 
+    // --- a restore holding the restore lock (P-229, FX1) ---
+
+    @Test
+    fun `the feed is loading while a restore holds the lock, and built once it is free`() = runTest {
+        val lock = RestoreLock()
+        val restore = Any()
+        lock.tryAcquire(restore)
+        val vm = viewModel(FakeWorkoutRepository(workouts = listOf(workout("w1", startedAt = 1_000L))), restoreLock = lock)
+
+        assertTrue(vm.uiState.value.isLoading)
+        assertTrue(vm.uiState.value.cards.isEmpty())
+
+        lock.release(restore)
+
+        assertFalse(vm.uiState.value.isLoading)
+        assertEquals(listOf("w1"), vm.uiState.value.cards.map { it.workoutId })
+    }
+
+    @Test
+    fun `an empty feed built before a restore never shows once the restore ends`() = runTest {
+        val lock = RestoreLock()
+        val workoutRepo = FakeWorkoutRepository()
+        val settingsRepo = FakeSettingsRepository()
+        val vm = viewModel(workoutRepo, settingsRepo = settingsRepo, restoreLock = lock)
+        assertFalse(vm.uiState.value.isLoading)
+        assertTrue(vm.uiState.value.cards.isEmpty())
+
+        val restore = Any()
+        lock.tryAcquire(restore)
+        assertTrue(vm.uiState.value.isLoading)
+        // The restore replaces the workouts and the settings while it holds the lock.
+        workoutRepo.insertFullWorkout(workout("w-restored", startedAt = 2_000L), emptyList(), emptyList())
+        settingsRepo.setWeightUnit(WeightUnit.LB)
+        settingsRepo.setDistanceUnit(DistanceUnit.MILES)
+        assertTrue(vm.uiState.value.isLoading)
+
+        lock.release(restore)
+
+        assertFalse(vm.uiState.value.isLoading)
+        assertEquals(listOf("w-restored"), vm.uiState.value.cards.map { it.workoutId })
+        assertEquals(WeightUnit.LB, vm.uiState.value.weightUnit)
+        assertEquals(DistanceUnit.MILES, vm.uiState.value.distanceUnit)
+    }
+
     // --- fixture ---
 
     private fun viewModel(
@@ -278,7 +325,8 @@ class HistoryViewModelTest {
         recordsRepo: FakePersonalRecordsRepository = FakePersonalRecordsRepository(),
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(listOf(exercise("ex-1"))),
         settingsRepo: FakeSettingsRepository = FakeSettingsRepository(),
-    ) = HistoryViewModel(workoutRepo, exerciseRepo, recordsRepo, settingsRepo)
+        restoreLock: RestoreLock = RestoreLock(),
+    ) = HistoryViewModel(workoutRepo, exerciseRepo, recordsRepo, settingsRepo, restoreLock)
 
     private fun workout(id: String, startedAt: Long, status: WorkoutStatus = WorkoutStatus.COMPLETED) = WorkoutEntity(
         id = id, routineId = null, title = "Session $id", notes = null, status = status,

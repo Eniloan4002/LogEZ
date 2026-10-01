@@ -2,6 +2,7 @@ package com.enil.logez.feature.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.enil.logez.core.data.backup.RestoreLock
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.domain.calc.BestSetCalculator
 import com.enil.logez.core.domain.calc.StatSet
@@ -17,9 +18,12 @@ import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -31,25 +35,40 @@ import kotlinx.coroutines.flow.stateIn
  * computes them for the just-saved workout (same `isIncluded`/`VolumeCalculator` call, same
  * `bodyweightKg = null`) — deliberately, so a workout never shows one volume number on its Summary
  * screen and a different one back here.
+ *
+ * While a restore holds [RestoreLock] the feed is loading, not the database as it was before or
+ * midway (P-229, FX1). A window opened beside a restore from setup builds History under the gate's
+ * cover from a database that is still empty; without this, it showed "No workouts yet" and a live
+ * "Start a workout" for seconds after the restore ended, until every queued rebuild had run. Once
+ * the lock is free the feed reads again from scratch, and stays loading until that read is built.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val personalRecordsRepository: PersonalRecordsRepository,
     settingsRepository: SettingsRepository,
+    restoreLock: RestoreLock,
 ) : ViewModel() {
-    val uiState: StateFlow<HistoryUiState> = combine(
-        workoutRepository.observeCompleted(),
-        settingsRepository.settings,
-    ) { workouts, settings -> workouts to settings }
-        .map { (workouts, settings) ->
-            HistoryUiState(
-                isLoading = false,
-                cards = buildCards(workouts, settings.includeWarmupsInStats),
-                weightUnit = settings.weightUnit,
-                distanceUnit = settings.distanceUnit,
-            )
+    val uiState: StateFlow<HistoryUiState> = restoreLock.held
+        .flatMapLatest { restoring ->
+            if (restoring) {
+                flowOf(HistoryUiState(isLoading = true))
+            } else {
+                combine(
+                    workoutRepository.observeCompleted(),
+                    settingsRepository.settings,
+                ) { workouts, settings -> workouts to settings }
+                    .map { (workouts, settings) ->
+                        HistoryUiState(
+                            isLoading = false,
+                            cards = buildCards(workouts, settings.includeWarmupsInStats),
+                            weightUnit = settings.weightUnit,
+                            distanceUnit = settings.distanceUnit,
+                        )
+                    }
+            }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, HistoryUiState(isLoading = true))
 
