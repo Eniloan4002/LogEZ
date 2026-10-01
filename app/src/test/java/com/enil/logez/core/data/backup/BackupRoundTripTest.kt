@@ -96,7 +96,7 @@ class BackupRoundTripTest : RoomDatabaseTestBase() {
                 ),
             ),
         )
-        dao.insertWorkoutExercisesBulk(listOf(WorkoutExerciseEntity("we1", "w1", "e1", 0, null, null, null)))
+        dao.insertWorkoutExercisesBulk(listOf(WorkoutExerciseEntity("we1", "w1", "e1", 0, null, null, null, timerMode = "COUNTDOWN")))
         dao.insertWorkoutSetsBulk(
             listOf(
                 WorkoutSetEntity(
@@ -104,7 +104,7 @@ class BackupRoundTripTest : RoomDatabaseTestBase() {
                 ),
             ),
         )
-        dao.insertActivityTracks(listOf(ActivityTrackEntity("t1", "ws1", "abc", 12, 4.5, routeTimes = "AEE")))
+        dao.insertActivityTracks(listOf(ActivityTrackEntity("t1", "ws1", "abc", 12, 4.5, routeTimes = "AEE", pauseRanges = "BCD")))
         dao.insertHeartRateSamples(listOf(WorkoutHeartRateSampleEntity("hr1", "w1", 150, 132L)))
         dao.insertBodyMeasurements(
             listOf(
@@ -229,6 +229,9 @@ class BackupRoundTripTest : RoomDatabaseTestBase() {
         restoreFromStaging(staging)
 
         assertEquals(before, snapshot())
+        // The two v11 columns, named, so a restore that dropped them cannot hide inside the snapshot equality.
+        assertEquals("COUNTDOWN", database.backupDao().pageWorkoutExercises("", 10).single().timerMode)
+        assertEquals("BCD", database.backupDao().pageActivityTracks("", 10).single().pauseRanges)
         assertEquals(1, manifest.workoutCount)
         assertEquals(2, manifest.exerciseCount)
     }

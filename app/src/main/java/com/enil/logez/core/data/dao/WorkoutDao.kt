@@ -124,6 +124,10 @@ interface WorkoutDao {
     @Query("UPDATE workout_exercises SET rest_timer_seconds = :seconds WHERE id = :id")
     suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?)
 
+    /** The inline timer mode for THIS workout's copy of the exercise: null (stopwatch) or `COUNTDOWN`. */
+    @Query("UPDATE workout_exercises SET timer_mode = :timerMode WHERE id = :id")
+    suspend fun updateWorkoutExerciseTimerMode(id: String, timerMode: String?)
+
     @Query("UPDATE workout_exercises SET exercise_id = :newExerciseId WHERE id = :id")
     suspend fun updateWorkoutExerciseExerciseId(id: String, newExerciseId: String)
 
@@ -131,6 +135,8 @@ interface WorkoutDao {
     @Transaction
     suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>) {
         updateWorkoutExerciseExerciseId(workoutExerciseId, newExerciseId)
+        // The row survives a Replace, but the countdown was chosen for the OLD exercise: back to a stopwatch.
+        updateWorkoutExerciseTimerMode(workoutExerciseId, null)
         carriedOverSets.forEach { updateWorkoutSet(it) }
     }
 

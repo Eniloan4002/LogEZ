@@ -58,6 +58,7 @@ class WorkoutStarterTest {
         val exercises = workoutRepo.getExercisesForWorkout(workoutId)
         assertEquals(1, exercises.size)
         assertNotEquals("re1", exercises[0].id) // fresh id, not the routine's row id
+        assertNull(exercises[0].timerMode) // a routine start begins on a stopwatch
         assertEquals(45, exercises[0].restTimerSeconds)
         assertEquals("form cue", exercises[0].notes)
 
@@ -103,7 +104,7 @@ class WorkoutStarterTest {
                 ),
             ),
             exercises = listOf(
-                WorkoutExerciseEntity(id = "we1", workoutId = "w-source", exerciseId = "ex-1", orderIndex = 0, supersetGroup = 1, restTimerSeconds = 90, notes = "shoulder tight"),
+                WorkoutExerciseEntity(id = "we1", workoutId = "w-source", exerciseId = "ex-1", orderIndex = 0, supersetGroup = 1, restTimerSeconds = 90, notes = "shoulder tight", timerMode = "COUNTDOWN"),
             ),
             sets = listOf(
                 WorkoutSetEntity(id = "s1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.NORMAL, weightKg = 102.5, reps = 6, durationSeconds = null, distanceMeters = null, rpe = 8.5, customMetric = null, isCompleted = true, completedAt = 2_000L),
@@ -126,6 +127,7 @@ class WorkoutStarterTest {
         assertEquals(1, exercises[0].supersetGroup)
         assertEquals(90, exercises[0].restTimerSeconds)
         assertNull(exercises[0].notes) // session note doesn't carry over either
+        assertNull(exercises[0].timerMode) // the source was a countdown, but the mode is this workout only: Copy Workout and Recent start on a stopwatch (rest timers DO carry)
 
         val sets = workoutRepo.getSetsForWorkoutExercise(exercises[0].id).sortedBy { it.orderIndex }
         assertEquals(2, sets.size)

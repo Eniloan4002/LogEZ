@@ -37,4 +37,12 @@ data class WorkoutExerciseEntity(
     @ColumnInfo(name = "superset_group") val supersetGroup: Int?,
     @ColumnInfo(name = "rest_timer_seconds") val restTimerSeconds: Int?,
     val notes: String?,
+    /**
+     * Which inline timer this exercise uses in THIS workout: null is a stopwatch, `"COUNTDOWN"` a
+     * countdown ([com.enil.logez.core.domain.model.TimerMode]). Added in v11 (2026-10-01) with no
+     * default, like [restTimerSeconds], so every earlier row reads back as a stopwatch. It lives on
+     * this per-workout copy of the exercise on purpose: the same exercise in any other workout is
+     * not touched. Copy Workout, routine starts and Replace Exercise set it to null explicitly.
+     */
+    @ColumnInfo(name = "timer_mode") val timerMode: String? = null,
 )

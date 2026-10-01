@@ -196,13 +196,15 @@ data class WorkoutExerciseDto(
     @SerialName("superset_group") val supersetGroup: Int? = null,
     @SerialName("rest_timer_seconds") val restTimerSeconds: Int? = null,
     @SerialName("notes") val notes: String? = null,
+    /** Added 2026-10-01 (database v11). Absent from older backups, which restore as a stopwatch. */
+    @SerialName("timer_mode") val timerMode: String? = null,
 )
 
 fun WorkoutExerciseEntity.toDto() =
-    WorkoutExerciseDto(id, workoutId, exerciseId, orderIndex, supersetGroup, restTimerSeconds, notes)
+    WorkoutExerciseDto(id, workoutId, exerciseId, orderIndex, supersetGroup, restTimerSeconds, notes, timerMode)
 
 fun WorkoutExerciseDto.toEntity() =
-    WorkoutExerciseEntity(id, workoutId, exerciseId, orderIndex, supersetGroup, restTimerSeconds, notes)
+    WorkoutExerciseEntity(id, workoutId, exerciseId, orderIndex, supersetGroup, restTimerSeconds, notes, timerMode)
 
 @Serializable
 data class WorkoutSetDto(
@@ -241,10 +243,12 @@ data class ActivityTrackDto(
     @SerialName("avg_accuracy_m") val avgAccuracyM: Double? = null,
     /** Added 2026-09-26 (database v10). Absent from older backups, which restore with null. */
     @SerialName("route_times") val routeTimes: String? = null,
+    /** Added 2026-10-01 (database v11). Absent from older backups, which restore as a run that was never paused. */
+    @SerialName("pause_ranges") val pauseRanges: String? = null,
 )
 
-fun ActivityTrackEntity.toDto() = ActivityTrackDto(id, workoutSetId, routePolyline, pointCount, avgAccuracyM, routeTimes)
-fun ActivityTrackDto.toEntity() = ActivityTrackEntity(id, workoutSetId, routePolyline, pointCount, avgAccuracyM, routeTimes)
+fun ActivityTrackEntity.toDto() = ActivityTrackDto(id, workoutSetId, routePolyline, pointCount, avgAccuracyM, routeTimes, pauseRanges)
+fun ActivityTrackDto.toEntity() = ActivityTrackEntity(id, workoutSetId, routePolyline, pointCount, avgAccuracyM, routeTimes, pauseRanges)
 
 @Serializable
 data class WorkoutHeartRateSampleDto(

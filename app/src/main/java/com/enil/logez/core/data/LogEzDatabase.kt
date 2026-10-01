@@ -42,7 +42,10 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
  * steps/calories aggregate, one row per calendar day), v8 adds `workout_heart_rate_samples` (M21f —
  * a local cache of Health Connect's per-sample heart rate over a workout's own time window, read
  * once at Finish), v9 adds `workouts.kind` (M23a — which live surface owns an IN_PROGRESS row once
- * the process that was tracking it is gone; a discriminator only, no new tables).
+ * the process that was tracking it is gone; a discriminator only, no new tables), v10 adds
+ * `activity_tracks.route_times` (walk/run summary splits), v11 adds `workout_exercises.timer_mode`
+ * (stopwatch or countdown per workout exercise) and `activity_tracks.pause_ranges` (the tracking
+ * screen's Pause) in one migration.
  * `exportSchema = true`
  * from day one — `schemas/` is
  * committed alongside this file. `fallbackToDestructiveMigration` is never used anywhere in this
@@ -92,7 +95,7 @@ abstract class LogEzDatabase : RoomDatabase() {
          * into every backup's manifest so an older app refuses a newer backup; it drifted once
          * (left at 9 when v10 shipped, 2026-09-26) while it was a separate literal.
          */
-        const val VERSION = 10
+        const val VERSION = 11
 
         const val DATABASE_NAME = "logez.db"
 
@@ -272,6 +275,21 @@ abstract class LogEzDatabase : RoomDatabase() {
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `activity_tracks` ADD COLUMN `route_times` TEXT")
+            }
+        }
+
+        /**
+         * v10 -> v11 (tracking, timer and Recent mockups, 2026-10-01): two nullable columns with no
+         * default, in one migration. `workout_exercises.timer_mode` is the per-workout inline timer
+         * mode (null = stopwatch, `'COUNTDOWN'`); `activity_tracks.pause_ranges` is the tracking
+         * screen's pause ranges. The first ships with the timer modes and the second with Pause, but
+         * both land here so the app has one version jump, not two. Additive: every earlier row reads
+         * back as a stopwatch / a run that was never paused, which is what it was.
+         */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `workout_exercises` ADD COLUMN `timer_mode` TEXT")
+                db.execSQL("ALTER TABLE `activity_tracks` ADD COLUMN `pause_ranges` TEXT")
             }
         }
     }

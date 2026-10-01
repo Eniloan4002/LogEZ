@@ -75,6 +75,51 @@ class WorkoutDaoTest : RoomDatabaseTestBase() {
     }
 
     @Test
+    fun `a timer mode is written to one workout exercise only, and Replace Exercise puts the row back on a stopwatch`() = runTest {
+        anExercise()
+        dao.insertFullWorkout(
+            workout = aWorkout("w1", WorkoutStatus.IN_PROGRESS),
+            exercises = listOf(
+                WorkoutExerciseEntity(id = "we1", workoutId = "w1", exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = 90, notes = "n"),
+                WorkoutExerciseEntity(id = "we2", workoutId = "w1", exerciseId = "ex-1", orderIndex = 1, supersetGroup = null, restTimerSeconds = null, notes = null),
+            ),
+            sets = emptyList(),
+        )
+
+        dao.updateWorkoutExerciseTimerMode("we1", "COUNTDOWN")
+
+        val byId = dao.getExercisesForWorkout("w1").associateBy { it.id }
+        assertEquals("COUNTDOWN", byId.getValue("we1").timerMode)
+        assertNull(byId.getValue("we2").timerMode) // same exercise, same workout, untouched
+        assertEquals(90, byId.getValue("we1").restTimerSeconds)
+        assertEquals("n", byId.getValue("we1").notes)
+
+        dao.replaceWorkoutExerciseExercise("we1", "ex-1", emptyList())
+
+        assertNull(dao.getExercisesForWorkout("w1").first { it.id == "we1" }.timerMode)
+    }
+
+    @Test
+    fun `a set timed by a countdown exports the same CSV row as the same set on a stopwatch`() = runTest {
+        anExercise()
+        fun workoutWith(workoutId: String, exerciseId: String, setId: String, timerMode: String?) = Triple(
+            aWorkout(workoutId, WorkoutStatus.COMPLETED),
+            listOf(WorkoutExerciseEntity(id = exerciseId, workoutId = workoutId, exerciseId = "ex-1", orderIndex = 0, supersetGroup = null, restTimerSeconds = null, notes = null, timerMode = timerMode)),
+            listOf(WorkoutSetEntity(id = setId, workoutExerciseId = exerciseId, orderIndex = 0, setType = SetType.NORMAL, weightKg = null, reps = null, durationSeconds = 90, distanceMeters = null, rpe = null, customMetric = null, isCompleted = true, completedAt = 2_000L)),
+        )
+        val (wa, ea, sa) = workoutWith("wa", "wea", "sa", null)
+        val (wb, eb, sb) = workoutWith("wb", "web", "sb", "COUNTDOWN")
+        dao.insertFullWorkout(wa, ea, sa)
+        dao.insertFullWorkout(wb, eb, sb)
+
+        val rows = dao.getWorkoutCsvRows()
+
+        assertEquals(2, rows.size)
+        assertEquals(90, rows[0].durationSeconds)
+        assertEquals(rows[0], rows[1])
+    }
+
+    @Test
     fun `deleting a routine SETs NULL on the workouts started from it`() = runTest {
         routineDao.upsertRoutine(RoutineEntity(id = "r1", folderId = null, name = "Push Day", notes = null, orderIndex = 0, createdAt = 0, updatedAt = 0))
         dao.upsertWorkout(aWorkout("w1", WorkoutStatus.COMPLETED, routineId = "r1"))

@@ -807,6 +807,140 @@ class LogEzDatabaseMigrationTest {
         db.close()
     }
 
+    private fun columnsOf(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Map<String, Pair<String, Boolean>> {
+        val columns = mutableMapOf<String, Pair<String, Boolean>>()
+        db.query("PRAGMA table_info(`$table`)").use {
+            while (it.moveToNext()) {
+                columns[it.getString(it.getColumnIndexOrThrow("name"))] =
+                    it.getString(it.getColumnIndexOrThrow("type")) to (it.getInt(it.getColumnIndexOrThrow("notnull")) == 1)
+            }
+        }
+        return columns
+    }
+
+    /** A "v10" stand-in with just the two tables MIGRATION_10_11 touches, as v10 had them (the tables' createSql from 10.json). */
+    private fun openV10(): SupportSQLiteOpenHelper {
+        val callback = object : SupportSQLiteOpenHelper.Callback(10) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `workout_exercises` (`id` TEXT NOT NULL, `workout_id` TEXT NOT NULL, `exercise_id` TEXT NOT NULL, " +
+                        "`order_index` INTEGER NOT NULL, `superset_group` INTEGER, `rest_timer_seconds` INTEGER, `notes` TEXT, PRIMARY KEY(`id`))",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `activity_tracks` (`id` TEXT NOT NULL, `workout_set_id` TEXT NOT NULL, " +
+                        "`route_polyline` TEXT, `point_count` INTEGER NOT NULL, `avg_accuracy_m` REAL, `route_times` TEXT, PRIMARY KEY(`id`))",
+                )
+            }
+            override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        }
+        val config = SupportSQLiteOpenHelper.Configuration.builder(ApplicationProvider.getApplicationContext())
+            .name(null)
+            .callback(callback)
+            .build()
+        return FrameworkSQLiteOpenHelperFactory().create(config)
+    }
+
+    @Test
+    fun `MIGRATION_10_11 adds both nullable columns in one step and keeps existing rows reading as a stopwatch and never paused`() {
+        val db = openV10().writableDatabase
+        db.execSQL(
+            "INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, superset_group, rest_timer_seconds, notes) " +
+                "VALUES ('we1', 'w1', 'ex-1', 0, 2, 90, 'tight')",
+        )
+        db.execSQL(
+            "INSERT INTO activity_tracks (id, workout_set_id, route_polyline, point_count, avg_accuracy_m, route_times) " +
+                "VALUES ('t1', 'set1', 'abc', 3, 5.0, 'AEE')",
+        )
+        LogEzDatabase.MIGRATION_10_11.migrate(db)
+
+        // Nullable TEXT, no default: the same shape as the entities declare.
+        assertEquals("TEXT" to false, columnsOf(db, "workout_exercises")["timer_mode"])
+        assertEquals("TEXT" to false, columnsOf(db, "activity_tracks")["pause_ranges"])
+
+        db.query("SELECT superset_group, rest_timer_seconds, notes, timer_mode FROM workout_exercises WHERE id = 'we1'").use {
+            it.moveToFirst()
+            assertEquals(2, it.getInt(0))
+            assertEquals(90, it.getInt(1))
+            assertEquals("tight", it.getString(2))
+            assertTrue(it.isNull(3))
+        }
+        db.query("SELECT route_polyline, route_times, pause_ranges FROM activity_tracks WHERE id = 't1'").use {
+            it.moveToFirst()
+            assertEquals("abc", it.getString(0))
+            assertEquals("AEE", it.getString(1))
+            assertTrue(it.isNull(2))
+        }
+        db.close()
+    }
+
+    /**
+     * A database physically built to the real v10 schema (every CREATE statement read from the
+     * exported `10.json`) holding a workout with a stopwatch exercise and a GPS track, opened
+     * through [LogEzDatabase]'s own builder and migration list: Room's post-migration validation
+     * checks MIGRATION_10_11 against what the v11 entities declare, and the old rows come through.
+     */
+    @Test
+    fun `a real v10 database opens through the migration list at v11, validates, and keeps its rows`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbFile = context.getDatabasePath("repro_v10_to_v11.db")
+        dbFile.delete()
+        try {
+            val schema = org.json.JSONObject(java.io.File("schemas/com.enil.logez.core.data.LogEzDatabase/10.json").readText()).getJSONObject("database")
+            val statements = mutableListOf<String>()
+            val entities = schema.getJSONArray("entities")
+            for (i in 0 until entities.length()) {
+                val entity = entities.getJSONObject(i)
+                val table = entity.getString("tableName")
+                statements += entity.getString("createSql").replace("\${TABLE_NAME}", table)
+                val indices = entity.optJSONArray("indices") ?: org.json.JSONArray()
+                for (j in 0 until indices.length()) {
+                    statements += indices.getJSONObject(j).getString("createSql").replace("\${TABLE_NAME}", table)
+                }
+            }
+            val setupQueries = schema.getJSONArray("setupQueries")
+            for (i in 0 until setupQueries.length()) statements += setupQueries.getString(i)
+
+            val seedCallback = object : SupportSQLiteOpenHelper.Callback(10) {
+                override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    statements.forEach { db.execSQL(it) }
+                    db.execSQL(
+                        "INSERT INTO exercises (id, name, exercise_type, primary_muscle_group, secondary_muscle_groups, equipment, instructions, " +
+                            "media_path, is_custom, is_bodyweight_volume_eligible, is_deleted, created_at, updated_at, primary_muscle_head) " +
+                            "VALUES ('ex-1', 'Plank', 'DURATION', 'ABDOMINALS', '', 'NONE', '', NULL, 0, 0, 0, 0, 0, NULL)",
+                    )
+                    db.execSQL(
+                        "INSERT INTO workouts (id, routine_id, title, notes, status, started_at, ended_at, duration_seconds, created_at, updated_at, structure, kind) " +
+                            "VALUES ('w1', NULL, 'Push Day', NULL, 'COMPLETED', 1000, 2000, 60, 1000, 2000, 'REGULAR', 'STRENGTH')",
+                    )
+                    db.execSQL(
+                        "INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, superset_group, rest_timer_seconds, notes) " +
+                            "VALUES ('we1', 'w1', 'ex-1', 0, NULL, 90, NULL)",
+                    )
+                }
+                override fun onUpgrade(db: androidx.sqlite.db.SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+            }
+            val seedConfig = SupportSQLiteOpenHelper.Configuration.builder(context).name(dbFile.name).callback(seedCallback).build()
+            FrameworkSQLiteOpenHelperFactory().create(seedConfig).writableDatabase.close()
+
+            val db = Room.databaseBuilder(context, LogEzDatabase::class.java, dbFile.absolutePath)
+                .addMigrations(
+                    LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
+                    LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
+                    LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
+                    LogEzDatabase.MIGRATION_10_11,
+                )
+                .allowMainThreadQueries()
+                .build()
+            val exercises = kotlinx.coroutines.runBlocking { db.workoutDao().getExercisesForWorkout("w1") }
+            assertEquals(1, exercises.size)
+            assertEquals(90, exercises.single().restTimerSeconds)
+            assertEquals(null, exercises.single().timerMode)
+            db.close()
+        } finally {
+            dbFile.delete()
+        }
+    }
+
     @Test
     fun `a real v4 database opened through LogEzDatabase's own migration path upgrades to v5 without a validation crash`() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -830,6 +964,7 @@ class LogEzDatabaseMigrationTest {
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
                     LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
+                    LogEzDatabase.MIGRATION_10_11,
                 )
                 .build()
 
@@ -874,6 +1009,7 @@ class LogEzDatabaseMigrationTest {
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
                     LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
+                    LogEzDatabase.MIGRATION_10_11,
                 )
                 .build()
 
@@ -917,6 +1053,7 @@ class LogEzDatabaseMigrationTest {
                     LogEzDatabase.MIGRATION_1_2, LogEzDatabase.MIGRATION_2_3, LogEzDatabase.MIGRATION_3_4,
                     LogEzDatabase.MIGRATION_4_5, LogEzDatabase.MIGRATION_5_6, LogEzDatabase.MIGRATION_6_7,
                     LogEzDatabase.MIGRATION_7_8, LogEzDatabase.MIGRATION_8_9, LogEzDatabase.MIGRATION_9_10,
+                    LogEzDatabase.MIGRATION_10_11,
                 )
                 .build()
 

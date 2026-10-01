@@ -39,4 +39,13 @@ data class ActivityTrackEntity(
      * whose summary therefore shows no splits.
      */
     @ColumnInfo(name = "route_times") val routeTimes: String? = null,
+    /**
+     * Seconds-since-start ranges during which the run was paused, as start/end pairs in the same
+     * delta encoding as [routeTimes] (see [com.enil.logez.core.common.PolylineEncoding.encodeDeltas]).
+     * Added in v11 (2026-10-01) for the tracking screen's Pause. Null means the run was never
+     * paused, which is what every run recorded before it was, so those read exactly as before. Route
+     * times stay on the clock (pauses included) so heart-rate samples keep matching by time; this
+     * column is what lets splits and moving time leave the paused stretches out.
+     */
+    @ColumnInfo(name = "pause_ranges") val pauseRanges: String? = null,
 )

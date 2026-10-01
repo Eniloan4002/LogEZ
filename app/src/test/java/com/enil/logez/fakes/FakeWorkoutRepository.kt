@@ -109,12 +109,16 @@ class FakeWorkoutRepository(
     override suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?) =
         mutateExercise(id) { it.copy(restTimerSeconds = seconds) }
 
+    override suspend fun updateWorkoutExerciseTimerMode(id: String, timerMode: String?) =
+        mutateExercise(id) { it.copy(timerMode = timerMode) }
+
     private fun mutateExercise(id: String, transform: (WorkoutExerciseEntity) -> WorkoutExerciseEntity) {
         exercisesState.update { list -> list.map { if (it.id == id) transform(it) else it } }
     }
 
     override suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>) {
-        mutateExercise(workoutExerciseId) { it.copy(exerciseId = newExerciseId) }
+        // Mirrors the DAO: the row survives, the countdown does not.
+        mutateExercise(workoutExerciseId) { it.copy(exerciseId = newExerciseId, timerMode = null) }
         carriedOverSets.forEach { s -> setsState.update { list -> list.map { if (it.id == s.id) s else it } } }
     }
 

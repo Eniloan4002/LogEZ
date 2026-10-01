@@ -68,6 +68,7 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun updateWorkoutExerciseSuperset(id: String, supersetGroup: Int?) = dao.updateWorkoutExerciseSuperset(id, supersetGroup)
     override suspend fun updateWorkoutExerciseNotes(id: String, notes: String?) = dao.updateWorkoutExerciseNotes(id, notes)
     override suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?) = dao.updateWorkoutExerciseRestTimer(id, seconds)
+    override suspend fun updateWorkoutExerciseTimerMode(id: String, timerMode: String?) = dao.updateWorkoutExerciseTimerMode(id, timerMode)
 
     override suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>) =
         dao.replaceWorkoutExerciseExercise(workoutExerciseId, newExerciseId, carriedOverSets)

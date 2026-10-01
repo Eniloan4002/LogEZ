@@ -55,6 +55,9 @@ interface WorkoutRepository {
     suspend fun updateWorkoutExerciseNotes(id: String, notes: String?)
     suspend fun updateWorkoutExerciseRestTimer(id: String, seconds: Int?)
 
+    /** The inline timer mode for this workout's copy of the exercise: null (stopwatch) or `"COUNTDOWN"` ([com.enil.logez.core.domain.model.TimerMode]). */
+    suspend fun updateWorkoutExerciseTimerMode(id: String, timerMode: String?)
+
     /** §5.1.3 Replace Exercise: swaps the exercise id and rewrites the *same* set rows with field-carried-over values (never deletes/reinserts — a live logger keeps row identity mid-session). */
     suspend fun replaceWorkoutExerciseExercise(workoutExerciseId: String, newExerciseId: String, carriedOverSets: List<WorkoutSetEntity>)
 

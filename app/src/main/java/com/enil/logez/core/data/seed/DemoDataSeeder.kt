@@ -89,7 +89,7 @@ class DemoDataSeeder @Inject constructor(
                     val weId = UUID.randomUUID().toString()
                     workoutExercises += WorkoutExerciseEntity(
                         id = weId, workoutId = workoutId, exerciseId = exercise.id, orderIndex = exIndex,
-                        supersetGroup = null, restTimerSeconds = null, notes = null,
+                        supersetGroup = null, restTimerSeconds = null, notes = null, timerMode = null,
                     )
                     touchedExerciseIds += exercise.id
 

@@ -58,6 +58,8 @@ class WorkoutStarter @Inject constructor(
             WorkoutExerciseEntity(
                 id = idMap.getValue(re.id), workoutId = workoutId, exerciseId = re.exerciseId, orderIndex = re.orderIndex,
                 supersetGroup = re.supersetGroup, restTimerSeconds = re.restTimerSeconds, notes = re.notes,
+                // A routine start begins every exercise on a stopwatch: a countdown is chosen per workout.
+                timerMode = null,
             )
         }
         val workoutSets = routineExercises.flatMap { re ->
@@ -103,6 +105,9 @@ class WorkoutStarter @Inject constructor(
             WorkoutExerciseEntity(
                 id = idMap.getValue(we.id), workoutId = workoutId, exerciseId = we.exerciseId, orderIndex = we.orderIndex,
                 supersetGroup = we.supersetGroup, restTimerSeconds = we.restTimerSeconds, notes = null,
+                // Explicitly null although rest timers ARE copied: the timer mode is "this workout only",
+                // so Copy Workout and Recent start every exercise on a stopwatch (decision 15).
+                timerMode = null,
             )
         }
         // Re-indexed contiguously (0..n-1), NOT copied verbatim: the source is COMPLETED, and the
@@ -176,7 +181,7 @@ class WorkoutStarter @Inject constructor(
             listOf(
                 WorkoutExerciseEntity(
                     id = workoutExerciseId, workoutId = workoutId, exerciseId = exerciseId, orderIndex = 0,
-                    supersetGroup = null, restTimerSeconds = null, notes = null,
+                    supersetGroup = null, restTimerSeconds = null, notes = null, timerMode = null,
                 ),
             ),
             listOf(

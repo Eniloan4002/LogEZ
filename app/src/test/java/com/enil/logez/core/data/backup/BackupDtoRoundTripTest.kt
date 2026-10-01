@@ -141,6 +141,23 @@ class BackupDtoRoundTripTest {
     }
 
     @Test
+    fun `a countdown workout exercise survives, and a mode this app does not know is kept verbatim`() {
+        val countdown = WorkoutExerciseEntity("we1", "w1", "e1", 0, 1, 120, "notes", timerMode = "COUNTDOWN")
+        assertEquals(countdown, roundTrip(countdown.toDto()).toEntity())
+        // A newer app's mode must come back exactly as written, never coerced to a stopwatch (null).
+        val future = WorkoutExerciseEntity("we2", "w1", "e1", 1, null, null, null, timerMode = "INTERVALS")
+        assertEquals(future, roundTrip(future.toDto()).toEntity())
+    }
+
+    @Test
+    fun `a workout exercise from a backup made before timer modes existed restores as a stopwatch`() {
+        val oldLine = """{"id":"we1","workout_id":"w1","exercise_id":"e1","order_index":0,"superset_group":1,"rest_timer_seconds":120,"notes":"n"}"""
+        val restored = BackupFormat.jsonRead.decodeFromString(WorkoutExerciseDto.serializer(), oldLine).toEntity()
+        assertEquals(null, restored.timerMode)
+        assertEquals(120, restored.restTimerSeconds)
+    }
+
+    @Test
     fun `workout set survives every metric, including the one the CSV drops`() {
         val entity = WorkoutSetEntity(
             id = "ws1", workoutExerciseId = "we1", orderIndex = 0, setType = SetType.DROPSET,
@@ -155,6 +172,20 @@ class BackupDtoRoundTripTest {
     fun `activity track survives, so a GPS route is not lost on restore`() {
         val entity = ActivityTrackEntity("t1", "ws1", "_p~iF~ps|U_ulLnnqC", 412, 4.5, routeTimes = "AEE")
         assertEquals(entity, roundTrip(entity.toDto()).toEntity())
+    }
+
+    @Test
+    fun `an activity track's pause ranges survive`() {
+        val entity = ActivityTrackEntity("t1", "ws1", "_p~iF~ps|U_ulLnnqC", 412, 4.5, routeTimes = "AEE", pauseRanges = "BCD")
+        assertEquals(entity, roundTrip(entity.toDto()).toEntity())
+    }
+
+    @Test
+    fun `an activity track from a backup made before pauses existed restores as a run that was never paused`() {
+        val oldLine = """{"id":"t1","workout_set_id":"ws1","route_polyline":"abc","point_count":3,"avg_accuracy_m":4.5,"route_times":"AEE"}"""
+        val restored = BackupFormat.jsonRead.decodeFromString(ActivityTrackDto.serializer(), oldLine).toEntity()
+        assertEquals(null, restored.pauseRanges)
+        assertEquals("AEE", restored.routeTimes)
     }
 
     @Test
