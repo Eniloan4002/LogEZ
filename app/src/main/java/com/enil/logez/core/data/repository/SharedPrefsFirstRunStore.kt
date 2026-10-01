@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.enil.logez.core.domain.repository.FirstRunPath
 import com.enil.logez.core.domain.repository.FirstRunStore
+import com.enil.logez.core.domain.repository.TipId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,10 +44,31 @@ class SharedPrefsFirstRunStore @Inject constructor(
         }
     }
 
+    override fun isTipSeen(tip: TipId): Boolean = prefs.getBoolean(tipSeenKey(tip), false)
+
+    override fun markTipSeen(tip: TipId) {
+        prefs.edit().putBoolean(tipSeenKey(tip), true).apply()
+    }
+
+    override fun tipsReenabled(): Boolean = prefs.getBoolean(KEY_TIPS_REENABLED, false)
+
+    override suspend fun showTipsAgain() {
+        withContext(Dispatchers.IO) {
+            val editor = prefs.edit()
+            // Every seen-tip key, including any a newer build wrote, so "again" means all of them.
+            prefs.all.keys.filter { it.startsWith(TIP_SEEN_PREFIX) }.forEach(editor::remove)
+            editor.putBoolean(KEY_TIPS_REENABLED, true).commit()
+        }
+    }
+
     companion object {
         /** Shared with the notification prompt's memory in `WorkoutSessionLauncher.kt`. */
         const val PREFS_FILE = "logez_ui_flags"
         const val KEY_DONE_AT = "first_run_done_at"
         const val KEY_PATH = "first_run_path"
+        const val TIP_SEEN_PREFIX = "tip_seen_"
+        const val KEY_TIPS_REENABLED = "tips_reenabled"
+
+        fun tipSeenKey(tip: TipId): String = TIP_SEEN_PREFIX + tip.storedName
     }
 }

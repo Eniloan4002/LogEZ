@@ -2,6 +2,7 @@ package com.enil.logez.fakes
 
 import com.enil.logez.core.domain.repository.FirstRunPath
 import com.enil.logez.core.domain.repository.FirstRunStore
+import com.enil.logez.core.domain.repository.TipId
 
 /** In-memory fake (PHASE2_PLAN.md §10.1 rule 2) of the `logez_ui_flags` first-run keys. */
 class FakeFirstRunStore(
@@ -39,5 +40,28 @@ class FakeFirstRunStore(
     override suspend fun clear() {
         doneAt = null
         storedPath = null
+    }
+
+    /** The `tip_seen_*` keys, by tip. */
+    val seenTips: MutableSet<TipId> = mutableSetOf()
+
+    /** The `tips_reenabled` key. */
+    var reenabled: Boolean = false
+
+    var markTipSeenCallCount = 0
+        private set
+
+    override fun isTipSeen(tip: TipId): Boolean = tip in seenTips
+
+    override fun markTipSeen(tip: TipId) {
+        markTipSeenCallCount++
+        seenTips += tip
+    }
+
+    override fun tipsReenabled(): Boolean = reenabled
+
+    override suspend fun showTipsAgain() {
+        seenTips.clear()
+        reenabled = true
     }
 }
