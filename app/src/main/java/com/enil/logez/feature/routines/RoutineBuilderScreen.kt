@@ -67,14 +67,23 @@ import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.SyncOptimisticList
 import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.currentLocale
+import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
+import com.enil.logez.core.designsystem.HintCard
+import com.enil.logez.core.domain.repository.TipId
+import com.enil.logez.feature.onboarding.MarkTipSeenWhenOnScreen
+import com.enil.logez.feature.onboarding.TipsViewModel
+import com.enil.logez.feature.onboarding.rememberOneTimeTip
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+private const val BUILDER_TIP_KEY = "tip_builder"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,8 +93,11 @@ fun RoutineBuilderScreen(
     onExerciseClick: (exerciseId: String) -> Unit,
     onCreateExercise: (prefillName: String?) -> Unit,
     viewModel: RoutineBuilderViewModel = hiltViewModel(),
+    tipsViewModel: TipsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // First-run plan (O1g): the REPS and Rest Timer tip, after the exercise cards.
+    val builderTip = rememberOneTimeTip(TipId.BUILDER, tipsViewModel)
     val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var pickerMode by remember { mutableStateOf<ExercisePickerMode?>(null) }
@@ -186,6 +198,10 @@ fun RoutineBuilderScreen(
                 }
                 SyncOptimisticList(localExercises, uiState.exercises, reorderState.isAnyItemDragging)
                 val commitOrder = { viewModel.reorderExercises(localExercises.map { it.id }) }
+                // The list's own copy, which catches up with uiState a frame later (see the logger).
+                // The tip names the REPS heading, so it waits for an exercise that has one: a
+                // timed or distance-only first exercise (Plank, Assault Bike) shows no REPS.
+                val showBuilderTip = builderTip.canShow && localExercises.any { TargetField.REPS in it.exerciseType.targetFields() }
                 // Accessibility "Move up/down" (DragHandle custom actions): one slot, then commit.
                 fun nudge(id: String, delta: Int) {
                     val from = localExercises.indexOfFirst { it.id == id }
@@ -246,7 +262,19 @@ fun RoutineBuilderScreen(
                             )
                         }
                     }
+                    // After the exercise cards; not a ReorderableItem, and the drag handler
+                    // skips keys it can't find.
+                    if (showBuilderTip) {
+                        item(key = BUILDER_TIP_KEY) {
+                            HintCard(
+                                lines = listOf(stringResource(R.string.tip_builder)),
+                                onGotIt = builderTip.gotIt,
+                                modifier = Modifier.padding(bottom = Spacing.sm),
+                            )
+                        }
+                    }
                 }
+                if (showBuilderTip) MarkTipSeenWhenOnScreen(lazyListState, BUILDER_TIP_KEY, builderTip.onScreen)
             }
             // Always rendered when not loading, regardless of structureIsLive — the centered
             // empty-state branch above has nothing else on screen to add the first exercise from.

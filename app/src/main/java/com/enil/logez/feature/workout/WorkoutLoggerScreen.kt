@@ -81,6 +81,25 @@ import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.domain.model.WorkoutStructure
 import com.enil.logez.feature.exercises.ExercisePickerMode
 import com.enil.logez.feature.exercises.ExercisePickerSheet
+import com.enil.logez.core.designsystem.HintCard
+import com.enil.logez.core.designsystem.RefreshOnResume
+import com.enil.logez.core.domain.repository.TipId
+import com.enil.logez.feature.onboarding.MarkTipSeenWhenOnScreen
+import com.enil.logez.feature.onboarding.TipsViewModel
+import com.enil.logez.feature.onboarding.rememberOneTimeTip
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.indication
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.material3.ripple
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.enil.logez.core.wellness.HeartRateSample
 import com.enil.logez.feature.workout.finish.fromDatePickerMillis
 import com.enil.logez.feature.workout.finish.labelRes
@@ -111,8 +130,12 @@ fun WorkoutLoggerScreen(
     onCreateExercise: (prefillName: String?) -> Unit,
     onSettingsClick: () -> Unit,
     viewModel: WorkoutLoggerViewModel = hiltViewModel(),
+    tipsViewModel: TipsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // First-run plan (O1g): re-read on every resume, so "Show tips again" in Settings (reachable
+    // from this screen's overflow menu) applies on return.
+    RefreshOnResume(tipsViewModel::refresh)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -270,10 +293,10 @@ fun WorkoutLoggerScreen(
                             // Box(weight) + a maxLines/ellipsis cap + a hand-built compact chip
                             // (not AssistChip's padding) both fix that.
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f, fill = false)
-                                        .clickable(enabled = uiState.exercises.isNotEmpty()) { timerMenuExpanded = true },
+                                TimerTapTarget(
+                                    enabled = uiState.exercises.isNotEmpty(),
+                                    onClick = { timerMenuExpanded = true },
+                                    modifier = Modifier.weight(1f, fill = false),
                                 ) {
                                     WorkoutStatsText(elapsedSecondsFlow = viewModel.elapsedSecondsFlow)
                                 }
@@ -389,6 +412,7 @@ fun WorkoutLoggerScreen(
                         pickerModeState = pickerModeState,
                         replaceTargetIdState = replaceTargetIdState,
                         pendingReplaceTargetIdState = pendingReplaceTargetIdState,
+                        tipsViewModel = tipsViewModel,
                     )
                 }
             }
@@ -683,10 +707,13 @@ private fun ColumnScope.RegularWorkoutBody(
     pickerModeState: MutableState<ExercisePickerMode?>,
     replaceTargetIdState: MutableState<String?>,
     pendingReplaceTargetIdState: MutableState<String?>,
+    tipsViewModel: TipsViewModel,
 ) {
     var pickerMode by pickerModeState
     var replaceTargetId by replaceTargetIdState
     var pendingReplaceTargetId by pendingReplaceTargetIdState
+    // First-run plan (O1g): the "Logging tips" card, live mode only, once there is an exercise.
+    val loggerTip = rememberOneTimeTip(TipId.LOGGER, tipsViewModel)
     val displayConfig = WorkoutLoggerDisplayConfig(
         rpeTrackingEnabled = uiState.rpeTrackingEnabled,
         effortScale = uiState.effortScale,
@@ -710,6 +737,10 @@ private fun ColumnScope.RegularWorkoutBody(
         if (fromIndex >= 0 && toIndex >= 0) localExercises.add(toIndex, localExercises.removeAt(fromIndex))
     }
     SyncOptimisticList(localExercises, uiState.exercises, reorderState.isAnyItemDragging)
+    // Also waits for the list's own copy: it catches up with uiState a frame later, and a frame
+    // holding only the tip would make the list keep the tip in view when the exercises arrive
+    // above it, opening the logger scrolled to its end.
+    val showLoggerTip = loggingTipsVisible(loggerTip.canShow, uiState) && localExercises.isNotEmpty()
     val commitOrder = { viewModel.reorderExercises(localExercises.map { it.id }) }
     // Accessibility "Move up/down" (DragHandle custom actions): one slot, then commit.
     fun nudge(id: String, delta: Int) {
@@ -751,7 +782,17 @@ private fun ColumnScope.RegularWorkoutBody(
                     )
                 }
             }
+            // The LAST item, after every exercise: the superset auto-scroll above passes an
+            // exercise's position in uiState.exercises straight to animateScrollToItem, so a tip
+            // anywhere before the exercises would shift every scroll target by one. It is not a
+            // ReorderableItem, and the drag handler skips keys it can't find.
+            if (showLoggerTip) {
+                item(key = LOGGER_TIP_KEY) {
+                    LoggingTipsCard(onGotIt = loggerTip.gotIt, modifier = Modifier.padding(bottom = Spacing.sm))
+                }
+            }
         }
+        if (showLoggerTip) MarkTipSeenWhenOnScreen(listState, LOGGER_TIP_KEY, loggerTip.onScreen)
         // Drawn over the (empty) list rather than as a list item, so the list's item indexes --
         // which the superset auto-scroll uses directly -- never include it.
         if (uiState.showEmptyHint) {
@@ -778,6 +819,94 @@ private fun ColumnScope.RegularWorkoutBody(
         modifier = Modifier.fillMaxWidth().padding(Spacing.md),
     ) {
         Text(stringResource(R.string.routine_builder_add_exercise))
+    }
+}
+
+/**
+ * First-run plan (O1g): the logging tips card shows in a live (not edit-mode) regular workout, the
+ * first time it has at least one exercise, while the tip may still show ([tipCanShow]).
+ */
+internal fun loggingTipsVisible(tipCanShow: Boolean, uiState: WorkoutLoggerUiState): Boolean =
+    tipCanShow && !uiState.isEditMode && uiState.structure != WorkoutStructure.CIRCUIT && uiState.exercises.isNotEmpty()
+
+/** Key of the logging tips card, which must stay the last item of the regular logger's list. */
+internal const val LOGGER_TIP_KEY = "tip_logger"
+
+/**
+ * First-run plan (O1g): the one-time "Logging tips" card. The labels it names are the real menu
+ * items' own strings (set type menu, exercise menu, timer menu, PREVIOUS column).
+ */
+@Composable
+internal fun LoggingTipsCard(onGotIt: () -> Unit, modifier: Modifier = Modifier) {
+    HintCard(
+        title = stringResource(R.string.tip_logger_title),
+        lines = listOf(
+            stringResource(R.string.tip_logger_set_type),
+            stringResource(R.string.tip_logger_superset),
+            stringResource(R.string.tip_logger_timer),
+            stringResource(R.string.tip_logger_previous),
+        ),
+        onGotIt = onGotIt,
+        modifier = modifier,
+    )
+}
+
+/**
+ * The live timer's tap target (first-run plan, Finding 5). The logging tips tell users to tap the
+ * timer, but the timer text is only about 16dp tall and 26dp wide. A transparent layer at least
+ * [minTouchSize] tall and wide takes the taps instead, with no change to how anything looks or is
+ * laid out:
+ * - it is drawn over the text and grows upwards from the text's bottom edge, over the workout
+ *   title (which takes no taps), so it stays inside the top bar; and rightwards from the text's
+ *   start, where the heart rate chip (a later sibling) still wins any overlapping tap;
+ * - it is never smaller than the text, so a long "1:05:30" or a large font keeps its full area;
+ * - the layout still measures only [content], so the bar and title don't move;
+ * - the press ripple is drawn inside the text's own bounds, where it always was;
+ * - TalkBack finds one button with the timer text (it now also announces the Button role); the
+ *   layer is hidden from it. That node keeps the text's own bounds, so an accessibility scanner
+ *   still measures the text's size, not the layer's.
+ */
+@Composable
+internal fun TimerTapTarget(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    minTouchSize: Dp = 48.dp,
+    content: @Composable () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            // What TalkBack reads (the timer text, merged in) and activates: one button, as before.
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                onClick { onClick(); true }
+                if (!enabled) disabled()
+            }
+            .indication(interactionSource, ripple()),
+    ) {
+        content()
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .touchAreaAtLeast(minTouchSize)
+                .clearAndSetSemantics {}
+                .clickable(interactionSource = interactionSource, indication = null, enabled = enabled, onClick = onClick),
+        )
+    }
+}
+
+/**
+ * Lays the node out at its parent's size but measures what follows at least [minSize] in each
+ * direction, anchored at the bottom-start corner: the extra area reaches up and to the end.
+ */
+private fun Modifier.touchAreaAtLeast(minSize: Dp): Modifier = layout { measurable, constraints ->
+    val min = minSize.roundToPx()
+    val width = maxOf(constraints.maxWidth, min)
+    val height = maxOf(constraints.maxHeight, min)
+    val placeable = measurable.measure(Constraints.fixed(width, height))
+    layout(constraints.maxWidth, constraints.maxHeight) {
+        placeable.placeRelative(0, constraints.maxHeight - height)
     }
 }
 

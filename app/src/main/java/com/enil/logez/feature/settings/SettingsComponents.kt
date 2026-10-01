@@ -1,5 +1,8 @@
 package com.enil.logez.feature.settings
 
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -178,6 +181,25 @@ internal fun SettingsValueRow(
                 Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
+    )
+    HorizontalDivider()
+}
+
+/**
+ * Action row: label + one-sentence explainer, no trailing value or chevron, because a tap does
+ * something here instead of opening a screen or a chooser. The explainer is a polite live region,
+ * so TalkBack reads it when the action changes it.
+ */
+@Composable
+internal fun SettingsActionRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) },
     )
     HorizontalDivider()
 }

@@ -526,6 +526,13 @@
          labels: set_type_warmup/failure/dropset, action_delete, routine_builder_menu_add_to_superset,
          workout_pause_timer, workout_col_previous, routine_builder_col_reps, routine_builder_rest_timer_label. -->
     <string name="tip_got_it">Got it</string>
+    <string name="tip_picker">Search by name, or narrow the list with Equipment and Muscle.</string>
+    <string name="tip_logger_title">Logging tips</string>
+    <string name="tip_logger_set_type">Tap a set\'s number to mark it as a Warm-up Set, Failure Set or Dropset, or to Delete it.</string>
+    <string name="tip_logger_superset">To pair two exercises in a superset, open the three-dot menu on one, choose Add to Superset, then tap the other.</string>
+    <string name="tip_logger_timer">To pause the workout timer, tap it at the top, then Pause Workout Timer.</string>
+    <string name="tip_logger_previous">PREVIOUS shows what you logged last time. It fills in from your second session with an exercise.</string>
+    <string name="tip_builder">Tap REPS to switch between a rep target and a rep range. Rest Timer sets the rest for this exercise only.</string>
 
     <!-- M4b: timers & foreground service -->
     <string name="workout_pause_timer">Pause Workout Timer</string>
@@ -864,6 +871,9 @@
     <string name="settings_show_heatmap_subtitle">Displays the Progress heatmap at the top of the Workout tab.</string>
     <string name="settings_show_goals">Show goals</string>
     <string name="settings_show_goals_subtitle">Displays your Goals card on the Workout tab.</string>
+    <string name="settings_show_tips_again">Show tips again</string>
+    <string name="settings_show_tips_again_subtitle">The picker, logger and routine builder tips show once more.</string>
+    <string name="settings_show_tips_again_done">Tips will show again.</string>
     <string name="settings_include_warmups">Include warm-ups in stats</string>
     <string name="settings_include_warmups_subtitle">Counts warm-up sets in volume and muscle statistics.</string>
     <string name="settings_plate_calculator">Plate calculator</string>

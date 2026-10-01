@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -48,12 +49,17 @@ import com.enil.logez.R
 import com.enil.logez.core.common.equipmentLabel
 import com.enil.logez.core.common.muscleGroupLabel
 import com.enil.logez.core.designsystem.EmptyState
+import com.enil.logez.core.designsystem.HintCard
 import com.enil.logez.core.designsystem.LocalImage
 import com.enil.logez.core.designsystem.Spacing
 import com.enil.logez.core.designsystem.muscleGroupIcon
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.repository.Exercise
+import com.enil.logez.core.domain.repository.TipId
+import com.enil.logez.feature.onboarding.MarkTipSeenWhenOnScreen
+import com.enil.logez.feature.onboarding.TipsViewModel
+import com.enil.logez.feature.onboarding.rememberOneTimeTip
 import java.io.File
 import androidx.compose.ui.res.pluralStringResource
 
@@ -73,9 +79,17 @@ fun ExercisePickerSheet(
     onExercisePicked: (Exercise) -> Unit,
     onCreateExercise: (prefillName: String?) -> Unit,
     viewModel: ExercisePickerViewModel = hiltViewModel(),
+    tipsViewModel: TipsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // First-run plan (O1g): the search tip, on the picker's first open. Remembered inside the
+    // sheet, so a later open (a new visit) no longer shows it once it has been seen. Not saveable:
+    // the hosts open the picker from plain `remember` state, so it never outlives its host leaving
+    // the screen (to create an exercise, or through recreation), and a saved "shown" flag would
+    // wait for the next open and show the seen tip again.
+    val tip = rememberOneTimeTip(TipId.PICKER, tipsViewModel, saveable = false)
+    val listState = rememberLazyListState()
 
     fun dismiss() {
         viewModel.onSheetClosed()
@@ -120,8 +134,18 @@ fun ExercisePickerSheet(
                         onCtaClick = { onCreateExercise(uiState.searchQuery) },
                     )
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        item {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                        if (tip.canShow) {
+                            item(key = PICKER_TIP_KEY) {
+                                HintCard(
+                                    lines = listOf(stringResource(R.string.tip_picker)),
+                                    onGotIt = tip.gotIt,
+                                    singleRow = true,
+                                    modifier = Modifier.padding(vertical = Spacing.xs),
+                                )
+                            }
+                        }
+                        item(key = CREATE_ROW_KEY) {
                             ListItem(
                                 modifier = Modifier.clickable { onCreateExercise(null) },
                                 leadingContent = { Icon(Icons.Outlined.Add, contentDescription = null) },
@@ -145,6 +169,7 @@ fun ExercisePickerSheet(
                             )
                         }
                     }
+                    if (tip.canShow) MarkTipSeenWhenOnScreen(listState, PICKER_TIP_KEY, tip.onScreen)
                 }
             }
 
@@ -163,6 +188,9 @@ fun ExercisePickerSheet(
         }
     }
 }
+
+private const val PICKER_TIP_KEY = "tip_picker"
+private const val CREATE_ROW_KEY = "create_exercise"
 
 @Composable
 private fun PickerRow(

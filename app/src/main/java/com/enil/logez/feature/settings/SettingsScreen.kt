@@ -41,6 +41,7 @@ import com.enil.logez.core.domain.model.LengthUnit
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.feature.onboarding.TipsViewModel
 import com.enil.logez.feature.privacy.PrivacyPolicyActivity
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -71,8 +72,10 @@ fun SettingsScreen(
     onDataClick: () -> Unit,
     onLicensesClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
+    tipsViewModel: TipsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val tipsShownAgain by tipsViewModel.tipsShownAgain.collectAsStateWithLifecycle()
     // Saveable (2026-09-25): an open dialog used to vanish on rotation or process death.
     var openDialog by rememberSaveable { mutableStateOf<SettingsDialog?>(null) }
     val context = LocalContext.current
@@ -244,6 +247,17 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_show_goals_subtitle),
                     checked = settings.showGoals,
                     onCheckedChange = viewModel::setShowGoals,
+                )
+            }
+            // First-run plan (O1g): the Workouts section's last row. It clears the seen-tip keys
+            // only; setup and the notification prompt's decline are never touched.
+            item(key = "show_tips_again") {
+                SettingsActionRow(
+                    title = stringResource(R.string.settings_show_tips_again),
+                    subtitle = stringResource(
+                        if (tipsShownAgain) R.string.settings_show_tips_again_done else R.string.settings_show_tips_again_subtitle,
+                    ),
+                    onClick = tipsViewModel::showTipsAgain,
                 )
             }
 
