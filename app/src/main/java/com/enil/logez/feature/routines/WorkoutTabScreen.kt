@@ -161,7 +161,6 @@ fun WorkoutTabScreen(
     val pendingStartState = remember { mutableStateOf<PendingStart?>(null) }
     var pendingStart by pendingStartState
     var inProgressWorkoutId by remember { mutableStateOf<String?>(null) }
-    var pendingTrackExercise by remember { mutableStateOf<Exercise?>(null) }
     // Owner directive (2026-09-30): confirm before starting an empty workout, same as any Recent
     // start now asks first (RecentSection.kt) -- this is the one path that skipped a confirmation
     // step, since it needs no target to pick first the way Start Routine/Recent do.
@@ -182,27 +181,24 @@ fun WorkoutTabScreen(
         }
     }
 
+    // The walk or run waiting for an answer is kept by the launcher as saved state, so a rotation
+    // while its location or notification prompt is open still starts it (O1h).
     val requestLocation = rememberRequestLocationForTracking(
-        onGranted = {
-            val exercise = pendingTrackExercise
-            pendingTrackExercise = null
-            if (exercise != null) {
-                scope.launch {
-                    when (val result = viewModel.startActivityTracking(exercise.id, exercise.name)) {
-                        is ActivityTrackingStartResult.Started -> {
-                            startActivityTrackingService(context)
-                            onNavigateToActivityTracking()
-                        }
-                        is ActivityTrackingStartResult.AlreadyInProgress -> {
-                            pendingStart = PendingStart.ActivityTracking(exercise.id, exercise.name)
-                            inProgressWorkoutId = result.workoutId
-                        }
+        onGranted = { exerciseId, title ->
+            scope.launch {
+                when (val result = viewModel.startActivityTracking(exerciseId, title)) {
+                    is ActivityTrackingStartResult.Started -> {
+                        startActivityTrackingService(context)
+                        onNavigateToActivityTracking()
+                    }
+                    is ActivityTrackingStartResult.AlreadyInProgress -> {
+                        pendingStart = PendingStart.ActivityTracking(exerciseId, title)
+                        inProgressWorkoutId = result.workoutId
                     }
                 }
             }
         },
         onDenied = { denial ->
-            pendingTrackExercise = null
             scope.launch {
                 val message = resources.getString(
                     when (denial) {
@@ -223,8 +219,7 @@ fun WorkoutTabScreen(
     )
 
     fun startActivityTracking(exercise: Exercise) {
-        pendingTrackExercise = exercise
-        requestLocation()
+        requestLocation(exercise.id, exercise.name)
     }
 
     Scaffold(

@@ -12,7 +12,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -21,6 +20,8 @@ import com.enil.logez.R
 import com.enil.logez.feature.activity.service.ActivityTrackingService
 import com.enil.logez.core.common.PermissionDenial
 import com.enil.logez.core.common.classifyDenial
+import com.enil.logez.feature.workout.NotificationPromptMemory
+import com.enil.logez.feature.workout.shouldAskForNotifications
 import androidx.compose.runtime.saveable.rememberSaveable
 
 /**
@@ -29,25 +30,67 @@ import androidx.compose.runtime.saveable.rememberSaveable
  * without location, so a denial calls [onDenied] instead of proceeding anyway (rev. 3 plan §2,
  * "Runtime permission request pattern" — a deliberate deviation from the notification-permission
  * "proceed either way" precedent, not an oversight).
+ *
+ * First-run plan O1h: once location is granted, and before tracking starts, Android 13+ asks once
+ * whether to show the walk or run on the lock screen. Without it a user who only runs never saw
+ * the tracking notification. The ask shares [NotificationPromptMemory] with the strength prompt,
+ * so a "Not now" or a denial on either path stops both, and [onGranted] runs whatever the answer:
+ * the notification is optional, location is not.
+ *
+ * The returned function takes the walk or run to start, and it is kept here as saved state, so a
+ * rotation while a prompt is open still starts that walk or run once the prompt is answered.
+ *
+ * The ask comes before [onGranted], so it comes before the caller's check for a workout already in
+ * progress: a user can answer it and then choose to resume that workout instead. The answer is
+ * still about notifications, not about this walk, so it is kept either way.
  */
 @Composable
-fun rememberRequestLocationForTracking(onGranted: () -> Unit, onDenied: (PermissionDenial) -> Unit): () -> Unit {
+fun rememberRequestLocationForTracking(
+    onGranted: (exerciseId: String, title: String) -> Unit,
+    onDenied: (PermissionDenial) -> Unit,
+): (exerciseId: String, title: String) -> Unit {
     val context = LocalContext.current
+    var pendingExerciseId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingTitle by rememberSaveable { mutableStateOf<String?>(null) }
     var showRationale by rememberSaveable { mutableStateOf(false) }
+    var showNotificationAsk by rememberSaveable { mutableStateOf(false) }
+
+    fun startPending() {
+        val exerciseId = pendingExerciseId
+        val title = pendingTitle
+        pendingExerciseId = null
+        pendingTitle = null
+        if (exerciseId != null && title != null) onGranted(exerciseId, title)
+    }
+
+    fun locationGranted() {
+        if (shouldAskForNotifications(context)) showNotificationAsk = true else startPending()
+    }
+
+    fun locationDenied(denial: PermissionDenial) {
+        pendingExerciseId = null
+        pendingTitle = null
+        onDenied(denial)
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
         when {
-            grants[Manifest.permission.ACCESS_FINE_LOCATION] == true -> onGranted()
+            grants[Manifest.permission.ACCESS_FINE_LOCATION] == true -> locationGranted()
             // Android 12+ lets the user grant only approximate location, which cannot measure a
             // route. It used to read as a plain denial with no hint that "Precise" was the fix.
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> onDenied(PermissionDenial.ApproximateOnly)
-            else -> onDenied(classifyDenial(context, Manifest.permission.ACCESS_FINE_LOCATION))
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> locationDenied(PermissionDenial.ApproximateOnly)
+            else -> locationDenied(classifyDenial(context, Manifest.permission.ACCESS_FINE_LOCATION))
         }
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) NotificationPromptMemory.markDeclined(context)
+        startPending()
     }
 
     if (showRationale) {
         AlertDialog(
-            onDismissRequest = { showRationale = false; onDenied(PermissionDenial.Declined) },
+            onDismissRequest = { showRationale = false; locationDenied(PermissionDenial.Declined) },
             title = { Text(stringResource(R.string.activity_tracking_location_rationale_title)) },
             text = { Text(stringResource(R.string.activity_tracking_location_rationale_body)) },
             confirmButton = {
@@ -57,14 +100,44 @@ fun rememberRequestLocationForTracking(onGranted: () -> Unit, onDenied: (Permiss
                 }) { Text(stringResource(R.string.activity_tracking_location_rationale_allow)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRationale = false; onDenied(PermissionDenial.Declined) }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { showRationale = false; locationDenied(PermissionDenial.Declined) }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
 
-    return {
+    fun notificationNotNow() {
+        showNotificationAsk = false
+        NotificationPromptMemory.markDeclined(context)
+        startPending()
+    }
+
+    if (showNotificationAsk) {
+        AlertDialog(
+            // Back or a tap outside counts as "Not now", so the ask really comes once (Decision 9).
+            // The strength prompt still records nothing on a dismissal (plan finding 8); O1h leaves
+            // it unchanged. The walk or run has already been chosen, so it starts either way.
+            onDismissRequest = { notificationNotNow() },
+            title = { Text(stringResource(R.string.tracking_notification_permission_title)) },
+            text = { Text(stringResource(R.string.tracking_notification_permission_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNotificationAsk = false
+                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }) { Text(stringResource(R.string.workout_notification_permission_allow)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { notificationNotNow() }) {
+                    Text(stringResource(R.string.workout_notification_permission_not_now))
+                }
+            },
+        )
+    }
+
+    return { exerciseId, title ->
+        pendingExerciseId = exerciseId
+        pendingTitle = title
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            onGranted()
+            locationGranted()
         } else {
             showRationale = true
         }

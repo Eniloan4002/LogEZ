@@ -90,7 +90,7 @@ fun rememberStartWorkoutSession(onNavigateToLogger: (workoutId: String) -> Unit)
         // Asked once. After "Not now" or a denial the prompt stays away (it used to reappear on
         // every workout start, and after two denials its Allow button silently did nothing);
         // Settings > Workouts > Lock-screen notifications is the way back.
-        if (!hasNotificationPermission(context) && !NotificationPromptMemory.wasDeclined(context)) {
+        if (shouldAskForNotifications(context)) {
             pendingWorkoutId = workoutId
             showRationale = true
         } else {
@@ -136,6 +136,14 @@ fun stopWorkoutSessionService(context: Context) {
 internal fun hasNotificationPermission(context: Context): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+/**
+ * Whether to ask about lock-screen notifications before a workout, walk or run starts: only on
+ * Android 13+, only while the permission is missing, and never after a "Not now" or a denial on
+ * either path (they share [NotificationPromptMemory]).
+ */
+internal fun shouldAskForNotifications(context: Context): Boolean =
+    !hasNotificationPermission(context) && !NotificationPromptMemory.wasDeclined(context)
 
 /**
  * Remembers that the user said no to the lock-screen notification prompt. A plain

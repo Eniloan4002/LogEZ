@@ -554,6 +554,8 @@
     <string name="workout_notification_permission_not_now">Not now</string>
     <string name="workout_notification_permission_denied_hint">Notifications are off — your rest timer still runs, but won\'t show on the lock screen.</string>
     <string name="workout_notification_permission_denied_settings">Turn on</string>
+    <string name="tracking_notification_permission_title">Show your walk or run on the lock screen?</string>
+    <string name="tracking_notification_permission_body">LogEZ shows the time and distance on the lock screen while it records.</string>
     <string name="settings_notifications_row">Lock-screen notifications</string>
 
     <string name="notification_channel_workout_ongoing_name">Workout in progress</string>
