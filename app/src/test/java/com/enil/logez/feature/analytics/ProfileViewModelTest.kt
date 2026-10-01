@@ -1,9 +1,13 @@
 package com.enil.logez.feature.analytics
 
+import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.calc.Achievement
+import com.enil.logez.core.domain.calc.BodyRegion
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
+import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleDiagramVariant
@@ -15,6 +19,8 @@ import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeHealthMetricsSource
+import com.enil.logez.fakes.FakeMeasurementRepository
+import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWellnessRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
@@ -80,10 +86,13 @@ class ProfileViewModelTest {
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(),
         healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
         wellnessRepo: FakeWellnessRepository = FakeWellnessRepository(),
+        recordsRepo: FakePersonalRecordsRepository = FakePersonalRecordsRepository(),
+        measurementRepo: FakeMeasurementRepository = FakeMeasurementRepository(),
         savedState: SavedStateHandle = SavedStateHandle(),
     ): ProfileViewModel {
         return ProfileViewModel(
-            workoutRepo, exerciseRepo, settingsRepo, healthMetricsSource, wellnessRepo, FakeClock(currentMillis = nowMillis), savedState,
+            workoutRepo, exerciseRepo, settingsRepo, healthMetricsSource, wellnessRepo, recordsRepo, measurementRepo,
+            FakeClock(currentMillis = nowMillis), savedState,
         )
             // The screen's RefreshOnResume drives the first load (no init load) — mirror it here.
             .also { it.refresh() }
@@ -193,6 +202,195 @@ class ProfileViewModelTest {
         assertEquals(1f / 3f, heat.getValue(MuscleGroup.UPPER_BACK), 1e-6f)
     }
 
+    // --- Profile redesign (2026-10-01): This week, longest streaks, records, achievements, weight, regions ---
+
+    private fun record(id: String, exerciseId: String, date: String) = PersonalRecordEntity(
+        id = id, exerciseId = exerciseId, workoutId = "w", workoutSetId = null, prType = PrType.HEAVIEST_WEIGHT,
+        value = 100.0, achievedAt = millisOn(date),
+    )
+
+    @Test
+    fun `before the first load the week is null so the screen can reserve its layout`() = runTest {
+        val vm = ProfileViewModel(
+            FakeWorkoutRepository(), FakeExerciseRepository(), FakeSettingsRepository(), FakeHealthMetricsSource(),
+            FakeWellnessRepository(), FakePersonalRecordsRepository(), FakeMeasurementRepository(),
+            FakeClock(currentMillis = nowMillis), SavedStateHandle(),
+        )
+        assertTrue(vm.uiState.value.isLoading)
+        assertEquals(null, vm.uiState.value.week)
+    }
+
+    @Test
+    fun `this week counts active days, marks each day, and totals volume and sets so far`() = runTest {
+        // today is Sat 08-22, the week Mon 08-17 to Sun 08-23. Two sessions on 08-22 are one day.
+        // w0 (08-10) is last week and must not count toward this week's totals.
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(
+                    completedWorkout("w0", "2026-08-10"),
+                    completedWorkout("w1", "2026-08-17"),
+                    completedWorkout("w2", "2026-08-20"),
+                    completedWorkout("w3", "2026-08-22"),
+                    completedWorkout("w4", "2026-08-22"),
+                ),
+                exercises = listOf(
+                    workoutExercise("we0", "w0", "ex-bench"),
+                    workoutExercise("we1", "w1", "ex-bench"),
+                    workoutExercise("we3", "w3", "ex-bench"),
+                ),
+                sets = listOf(
+                    completedSet("s0", "we0"),
+                    completedSet("s1", "we1"), completedSet("s2", "we1"),
+                    completedSet("s3", "we3"),
+                ),
+            ),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-bench", MuscleGroup.CHEST))),
+        )
+        val week = vm.uiState.value.week!!
+        assertEquals(LocalDate.of(2026, 8, 17), week.start)
+        assertEquals(LocalDate.of(2026, 8, 23), week.end)
+        assertEquals(3, week.activeDays)
+        assertEquals(4, week.targetDays)
+        assertEquals(5, week.todayIndex)
+        assertEquals(
+            listOf(
+                WeekDayMark.TRAINED, WeekDayMark.MISSED, WeekDayMark.MISSED, WeekDayMark.TRAINED,
+                WeekDayMark.MISSED, WeekDayMark.TRAINED, WeekDayMark.UPCOMING,
+            ),
+            week.days.map { it.mark },
+        )
+        // 3 working sets of 20 kg x 10 reps.
+        assertEquals(3, week.setsSoFar)
+        assertEquals(600.0, week.volumeKgSoFar, 1e-6)
+    }
+
+    @Test
+    fun `a day with no workout yet today is marked as today, not missed`() = runTest {
+        val week = newViewModel().uiState.value.week!!
+        assertEquals(0, week.activeDays)
+        assertEquals(
+            listOf(
+                WeekDayMark.MISSED, WeekDayMark.MISSED, WeekDayMark.MISSED, WeekDayMark.MISSED,
+                WeekDayMark.MISSED, WeekDayMark.TODAY, WeekDayMark.UPCOMING,
+            ),
+            week.days.map { it.mark },
+        )
+    }
+
+    @Test
+    fun `records this week counts distinct exercises, not rows, and ignores older weeks`() = runTest {
+        val vm = newViewModel(
+            recordsRepo = FakePersonalRecordsRepository(
+                listOf(
+                    record("r1", "ex-bench", "2026-08-18"), record("r2", "ex-bench", "2026-08-18"),
+                    record("r3", "ex-row", "2026-08-19"),
+                    record("r4", "ex-old", "2026-08-10"),
+                ),
+            ),
+        )
+        assertEquals(2, vm.uiState.value.week!!.recordsThisWeek)
+    }
+
+    @Test
+    fun `the longest streaks and the first workout date come from the whole history`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(
+                    completedWorkout("a", "2026-08-01"), completedWorkout("b", "2026-08-02"),
+                    completedWorkout("c", "2026-08-03"), completedWorkout("d", "2026-08-04"),
+                    completedWorkout("e", "2026-08-21"), completedWorkout("f", "2026-08-22"),
+                ),
+            ),
+        )
+        val state = vm.uiState.value
+        assertEquals(2, state.streakDays)
+        assertEquals(4, state.longestDayStreak)
+        // Monday weeks: 07-27, 08-03 and 08-17. The first two are consecutive; the current run is 1.
+        assertEquals(1, state.streakWeeks)
+        assertEquals(2, state.longestWeekStreak)
+        assertEquals(LocalDate.of(2026, 8, 1), state.firstWorkoutDate)
+        assertEquals(6, state.workoutCount)
+    }
+
+    @Test
+    fun `the achievements headline counts unlocked ones and names the closest locked one`() = runTest {
+        val none = newViewModel().uiState.value
+        assertEquals(0, none.achievementsUnlocked)
+        assertEquals(17, none.achievementsTotal)
+        assertEquals(Achievement.FIRST_WORKOUT, none.nextAchievement?.achievement)
+
+        val one = newViewModel(
+            workoutRepo = FakeWorkoutRepository(workouts = listOf(completedWorkout("w1", "2026-08-22"))),
+        ).uiState.value
+        assertEquals(1, one.achievementsUnlocked)
+        assertEquals(Achievement.DAY_STREAK_7, one.nextAchievement?.achievement)
+    }
+
+    @Test
+    fun `the latest weight is the newest entry on or before today, with its date`() = runTest {
+        val vm = newViewModel(
+            measurementRepo = FakeMeasurementRepository(
+                weightsByDate = mapOf("2026-08-10" to 78.4, "2026-08-01" to 80.0, "2026-09-30" to 99.0),
+            ),
+        )
+        assertEquals(LatestWeight(78.4, LocalDate.of(2026, 8, 10)), vm.uiState.value.latestWeight)
+        assertEquals(null, newViewModel().uiState.value.latestWeight)
+    }
+
+    @Test
+    fun `the muscle map counts trained body regions in the last 7 days and names the missing ones`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(completedWorkout("w1", "2026-08-18"), completedWorkout("w2", "2026-08-19")),
+                exercises = listOf(workoutExercise("we1", "w1", "ex-bench"), workoutExercise("we2", "w2", "ex-squat")),
+                sets = listOf(completedSet("s1", "we1"), completedSet("s2", "we2")),
+            ),
+            exerciseRepo = FakeExerciseRepository(
+                listOf(exercise("ex-bench", MuscleGroup.CHEST), exercise("ex-squat", MuscleGroup.QUADRICEPS)),
+            ),
+        )
+        val state = vm.uiState.value
+        assertEquals(2, state.last7RegionsTrained)
+        assertEquals(
+            listOf(
+                BodyRegion.BACK, BodyRegion.SHOULDERS, BodyRegion.ARMS, BodyRegion.CORE,
+                BodyRegion.HAMSTRINGS_GLUTES, BodyRegion.LOWER_LEG,
+            ),
+            state.last7RegionsMissing,
+        )
+    }
+
+    @Test
+    fun `sets that map to no body region count as sets but train no region`() = runTest {
+        // Full-body work in the window: last7SetCount is 1, so the card can say "maps to no region", not "no sets".
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(completedWorkout("w1", "2026-08-20")),
+                exercises = listOf(workoutExercise("we1", "w1", "ex-burpee")),
+                sets = listOf(completedSet("s1", "we1")),
+            ),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-burpee", MuscleGroup.FULL_BODY))),
+        )
+        val state = vm.uiState.value
+        assertEquals(1, state.last7Count)
+        assertEquals(1, state.last7SetCount)
+        assertEquals(0, state.last7RegionsTrained)
+    }
+
+    @Test
+    fun `a window with workouts older than 7 days has no sets in it`() = runTest {
+        val vm = newViewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(completedWorkout("w1", "2026-08-01")),
+                exercises = listOf(workoutExercise("we1", "w1", "ex-bench")),
+                sets = listOf(completedSet("s1", "we1")),
+            ),
+            exerciseRepo = FakeExerciseRepository(listOf(exercise("ex-bench", MuscleGroup.CHEST))),
+        )
+        assertEquals(0, vm.uiState.value.last7SetCount)
+        assertEquals(0, vm.uiState.value.last7RegionsTrained)
+    }
+
     // --- M21e wellness (steps only) ---
 
     @Test
@@ -260,7 +458,8 @@ class ProfileViewModelTest {
         )
         val vm = ProfileViewModel(
             FakeWorkoutRepository(), FakeExerciseRepository(), FakeSettingsRepository(),
-            healthMetricsSource, FakeWellnessRepository(), FakeClock(currentMillis = nowMillis), SavedStateHandle(),
+            healthMetricsSource, FakeWellnessRepository(), FakePersonalRecordsRepository(), FakeMeasurementRepository(),
+            FakeClock(currentMillis = nowMillis), SavedStateHandle(),
         )
         assertEquals(true, vm.uiState.value.isLoading) // never refreshed yet -- no init load
 

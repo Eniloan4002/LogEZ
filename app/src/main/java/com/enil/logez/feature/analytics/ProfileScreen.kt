@@ -1,77 +1,52 @@
 package com.enil.logez.feature.analytics
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
-import com.enil.logez.core.designsystem.BarChart
-import com.enil.logez.core.designsystem.BarChartEntry
-import com.enil.logez.core.designsystem.BodyDiagram
-import com.enil.logez.core.designsystem.LogEzCard
-import com.enil.logez.core.designsystem.LogEzIcons
-import com.enil.logez.core.designsystem.LogEzMono
-import androidx.compose.foundation.layout.WindowInsets
 import com.enil.logez.core.designsystem.RefreshOnResume
 import com.enil.logez.core.designsystem.ScreenTitle
 import com.enil.logez.core.designsystem.Spacing
-import com.enil.logez.core.designsystem.StatCell
-import com.enil.logez.core.designsystem.logEzTopAppBarColors
 import com.enil.logez.core.designsystem.currentLocale
+import com.enil.logez.core.designsystem.logEzTopAppBarColors
+import com.enil.logez.core.domain.calc.Achievement
 import com.enil.logez.core.domain.calc.DashboardAggregator.TrainingMetric
-import com.enil.logez.core.wellness.HealthConnectAvailability
-import com.enil.logez.core.wellness.rememberRequestHealthConnectPermissions
-import java.util.Locale
-import kotlin.math.roundToLong
-import com.enil.logez.core.wellness.canInstallOrUpdate
 import com.enil.logez.core.wellness.openHealthConnectInPlayStore
 import com.enil.logez.core.wellness.openHealthConnectSettings
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material3.OutlinedButton
+import com.enil.logez.core.wellness.rememberRequestHealthConnectPermissions
+import com.enil.logez.feature.achievements.nameRes
 
 /**
- * Profile tab (PHASE2_PLAN.md §5.2 "Profile tab"): headline stats (lifetime Workouts + Streak,
- * real zeros for a fresh install — honest, never faked), the last-7-days strip with a mini muscle
- * heat-map, the swipeable quick chart card (tap → Statistics with that chart focused), and
- * navigation rows. The Calendar entry stays a nav row rather than an inline grid — Owner-confirmed
- * permanent M5c trim. The temporary RPE toggle this screen carried since 2026-08-24 moved to the
- * real Settings screen in M16 — Settings is now a nav row here instead.
+ * Profile tab (PHASE2_PLAN.md §5.2), redesigned 2026-10-01 (docs/mockups/profile-2026-10-01/final):
+ * This week first, four scorecards, the six destinations, the weekly chart, the 7-day muscle map,
+ * and Health Connect last. Entering the tab never flashes zeros at a user with history: until the
+ * first load lands the header and the tiles are composed with invisible placeholder values over grey
+ * blocks (so they reserve their real size), and the data cards are simply absent.
+ *
+ * A brand-new user (no workouts) sees only what can already move: This week, the Achievements
+ * tile, the destinations and Health Connect, never a row of zero tiles or an empty chart.
+ *
+ * The day-streak tile reads [ProfileUiState.streakDays] and [ProfileUiState.longestDayStreak] only,
+ * and the tiles are a list ([ScoreTileSpec]), so a later streak source or an extra tile changes
+ * [rememberScoreTiles] and the view model, not this layout.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,8 +65,31 @@ fun ProfileScreen(
         source = viewModel.healthMetricsSource,
         onResult = viewModel::onWellnessPermissionResult,
     )
+    var chartMetric by rememberSaveable { mutableStateOf(TrainingMetric.FREQUENCY) }
 
     RefreshOnResume(viewModel::refresh)
+
+    val styles = rememberProfileStyles()
+    val loading = uiState.isLoading
+    val hasWorkouts = uiState.workoutCount > 0
+    val tiles = rememberScoreTiles(
+        uiState = uiState,
+        styles = styles,
+        onCalendar = onCalendarClick,
+        onFrequency = { onStatisticsClick(TrainingMetric.FREQUENCY) },
+        onAchievements = onAchievementsClick,
+    )
+    val destinations = rememberDestinations(
+        latestWeight = uiState.latestWeight,
+        weightUnit = uiState.weightUnit,
+        styles = styles,
+        onStatistics = { onStatisticsClick(null) },
+        onAchievements = onAchievementsClick,
+        onCalendar = onCalendarClick,
+        onMeasurements = onMeasurementsClick,
+        onExercises = onExercisesClick,
+        onSettings = onSettingsClick,
+    )
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -100,344 +98,171 @@ fun ProfileScreen(
         // status-bar inset and double the empty space above the header, so it is zeroed too.
         topBar = { TopAppBar(title = { ScreenTitle(stringResource(R.string.nav_profile)) }, windowInsets = WindowInsets(0, 0, 0, 0), colors = logEzTopAppBarColors()) },
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-            navItems(
-                onExercisesClick = onExercisesClick,
-                onCalendarClick = onCalendarClick,
-                onStatisticsClick = onStatisticsClick,
-                onMeasurementsClick = onMeasurementsClick,
-                onSettingsClick = onSettingsClick,
-                onAchievementsClick = onAchievementsClick,
-            )
-            profileStatsItems(
-                uiState = uiState,
-                onStatisticsClick = onStatisticsClick,
-                onConnectWellness = requestWellnessPermissions,
-                onInstallHealthConnect = { openHealthConnectInPlayStore(context) },
-                onOpenHealthConnectSettings = { openHealthConnectSettings(context) },
-            )
+        // Every item always exists (empty while it has nothing to show), so a loading-to-loaded
+        // transition never shifts the scroll position underneath the user.
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(start = Spacing.md, top = Spacing.xs, end = Spacing.md, bottom = Spacing.lg),
+        ) {
+            item(key = "this_week") {
+                ThisWeekCard(
+                    week = uiState.week,
+                    hasWorkouts = hasWorkouts,
+                    weightUnit = uiState.weightUnit,
+                    styles = styles,
+                    loading = loading,
+                    onClick = onCalendarClick,
+                )
+            }
+            item(key = "scorecards") {
+                ScoreTileGrid(
+                    // No row of zero tiles for a new user: only Achievements has something to move.
+                    tiles = if (loading || hasWorkouts) tiles else tiles.filter { it.key == TILE_ACHIEVEMENTS },
+                    styles = styles,
+                    loading = loading,
+                    modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
+            item(key = "destinations") {
+                ProfileDestinationGrid(destinations, styles, modifier = Modifier.padding(top = Spacing.md))
+            }
+            item(key = "chart") {
+                if (!loading && hasWorkouts) {
+                    ProfileChartCard(
+                        uiState = uiState,
+                        metric = chartMetric,
+                        styles = styles,
+                        onMetricSelected = { chartMetric = it },
+                        onOpenStatistics = onStatisticsClick,
+                        modifier = Modifier.padding(top = Spacing.md),
+                    )
+                }
+            }
+            item(key = "last7") {
+                if (!loading && hasWorkouts) {
+                    ProfileLast7Card(uiState, styles, modifier = Modifier.padding(top = Spacing.md))
+                }
+            }
+            item(key = "health") {
+                if (!loading) {
+                    HealthSection(
+                        uiState = uiState,
+                        styles = styles,
+                        onConnect = requestWellnessPermissions,
+                        onInstall = { openHealthConnectInPlayStore(context) },
+                        onOpenSettings = { openHealthConnectSettings(context) },
+                        modifier = Modifier.padding(top = Spacing.md),
+                    )
+                }
+            }
         }
     }
 }
 
-/**
- * The three data-backed items (headline stats, 7-day strip, quick charts). Their *content* is
- * rendered only once the first load lands, so entering the tab never flashes "0 Workouts / No
- * active streak" at a user with real history (the M6a empty-state-flash lesson) — but the items
- * themselves always exist rather than being conditionally inserted, so a loading→loaded transition
- * never shifts scroll position underneath the user.
- */
-private fun androidx.compose.foundation.lazy.LazyListScope.profileStatsItems(
-    uiState: ProfileUiState,
-    onStatisticsClick: (TrainingMetric?) -> Unit,
-    onConnectWellness: () -> Unit,
-    onInstallHealthConnect: () -> Unit,
-    onOpenHealthConnectSettings: () -> Unit,
-) {
-        item(key = "headline") {
-            if (uiState.isLoading) return@item
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                HeadlineStat(
-                    label = stringResource(R.string.profile_stat_workouts),
-                    value = uiState.workoutCount.toString(),
-                    modifier = Modifier.weight(1f),
-                )
-                HeadlineStat(
-                    label = stringResource(R.string.profile_stat_day_streak),
-                    value = if (uiState.streakDays > 0) {
-                        pluralStringResource(R.plurals.profile_day_streak_value, uiState.streakDays, uiState.streakDays)
-                    } else {
-                        stringResource(R.string.profile_no_streak)
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                HeadlineStat(
-                    label = stringResource(R.string.profile_stat_streak),
-                    value = if (uiState.streakWeeks > 0) {
-                        pluralStringResource(R.plurals.profile_streak_weeks, uiState.streakWeeks, uiState.streakWeeks)
-                    } else {
-                        stringResource(R.string.profile_no_streak)
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        // M21e: graceful degrade -- no Health Connect on this device means no section at all,
-        // never a nag (plan §0.2/decisions.md). Only two remaining states render anything.
-        //
-        // Owner-requested redesign pass (2026-09-12), two changes: (1) steps and calories used to
-        // share one card as two cells in a Row -- now each is its own scorecard, matching the
-        // Workouts/Streak headline-stat pair above, with the shared "Today" context moved to a
-        // section label rather than repeated inside every card; (2) every stacked item on this
-        // screen now carries the same `horizontal = Spacing.md, vertical = Spacing.sm` margin
-        // (already the established pattern on the Workout tab's heatmap/steps/quick-track cards)
-        // instead of the horizontal-only padding this screen used to have, which left zero gap
-        // between consecutive cards.
-        item(key = "wellness_install") {
-            if (uiState.isLoading || !uiState.wellnessAvailability.canInstallOrUpdate()) return@item
-            val updating = uiState.wellnessAvailability == HealthConnectAvailability.UpdateRequired
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(
-                        stringResource(if (updating) R.string.wellness_update_title else R.string.wellness_install_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        stringResource(if (updating) R.string.wellness_update_body else R.string.wellness_install_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = onInstallHealthConnect) { Text(stringResource(R.string.wellness_install_action)) }
-                }
-            }
-        }
-
-        item(key = "wellness_connect") {
-            // Shown until the user grants at least one type. A partial grant is a working choice,
-            // not an unfinished one; Settings > Data > Health Connect reaches the rest.
-            if (uiState.isLoading || uiState.wellnessAvailability != HealthConnectAvailability.Available || uiState.wellnessGranted.isNotEmpty()) return@item
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(
-                        stringResource(R.string.wellness_connect_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    // After a full refusal Health Connect answers Connect at once without showing
-                    // anything, so the card says what happened and opens its settings instead.
-                    // One body Text for both, so the refusal replaces its words in place, and a polite
-                    // live region reads it out after the Connect TalkBack was on is gone.
-                    Text(
-                        stringResource(if (uiState.wellnessRefused) R.string.wellness_connect_refused else R.string.wellness_connect_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                    if (uiState.wellnessRefused) {
-                        TextButton(onClick = onOpenHealthConnectSettings) {
-                            Text(stringResource(R.string.activity_tracking_heart_rate_open_settings))
-                        }
-                    } else {
-                        Button(onClick = onConnectWellness) { Text(stringResource(R.string.wellness_connect_action)) }
-                    }
-                }
-            }
-        }
-
-        item(key = "wellness_today_label") {
-            if (uiState.isLoading || !uiState.showsTodayWellness()) return@item
-            Text(
-                stringResource(R.string.wellness_today_title).uppercase(currentLocale()),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
-            )
-        }
-
-        item(key = "wellness_stats") {
-            if (uiState.isLoading || !uiState.showsTodayWellness()) return@item
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                if (uiState.todaySteps != null) {
-                    HeadlineStat(
-                        label = stringResource(R.string.wellness_steps_label),
-                        value = formatSteps(uiState.todaySteps),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                // M21g: absent when Health Connect has no calorie data for today yet (null, not
-                // zero) -- this app never shows a stat it isn't actually tracking, same rule as the
-                // Volume/Reps/Distance gating on Finish/History. Steps alone then fills the row.
-                if (uiState.todayCaloriesBurned != null) {
-                    HeadlineStat(
-                        label = stringResource(R.string.wellness_calories_label),
-                        value = formatCalories(uiState.todayCaloriesBurned),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-
-        item(key = "last7") {
-            if (uiState.isLoading) return@item
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(
-                        stringResource(R.string.profile_last7_title).uppercase(currentLocale()),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    if (uiState.last7Count == 0) {
-                        // §5.2 region 2: the strip hides behind an honest hint when the window is empty.
-                        Text(
-                            stringResource(R.string.profile_last7_empty),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    } else {
-                        Text(
-                            pluralStringResource(R.plurals.profile_last7_count, uiState.last7Count, uiState.last7Count),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        BodyDiagram(intensity = uiState.last7Heat, variant = uiState.muscleDiagramVariant)
-                    }
-                }
-            }
-        }
-
-        item(key = "quick_charts") {
-            if (uiState.isLoading) return@item
-            LogEzCard(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
-                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(
-                        stringResource(R.string.profile_quick_charts_title).uppercase(currentLocale()),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    // §5.2 region 4's stated order, not the enum's declaration order.
-                    val metrics = listOf(TrainingMetric.FREQUENCY, TrainingMetric.VOLUME, TrainingMetric.REPS, TrainingMetric.DURATION)
-                    val pagerState = rememberPagerState(pageCount = { metrics.size })
-                    HorizontalPager(state = pagerState) { page ->
-                        val metric = metrics[page]
-                        val bars = uiState.quickCharts[metric].orEmpty()
-                        Column(
-                            modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(metric) },
-                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                        ) {
-                            Text(
-                                trainingMetricLabel(metric),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            if (bars.isEmpty()) {
-                                Text(stringResource(R.string.analytics_empty_period), style = MaterialTheme.typography.bodyMedium)
-                            } else {
-                                BarChart(
-                                    entries = bars.map { BarChartEntry(weekLabel(it.weekStart), it.value) },
-                                    yLabel = { AnalyticsFormatters.axisLabel(metric, it, uiState.weightUnit) },
-                                    selectedIndex = null,
-                                    onBarTap = { onStatisticsClick(metric) },
-                                    chartHeight = 120.dp,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-}
-
-private fun androidx.compose.foundation.lazy.LazyListScope.navItems(
-    onExercisesClick: () -> Unit,
-    onCalendarClick: () -> Unit,
-    onStatisticsClick: (TrainingMetric?) -> Unit,
-    onMeasurementsClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onAchievementsClick: () -> Unit,
-) {
-        item(key = "nav_statistics") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable { onStatisticsClick(null) },
-                leadingContent = { Icon(Icons.Outlined.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                headlineContent = { Text(stringResource(R.string.profile_nav_statistics)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
-            )
-            HorizontalDivider()
-        }
-        // P-208: between Statistics and Calendar, per the approved mockup (profile-nav.png). Every
-        // row's leading icon is lime (Owner, 2026-09-30), not just the trophy.
-        item(key = "nav_achievements") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onAchievementsClick),
-                leadingContent = { Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                headlineContent = { Text(stringResource(R.string.profile_nav_achievements)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
-            )
-            HorizontalDivider()
-        }
-        item(key = "nav_calendar") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onCalendarClick),
-                leadingContent = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                headlineContent = { Text(stringResource(R.string.profile_calendar_row)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
-            )
-            HorizontalDivider()
-        }
-        item(key = "nav_measurements") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onMeasurementsClick),
-                leadingContent = { Icon(Icons.Outlined.Straighten, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                headlineContent = { Text(stringResource(R.string.profile_measurements_row)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
-            )
-            HorizontalDivider()
-        }
-        item(key = "nav_exercises") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onExercisesClick),
-                leadingContent = { Icon(LogEzIcons.Workout, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                headlineContent = { Text(stringResource(R.string.profile_nav_exercises)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
-            )
-            HorizontalDivider()
-        }
-        item(key = "nav_settings") {
-            ListItem(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onSettingsClick),
-                leadingContent = { Icon(Icons.Outlined.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                headlineContent = { Text(stringResource(R.string.settings_title)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null) },
-            )
-            HorizontalDivider()
-        }
-}
+internal const val TILE_WEEK_STREAK = "week_streak"
+internal const val TILE_DAY_STREAK = "day_streak"
+internal const val TILE_WORKOUTS = "workouts"
+internal const val TILE_ACHIEVEMENTS = "achievements"
 
 /**
- * dataMedium (not dataLarge): at larger system font scales/higher-density devices (Owner report,
- * S26 Ultra), a plural value ("3 weeks") wrapped onto a second line while the other two cards'
- * shorter values ("15", "2 days") still fit, so the three equal-weight cards in the row above
- * rendered at different heights, reading as misaligned. dataMedium is the same size every other
- * stat-cell value in the app already uses (History/Workout Detail's own [StatCell]), so this also
- * makes Profile's headline consistent with them, not just smaller. maxLines/ellipsis is a hard
- * backstop -- even the widest realistic value (a triple-digit streak) truncates instead of
- * wrapping again.
+ * The scorecards, in order. Numbers only in the value slot; the label, the supporting line and the
+ * spoken description carry the words. While [ProfileUiState.isLoading] the specs carry placeholder
+ * text that is drawn invisible, so the tiles reserve their real size.
  */
 @Composable
-private fun HeadlineStat(label: String, value: String, modifier: Modifier = Modifier) {
-    LogEzCard(modifier = modifier) {
-        StatCell(
-            value = value,
-            label = label,
-            modifier = Modifier.padding(Spacing.md),
-            valueStyle = LogEzMono.dataMedium,
-            valueMaxLines = 1,
-            valueOverflow = TextOverflow.Ellipsis,
-            labelStyle = MaterialTheme.typography.labelMedium,
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            labelMaxLines = 1,
-            labelOverflow = TextOverflow.Ellipsis,
-        )
+internal fun rememberScoreTiles(
+    uiState: ProfileUiState,
+    styles: ProfileStyles,
+    onCalendar: () -> Unit,
+    onFrequency: () -> Unit,
+    onAchievements: () -> Unit,
+): List<ScoreTileSpec> {
+    val locale = currentLocale()
+    val loading = uiState.isLoading
+    val emphasis = styles.monoQuiet
+
+    // Placeholder numbers have the width of a plausible real one ("00"), so the layout choice made
+    // while loading matches the one made after.
+    val weekStreak = if (loading) 0 else uiState.streakWeeks
+    val longestWeek = if (loading) 0 else uiState.longestWeekStreak
+    val dayStreak = if (loading) 0 else uiState.streakDays
+    val longestDay = if (loading) 0 else uiState.longestDayStreak
+    val workoutCount = if (loading) 0 else uiState.workoutCount
+    fun num(n: Int) = if (loading) "00" else n.toString()
+
+    val weeksSpoken = pluralStringResource(R.plurals.profile_streak_weeks, weekStreak, weekStreak)
+    val longestWeeksSpoken = stringResource(R.string.profile_longest, pluralStringResource(R.plurals.profile_streak_weeks, longestWeek, longestWeek))
+    val daysSpoken = pluralStringResource(R.plurals.profile_day_streak_value, dayStreak, dayStreak)
+    val longestDaysSpoken = stringResource(R.string.profile_longest, pluralStringResource(R.plurals.profile_day_streak_value, longestDay, longestDay))
+    val weekStreakLabel = stringResource(R.string.profile_stat_streak)
+    val dayStreakLabel = stringResource(R.string.profile_stat_day_streak)
+    val workoutsLabel = pluralStringResource(R.plurals.profile_stat_workouts, workoutCount)
+
+    // The year shows when the first workout was in an earlier year than today (not than the week's start,
+    // which can be last December on a 1 January).
+    val todayYear = uiState.week?.let { it.start.plusDays(it.todayIndex.toLong()).year }
+    val includeYear = uiState.firstWorkoutDate?.let { first -> todayYear != null && first.year != todayYear } ?: false
+    val sinceDate = if (loading) "00 Mmm" else uiState.firstWorkoutDate?.formatShort(locale, includeYear).orEmpty()
+    val since = stringResource(R.string.profile_since, sinceDate)
+
+    val total = if (loading) Achievement.entries.size else uiState.achievementsTotal
+    val unlocked = if (loading) 0 else uiState.achievementsUnlocked
+    val next = uiState.nextAchievement
+    val nextText = when {
+        loading -> stringResource(R.string.profile_next_achievement, stringResource(Achievement.WORKOUTS_50.nameRes()))
+        next != null -> stringResource(R.string.profile_next_achievement, stringResource(next.achievement.nameRes()))
+        else -> stringResource(R.string.profile_all_unlocked)
     }
+    val achievementsLabel = stringResource(R.string.profile_nav_achievements)
+
+    val workoutsCd = stringResource(R.string.profile_tile_cd, workoutsLabel, workoutCount.toString(), since)
+    val achievementsCd = stringResource(
+        R.string.profile_tile_cd, achievementsLabel, stringResource(R.string.profile_achievements_spoken, unlocked, total), nextText,
+    )
+
+    return listOf(
+        ScoreTileSpec(
+            key = TILE_WEEK_STREAK,
+            value = AnnotatedString(num(weekStreak)),
+            label = weekStreakLabel,
+            supporting = withEmphasis(stringResource(R.string.profile_longest, num(longestWeek)), num(longestWeek), emphasis),
+            progress = null,
+            description = stringResource(R.string.profile_tile_cd, weekStreakLabel, weeksSpoken, longestWeeksSpoken).takeUnless { loading }.orEmpty(),
+            onClick = onCalendar,
+        ),
+        ScoreTileSpec(
+            key = TILE_DAY_STREAK,
+            // Strict streak for now (a day counts only with a workout); only the source in the view
+            // model changes when rest days arrive.
+            value = AnnotatedString(num(dayStreak)),
+            label = dayStreakLabel,
+            supporting = withEmphasis(stringResource(R.string.profile_longest, num(longestDay)), num(longestDay), emphasis),
+            progress = null,
+            description = stringResource(R.string.profile_tile_cd, dayStreakLabel, daysSpoken, longestDaysSpoken).takeUnless { loading }.orEmpty(),
+            onClick = onCalendar,
+        ),
+        ScoreTileSpec(
+            key = TILE_WORKOUTS,
+            value = AnnotatedString(num(workoutCount)),
+            label = workoutsLabel,
+            supporting = AnnotatedString(since),
+            progress = null,
+            description = workoutsCd.takeUnless { loading }.orEmpty(),
+            onClick = onFrequency,
+        ),
+        ScoreTileSpec(
+            key = TILE_ACHIEVEMENTS,
+            value = buildAnnotatedString {
+                append(num(unlocked))
+                pushStyle(styles.tileValueSuffix)
+                append("/$total")
+                pop()
+            },
+            label = achievementsLabel,
+            supporting = AnnotatedString(nextText),
+            progress = if (total == 0) 0f else unlocked.toFloat() / total,
+            description = achievementsCd.takeUnless { loading }.orEmpty(),
+            onClick = onAchievements,
+        ),
+    )
 }
-
-private fun formatSteps(steps: Long): String = "%,d".format(Locale.ROOT, steps)
-
-private fun formatCalories(calories: Double): String = "%,d".format(Locale.ROOT, calories.roundToLong())
-
-/**
- * The Today section shows only when it has a stat to show: steps whenever that type is granted,
- * calories when granted and Health Connect has a figure for today. Heart rate alone has nothing to
- * show here (it appears during workouts and walk/run tracking instead), and a calories-only grant
- * on a day with no calorie data would otherwise leave an empty "Today" header.
- */
-private fun ProfileUiState.showsTodayWellness(): Boolean =
-    wellnessAvailability == HealthConnectAvailability.Available &&
-        (todaySteps != null || todayCaloriesBurned != null)

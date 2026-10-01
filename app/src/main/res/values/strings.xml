@@ -87,7 +87,7 @@
     <string name="achievements_unlocked_label">Unlocked</string>
     <!-- "32 / 50": progress toward a locked achievement. -->
     <string name="achievements_progress">%1$s / %2$s</string>
-    <string name="achievements_steps_hint">These use your steps from Health Connect. Connect it on the Profile tab to start tracking them.</string>
+    <string name="achievements_steps_hint">These use your steps from Health Connect. Allow steps on the Profile tab, or in Settings under Data, to start tracking them.</string>
     <!-- TalkBack: one announcement per card. -->
     <string name="achievements_cd_unlocked">%1$s, unlocked. %2$s.</string>
     <string name="achievements_cd_locked">%1$s, locked. %2$s. %3$s so far.</string>
@@ -130,32 +130,95 @@
     <string name="achievement_step_streak_30_desc">10,000+ steps a day, 30 days in a row</string>
     <string name="achievement_step_streak_365">10K for a Year</string>
     <string name="achievement_step_streak_365_desc">10,000+ steps a day, 365 days in a row</string>
-    <string name="profile_stat_workouts">Workouts</string>
+    <!-- Profile tab, redesigned 2026-10-01 (docs/mockups/profile-2026-10-01). -->
+    <string name="profile_week_title">This week</string>
+    <plurals name="profile_week_target">
+        <item quantity="one">of %1$d day</item>
+        <item quantity="other">of %1$d days</item>
+    </plurals>
+    <string name="profile_week_so_far">So far</string>
+    <plurals name="profile_week_sets">
+        <item quantity="one">%1$s set</item>
+        <item quantity="other">%1$s sets</item>
+    </plurals>
+    <plurals name="profile_week_records">
+        <item quantity="one">%1$s record</item>
+        <item quantity="other">%1$s records</item>
+    </plurals>
+    <plurals name="profile_week_target_reached">
+        <item quantity="one">of %1$d day \u00B7 %2$s</item>
+        <item quantity="other">of %1$d days \u00B7 %2$s</item>
+    </plurals>
+    <plurals name="profile_week_over">
+        <item quantity="one">day \u00B7 %1$s</item>
+        <item quantity="other">days \u00B7 %1$s</item>
+    </plurals>
+    <string name="profile_week_target_met">target met</string>
+    <plurals name="profile_week_over_target">
+        <item quantity="one">target %1$d met</item>
+        <item quantity="other">target %1$d met</item>
+    </plurals>
+    <string name="profile_week_nothing_yet">Nothing logged yet this week.</string>
+    <string name="profile_week_new_user">Finish a workout to fill in today. Your streaks, records and totals start from there.</string>
+    <string name="profile_week_range">%1$s \u2013 %2$s</string>
+    <string name="profile_day_cd_trained">%1$s, trained</string>
+    <string name="profile_day_cd_today">%1$s, today</string>
+    <string name="profile_day_cd_missed">%1$s, no workout</string>
+    <string name="profile_day_cd_upcoming">%1$s</string>
     <string name="profile_stat_streak">Week streak</string>
+    <string name="profile_stat_day_streak">Day streak</string>
     <plurals name="profile_streak_weeks">
         <item quantity="one">%1$d week</item>
         <item quantity="other">%1$d weeks</item>
     </plurals>
-    <string name="profile_stat_day_streak">Day streak</string>
     <plurals name="profile_day_streak_value">
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
     </plurals>
-    <string name="profile_no_streak">No active streak</string>
+    <plurals name="profile_stat_workouts">
+        <item quantity="one">Workout</item>
+        <item quantity="other">Workouts</item>
+    </plurals>
+    <string name="profile_longest">Longest %1$s</string>
+    <string name="profile_since">Since %1$s</string>
+    <string name="profile_next_achievement">Next: %1$s</string>
+    <string name="profile_all_unlocked">All unlocked</string>
+    <string name="profile_tile_cd">%1$s, %2$s. %3$s.</string>
+    <string name="profile_achievements_spoken">%1$d of %2$d</string>
+    <string name="profile_measurements_latest">%1$s \u00B7 %2$s</string>
+    <string name="profile_chart_title_frequency">Workouts per week</string>
+    <string name="profile_chart_title_volume">Volume per week</string>
+    <string name="profile_chart_title_reps">Reps per week</string>
+    <string name="profile_chart_title_duration">Time per week</string>
+    <string name="profile_chart_range">Last 3 months</string>
+    <string name="profile_chart_this_week">This week so far</string>
     <string name="profile_last7_title">Last 7 days</string>
-    <plurals name="profile_last7_count">
+    <string name="profile_last7_range">%1$s \u2013 today</string>
+    <plurals name="profile_last7_workouts">
+        <item quantity="one">Workout</item>
+        <item quantity="other">Workouts</item>
+    </plurals>
+    <string name="profile_regions_label">Muscle regions trained</string>
+    <string name="profile_regions_missing">No sets yet: %1$s</string>
+    <string name="profile_regions_none">No sets in these 7 days.</string>
+    <string name="profile_regions_unmapped">Nothing in these 7 days maps to a muscle region.</string>
+    <plurals name="profile_last7_workouts_cd">
         <item quantity="one">%1$d workout</item>
         <item quantity="other">%1$d workouts</item>
     </plurals>
-    <string name="profile_last7_empty">Train this week to see your 7-day summary</string>
-    <string name="profile_quick_charts_title">Quick charts</string>
+    <string name="profile_regions_cd">Muscle regions trained: %1$d of %2$d</string>
 
     <!-- M21e: read-only Health Connect steps/calories, Profile tab. -->
     <string name="wellness_today_title">Today</string>
     <string name="wellness_steps_label">Steps</string>
-    <string name="wellness_calories_label">Calories</string>
+    <string name="wellness_calories_label">Calories burned</string>
+    <string name="wellness_source_label">Health Connect</string>
+    <string name="wellness_heart_rate_note">Heart rate shows during workouts and walk/run tracking.</string>
+    <string name="wellness_heart_rate_title">Heart rate connected</string>
+    <string name="wellness_heart_rate_body">It shows during workouts and walk/run tracking.</string>
     <string name="wellness_connect_title">Connect Health Connect</string>
-    <string name="wellness_connect_body">See today\'s steps and calories burned here, and your heart rate during workouts and walk/run tracking, read from Health Connect. You choose which of these to share, and what LogEZ reads stays on this device.</string>
+    <string name="profile_wellness_connect_body">See today\'s steps and calories here, and your heart rate during workouts. You choose what to share, and it stays on this device.</string>
+    <string name="profile_wellness_install_body">Install it from Google Play to see your steps, calories burned and heart rate from a watch or fitness app.</string>
     <string name="wellness_connect_action">Connect</string>
     <string name="wellness_install_title">Get Health Connect</string>
     <string name="wellness_install_body">LogEZ can show your steps, calories burned and heart rate from a watch or fitness app through Health Connect. Install it from Google Play to turn this on.</string>

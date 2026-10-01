@@ -18,6 +18,8 @@ import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeHealthMetricsSource
+import com.enil.logez.fakes.FakeMeasurementRepository
+import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWellnessRepository
 import com.enil.logez.fakes.FakeWorkoutRepository
@@ -45,6 +47,8 @@ class ProfileScreenHealthConnectTest {
             FakeSettingsRepository(),
             FakeHealthMetricsSource(availabilityValue = HealthConnectAvailability.Available),
             FakeWellnessRepository(),
+            FakePersonalRecordsRepository(),
+            FakeMeasurementRepository(),
             FakeClock(),
             SavedStateHandle(),
         )
