@@ -43,6 +43,7 @@ import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.TargetField
+import com.enil.logez.core.domain.model.TimerMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.targetFields
 import kotlinx.coroutines.flow.Flow
@@ -70,6 +71,9 @@ internal fun CircuitRoundCard(
     inlineTimerExerciseId: String?,
     inlineTimerSetId: String?,
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
+    /** The set whose countdown has no time to count down from: its row shows the hint and TIME takes focus. */
+    timeHintSetId: String? = null,
+    timeHintToken: Int = 0,
     config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
     modifier: Modifier = Modifier,
 ) {
@@ -108,7 +112,7 @@ internal fun CircuitRoundCard(
             // when a mixed-type circuit genuinely needs different columns per entry.
             val uniformColumns = round.entries
                 .filter { it.set != null }
-                .map { columnSignature(it.exercise, config.plateCalculator.enabled) }
+                .map { columnSignature(it.exercise, config.plateCalculator.enabled, config.inlineTimerEnabled) }
                 .distinct()
                 .singleOrNull()
             if (uniformColumns != null) {
@@ -117,6 +121,7 @@ internal fun CircuitRoundCard(
                     showCustomMetric = uniformColumns.customMetric,
                     showRpe = config.rpeTrackingEnabled && TargetField.REPS in uniformColumns.fields,
                     showPlateCalculator = uniformColumns.plateCalculator,
+                    timerMode = uniformColumns.timerMode,
                     weightUnit = config.weightUnit,
                     effortScale = config.effortScale,
                     onEffortInfoClick = { showEffortExplainer = true },
@@ -132,7 +137,10 @@ internal fun CircuitRoundCard(
                     callbacks = callbacks,
                     onExerciseClick = { onExerciseClick(entry.exercise.exerciseId) },
                     onOpenReplacePicker = { onOpenReplacePicker(entry.exercise.id) },
+                    exerciseTimerRunning = inlineTimerExerciseId == entry.exercise.id,
                     inlineTimerRunning = inlineTimerExerciseId == entry.exercise.id && inlineTimerSetId == entry.set?.id,
+                    showTimeHint = entry.set != null && timeHintSetId == entry.set.id,
+                    timeHintToken = timeHintToken,
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                     onEffortInfoClick = { showEffortExplainer = true },
                     config = config,
@@ -154,15 +162,23 @@ private fun CircuitEntry(
     callbacks: WorkoutCallbacks,
     onExerciseClick: () -> Unit,
     onOpenReplacePicker: () -> Unit,
+    exerciseTimerRunning: Boolean,
     inlineTimerRunning: Boolean,
+    showTimeHint: Boolean,
+    timeHintToken: Int,
     inlineTimerSecondsFlow: Flow<Int?>,
     onEffortInfoClick: () -> Unit,
     config: WorkoutLoggerDisplayConfig,
 ) {
     val exercise = entry.exercise
     var menuExpanded by remember { mutableStateOf(false) }
+    val entryFields = exercise.exerciseType.targetFields()
+    val showInlineTimer = config.inlineTimerEnabled && TargetField.DURATION in entryFields
+    val timerMode = exercise.timerModeValue
 
     Column {
+        // The countdown cue sits above the name in every round: the mode belongs to the exercise for this workout.
+        if (showInlineTimer && timerMode == TimerMode.COUNTDOWN) CountdownLine(modifier = Modifier.padding(bottom = Spacing.xxs))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 exercise.exerciseName,
@@ -180,6 +196,9 @@ private fun CircuitEntry(
                     // M11: replace/remove only — no superset (the circuit IS the sequence) and no
                     // per-exercise reorder affordance in the round-grouped view.
                     DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_replace)) }, onClick = { menuExpanded = false; onOpenReplacePicker() })
+                    if (showInlineTimer) {
+                        TimerModeMenuItem(mode = timerMode, enabled = !exerciseTimerRunning, onClick = { menuExpanded = false; callbacks.onSetTimerMode(exercise.id, it) })
+                    }
                     DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; callbacks.onRemoveExercise(exercise.id) })
                 }
             }
@@ -197,16 +216,16 @@ private fun CircuitEntry(
             return@Column
         }
 
-        val fields = exercise.exerciseType.targetFields()
+        val fields = entryFields
         val showCustomMetric = exercise.exerciseType == ExerciseType.FLOORS_DURATION || exercise.exerciseType == ExerciseType.STEPS_DURATION
         val showRpe = config.rpeTrackingEnabled && TargetField.REPS in fields
-        val showInlineTimer = config.inlineTimerEnabled && TargetField.DURATION in fields
         // Same §5.1.5 gate as the regular table: BARBELL rows only, setting on.
         val showPlateCalculator = config.plateCalculator.enabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields
 
         if (showColumnHeader) {
             CircuitColumnsHeader(
                 fields = fields, showCustomMetric = showCustomMetric, showRpe = showRpe, showPlateCalculator = showPlateCalculator,
+                timerMode = if (showInlineTimer) timerMode else null,
                 weightUnit = config.weightUnit, effortScale = config.effortScale, onEffortInfoClick = onEffortInfoClick,
             )
         }
@@ -229,6 +248,9 @@ private fun CircuitEntry(
             inlineTimerSecondsFlow = inlineTimerSecondsFlow,
             onStartInlineTimer = { callbacks.onStartInlineTimer(exercise.id, set.id) },
             onStopInlineTimer = { callbacks.onStopInlineTimer(exercise.id, set.id) },
+            timerMode = timerMode,
+            showTimeHint = showTimeHint,
+            timeHintToken = timeHintToken,
             showRpe = showRpe,
             onRpeChange = { rpe -> callbacks.onUpdateRpe(exercise.id, set.id, rpe) },
             onEffortInfoClick = onEffortInfoClick,
@@ -253,15 +275,21 @@ private fun CircuitEntry(
 /** The column set a circuit entry's table needs — entries sharing one signature share one header.
  * M17: the plate-calculator affordance is part of the signature (it adds a fixed-width slot), so a
  * mixed barbell/non-barbell circuit correctly falls back to per-entry headers. */
-private data class CircuitColumns(val fields: Set<TargetField>, val customMetric: Boolean, val plateCalculator: Boolean)
+internal data class CircuitColumns(val fields: Set<TargetField>, val customMetric: Boolean, val plateCalculator: Boolean, val timerMode: TimerMode?)
 
-private fun columnSignature(exercise: WorkoutExerciseUiModel, plateCalculatorEnabled: Boolean): CircuitColumns {
+/**
+ * The timer column is part of the signature too: [timerMode] is null when the exercise has no timer
+ * column, else its mode, so a round mixing a stopwatch and a countdown (one header glyph cannot say
+ * both) falls back to one header per exercise, as a mixed barbell round does.
+ */
+internal fun columnSignature(exercise: WorkoutExerciseUiModel, plateCalculatorEnabled: Boolean, inlineTimerEnabled: Boolean): CircuitColumns {
     val type = exercise.exerciseType
     val fields = type.targetFields()
     return CircuitColumns(
         fields = fields,
         customMetric = type == ExerciseType.FLOORS_DURATION || type == ExerciseType.STEPS_DURATION,
         plateCalculator = plateCalculatorEnabled && exercise.equipment == Equipment.BARBELL && TargetField.WEIGHT in fields,
+        timerMode = if (inlineTimerEnabled && TargetField.DURATION in fields) exercise.timerModeValue else null,
     )
 }
 
@@ -271,6 +299,8 @@ private fun CircuitColumnsHeader(
     showCustomMetric: Boolean,
     showRpe: Boolean,
     showPlateCalculator: Boolean = false,
+    /** Non-null when the rows carry the inline timer's 32dp column: its header cell shows this mode's glyph. */
+    timerMode: TimerMode? = null,
     weightUnit: WeightUnit = WeightUnit.KG,
     effortScale: EffortScale = EffortScale.RPE,
     onEffortInfoClick: () -> Unit = {},
@@ -286,8 +316,9 @@ private fun CircuitColumnsHeader(
         if (TargetField.WEIGHT in fields) HeaderCell(stringResource(weightHeaderRes(weightUnit)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         // Mirrors the row's trailing calculator button (same width) so KG stays over its cell.
         if (showPlateCalculator) Spacer(modifier = Modifier.width(SetTable.plateCalcCell))
-        if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(REPS_COLUMN_WEIGHT), textAlign = TextAlign.Center)
         if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        if (timerMode != null) TimerModeHeaderCell(timerMode)
         if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         if (showRpe) EffortHeaderLabel(effortScale, onInfoClick = onEffortInfoClick, modifier = Modifier.width(SetTable.rpeCell))
         Spacer(modifier = Modifier.width(SetTable.checkCell))

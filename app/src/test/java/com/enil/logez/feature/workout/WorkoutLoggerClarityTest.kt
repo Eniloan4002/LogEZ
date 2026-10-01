@@ -65,6 +65,7 @@ class WorkoutLoggerClarityTest {
         onUpdateRpe = { _, _, _ -> },
         onStartInlineTimer = { _, _ -> },
         onStopInlineTimer = { _, _ -> },
+        onSetTimerMode = { _, _ -> },
         onOpenPlateCalculator = { _, _, _ -> },
     )
 

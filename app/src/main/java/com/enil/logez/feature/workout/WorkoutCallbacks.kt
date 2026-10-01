@@ -1,6 +1,7 @@
 package com.enil.logez.feature.workout
 
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.TimerMode
 
 /**
  * Stable callback container for [WorkoutExerciseCard] and its children ([SetTable], [CircuitEntry]).
@@ -36,6 +37,8 @@ data class WorkoutCallbacks(
     val onUpdateRpe: (exerciseId: String, setId: String, rpe: Double?) -> Unit,
     val onStartInlineTimer: (exerciseId: String, setId: String) -> Unit,
     val onStopInlineTimer: (exerciseId: String, setId: String) -> Unit,
+    /** Switches this workout's copy of an exercise between a stopwatch and a countdown (never carried to another workout). */
+    val onSetTimerMode: (exerciseId: String, mode: TimerMode) -> Unit,
     /** M20d: opens the screen-hoisted plate calculator sheet targeting this exact set. */
     val onOpenPlateCalculator: (exerciseId: String, setId: String, currentWeightKg: Double?) -> Unit,
 )

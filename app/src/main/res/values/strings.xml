@@ -606,8 +606,18 @@
     <string name="workout_rest_timer_minus_15">−15s</string>
     <string name="workout_rest_timer_plus_15">+15s</string>
     <string name="workout_rest_timer_skip">Skip</string>
-    <string name="workout_inline_timer_start">Start timer</string>
-    <string name="workout_inline_timer_stop">Stop timer</string>
+    <!-- Inline set timer. The a11y strings continue a set label: "Set 2, start stopwatch". -->
+    <string name="workout_inline_timer_start_stopwatch_a11y">start stopwatch</string>
+    <string name="workout_inline_timer_start_countdown_a11y">start countdown from %1$s</string>
+    <string name="workout_inline_timer_start_countdown_blank_a11y">start countdown</string>
+    <string name="workout_inline_timer_stop_a11y">stop timer</string>
+    <string name="workout_inline_timer_left_a11y">%1$s left</string>
+    <string name="workout_timer_mode_stopwatch_a11y">Stopwatch</string>
+    <string name="workout_timer_mode_countdown_a11y">Countdown timer</string>
+    <string name="workout_menu_use_countdown">Use countdown timer</string>
+    <string name="workout_menu_use_stopwatch">Use stopwatch</string>
+    <string name="workout_countdown_line">Countdown timer · this workout only</string>
+    <string name="workout_countdown_time_hint">Type a time to count down from.</string>
     <string name="workout_mini_bar_finish">Finish</string>
     <string name="workout_mini_bar_resumed_snackbar">Workout resumed</string>
     <string name="workout_mini_bar_discard_action">Discard</string>
@@ -917,7 +927,7 @@
     <string name="settings_smart_superset">Smart superset scrolling</string>
     <string name="settings_smart_superset_subtitle">Jumps to the next exercise in the superset when you complete a set.</string>
     <string name="settings_inline_timer">Inline timer</string>
-    <string name="settings_inline_timer_subtitle">Shows start and stop controls on duration sets in the logger.</string>
+    <string name="settings_inline_timer_subtitle">Shows a stopwatch on duration sets in the logger. Switch an exercise to a countdown from its menu during a workout.</string>
     <string name="settings_live_pr">Live PR notifications</string>
     <string name="settings_live_pr_subtitle">Calls out a personal record the moment a completed set beats one.</string>
     <string name="settings_max_heart_rate">Max heart rate</string>

@@ -194,6 +194,7 @@ fun WorkoutLoggerScreen(
             onUpdateRpe = viewModel::updateRpe,
             onStartInlineTimer = viewModel::startInlineTimer,
             onStopInlineTimer = viewModel::stopInlineTimer,
+            onSetTimerMode = viewModel::setTimerMode,
             onOpenPlateCalculator = { exerciseId, setId, currentWeightKg ->
                 plateTarget = PlateTarget(exerciseId, setId, currentWeightKg)
             },
@@ -656,6 +657,8 @@ private fun ColumnScope.CircuitWorkoutBody(
                     inlineTimerExerciseId = uiState.inlineTimerExerciseId,
                     inlineTimerSetId = uiState.inlineTimerSetId,
                     inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
+                    timeHintSetId = uiState.timeHintSetId,
+                    timeHintToken = uiState.timeHintToken,
                     config = displayConfig,
                 )
             }
@@ -778,6 +781,8 @@ private fun ColumnScope.RegularWorkoutBody(
                         inlineTimerSecondsFlow = viewModel.inlineTimerSecondsFlow,
                         onStartInlineTimer = { setId -> viewModel.startInlineTimer(exercise.id, setId) },
                         onStopInlineTimer = { setId -> viewModel.stopInlineTimer(exercise.id, setId) },
+                        timeHintSetId = uiState.timeHintSetId,
+                    timeHintToken = uiState.timeHintToken,
                         config = displayConfig,
                     )
                 }

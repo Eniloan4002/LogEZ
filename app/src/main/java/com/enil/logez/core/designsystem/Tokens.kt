@@ -79,6 +79,14 @@ object SetTable {
     val plateCalcCell: Dp = 28.dp
 
     /**
+     * The inline timer's own column (Owner, 2026-10-01): the play/stop button's 32dp, kept after the
+     * TIME field on EVERY row of a table that shows the timer (an empty slot once a set is checked)
+     * and as a matching header cell holding the timer-mode glyph, so TIME and DISTANCE sit under
+     * their headers whether a row is open or checked. The plate calculator's rule, copied.
+     */
+    val timerCell: Dp = 32.dp
+
+    /**
      * M18 (Owner: uniform boxed cells): every set-row cell renders as a box of this
      * height. 56dp is Material3's OutlinedTextField min height — the KG/REPS/TIME fields already
      * render at it, so SET, PREVIOUS, and RPE boxes match the fields rather than the other way

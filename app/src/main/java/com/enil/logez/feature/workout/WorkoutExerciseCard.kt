@@ -30,6 +30,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Stop
@@ -49,6 +51,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +59,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -64,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Danger500
@@ -71,6 +77,7 @@ import com.enil.logez.core.designsystem.Elevation
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
 import com.enil.logez.core.designsystem.boxedFieldColors
+import com.enil.logez.core.designsystem.formatElapsedClock
 import com.enil.logez.core.designsystem.formatTargetNumber
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.SolidColor
@@ -86,15 +93,18 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.TimerMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.targetFields
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import com.enil.logez.core.designsystem.parseDecimalInput
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import com.enil.logez.core.designsystem.EffortExplainerSheet
@@ -114,7 +124,7 @@ import com.enil.logez.core.domain.model.SetNumbering
 /** REPS never needs more than 1-2 digits, so it's the weighted column that shrinks to fund the
  * wider PREVIOUS cell (Owner, 2026-09-03) — KG/TIME/DISTANCE keep the full share so 5-char values
  * like "154.3" stay whole. Shared by the header row and [SetRow] so the grid stays aligned. */
-private const val REPS_COLUMN_WEIGHT = 0.7f
+internal const val REPS_COLUMN_WEIGHT = 0.7f
 
 /** One `workout_exercises` card (PHASE2_PLAN.md §5.1.3): header, notes, PREVIOUS-aware set table with check-off. */
 @Composable
@@ -133,10 +143,16 @@ internal fun WorkoutExerciseCard(
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     onStartInlineTimer: (setId: String) -> Unit = {},
     onStopInlineTimer: (setId: String) -> Unit = {},
+    /** The set whose countdown has no time to count down from: its row shows the hint and TIME takes focus. */
+    timeHintSetId: String? = null,
+    /** Grows on every refused Play, so a repeat tap on the same set re-focuses TIME. */
+    timeHintToken: Int = 0,
     config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val showTimerColumn = config.inlineTimerEnabled && TargetField.DURATION in exercise.exerciseType.targetFields()
+    val showCountdownLine = showTimerColumn && exercise.timerModeValue == TimerMode.COUNTDOWN
     val supersetColor = exercise.supersetGroup?.let { SupersetPalette[it % SupersetPalette.size] }
 
     LogEzCard(
@@ -147,15 +163,19 @@ internal fun WorkoutExerciseCard(
         elevation = if (isDragging) Elevation.dragging else Elevation.card,
     ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
-            if (supersetColor != null) {
+            if (supersetColor != null || showCountdownLine) {
+                // One row: the existing "Superset" label first, then the countdown cue, so the card never grows by two lines.
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = Spacing.xs)) {
-                    Box(modifier = Modifier.size(10.dp).background(supersetColor, CircleShape))
-                    Text(
-                        stringResource(R.string.routine_builder_superset_chip),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = supersetColor,
-                        modifier = Modifier.padding(start = Spacing.xxs),
-                    )
+                    if (supersetColor != null) {
+                        Box(modifier = Modifier.size(10.dp).background(supersetColor, CircleShape))
+                        Text(
+                            stringResource(R.string.routine_builder_superset_chip),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = supersetColor,
+                            modifier = Modifier.padding(start = Spacing.xxs, end = if (showCountdownLine) Spacing.sm else 0.dp),
+                        )
+                    }
+                    if (showCountdownLine) CountdownLine(modifier = Modifier.weight(1f, fill = false))
                 }
             }
 
@@ -199,6 +219,13 @@ internal fun WorkoutExerciseCard(
                                 onClick = { menuExpanded = false; callbacks.onAddWarmupSets(exercise.id) },
                             )
                         }
+                        if (showTimerColumn) {
+                            TimerModeMenuItem(
+                                mode = exercise.timerModeValue,
+                                enabled = inlineTimerSetId == null,
+                                onClick = { menuExpanded = false; callbacks.onSetTimerMode(exercise.id, it) },
+                            )
+                        }
                         DropdownMenuItem(text = { Text(stringResource(R.string.routine_builder_menu_remove_exercise)) }, onClick = { menuExpanded = false; callbacks.onRemoveExercise(exercise.id) })
                     }
                 }
@@ -220,6 +247,8 @@ internal fun WorkoutExerciseCard(
                 inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                 onStartInlineTimer = onStartInlineTimer,
                 onStopInlineTimer = onStopInlineTimer,
+                timeHintSetId = timeHintSetId,
+                timeHintToken = timeHintToken,
                 onRpeChange = onRpeChange,
                 config = config,
             )
@@ -264,6 +293,8 @@ private fun SetTable(
     inlineTimerSecondsFlow: Flow<Int?>,
     onStartInlineTimer: (setId: String) -> Unit,
     onStopInlineTimer: (setId: String) -> Unit,
+    timeHintSetId: String?,
+    timeHintToken: Int,
     onRpeChange: (setId: String, rpe: Double?) -> Unit,
     config: WorkoutLoggerDisplayConfig = WorkoutLoggerDisplayConfig(),
 ) {
@@ -295,6 +326,8 @@ private fun SetTable(
             // cell, leaving KG room for 5-char values like "154.3" (must stay whole — M18 history).
             if (TargetField.REPS in fields) HeaderCell(stringResource(R.string.routine_builder_col_reps), modifier = Modifier.weight(REPS_COLUMN_WEIGHT), textAlign = TextAlign.Center)
             if (TargetField.DURATION in fields) HeaderCell(stringResource(R.string.routine_builder_col_time), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            // The timer's own column (every row keeps the slot), holding the mode glyph.
+            if (showInlineTimer) TimerModeHeaderCell(exercise.timerModeValue)
             if (TargetField.DISTANCE in fields) HeaderCell(stringResource(R.string.routine_builder_col_distance), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             if (showRpe) EffortHeaderLabel(config.effortScale, onInfoClick = { showEffortExplainer = true }, modifier = Modifier.width(SetTable.rpeCell))
             Spacer(modifier = Modifier.width(SetTable.checkCell))
@@ -319,6 +352,9 @@ private fun SetTable(
                     inlineTimerSecondsFlow = inlineTimerSecondsFlow,
                     onStartInlineTimer = { onStartInlineTimer(set.id) },
                     onStopInlineTimer = { onStopInlineTimer(set.id) },
+                    timerMode = exercise.timerModeValue,
+                    showTimeHint = timeHintSetId == set.id,
+                    timeHintToken = timeHintToken,
                     showRpe = showRpe,
                     onRpeChange = { rpe -> onRpeChange(set.id, rpe) },
                     onEffortInfoClick = { showEffortExplainer = true },
@@ -342,6 +378,9 @@ private fun SetTable(
     }
 }
 
+/** The smallest a column header's text shrinks to, in dp of physical size, whatever the system font scale. */
+internal const val HEADER_MIN_TEXT_DP = 8f
+
 /** P-211 small fix 10e: PREVIOUS gives up 8dp while the effort column shows, so REPS keeps its
  * header whole at 392dp. Shared by every header and row so the columns stay in register. */
 internal fun previousCellWidth(showEffort: Boolean): Dp = if (showEffort) SetTable.previousCellWithEffort else SetTable.previousCell
@@ -362,9 +401,11 @@ internal fun HeaderCell(label: String, modifier: Modifier = Modifier, width: and
         // future regression into an ellipsis instead of a mid-word break ("PREVIO/US").
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        // P-211 device QA: fix 10e keeps REPS whole only at the default size; at 1.3× it read
-        // "RE…" beside the effort header. A label now shrinks to fit first.
-        autoSize = shrinkToFit(style),
+        // P-211 device QA: fix 10e keeps REPS whole only at the default size; at 1.3x it read
+        // "RE…" beside the effort header. A label now shrinks to fit first. The floor is 8dp of
+        // physical text at every font scale: the 32dp timer column took width from two-field rows,
+        // where DISTANCE needs it at 392dp, and a floor of 11dp still cut it to "DISTAN…" at 1.3x.
+        autoSize = TextAutoSize.StepBased(minFontSize = with(LocalDensity.current) { HEADER_MIN_TEXT_DP.dp.toSp() }, maxFontSize = style.fontSize),
         modifier = if (width != null) modifier.width(width) else modifier,
     )
 }
@@ -403,6 +444,12 @@ internal fun SetRow(
     inlineTimerSecondsFlow: Flow<Int?> = emptyFlow(),
     onStartInlineTimer: () -> Unit = {},
     onStopInlineTimer: () -> Unit = {},
+    /** Which timer the play button starts, for its screen-reader label and the live readout. */
+    timerMode: TimerMode = TimerMode.STOPWATCH,
+    /** A countdown that could not start for want of a time: shows the hint and gives TIME focus. */
+    showTimeHint: Boolean = false,
+    /** Changes on every refused Play so the focus request fires again even while [showTimeHint] stays true. */
+    timeHintToken: Int = 0,
     showRpe: Boolean = false,
     onRpeChange: (Double?) -> Unit = {},
     /** P-211 §6: the picker's "What's RIR?" link. The caller owns the one explainer sheet. */
@@ -425,6 +472,10 @@ internal fun SetRow(
 ) {
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var showRpeSheet by remember { mutableStateOf(false) }
+    val timeFocus = remember { FocusRequester() }
+    // Skips a checked row: its fields are disabled, so there is nothing to focus and no hint to show.
+    val timeHintVisible = showTimeHint && !set.isCompleted
+    LaunchedEffect(timeHintVisible, timeHintToken) { if (timeHintVisible) timeFocus.requestFocus() }
     // Live logging locks a set's values once it is checked off — the check is the commit. Editing a
     // PAST workout inverts that: every set in a COMPLETED workout is checked, so the same rule
     // would make the whole point of edit mode (§5.1.10: "All values and structure are editable
@@ -531,20 +582,39 @@ internal fun SetRow(
         if (TargetField.DURATION in fields) {
             // Leaf-scoped (spine rule): only collected/ticking while this exact row is the running inline timer.
             val liveInlineSeconds by (if (inlineTimerRunning) inlineTimerSecondsFlow else emptyFlow()).collectAsStateWithLifecycle(null)
-            IntCell(
-                value = if (inlineTimerRunning) liveInlineSeconds else set.durationSeconds,
-                onValueChange = onDurationChange,
-                enabled = fieldsEnabled && !inlineTimerRunning,
-                modifier = Modifier.weight(1f),
-                suffix = stringResource(R.string.workout_unit_suffix_seconds),
-                label = setFieldA11y(label, stringResource(R.string.workout_field_seconds)),
-            )
-            if (showInlineTimer && !set.isCompleted) {
-                IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        if (inlineTimerRunning) Icons.Outlined.Stop else Icons.Outlined.PlayArrow,
-                        contentDescription = stringResource(if (inlineTimerRunning) R.string.workout_inline_timer_stop else R.string.workout_inline_timer_start),
-                    )
+            val timeLabel = setFieldA11y(label, stringResource(R.string.workout_field_seconds))
+            if (inlineTimerRunning) {
+                // m:ss in primary while it runs; read-only (the clock is the value until it stops).
+                TimerReadoutCell(seconds = liveInlineSeconds, mode = timerMode, label = timeLabel, modifier = Modifier.weight(1f))
+            } else {
+                IntCell(
+                    value = set.durationSeconds,
+                    onValueChange = onDurationChange,
+                    enabled = fieldsEnabled,
+                    modifier = Modifier.weight(1f),
+                    suffix = stringResource(R.string.workout_unit_suffix_seconds),
+                    label = timeLabel,
+                    focusRequester = timeFocus,
+                )
+            }
+            if (showInlineTimer) {
+                // The slot is kept on checked rows too, so open and checked rows line up under TIME and DISTANCE.
+                if (!set.isCompleted) {
+                    val startDescription = if (timerMode == TimerMode.COUNTDOWN) {
+                        val target = set.durationSeconds?.takeIf { it > 0 } ?: set.previousDurationSeconds?.takeIf { it > 0 }
+                        if (target != null) stringResource(R.string.workout_inline_timer_start_countdown_a11y, formatElapsedClock(target))
+                        else stringResource(R.string.workout_inline_timer_start_countdown_blank_a11y)
+                    } else {
+                        stringResource(R.string.workout_inline_timer_start_stopwatch_a11y)
+                    }
+                    IconButton(onClick = if (inlineTimerRunning) onStopInlineTimer else onStartInlineTimer, modifier = Modifier.size(SetTable.timerCell)) {
+                        Icon(
+                            if (inlineTimerRunning) Icons.Outlined.Stop else Icons.Outlined.PlayArrow,
+                            contentDescription = setFieldA11y(label, if (inlineTimerRunning) stringResource(R.string.workout_inline_timer_stop_a11y) else startDescription),
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(SetTable.timerCell))
                 }
             }
         }
@@ -584,6 +654,16 @@ internal fun SetRow(
                 )
             }
         }
+    }
+
+    if (timeHintVisible) {
+        Text(
+            stringResource(R.string.workout_countdown_time_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Read out when it appears: focus moves to TIME, which would otherwise announce only its label.
+            modifier = Modifier.padding(start = SetTable.setCell, bottom = Spacing.xxs).semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
 
     if (showRpeSheet) {
@@ -700,7 +780,7 @@ internal fun WeightCell(valueKg: Double?, unit: WeightUnit, onValueChange: (Doub
 }
 
 @Composable
-internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null, label: String? = null) {
+internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier, suffix: String? = null, label: String? = null, focusRequester: FocusRequester? = null) {
     var text by remember(value) { mutableStateOf(value?.toString().orEmpty()) }
     CompactBoxedTextField(
         text = text,
@@ -710,6 +790,7 @@ internal fun IntCell(value: Int?, onValueChange: (Int?) -> Unit, enabled: Boolea
         modifier = modifier,
         suffix = suffix,
         label = label,
+        focusRequester = focusRequester,
     )
 }
 
@@ -742,6 +823,7 @@ private fun CompactBoxedTextField(
     suffix: String? = null,
     /** What TalkBack announces for the field, e.g. "Set 2, reps". A bare BasicTextField announced only its value. */
     label: String? = null,
+    focusRequester: FocusRequester? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -763,7 +845,9 @@ private fun CompactBoxedTextField(
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             interactionSource = interactionSource,
-            modifier = Modifier.fillMaxSize().then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
+            modifier = Modifier.fillMaxSize()
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
         ) { innerTextField ->
             OutlinedTextFieldDefaults.DecorationBox(
                 value = text,
@@ -798,6 +882,86 @@ private fun CompactBoxedTextField(
                 modifier = if (suffix != null) Modifier.padding(end = 14.dp) else Modifier,
             )
         }
+    }
+}
+
+/**
+ * The timer column's header cell: a 16dp stopwatch or hourglass over the play buttons it describes.
+ * It costs no space (the 32dp slot exists for the alignment), says the mode in both modes, and is
+ * announced as "Stopwatch" or "Countdown timer".
+ */
+@Composable
+internal fun TimerModeHeaderCell(mode: TimerMode, modifier: Modifier = Modifier) {
+    val description = stringResource(if (mode == TimerMode.COUNTDOWN) R.string.workout_timer_mode_countdown_a11y else R.string.workout_timer_mode_stopwatch_a11y)
+    Box(modifier = modifier.width(SetTable.timerCell), contentAlignment = Alignment.Center) {
+        Icon(
+            if (mode == TimerMode.COUNTDOWN) Icons.Outlined.HourglassEmpty else Icons.Outlined.Timer,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
+/** "Countdown timer · this workout only": the card's cue that this exercise counts down here, and only here. */
+@Composable
+internal fun CountdownLine(modifier: Modifier = Modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+        Icon(Icons.Outlined.HourglassEmpty, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+        Text(
+            stringResource(R.string.workout_countdown_line),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // One line at the default size; at a larger font it wraps, so "this workout only" is never the part that is cut.
+            maxLines = if (LocalDensity.current.fontScale > 1f) 2 else 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = Spacing.xxs),
+        )
+    }
+}
+
+/**
+ * The exercise menu's "Use countdown timer" / "Use stopwatch" item. It is a flip-label (it names the
+ * mode it switches TO, like Add to / Remove From Superset) and is disabled while one of the
+ * exercise's sets is being timed.
+ */
+@Composable
+internal fun TimerModeMenuItem(mode: TimerMode, enabled: Boolean, onClick: (TimerMode) -> Unit) {
+    val countdown = mode == TimerMode.COUNTDOWN
+    DropdownMenuItem(
+        text = { Text(stringResource(if (countdown) R.string.workout_menu_use_stopwatch else R.string.workout_menu_use_countdown)) },
+        enabled = enabled,
+        onClick = { onClick(if (countdown) TimerMode.STOPWATCH else TimerMode.COUNTDOWN) },
+    )
+}
+
+/**
+ * The TIME cell while a set timer runs: the clock in primary, in the same hairline box as the
+ * fields so the row keeps its grid, read-only. A stopwatch reads whole seconds elapsed, a countdown
+ * the time left ("0:41 left" to a screen reader). `TextAutoSize` keeps an hour-plus "1:00:00" in
+ * the narrowest box.
+ */
+@Composable
+private fun TimerReadoutCell(seconds: Int?, mode: TimerMode, label: String, modifier: Modifier = Modifier) {
+    val clock = seconds?.let { formatElapsedClock(it) }.orEmpty()
+    val spoken = if (clock.isEmpty()) label else if (mode == TimerMode.COUNTDOWN) "$label, ${stringResource(R.string.workout_inline_timer_left_a11y, clock)}" else "$label, $clock"
+    val style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.primary)
+    Box(
+        modifier = modifier
+            .padding(horizontal = 2.dp)
+            .height(SetTable.cellHeight)
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(Radius.sm))
+            .padding(horizontal = 4.dp)
+            .semantics { contentDescription = spoken },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            clock,
+            style = style,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = style.fontSize),
+            modifier = Modifier.clearAndSetSemantics { },
+        )
     }
 }
 

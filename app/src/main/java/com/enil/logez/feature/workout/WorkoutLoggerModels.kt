@@ -4,6 +4,7 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.PlateEquipment
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.TimerMode
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.defaultPlateEquipment
 
@@ -23,10 +24,19 @@ data class WorkoutExerciseUiModel(
     val equipment: Equipment = Equipment.NONE,
     val supersetGroup: Int? = null,
     val restTimerSeconds: Int? = null,
+    /**
+     * This workout's inline timer for the exercise: the stored `workout_exercises.timer_mode` text,
+     * null for a stopwatch and `"COUNTDOWN"` for a countdown. Kept as the stored text so a value this
+     * app does not know survives an edit untouched; read it through [timerModeValue].
+     */
+    val timerMode: String? = null,
     val notes: String = "",
     val previousSessionNote: String? = null,
     val sets: List<WorkoutSetUiModel> = emptyList(),
-)
+) {
+    /** The mode the card behaves in: a stored value this app does not know behaves as a stopwatch (and is never rewritten). */
+    val timerModeValue: TimerMode get() = TimerMode.of(timerMode)
+}
 
 data class WorkoutSetUiModel(
     val id: String,
@@ -54,6 +64,11 @@ data class WorkoutSetUiModel(
      * RIR (P-211, README §4 build note). Null when the previous set has no effort value.
      */
     val previousRpe: Double? = null,
+    /**
+     * The previous set's time in seconds, raw like [previousRpe]. A countdown with a blank TIME
+     * counts down from this, so Play never starts from nothing when last time had a duration.
+     */
+    val previousDurationSeconds: Int? = null,
     /** §5.1.3 check-off validation: a FAILURE set checked with 0/blank reps is rejected, not silently accepted. */
     val failureError: Boolean = false,
 )

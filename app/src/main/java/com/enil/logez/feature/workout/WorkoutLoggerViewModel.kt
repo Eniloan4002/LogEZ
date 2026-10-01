@@ -19,6 +19,7 @@ import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.RpeScale
 import com.enil.logez.core.domain.model.PrType
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.TimerMode
 import com.enil.logez.core.domain.model.UserSettings
 import com.enil.logez.core.domain.model.WeightUnit
 import com.enil.logez.core.domain.model.WorkoutStructure
@@ -30,6 +31,7 @@ import com.enil.logez.feature.history.WorkoutEditor
 import com.enil.logez.core.domain.model.TargetField
 import com.enil.logez.core.domain.model.targetFields
 import com.enil.logez.feature.workout.finish.LivePrDetector
+import com.enil.logez.feature.workout.session.InlineTimerLog
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
@@ -50,6 +52,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -135,6 +138,18 @@ class WorkoutLoggerViewModel @Inject constructor(
     private val supersetSource = MutableStateFlow<String?>(null)
     private val keepAwakeEnabled = MutableStateFlow(true)
     private val inlineTimerEnabled = MutableStateFlow(true)
+    /**
+     * The set whose countdown could not start for want of a time (TIME blank and no PREVIOUS time):
+     * its row shows "Type a time to count down from." and TIME takes focus. Cleared when a time is
+     * typed, the timer starts, or the mode changes.
+     */
+    private val timeHint = MutableStateFlow<TimeHintState?>(null)
+    private var timeHintCount = 0
+    /** The hint's set plus a count that grows on every refused Play, so a repeat tap on the same set still re-focuses TIME. */
+    private data class TimeHintState(val setId: String, val token: Int)
+    private fun clearTimeHint(setId: String? = null) {
+        if (setId == null || timeHint.value?.setId == setId) timeHint.value = null
+    }
     /** §5.1.7: the RPE column and picker exist only when this setting is on. Like keepAwake/
      * inlineTimer above, kept current by the settings collector in init — M16 made Settings
      * reachable mid-session from this screen's overflow menu (plain navigation, this ViewModel
@@ -240,6 +255,8 @@ class WorkoutLoggerViewModel @Inject constructor(
         combine(rpeTrackingEnabled, effortScale, plateCalculator, weightUnit, warmupCalculatorEnabled) { rpe, scale, plate, unit, warmup ->
             SettingsFlags(rpeTrackingEnabled = rpe, effortScale = scale, plateCalculator = plate, weightUnit = unit, warmupCalculatorEnabled = warmup)
         },
+        // Group 6: the countdown "type a time" hint
+        timeHint,
     ) { flows ->
         @Suppress("UNCHECKED_CAST")
         val exState = flows[0] as ExercisesState
@@ -251,6 +268,8 @@ class WorkoutLoggerViewModel @Inject constructor(
         val edit = flows[3] as EditState
         @Suppress("UNCHECKED_CAST")
         val settings = flows[4] as SettingsFlags
+        @Suppress("UNCHECKED_CAST")
+        val timeHintState = flows[5] as TimeHintState?
         val allSets = exState.exercises.flatMap { it.sets }
         WorkoutLoggerUiState(
             isLoading = exState.isLoading,
@@ -269,6 +288,8 @@ class WorkoutLoggerViewModel @Inject constructor(
             inlineTimerEnabled = meta.inlineTimerEnabled,
             inlineTimerExerciseId = session.inlineTimerExerciseId,
             inlineTimerSetId = session.inlineTimerSetId,
+            timeHintSetId = timeHintState?.setId,
+            timeHintToken = timeHintState?.token ?: 0,
             isEditMode = isEditMode,
             editedStartedAtMillis = edit.editedStartedAtMillis,
             editedDurationSeconds = edit.editedDurationSeconds,
@@ -292,7 +313,14 @@ class WorkoutLoggerViewModel @Inject constructor(
         viewModelScope.launch {
             // No session to rehydrate in edit mode — the workout being edited is COMPLETED, and
             // rehydrating would resurrect whatever live session state the controller last held.
-            if (!isEditMode) sessionController.rehydrate()
+            if (!isEditMode) {
+                sessionController.rehydrate()
+                // A countdown that ran out while the app was dead, with the Service not running to
+                // finish it (a mini-bar tap reaches this screen without starting it): log the full
+                // time here, before the sets load below. No alert: the person is looking at it. If
+                // the Service is up it finishes the timer first and this is a no-op.
+                sessionController.finishCountdown()?.let { log -> workoutRepository.updateWorkoutSetDuration(log.setId, log.seconds) }
+            }
             val w = workoutRepository.getById(workoutId)
             workout.value = w
             editedStartedAt.value = w?.startedAt ?: 0L
@@ -329,6 +357,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                     equipment = exercise?.equipment ?: Equipment.NONE,
                     supersetGroup = we.supersetGroup,
                     restTimerSeconds = we.restTimerSeconds,
+                    timerMode = we.timerMode,
                     notes = we.notes.orEmpty(),
                     sets = sets.mapIndexed { index, s ->
                         // M11: a circuit pairs PREVIOUS by round (orderIndex), not list position —
@@ -345,6 +374,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                                 PreviousValueFormatter.format(it, exercise?.exerciseType ?: ExerciseType.WEIGHT_REPS, currentSettings.weightUnit, currentSettings.distanceUnit)
                             } ?: "—",
                             previousRpe = previous?.rpe,
+                            previousDurationSeconds = previous?.durationSeconds,
                         )
                     },
                 )
@@ -362,6 +392,9 @@ class WorkoutLoggerViewModel @Inject constructor(
             settingsRepository.settings.collect { s ->
                 keepAwakeEnabled.value = s.keepAwake
                 inlineTimerEnabled.value = s.inlineTimerEnabled
+                // Switching the Inline timer off mid-workout would leave a running timer with no
+                // control to stop it: stop it and log what it held, like any other stop.
+                if (!s.inlineTimerEnabled && !isEditMode) stopAndLogRunningTimer()
                 rpeTrackingEnabled.value = s.rpeTrackingEnabled
                 effortScale.value = s.effortScale
                 plateCalculator.value = PlateCalculatorConfig(
@@ -392,8 +425,23 @@ class WorkoutLoggerViewModel @Inject constructor(
             // see the class doc: while mini-barred with no ViewModel alive, the last-pushed content
             // simply holds until the Logger (and this collector) is alive again.
             viewModelScope.launch {
-                combine(exercises, sessionController.state.map { it.restExerciseId }.distinctUntilChanged()) { ex, restId -> ex to restId }
-                    .collect { (ex, restId) -> notificationContentBuilder.push(ex, restId, weightUnit.value) }
+                combine(
+                    exercises,
+                    sessionController.state.map { it.restExerciseId }.distinctUntilChanged(),
+                    sessionController.state.map { s -> s.inlineTimer?.let { it.exerciseId to it.setId } }.distinctUntilChanged(),
+                ) { ex, restId, timed -> Triple(ex, restId, timed) }
+                    .collect { (ex, restId, timed) -> notificationContentBuilder.push(ex, restId, weightUnit.value, timed) }
+            }
+
+            // A set timer that the Service stopped (a countdown reaching 0:00, or the notification's
+            // "Complete set"): the Service already wrote the time to Room, so only this screen's
+            // in-memory copy needs it.
+            viewModelScope.launch {
+                merge(sessionController.countdownFinished, sessionController.inlineTimerLoggedExternally).collect { log ->
+                    updateExercises { list ->
+                        list.map { ex -> if (ex.id != log.exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == log.setId) it.copy(durationSeconds = log.seconds) else it }) }
+                    }
+                }
             }
 
             // Mirrors a notification-driven "Complete set" action (§9.3 — the Service persists to
@@ -416,7 +464,7 @@ class WorkoutLoggerViewModel @Inject constructor(
      */
     private suspend fun refreshPreviousLabels(settings: UserSettings) {
         val w = workout.value
-        val labelsBySetId = mutableMapOf<String, Pair<String, Double?>>()
+        val labelsBySetId = mutableMapOf<String, Triple<String, Double?, Int?>>()
         for (ex in exercises.value) {
             val previousRows = workoutRepository.getPreviousWorkoutSets(
                 ex.exerciseId,
@@ -433,9 +481,11 @@ class WorkoutLoggerViewModel @Inject constructor(
                 } else {
                     previousRows.getOrNull(index)
                 }
-                labelsBySetId[s.id] = (previous?.let {
-                    PreviousValueFormatter.format(it, ex.exerciseType, settings.weightUnit, settings.distanceUnit)
-                } ?: "—") to previous?.rpe
+                labelsBySetId[s.id] = Triple(
+                    previous?.let { PreviousValueFormatter.format(it, ex.exerciseType, settings.weightUnit, settings.distanceUnit) } ?: "—",
+                    previous?.rpe,
+                    previous?.durationSeconds,
+                )
             }
         }
         // Applied by set id onto whatever the list holds NOW — user edits that landed while the
@@ -443,7 +493,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         updateExercises { list ->
             list.map { ex ->
                 ex.copy(sets = ex.sets.map { s ->
-                    labelsBySetId[s.id]?.let { (label, rpe) -> s.copy(previousLabel = label, previousRpe = rpe) } ?: s
+                    labelsBySetId[s.id]?.let { (label, rpe, duration) -> s.copy(previousLabel = label, previousRpe = rpe, previousDurationSeconds = duration) } ?: s
                 })
             }
         }
@@ -483,8 +533,10 @@ class WorkoutLoggerViewModel @Inject constructor(
         updateSetField(exerciseId, setId, { it.copy(weightKg = kg) }) { workoutRepository.updateWorkoutSetWeight(setId, kg) }
     fun updateReps(exerciseId: String, setId: String, reps: Int?) =
         updateSetField(exerciseId, setId, { it.copy(reps = reps) }) { workoutRepository.updateWorkoutSetReps(setId, reps) }
-    fun updateDuration(exerciseId: String, setId: String, seconds: Int?) =
+    fun updateDuration(exerciseId: String, setId: String, seconds: Int?) {
+        clearTimeHint(setId)
         updateSetField(exerciseId, setId, { it.copy(durationSeconds = seconds) }) { workoutRepository.updateWorkoutSetDuration(setId, seconds) }
+    }
     fun updateDistance(exerciseId: String, setId: String, meters: Double?) =
         updateSetField(exerciseId, setId, { it.copy(distanceMeters = meters) }) { workoutRepository.updateWorkoutSetDistance(setId, meters) }
     fun updateCustomMetric(exerciseId: String, setId: String, value: Double?) =
@@ -533,11 +585,13 @@ class WorkoutLoggerViewModel @Inject constructor(
         }
         val nowCompleting = !set.isCompleted
         if (nowCompleting) {
-            // §5.1.3 Inline Timer: completing a set with its own running stopwatch must stop and
-            // commit it first — the play/pause control only renders for uncompleted sets (it
-            // disappears the instant isCompleted flips), so afterward there would be no UI path
-            // left to stop it and its elapsed value would never reach durationSeconds.
-            sessionController.stopInlineTimer(exerciseId, setId)?.let { seconds -> updateDuration(exerciseId, setId, seconds) }
+            clearTimeHint(setId)
+            // §5.1.3 Inline Timer: completing a set while a set timer runs must stop and commit it
+            // first. For this set's own timer, the play/stop control only renders for uncompleted
+            // sets (it disappears the instant isCompleted flips), so afterward there would be no UI
+            // path left to stop it. For another set's timer, it must not keep running beside the
+            // rest timer this check is about to start, so there are never two deadlines at once.
+            stopAndLogRunningTimer()
         }
         updateExercises { list ->
             list.map { ex -> if (ex.id != exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == setId) it.copy(isCompleted = nowCompleting, failureError = false) else it }) }
@@ -674,6 +728,7 @@ class WorkoutLoggerViewModel @Inject constructor(
         // Clears an orphaned inline-timer pointer if this exact set's stopwatch was running —
         // it's about to be deleted, so nothing needs committing, just stopped (no-op otherwise).
         sessionController.stopInlineTimer(exerciseId, setId)
+        clearTimeHint(setId)
         updateExercises { list -> list.map { if (it.id != exerciseId) it else it.copy(sets = it.sets.filterNot { s -> s.id == setId }) } }
         persist { workoutRepository.deleteWorkoutSet(setId) }
     }
@@ -753,6 +808,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                                 PreviousValueFormatter.format(it, exercise.exerciseType, settings.weightUnit, settings.distanceUnit)
                             } ?: "—",
                             previousRpe = p?.rpe,
+                            previousDurationSeconds = p?.durationSeconds,
                         ),
                     )
                 } else if (circuitRounds != null) {
@@ -765,6 +821,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             distanceMeters = p?.distanceMeters, customMetric = p?.customMetric,
                             previousLabel = p?.let { PreviousValueFormatter.format(it, exercise.exerciseType, settings.weightUnit, settings.distanceUnit) } ?: "—",
                             previousRpe = p?.rpe,
+                            previousDurationSeconds = p?.durationSeconds,
                         )
                     }
                 } else if (previous.isNotEmpty()) {
@@ -775,6 +832,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             distanceMeters = p.distanceMeters, customMetric = p.customMetric,
                             previousLabel = PreviousValueFormatter.format(p, exercise.exerciseType, settings.weightUnit, settings.distanceUnit),
                             previousRpe = p.rpe,
+                            previousDurationSeconds = p.durationSeconds,
                         )
                     }
                 } else {
@@ -786,7 +844,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                 )
                 newExerciseEntities += WorkoutExerciseEntity(
                     id = weId, workoutId = workoutId, exerciseId = exercise.id, orderIndex = startIndex + offset,
-                    supersetGroup = null, restTimerSeconds = null, notes = null,
+                    supersetGroup = null, restTimerSeconds = null, notes = null, timerMode = null,
                 )
                 sets.forEachIndexed { i, s -> newSetEntities += s.toEntity(weId).copy(orderIndex = i) }
             }
@@ -806,6 +864,8 @@ class WorkoutLoggerViewModel @Inject constructor(
     fun removeExercise(exerciseId: String) {
         val before = exercises.value
         val removedStartingExercise = before.firstOrNull()?.id == exerciseId
+        // A timer running on one of this exercise's sets has nowhere to log: stop it, nothing to commit.
+        if (sessionController.state.value.inlineTimer?.exerciseId == exerciseId) sessionController.stopRunningInlineTimer()
         updateExercises { list -> supersetEditor.cleanupOrphans(list.filterNot { it.id == exerciseId }) }
         persist { workoutRepository.deleteWorkoutExercise(exerciseId) }
         if (removedStartingExercise && isEmptyWorkoutGraceActive()) {
@@ -821,13 +881,18 @@ class WorkoutLoggerViewModel @Inject constructor(
      */
     fun replaceExercise(exerciseId: String, newExercise: Exercise) {
         val replacedStartingExercise = exercises.value.firstOrNull()?.id == exerciseId
+        // A timer running on this exercise logs into its old sets first, so the carry-over sees the time.
+        if (sessionController.state.value.inlineTimer?.exerciseId == exerciseId) stopAndLogRunningTimer()
         val oldExercise = exercises.value.find { it.id == exerciseId } ?: return
+        // A "type a time" hint on one of the old sets belongs to the old exercise's countdown.
+        if (timeHint.value?.setId in oldExercise.sets.map { it.id }) clearTimeHint()
         val carriedSets = oldExercise.sets.map {
             it.carryOverTo(oldExercise.exerciseType, newExercise.exerciseType).copy(isCompleted = false)
         }
         updateExercises { list ->
             list.map { ex ->
-                if (ex.id != exerciseId) ex else ex.copy(exerciseId = newExercise.id, exerciseName = newExercise.name, exerciseType = newExercise.exerciseType, equipment = newExercise.equipment, sets = carriedSets)
+                // timerMode back to a stopwatch: the row survives a Replace (the DAO clears it too), but a countdown chosen for the old exercise is not the new one's.
+                if (ex.id != exerciseId) ex else ex.copy(exerciseId = newExercise.id, exerciseName = newExercise.name, exerciseType = newExercise.exerciseType, equipment = newExercise.equipment, timerMode = null, sets = carriedSets)
             }
         }
         persist {
@@ -898,12 +963,59 @@ class WorkoutLoggerViewModel @Inject constructor(
     fun adjustRestTimer(deltaSeconds: Int) = sessionController.adjustRestTimer(deltaSeconds)
     fun skipRestTimer() = sessionController.skipRestTimer()
 
-    /** §5.1.3 Inline Timer — one at a time; starting a new one implicitly abandons any other running (spec is silent on a conflict UI, and the UI only exposes one play button at a time regardless). */
-    fun startInlineTimer(exerciseId: String, setId: String) = sessionController.startInlineTimer(exerciseId, setId)
+    /**
+     * §5.1.3 Inline Timer, one at a time. Play on a set stops and logs whichever other set's timer
+     * is running (it used to be dropped silently) and ends a running rest timer, in both modes.
+     *
+     * A countdown counts down from the set's TIME. With TIME blank or 0 it uses the PREVIOUS time
+     * for that row, filling it into TIME. With neither it does not start: the row gets the "type a
+     * time" hint and TIME takes focus. A stopwatch always starts, from 0:00.
+     */
+    fun startInlineTimer(exerciseId: String, setId: String) {
+        if (isEditMode) return
+        val exercise = exercises.value.find { it.id == exerciseId } ?: return
+        val set = exercise.sets.find { it.id == setId } ?: return
+        if (set.isCompleted) return
+        val mode = exercise.timerModeValue
+        var target: Int? = null
+        if (mode == TimerMode.COUNTDOWN) {
+            val typed = set.durationSeconds?.takeIf { it > 0 }
+            target = typed ?: set.previousDurationSeconds?.takeIf { it > 0 }
+            if (target == null) {
+                timeHint.value = TimeHintState(setId, ++timeHintCount)
+                return
+            }
+            if (typed == null) updateDuration(exerciseId, setId, target)
+        }
+        stopAndLogRunningTimer()
+        sessionController.skipRestTimer()
+        clearTimeHint()
+        sessionController.startInlineTimer(exerciseId, setId, mode, target)
+    }
 
     fun stopInlineTimer(exerciseId: String, setId: String) {
         val seconds = sessionController.stopInlineTimer(exerciseId, setId) ?: return
         updateDuration(exerciseId, setId, seconds)
+    }
+
+    /** Stops whichever set timer is running and writes its time into that set's TIME. */
+    private fun stopAndLogRunningTimer() {
+        val log = sessionController.stopRunningInlineTimer() ?: return
+        updateDuration(log.exerciseId, log.setId, log.seconds)
+    }
+
+    /**
+     * Switches this workout's copy of the exercise between a stopwatch and a countdown. Stored on the
+     * `workout_exercises` row, so it never reaches the same exercise in another workout. Refused while
+     * one of its sets is being timed (the menu item is disabled then too) and in edit mode.
+     */
+    fun setTimerMode(exerciseId: String, mode: TimerMode) {
+        if (isEditMode) return
+        if (exercises.value.none { it.id == exerciseId }) return
+        if (sessionController.state.value.inlineTimer?.exerciseId == exerciseId) return
+        updateExercises { list -> list.map { if (it.id == exerciseId) it.copy(timerMode = mode.stored) else it } }
+        persist { workoutRepository.updateWorkoutExerciseTimerMode(exerciseId, mode.stored) }
+        clearTimeHint()
     }
 
     // --- Finish / Discard ---
@@ -938,6 +1050,20 @@ class WorkoutLoggerViewModel @Inject constructor(
             sessionController.elapsedSeconds(now).toInt()
         } else {
             stored.durationSeconds
+        }
+        // A running set timer logs what it held before the session ends: the write is awaited here
+        // (updateDuration only launches one), because the Save screen reads the set from Room.
+        sessionController.stopRunningInlineTimer()?.let { log ->
+            updateExercises { list ->
+                list.map { ex -> if (ex.id != log.exerciseId) ex else ex.copy(sets = ex.sets.map { if (it.id == log.setId) it.copy(durationSeconds = log.seconds) else it }) }
+            }
+            try {
+                workoutRepository.updateWorkoutSetDuration(log.setId, log.seconds)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.e(TAG, "prepareForFinish: failed to log the running set timer's ${log.seconds} s for set ${log.setId}", e)
+            }
         }
         // endSession() before the write (synchronous) so a rest timer that's already mid-fire in
         // the Service can't play sound/haptics/a heads-up notification for a workout that's
@@ -1008,6 +1134,7 @@ class WorkoutLoggerViewModel @Inject constructor(
                             id = ex.id, workoutId = workoutId, exerciseId = ex.exerciseId, orderIndex = index,
                             supersetGroup = ex.supersetGroup, restTimerSeconds = ex.restTimerSeconds,
                             notes = ex.notes.ifBlank { null },
+                            timerMode = ex.timerMode,
                         )
                     },
                     sets = snapshot.flatMap { ex ->
@@ -1068,6 +1195,10 @@ data class WorkoutLoggerUiState(
     val inlineTimerEnabled: Boolean = true,
     val inlineTimerExerciseId: String? = null,
     val inlineTimerSetId: String? = null,
+    /** The set whose countdown has no time to count down from yet: its row shows the hint and TIME takes focus. */
+    val timeHintSetId: String? = null,
+    /** Grows on every refused Play, so a second tap on the same set still moves focus to TIME. */
+    val timeHintToken: Int = 0,
     /** §5.1.10 edit mode: same screen, no timers/service/banners, nothing persisted until Save. */
     val isEditMode: Boolean = false,
     val editedStartedAtMillis: Long = 0L,
@@ -1093,10 +1224,11 @@ data class WorkoutLoggerUiState(
     val showEmptyHint: Boolean get() = !isLoading && !isEditMode && exercises.isEmpty()
 }
 
-private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpe: Double? = null) = WorkoutSetUiModel(
+private fun WorkoutSetEntity.toUiModel(previousLabel: String, previousRpe: Double? = null, previousDurationSeconds: Int? = null) = WorkoutSetUiModel(
     id = id, setType = setType, weightKg = weightKg, reps = reps, durationSeconds = durationSeconds,
     distanceMeters = distanceMeters, customMetric = customMetric, rpe = rpe, isCompleted = isCompleted,
     completedAt = completedAt, previousLabel = previousLabel, previousRpe = previousRpe,
+    previousDurationSeconds = previousDurationSeconds,
 )
 
 internal fun WorkoutSetUiModel.toEntity(workoutExerciseId: String) = WorkoutSetEntity(
