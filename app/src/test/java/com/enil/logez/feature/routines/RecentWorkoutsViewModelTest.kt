@@ -4,6 +4,7 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeActivityTrackRepository
@@ -68,6 +69,37 @@ class RecentWorkoutsViewModelTest {
         assertEquals(3, cards[1].exerciseCount)
         assertTrue(cards[1].isFromRoutine)
         assertEquals("Push Day", cards[1].title)
+    }
+
+    @Test
+    fun `a GPS walk or run is left out of both the card and the full list`() = runTest {
+        val repo = FakeWorkoutRepository(
+            workouts = listOf(
+                completed("lift", startedAt = 1_000L, routineId = null, title = "Push Day"),
+                completed("run", startedAt = 9_000L, routineId = null, title = "Run").copy(kind = WorkoutKind.GPS_TRACKED),
+            ),
+            exercises = listOf(exercise("we1", "lift", 0), exercise("we2", "run", 0)),
+        )
+        val vm = viewModel(repo)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.cardState.collect {} }
+
+        assertEquals(listOf("lift"), vm.uiState.value.map { it.workoutId })
+        assertEquals(listOf("lift"), vm.cardState.value.map { it.workoutId })
+    }
+
+    @Test
+    fun `the card holds the newest three while the list holds all of them`() = runTest {
+        val repo = FakeWorkoutRepository(
+            workouts = (1..5).map { completed("w$it", startedAt = it * 1_000L, routineId = null, title = "Workout $it") },
+            exercises = (1..5).map { exercise("we$it", "w$it", 0) },
+        )
+        val vm = viewModel(repo)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.cardState.collect {} }
+
+        assertEquals(listOf("w5", "w4", "w3"), vm.cardState.value.map { it.workoutId })
+        assertEquals(listOf("w5", "w4", "w3", "w2", "w1"), vm.uiState.value.map { it.workoutId })
     }
 
     @Test
@@ -165,10 +197,12 @@ class RecentWorkoutsViewModelTest {
         val starter = WorkoutStarter(repo, FakeRoutineRepository(), FakeClock())
         return RecentWorkoutsViewModel(
             workoutRepository = repo,
-            workoutStarter = starter,
-            sessionController = controller(),
-            sessionDiscarder = SessionDiscarder(starter, controller(), tracking()),
-            inProgressWorkoutResolver = InProgressWorkoutResolver(repo, tracking()),
+            starter = RecentWorkoutStarter(
+                workoutStarter = starter,
+                sessionController = controller(),
+                sessionDiscarder = SessionDiscarder(starter, controller(), tracking()),
+                inProgressWorkoutResolver = InProgressWorkoutResolver(repo, tracking()),
+            ),
         )
     }
 

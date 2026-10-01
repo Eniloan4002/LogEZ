@@ -15,6 +15,12 @@ interface WorkoutRepository {
     fun observeInProgress(): Flow<WorkoutEntity?>
     fun observeCompleted(): Flow<List<WorkoutEntity>>
     suspend fun getCompletedWorkouts(): List<WorkoutEntity>
+
+    /**
+     * Recent: COMPLETED strength workouts (GPS walks and runs excluded), newest first, each with its
+     * exercise count, from one query. [limit] null returns every one; the Workout tab's card passes 3.
+     */
+    fun observeRecentStrengthWorkouts(limit: Int?): Flow<List<RecentWorkout>>
     suspend fun getById(id: String): WorkoutEntity?
     fun observeById(id: String): Flow<WorkoutEntity?>
     suspend fun updateWorkout(workout: WorkoutEntity)
@@ -105,6 +111,16 @@ interface WorkoutRepository {
         sets: List<WorkoutSetEntity>,
     )
 }
+
+/** One row of the Recent list: a finished strength workout with its exercise count. */
+data class RecentWorkout(
+    val workoutId: String,
+    val routineId: String?,
+    val title: String,
+    val startedAt: Long,
+    val durationSeconds: Int,
+    val exerciseCount: Int,
+)
 
 /**
  * Domain-layer view of [com.enil.logez.core.data.dao.WorkoutSetWithExerciseRow] — a StatSet that

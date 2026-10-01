@@ -8,10 +8,13 @@ import com.enil.logez.core.domain.calc.resolvePreviousWorkoutSets
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
+import com.enil.logez.core.domain.repository.RecentWorkout
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
@@ -34,6 +37,18 @@ class FakeWorkoutRepository(
     // would let a History feed that forgot to sort pass every test against it.
     override fun observeCompleted(): Flow<List<WorkoutEntity>> =
         workoutsState.map { m -> m.values.filter { it.status.name == "COMPLETED" }.sortedByDescending { it.startedAt } }
+    // Mirrors the DAO: COMPLETED and STRENGTH only, newest first, a count taken from the exercise rows,
+    // and a negative-or-null limit meaning no limit.
+    override fun observeRecentStrengthWorkouts(limit: Int?): Flow<List<RecentWorkout>> =
+        combine(workoutsState, exercisesState) { m, exercises ->
+            m.values
+                .filter { it.status.name == "COMPLETED" && it.kind == WorkoutKind.STRENGTH }
+                .sortedByDescending { it.startedAt }
+                .let { if (limit != null && limit >= 0) it.take(limit) else it }
+                .map { w ->
+                    RecentWorkout(w.id, w.routineId, w.title, w.startedAt, w.durationSeconds, exercises.count { it.workoutId == w.id })
+                }
+        }
     // Mirrors the DAO's `ORDER BY started_at ASC` on the one-shot read.
     override suspend fun getCompletedWorkouts(): List<WorkoutEntity> =
         workoutsState.value.values.filter { it.status.name == "COMPLETED" }.sortedBy { it.startedAt }

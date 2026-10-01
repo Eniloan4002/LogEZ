@@ -15,10 +15,12 @@ import com.enil.logez.core.domain.calc.resolvePreviousWorkoutSets
 import com.enil.logez.core.domain.model.ExerciseHistoryEntry
 import com.enil.logez.core.domain.model.PreviousValuesMode
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.repository.RecentWorkout
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.core.domain.repository.WorkoutSetWithExercise
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class WorkoutRepositoryImpl @Inject constructor(
     private val dao: WorkoutDao,
@@ -28,6 +30,20 @@ class WorkoutRepositoryImpl @Inject constructor(
     override fun observeInProgress(): Flow<WorkoutEntity?> = dao.observeInProgress()
     override fun observeCompleted(): Flow<List<WorkoutEntity>> = dao.observeCompleted()
     override suspend fun getCompletedWorkouts(): List<WorkoutEntity> = dao.getCompletedWorkouts()
+    // SQLite reads a negative LIMIT as "no limit".
+    override fun observeRecentStrengthWorkouts(limit: Int?): Flow<List<RecentWorkout>> =
+        dao.observeRecentStrengthWorkouts(limit ?: -1).map { rows ->
+            rows.map {
+                RecentWorkout(
+                    workoutId = it.workoutId,
+                    routineId = it.routineId,
+                    title = it.title,
+                    startedAt = it.startedAt,
+                    durationSeconds = it.durationSeconds,
+                    exerciseCount = it.exerciseCount,
+                )
+            }
+        }
     override suspend fun getById(id: String): WorkoutEntity? = dao.getById(id)
     override fun observeById(id: String): Flow<WorkoutEntity?> = dao.observeById(id)
     override suspend fun updateWorkout(workout: WorkoutEntity) = dao.updateWorkout(workout)

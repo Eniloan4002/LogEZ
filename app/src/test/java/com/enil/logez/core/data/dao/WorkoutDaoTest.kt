@@ -10,7 +10,9 @@ import com.enil.logez.core.domain.model.Equipment
 import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -202,4 +204,22 @@ class WorkoutDaoTest : RoomDatabaseTestBase() {
             weightKg = weightKg, reps = reps, durationSeconds = null, distanceMeters = null, rpe = null,
             customMetric = null, isCompleted = true, completedAt = 2_000L,
         )
+
+    @Test
+    fun `the Recent query lists finished strength workouts newest first with their exercise counts, drops GPS runs, and honours the limit`() = runTest {
+        anExercise()
+        fun we(id: String, workoutId: String, order: Int) =
+            WorkoutExerciseEntity(id = id, workoutId = workoutId, exerciseId = "ex-1", orderIndex = order, supersetGroup = null, restTimerSeconds = null, notes = null)
+        dao.insertFullWorkout(aWorkout("old", WorkoutStatus.COMPLETED).copy(startedAt = 1_000L), listOf(we("o1", "old", 0), we("o2", "old", 1)), emptyList())
+        dao.insertFullWorkout(aWorkout("run", WorkoutStatus.COMPLETED).copy(startedAt = 9_000L, kind = WorkoutKind.GPS_TRACKED), listOf(we("r1", "run", 0)), emptyList())
+        dao.insertFullWorkout(aWorkout("live", WorkoutStatus.IN_PROGRESS).copy(startedAt = 8_000L), listOf(we("l1", "live", 0)), emptyList())
+        dao.insertFullWorkout(aWorkout("mid", WorkoutStatus.COMPLETED).copy(startedAt = 3_000L, routineId = null), listOf(we("m1", "mid", 0)), emptyList())
+        dao.insertFullWorkout(aWorkout("empty", WorkoutStatus.COMPLETED).copy(startedAt = 5_000L), emptyList(), emptyList())
+        dao.insertFullWorkout(aWorkout("older", WorkoutStatus.COMPLETED).copy(startedAt = 500L), listOf(we("x1", "older", 0)), emptyList())
+
+        val all = dao.observeRecentStrengthWorkouts(-1).first()
+        assertEquals(listOf("empty", "mid", "old", "older"), all.map { it.workoutId })
+        assertEquals(listOf(0, 1, 2, 1), all.map { it.exerciseCount })
+        assertEquals(listOf("empty", "mid", "old"), dao.observeRecentStrengthWorkouts(3).first().map { it.workoutId })
+    }
 }

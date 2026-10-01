@@ -66,7 +66,7 @@ fun RecentSection(
     onSeeAll: () -> Unit,
     viewModel: RecentWorkoutsViewModel = hiltViewModel(),
 ) {
-    val recent by viewModel.uiState.collectAsState()
+    val recent by viewModel.cardState.collectAsState()
     if (recent.isEmpty()) return
     val start = rememberRecentStartHandler(viewModel, onNavigateToLogger, onNavigateToActivityTracking, onNavigateToFinish)
 
@@ -81,7 +81,8 @@ fun RecentSection(
                 Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         }
-        recent.take(3).forEachIndexed { index, card ->
+        // The card's query already carries LIMIT 3.
+        recent.forEachIndexed { index, card ->
             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             RecentWorkoutRow(card = card, compactDate = true, onStart = { start(card.workoutId) }, modifier = Modifier.padding(horizontal = Spacing.md))
         }
@@ -175,7 +176,7 @@ private fun formatRecentDuration(totalSeconds: Int): String {
  */
 @Composable
 internal fun rememberRecentStartHandler(
-    viewModel: RecentWorkoutsViewModel,
+    viewModel: RecentStartActions,
     onNavigateToLogger: (workoutId: String) -> Unit,
     onNavigateToActivityTracking: () -> Unit,
     onNavigateToFinish: (workoutId: String) -> Unit,

@@ -40,6 +40,26 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE status = 'COMPLETED' ORDER BY started_at DESC")
     fun observeCompleted(): Flow<List<WorkoutEntity>>
 
+    /**
+     * Recent (P-205, R-3 2026-10-01): completed STRENGTH workouts, newest first, each with its
+     * exercise count from a correlated subquery -- one query where the list used to ask once per
+     * workout. GPS walks and runs are left out: the "Track a walk/run" card already restarts one in
+     * a tap and the run stays in History with its map. [limit] below zero means no limit (SQLite's
+     * `LIMIT -1`); the Workout tab's card passes 3 so it never reads the whole history.
+     */
+    @Query(
+        """
+        SELECT w.id AS workoutId, w.routine_id AS routineId, w.title AS title, w.started_at AS startedAt,
+               w.duration_seconds AS durationSeconds,
+               (SELECT COUNT(*) FROM workout_exercises we WHERE we.workout_id = w.id) AS exerciseCount
+        FROM workouts w
+        WHERE w.status = 'COMPLETED' AND w.kind = 'STRENGTH'
+        ORDER BY w.started_at DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeRecentStrengthWorkouts(limit: Int): Flow<List<RecentWorkoutSummaryRow>>
+
     /** One-shot completed list for the dashboard/Profile aggregates (§5.2), refreshed on RESUME. */
     @Query("SELECT * FROM workouts WHERE status = 'COMPLETED' ORDER BY started_at ASC")
     suspend fun getCompletedWorkouts(): List<WorkoutEntity>
@@ -453,6 +473,16 @@ data class ExerciseStatRow(
     override val isCompleted: Boolean,
     override val rpe: Double?,
 ) : StatSetRowFields
+
+/** Flat projection backing [WorkoutDao.observeRecentStrengthWorkouts]. */
+data class RecentWorkoutSummaryRow(
+    val workoutId: String,
+    val routineId: String?,
+    val title: String,
+    val startedAt: Long,
+    val durationSeconds: Int,
+    val exerciseCount: Int,
+)
 
 /** Flat projection backing [WorkoutDao.getMostRecentUsagePerExercise]. */
 data class ExerciseRecencyRow(

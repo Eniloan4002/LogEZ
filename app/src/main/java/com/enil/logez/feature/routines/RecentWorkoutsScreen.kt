@@ -34,7 +34,7 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
 /**
- * P-205 "See all" — every completed workout (routine or ad hoc), grouped into This week / Last
+ * P-205 "See all" — every finished strength workout (routine or ad hoc), grouped into This week / Last
  * week / Older by rolling 7-day windows from today (not calendar-week boundaries — a simpler v1
  * bucketing than the Calendar tab's Monday-start weeks; revisit if that reads as inconsistent).
  */
