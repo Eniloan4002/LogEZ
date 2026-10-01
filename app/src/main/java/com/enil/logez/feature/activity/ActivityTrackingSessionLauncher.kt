@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -13,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
@@ -92,7 +96,7 @@ fun rememberRequestLocationForTracking(
         AlertDialog(
             onDismissRequest = { showRationale = false; locationDenied(PermissionDenial.Declined) },
             title = { Text(stringResource(R.string.activity_tracking_location_rationale_title)) },
-            text = { Text(stringResource(R.string.activity_tracking_location_rationale_body)) },
+            text = { ScrollingDialogText(stringResource(R.string.activity_tracking_location_rationale_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     showRationale = false
@@ -118,7 +122,7 @@ fun rememberRequestLocationForTracking(
             // it unchanged. The walk or run has already been chosen, so it starts either way.
             onDismissRequest = { notificationNotNow() },
             title = { Text(stringResource(R.string.tracking_notification_permission_title)) },
-            text = { Text(stringResource(R.string.tracking_notification_permission_body)) },
+            text = { ScrollingDialogText(stringResource(R.string.tracking_notification_permission_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     showNotificationAsk = false
@@ -153,4 +157,15 @@ fun startActivityTrackingService(context: Context) {
 fun stopActivityTrackingService(context: Context) {
     val intent = Intent(context, ActivityTrackingService::class.java).setAction(ActivityTrackingService.ACTION_STOP)
     context.startService(intent)
+}
+
+/**
+ * A dialog's body text that scrolls, so it can still be read at 200% font in landscape, where the
+ * dialog is shorter than the text (O1h device check).
+ */
+@Composable
+private fun ScrollingDialogText(text: String) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Text(text)
+    }
 }

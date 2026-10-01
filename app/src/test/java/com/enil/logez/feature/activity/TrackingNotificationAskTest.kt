@@ -6,7 +6,11 @@ import android.content.Context
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -273,6 +277,33 @@ class TrackingNotificationAskTest {
         rule.onAllNodesWithText(ask).assertCountEquals(0)
         assertEquals(emptyList<Pair<String, String>>(), started)
         assertFalse(declined)
+    }
+
+    private val scrollsVertically = SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)
+
+    @Test
+    fun `the location rationale and the ask both scroll their text, so 200 percent font in landscape can read it`() {
+        registry.locationAnswer = mapOf(
+            Manifest.permission.ACCESS_FINE_LOCATION to true,
+            Manifest.permission.ACCESS_COARSE_LOCATION to true,
+        )
+        show()
+        rule.runOnIdle { track("e1", "Walking") }
+
+        rule.onNode(
+            hasText(
+                "LogEZ uses your precise location to record this walk/run's distance, pace and route, including while the " +
+                    "screen is off, until you tap Finish or Cancel. The route is saved only on this phone. The map loads map " +
+                    "images for the area on screen from OpenFreeMap, which lets it see roughly where you are.",
+            ).and(hasAnyAncestor(scrollsVertically)),
+        ).assertExists()
+
+        rule.onNodeWithText("Allow").performClick()
+        rule.waitForIdle()
+
+        rule.onNode(
+            hasText("LogEZ shows the time and distance on the lock screen while it records.").and(hasAnyAncestor(scrollsVertically)),
+        ).assertExists()
     }
 
     @Test
