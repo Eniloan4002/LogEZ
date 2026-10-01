@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import com.enil.logez.feature.workout.finish.HeartRateCard
 import androidx.compose.foundation.lazy.items
@@ -42,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -218,7 +218,17 @@ fun WorkoutDetailScreen(
                         DetailStatCell(stringResource(R.string.summary_sets), uiState.completedSetCount.toString())
                         if (uiState.hasDistance) DetailStatCell(stringResource(R.string.summary_distance), formatDetailDistance(uiState.distanceMeters, uiState.distanceUnit))
                         if (isCircuit) DetailStatCell(stringResource(R.string.routine_rounds_label), detailRounds.size.toString())
-                        if (uiState.hasRecords) DetailStatCell(stringResource(R.string.summary_prs_header), "", icon = Icons.Outlined.EmojiEvents)
+                        // Owner, 2026-10-01: the trophy alone, no "Personal records" caption -- with
+                        // duration, volume, sets and distance all showing, the caption crowded the row.
+                        // TalkBack still reads the name.
+                        if (uiState.hasRecords) {
+                            Icon(
+                                Icons.Outlined.EmojiEvents,
+                                contentDescription = stringResource(R.string.summary_prs_header),
+                                tint = Gold500,
+                                modifier = Modifier.align(Alignment.CenterVertically).size(28.dp),
+                            )
+                        }
                     }
 
                     // P-211 decision 5: the key to the tables below. Only the badge types this
@@ -324,7 +334,7 @@ fun WorkoutDetailScreen(
 }
 
 @Composable
-private fun DetailStatCell(label: String, value: String, icon: ImageVector? = null) {
+private fun DetailStatCell(label: String, value: String) {
     StatCell(
         value = value,
         label = label,
@@ -332,8 +342,6 @@ private fun DetailStatCell(label: String, value: String, icon: ImageVector? = nu
         valueStyle = LogEzMono.dataLarge,
         labelStyle = MaterialTheme.typography.labelSmall,
         labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        icon = icon,
-        iconTint = Gold500,
     )
 }
 

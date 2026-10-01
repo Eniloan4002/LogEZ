@@ -1,5 +1,6 @@
 package com.enil.logez.core.designsystem
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,10 +8,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
@@ -64,7 +67,14 @@ fun SetLegend(
     val hasFirstLine = lettered.isNotEmpty() || showPersonalRecord
     if (!hasFirstLine && effortScale == null) return
 
-    Column(modifier = modifier) {
+    // Owner, 2026-10-01: the key sits in its own hairline-bordered box (the cards' outlineVariant
+    // hairline) so it reads as a key, not as more of the stats above or the table below.
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(Radius.sm))
+            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+    ) {
         if (hasFirstLine) {
             // sm between entries and xxs inside one (the mockup's 14dp and 6dp, on the token
             // scale): the whole key fits one line at 412dp, as drawn, and wraps below that.
