@@ -52,9 +52,11 @@ import com.enil.logez.core.common.muscleGroupLabel
 import com.enil.logez.core.designsystem.BarChart
 import com.enil.logez.core.designsystem.BarChartEntry
 import com.enil.logez.core.designsystem.BodyDiagram
+import com.enil.logez.core.designsystem.ChipTouchTarget
 import com.enil.logez.core.designsystem.EmptyState
 import com.enil.logez.core.designsystem.LogEzCard
 import com.enil.logez.core.designsystem.LogEzMono
+import com.enil.logez.core.designsystem.MetricChip
 import com.enil.logez.core.designsystem.MuscleBalanceRadar
 import com.enil.logez.core.designsystem.Radius
 import com.enil.logez.core.designsystem.RefreshOnResume
@@ -156,38 +158,10 @@ internal fun RangeChips(selected: ChartRange, onSelect: (ChartRange) -> Unit) {
 }
 
 /**
- * v4.0 chip vocabulary. Material3's `FilterChip` is gone from this screen: its container/label
- * colors, 8dp corner and 32dp height are all baked into `FilterChipDefaults`, so a chip that reads
- * like the mockup's — pill, mono caps, a *glowing* selected state — is less code hand-rolled than
- * fought for through overrides.
- *
- * Two weights, matching the mockup's own two jobs. [MetricChip] is the loud one (what am I
- * measuring), [RangeChip] the quiet one (over what window) — so a card never shows two equally
- * shouting rows of chips stacked on top of each other.
+ * v4.0 chip vocabulary. [MetricChip] (the loud one: what am I measuring) moved to the design system
+ * on 2026-10-01 so Profile's chart uses the very same chip; [RangeChip] is the quiet one (over what
+ * window), so a card never shows two equally shouting rows of chips stacked on top of each other.
  */
-@Composable
-private fun MetricChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(Radius.pill)
-    val primary = MaterialTheme.colorScheme.primary
-    ChipTouchTarget(selected = selected, onClick = onClick) {
-    Box(
-        modifier = Modifier
-            .clip(shape)
-            .background(if (selected) primary else Color.Transparent)
-            .let { if (selected) it else it.border(1.dp, MaterialTheme.colorScheme.outline, shape) }
-            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
-    ) {
-        Text(
-            label.uppercase(currentLocale()),
-            style = LogEzMono.dataSmall.copy(
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.08.em,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        )
-    }
-    }
-}
 
 /** The quiet chip: rounded-rect (not a pill), smaller, selected = a green *tint* rather than a fill. */
 @Composable
@@ -216,23 +190,6 @@ private fun RangeChip(label: String, selected: Boolean, onClick: () -> Unit) {
             ),
         )
     }
-    }
-}
-
-/**
- * The tappable area around a chip: at least 48dp tall (the Play core-quality touch-target floor;
- * the quiet range chip was about 22dp) while the chip itself keeps its compact look, and announced
- * to TalkBack as a selectable tab with its selected state (2026-09-25 accessibility pass).
- */
-@Composable
-private fun ChipTouchTarget(selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
     }
 }
 
@@ -482,7 +439,7 @@ internal fun Tile(label: String, value: String, modifier: Modifier = Modifier) {
 // --- card 2b: muscle balance radar (M20c, ADR-0009) ---
 
 @Composable
-private fun bodyRegionLabel(region: BodyRegion): String = when (region) {
+internal fun bodyRegionLabel(region: BodyRegion): String = when (region) {
     BodyRegion.CHEST -> stringResource(R.string.muscle_region_chest)
     BodyRegion.BACK -> stringResource(R.string.muscle_region_back)
     BodyRegion.SHOULDERS -> stringResource(R.string.muscle_region_shoulders)

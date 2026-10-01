@@ -165,15 +165,10 @@ private fun SummaryCard(unlocked: Int, total: Int) {
     }
 }
 
-/** Muted mono small caps -- the same quiet divider label the Recent list uses. */
+/** The shared quiet divider label, with this screen's spacing around it. */
 @Composable
 private fun SectionLabel(text: String) {
-    Text(
-        text.uppercase(currentLocale()),
-        style = LogEzMono.dataMedium.copy(letterSpacing = 0.1.em),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.sm),
-    )
+    com.enil.logez.core.designsystem.SectionLabel(text, modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.sm))
 }
 
 @Composable
@@ -248,7 +243,7 @@ private fun AchievementCategory.labelRes(): Int = when (this) {
     AchievementCategory.STEP_STREAKS -> R.string.achievements_category_step_streaks
 }
 
-private fun Achievement.nameRes(): Int = when (this) {
+internal fun Achievement.nameRes(): Int = when (this) {
     Achievement.FIRST_WORKOUT -> R.string.achievement_first_workout
     Achievement.WORKOUTS_10 -> R.string.achievement_workouts_10
     Achievement.WORKOUTS_50 -> R.string.achievement_workouts_50
