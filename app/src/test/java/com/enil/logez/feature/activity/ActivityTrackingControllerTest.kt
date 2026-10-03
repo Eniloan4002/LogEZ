@@ -61,6 +61,7 @@ class ActivityTrackingControllerTest {
 
         controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
         locationSource.emit(LocationFix(latitude = 14.5995, longitude = 120.9842, accuracyMeters = 5f, elapsedRealtimeMillis = 0L))
+        clock.currentMillis = 1_000_000L + 30_000L // ~111 m in 30 s is 3.7 m/s: a walk, not a jump
         locationSource.emit(LocationFix(latitude = 14.5985, longitude = 120.9842, accuracyMeters = 5f, elapsedRealtimeMillis = 3_000L)) // ~111.32m south
         clock.currentMillis = 1_000_000L + 60_000L
 
@@ -126,7 +127,8 @@ class ActivityTrackingControllerTest {
         // The live tracking screen's map draws state.routePoints while tracking is in progress -- it must grow
         // fix-by-fix, the same way distanceMeters already does, not sit empty until finishTracking().
         val locationSource = FakeLocationSource()
-        val controller = newController(locationSource = locationSource)
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(locationSource = locationSource, clock = clock)
         controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
 
         assertEquals(emptyList<Pair<Double, Double>>(), controller.state.value.routePoints)
@@ -134,6 +136,7 @@ class ActivityTrackingControllerTest {
         locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
         assertEquals(listOf(14.5995 to 120.9842), controller.state.value.routePoints)
 
+        clock.currentMillis = 1_030_000L
         locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 3_000L)) // ~111m south — accepted
         assertEquals(listOf(14.5995 to 120.9842, 14.5985 to 120.9842), controller.state.value.routePoints)
 
@@ -147,13 +150,15 @@ class ActivityTrackingControllerTest {
         // every earlier ActivityTrackingState.routePoints would alias the same backing list the
         // controller keeps mutating, so a value a collector already read would silently grow too.
         val locationSource = FakeLocationSource()
-        val controller = newController(locationSource = locationSource)
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(locationSource = locationSource, clock = clock)
         controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
 
         locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
         val snapshotAfterFirstFix = controller.state.value.routePoints
         assertEquals(1, snapshotAfterFirstFix.size)
 
+        clock.currentMillis = 1_030_000L
         locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 3_000L)) // ~111m south — accepted
 
         assertEquals("an already-read snapshot must not be mutated by a later fix", 1, snapshotAfterFirstFix.size)
@@ -164,10 +169,12 @@ class ActivityTrackingControllerTest {
     fun `finishTracking persists an encoded route with the accepted fix count`() = runTest {
         val trackRepo = FakeActivityTrackRepository()
         val locationSource = FakeLocationSource()
-        val controller = newController(trackRepo = trackRepo, locationSource = locationSource)
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(trackRepo = trackRepo, locationSource = locationSource, clock = clock)
 
         controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
         locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        clock.currentMillis = 1_030_000L
         locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 3_000L))
         controller.finishTracking()
 
@@ -190,12 +197,12 @@ class ActivityTrackingControllerTest {
         locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
         clock.currentMillis = 1_005_000L
         locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L)) // under 3 m: rejected, no time saved
-        clock.currentMillis = 1_008_000L
+        clock.currentMillis = 1_038_000L // ~111 m in 33 s since the last fix: a walk
         locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 0L))
         controller.finishTracking()
 
         val track = trackRepo.getByWorkoutSetId("set-1")!!
-        assertEquals(listOf(2L, 8L), PolylineEncoding.decodeDeltas(track.routeTimes!!))
+        assertEquals(listOf(2L, 38L), PolylineEncoding.decodeDeltas(track.routeTimes!!))
         assertEquals(track.pointCount, PolylineEncoding.decodeDeltas(track.routeTimes!!).size)
     }
 
@@ -218,14 +225,19 @@ class ActivityTrackingControllerTest {
     fun `onFix discards a fix whose accuracy is worse than the threshold`() = runTest {
         val workoutRepo = FakeWorkoutRepository(sets = listOf(blankSet()))
         val locationSource = FakeLocationSource()
-        val controller = newController(workoutRepo = workoutRepo, locationSource = locationSource)
+        val clock = FakeClock(currentMillis = 1_000_000L)
+        val controller = newController(workoutRepo = workoutRepo, locationSource = locationSource, clock = clock)
 
         controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
         locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
+        // 30 s later (3.7 m/s, so the jump check passes): accuracy is the only reason this fix can be dropped.
+        clock.currentMillis = 1_030_000L
         locationSource.emit(LocationFix(14.5985, 120.9842, accuracyMeters = 50f, elapsedRealtimeMillis = 3_000L)) // ~111m away but too imprecise
+        assertEquals(0.0, controller.state.value.distanceMeters, 0.001) // the imprecise fix never counted
 
-        val result = controller.finishTracking()
-        assertEquals(0.0, result!!.distanceMeters, 0.001) // the imprecise fix never counted
+        // The same position with good accuracy does count, so the 50 m accuracy was what dropped it.
+        locationSource.emit(LocationFix(14.5985, 120.9842, accuracyMeters = 20f, elapsedRealtimeMillis = 3_000L))
+        assertEquals(111.19, controller.state.value.distanceMeters, 0.05)
     }
 
     @Test
@@ -323,12 +335,13 @@ class ActivityTrackingControllerTest {
         val controller = newController(locationSource = locationSource, clock = clock)
         controller.startTracking("w-1", "set-1")
         locationSource.emit(fix(p0))
+        clock.currentMillis = start + 30_000L
         locationSource.emit(fix(p1))
         val distanceBefore = controller.state.value.distanceMeters
 
-        clock.currentMillis = start + 10_000L
+        clock.currentMillis = start + 40_000L
         controller.pause()
-        clock.currentMillis = start + 20_000L
+        clock.currentMillis = start + 50_000L
         locationSource.emit(fix(p2))
         locationSource.emit(fix(p3))
 
@@ -345,17 +358,18 @@ class ActivityTrackingControllerTest {
         val controller = newController(locationSource = locationSource, clock = clock)
         controller.startTracking("w-1", "set-1")
         locationSource.emit(fix(p0))
+        clock.currentMillis = start + 30_000L
         locationSource.emit(fix(p1))
         val distanceBefore = controller.state.value.distanceMeters // ~111 m
 
-        clock.currentMillis = start + 10_000L
+        clock.currentMillis = start + 40_000L
         controller.pause()
-        clock.currentMillis = start + 20_000L
+        clock.currentMillis = start + 50_000L
         locationSource.emit(fix(p3)) // walked ~222 m further while paused
-        clock.currentMillis = start + 25_000L
+        clock.currentMillis = start + 55_000L
         controller.resume()
-        clock.currentMillis = start + 28_000L
-        locationSource.emit(fix(p3 - 0.001)) // then ~111 m more once moving again
+        clock.currentMillis = start + 90_000L
+        locationSource.emit(fix(p3 - 0.001)) // then ~111 m more once moving again, 40 s after the re-anchor
 
         // Only the 111 m after resuming is added, not the 222 m moved while paused.
         assertEquals(distanceBefore + 111.3, controller.state.value.distanceMeters, 2.0)
@@ -368,10 +382,11 @@ class ActivityTrackingControllerTest {
         val controller = newController(locationSource = locationSource, clock = clock)
         controller.startTracking("w-1", "set-1")
         locationSource.emit(fix(p0))
+        clock.currentMillis = start + 30_000L
         locationSource.emit(fix(p1))
         val distanceBefore = controller.state.value.distanceMeters
 
-        clock.currentMillis = start + 10_000L
+        clock.currentMillis = start + 40_000L
         controller.pause() // no fix arrives while paused
         clock.currentMillis = start + 600_000L
         controller.resume()

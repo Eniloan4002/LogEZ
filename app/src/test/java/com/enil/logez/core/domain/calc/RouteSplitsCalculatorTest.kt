@@ -190,4 +190,73 @@ class RouteSplitsCalculatorTest {
         // And it goes on past the pause, on the clock.
         assertTrue(series.last().first > startedAt + 450_000L)
     }
+
+    // ---- a jump the tracker did not count (a mid-run re-anchor) ----
+
+    /**
+     * 1,000 m of 100 m hops every 30 s (clock 0 to 300 s), then a 5,000 m jump to a point recorded 3 s
+     * later (the tracker lost the runner, re-anchored, and counted nothing for the gap), then another
+     * 1,000 m at the same pace. The tracker saved 2,000 m.
+     */
+    private fun runWithAJump(): Pair<List<Pair<Double, Double>>, List<Int>> {
+        val degreesPer100m = 100.0 / 111_195.0
+        val before = northbound(11) // 0 to 1,000 m
+        val after = (1..11).map { i -> (14.6 + 5_000.0 / 111_195.0 + (10 + i) * degreesPer100m) to 121.06 }
+        val times = (0..10).map { it * 30 } + (0..10).map { 303 + it * 30 }
+        return (before + after) to times
+    }
+
+    @Test
+    fun `a hop faster than 12 m per second counts no distance, so the splits are the run and not the jump`() {
+        val (points, times) = runWithAJump()
+        val splits = RouteSplitsCalculator.splits(points, times, DistanceUnit.KM, startedAt, trackedDistanceMeters = 2_000.0)
+
+        assertEquals(2, splits.size)
+        // The 1,000 m boundary sits on a vertex, so float rounding can place it at 300 s or at the 303 s after the
+        // jump: the two splits together always take 603 s. Without the jump handled, the scale (2,000 / 7,100)
+        // would have made the first km 0.28 of it and its pace 1,000 s per km.
+        assertEquals(603, splits.sumOf { it.durationSeconds })
+        assertEquals(300.0, splits[0].paceSecondsPerUnit, 3.1)
+        assertEquals(300.0, splits[1].paceSecondsPerUnit, 3.1)
+        assertEquals(1_000.0, splits[0].distanceMeters, 1e-6)
+        assertFalse(splits[1].isPartial)
+    }
+
+    @Test
+    fun `the cumulative distance skips the jump and ends at the tracked distance`() {
+        val (points, times) = runWithAJump()
+        val cumulative = RouteSplitsCalculator.cumulativeMeters(
+            points, trackedDistanceMeters = 2_000.0, timesSeconds = times.map { it.toDouble() },
+        )
+        assertEquals(1_000.0, cumulative[10], 2.0)
+        assertEquals(cumulative[10], cumulative[11], 1e-9) // the jump into point 11 adds nothing
+        assertEquals(2_000.0, cumulative.last(), 1e-6)
+    }
+
+    @Test
+    fun `without times the jump is measured as before, which is what a caller with no times gets`() {
+        val (points, _) = runWithAJump()
+        assertEquals(7_100.0, RouteSplitsCalculator.cumulativeMeters(points).last(), 5.0)
+    }
+
+    @Test
+    fun `the pace series is not distorted by the jump either`() {
+        val (points, times) = runWithAJump()
+        val series = RouteSplitsCalculator.paceSeries(points, times, DistanceUnit.KM, startedAt, trackedDistanceMeters = 2_000.0)
+        assertTrue(series.size >= 2)
+        series.forEach { (_, pace) -> assertTrue("pace $pace", pace in 295.0..320.0) }
+    }
+
+    @Test
+    fun `the jump line is 12 m per second plus eleven seconds of slack, so a hop the tracker accepted is never zeroed`() {
+        val a = 14.6 to 121.06
+        // Same second: 12 m/s * (0 + 11 s) = 132 m allowed. 130 m counts, 140 m does not.
+        val near = RouteSplitsCalculator.cumulativeMeters(listOf(a, (14.6 + 130.0 / 111_195.0) to 121.06), timesSeconds = listOf(0.0, 0.0))
+        assertEquals(130.0, near[1], 0.01)
+        val far = RouteSplitsCalculator.cumulativeMeters(listOf(a, (14.6 + 140.0 / 111_195.0) to 121.06), timesSeconds = listOf(0.0, 0.0))
+        assertEquals(0.0, far[1], 1e-9)
+        // 3 s apart: 12 * 14 = 168 m allowed. 36 m (a 12 m/s hop the tracker keeps) is far inside it.
+        val walk = RouteSplitsCalculator.cumulativeMeters(listOf(a, (14.6 + 36.0 / 111_195.0) to 121.06), timesSeconds = listOf(0.0, 3.0))
+        assertEquals(36.0, walk[1], 0.01)
+    }
 }

@@ -1,6 +1,7 @@
 package com.enil.logez.feature.activity.location
 
 import android.annotation.SuppressLint
+import android.location.Location
 import android.os.Looper
 import android.os.SystemClock
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -30,14 +31,7 @@ class FusedLocationSource @Inject constructor(
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 val location = result.lastLocation ?: return
-                trySend(
-                    LocationFix(
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        accuracyMeters = location.accuracy,
-                        elapsedRealtimeMillis = SystemClock.elapsedRealtime(),
-                    ),
-                )
+                trySend(location.toLocationFix(SystemClock.elapsedRealtimeNanos()))
             }
         }
         fusedLocationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
@@ -49,3 +43,16 @@ class FusedLocationSource @Inject constructor(
         const val MIN_UPDATE_INTERVAL_MS = 2_000L
     }
 }
+
+/**
+ * The reading as the tracker sees it. [nowElapsedRealtimeNanos] is the device's monotonic clock now,
+ * so the age is how long ago the provider says this position was taken: what lets the tracker drop
+ * a cached position the fused provider hands over first. Separate from the callback so a test can set it.
+ */
+internal fun Location.toLocationFix(nowElapsedRealtimeNanos: Long): LocationFix = LocationFix(
+    latitude = latitude,
+    longitude = longitude,
+    accuracyMeters = accuracy,
+    elapsedRealtimeMillis = nowElapsedRealtimeNanos / 1_000_000L,
+    ageMillis = fixAgeMillis(nowElapsedRealtimeNanos, elapsedRealtimeNanos),
+)

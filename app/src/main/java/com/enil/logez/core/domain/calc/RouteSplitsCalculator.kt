@@ -44,15 +44,36 @@ object RouteSplitsCalculator {
     const val MIN_PACE_WINDOW_METERS = 20.0
 
     /**
+     * The speed above which a hop between two saved points is a jump the tracker did not count: the
+     * same 12 m/s as `MAX_PLAUSIBLE_SPEED_MPS` in the tracker, which drops any fix faster than that
+     * from its anchor. The only such hop it can still save is a re-anchor, after it lost the person
+     * (driven somewhere mid-run), and it counted no distance for it.
+     */
+    const val JUMP_SPEED_METERS_PER_SECOND = 12.0
+
+    /**
+     * Extra seconds a hop is given before it is called a jump: 10 s for how old a fix may be when it
+     * arrives (the tracker judges a hop over the fixes' own times, the saved times are arrival times)
+     * and 1 s for the saved times being whole seconds. It guarantees no hop the tracker accepted is
+     * ever called a jump, at the price of missing a small one (a jump within about 130 m of what 12 m/s allows).
+     */
+    const val JUMP_TIME_SLACK_SECONDS = 11.0
+
+    /**
      * Cumulative meters at each point, [points] being (lat, lng), scaled so the total equals
      * [trackedDistanceMeters] when it is given and positive (see the class doc). A hop into a point
      * listed in [breakIndices] (it crosses a pause, see [PauseRanges.breakIndices]) counts 0 m: the
      * runner may have moved while paused, and the tracker never counted that stretch.
+     *
+     * With [timesSeconds] (one clock time per point) a hop faster than [JUMP_SPEED_METERS_PER_SECOND]
+     * counts 0 m too, for the same reason: the tracker did not count it, so measuring it would make
+     * the scale to the tracked distance shrink every real split.
      */
     fun cumulativeMeters(
         points: List<Pair<Double, Double>>,
         trackedDistanceMeters: Double? = null,
         breakIndices: Set<Int> = emptySet(),
+        timesSeconds: List<Double>? = null,
     ): DoubleArray {
         val cumulative = DoubleArray(points.size)
         for (i in 1 until points.size) {
@@ -61,7 +82,9 @@ object RouteSplitsCalculator {
             } else {
                 val (lat1, lng1) = points[i - 1]
                 val (lat2, lng2) = points[i]
-                GeoDistance.metersBetween(lat1, lng1, lat2, lng2)
+                val meters = GeoDistance.metersBetween(lat1, lng1, lat2, lng2)
+                val seconds = timesSeconds?.let { (it[i] - it[i - 1]).coerceAtLeast(0.0) }
+                if (seconds != null && meters > JUMP_SPEED_METERS_PER_SECOND * (seconds + JUMP_TIME_SLACK_SECONDS)) 0.0 else meters
             }
             cumulative[i] = cumulative[i - 1] + hop
         }
@@ -89,7 +112,7 @@ object RouteSplitsCalculator {
     ): List<RouteSplit> {
         if (points.size < 2 || timesSeconds.size != points.size) return emptyList()
         val times = monotonic(timesSeconds).map { it.toDouble() }
-        val cumulative = cumulativeMeters(points, trackedDistanceMeters, PauseRanges.breakIndices(times, pauseRanges))
+        val cumulative = cumulativeMeters(points, trackedDistanceMeters, PauseRanges.breakIndices(times, pauseRanges), times)
         val unitMeters = DistanceDisplay.unitMeters(unit)
         val total = cumulative.last()
 
@@ -129,7 +152,7 @@ object RouteSplitsCalculator {
     ): List<Pair<Long, Double>> {
         if (points.size < 2 || timesSeconds.size != points.size) return emptyList()
         val clockTimes = monotonic(timesSeconds).map { it.toDouble() }
-        val cumulative = cumulativeMeters(points, trackedDistanceMeters, PauseRanges.breakIndices(clockTimes, pauseRanges))
+        val cumulative = cumulativeMeters(points, trackedDistanceMeters, PauseRanges.breakIndices(clockTimes, pauseRanges), clockTimes)
         val times = clockTimes.map { PauseRanges.movingSeconds(it, pauseRanges) }
         val unitMeters = DistanceDisplay.unitMeters(unit)
         val series = mutableListOf<Pair<Long, Double>>()

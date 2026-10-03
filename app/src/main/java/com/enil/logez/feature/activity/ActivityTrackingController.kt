@@ -79,6 +79,41 @@ data class ActivityTrackingState(
 /** No usable fix for this long and the signal is weak (the chip says so, and "pace now" reads "-"). */
 const val GPS_WEAK_AFTER_MS = 15_000L
 
+/**
+ * A fix whose own timestamp is older than this when it arrives is ignored entirely: no distance, no
+ * route point, and it does not count towards the GPS signal chip either. The fused provider's first
+ * callback can be a cached position from the last time any app asked for one, possibly kilometres
+ * from where the run starts; counting it put about 10 km on a 40 s run (848 km/h on Avg speed). A
+ * fix this old is a memory, not a reading. Ten seconds is over three of the 3 s update intervals,
+ * so a live fix delayed by a busy device still passes.
+ */
+const val MAX_FIX_AGE_MS = 10_000L
+
+/**
+ * A fix that implies moving faster than this (12 m/s, about 43 km/h) from the last sane fix is
+ * dropped as a GPS jump. It is above a sprint (a fast 100 m is about 10 m/s), so a jump of a few
+ * hundred metres in seconds is caught while every walk and run passes. It is a jump filter, not a
+ * vehicle filter: a bus or jeepney at 8 to 11 m/s passes every check and its distance is recorded.
+ * Only a sustained speed above this is dropped (a car on a motorway, a fast descent on a bike),
+ * which a walk and run tracker does not want either.
+ */
+const val MAX_PLAUSIBLE_SPEED_MPS = 12.0
+
+/**
+ * The shortest elapsed time a hop is judged over, in ms. Two fixes stamped the same millisecond, or
+ * out of order after the clock stepped back, would otherwise divide by zero or a negative: a hop
+ * over such a gap is judged as if one second had passed, so 12 m is still allowed and 50 m is not.
+ */
+const val MIN_HOP_ELAPSED_MS = 1_000L
+
+/**
+ * After this many fixes in a row that were each dropped as a jump but agree with one another, the
+ * tracker accepts that its anchor was the wrong one (a bad first fix that was fresh and within the
+ * accuracy limit) and re-anchors to the newest of them without adding the gap. Without it, one bad
+ * anchor would reject every real fix for the rest of the run.
+ */
+const val HOP_RESYNC_FIXES = 3
+
 data class FinishedTrack(val workoutId: String, val distanceMeters: Double, val durationSeconds: Int)
 
 /**
@@ -123,8 +158,27 @@ class ActivityTrackingController @Inject constructor(
     private var accuracySumMeters = 0.0
     private var fixJob: Job? = null
 
-    /** The newest usable fix seen during the current pause and when it arrived: Resume's re-anchor point. */
-    private var pauseAnchor: Pair<LocationFix, Long>? = null
+    /**
+     * A fix with the clock time it was taken at (its arrival time minus its age), not when it was
+     * delivered. This is the controller's [Clock], the same time base as route times, pauses and the
+     * GPS chip: a wall-clock step backwards mid-run makes the next fixes look simultaneous and costs
+     * a few fixes before the resync, a known and bounded limitation.
+     */
+    private class TimedFix(val fix: LocationFix, val takenAtMillis: Long)
+
+    /**
+     * The newest fix that passed the stale and jump checks, whether or not it moved enough to be a
+     * route point: what the next fix's speed is judged against. Kept apart from [lastAccepted] so
+     * that standing still for ten minutes does not make a 5 km jump look like ten minutes of walking.
+     */
+    private var lastSane: TimedFix? = null
+
+    /** The newest fix dropped as a jump, and how many agreeing ones in a row: see [HOP_RESYNC_FIXES]. */
+    private var jumpCandidate: TimedFix? = null
+    private var jumpStreak = 0
+
+    /** The newest usable fix seen during the current pause: Resume's re-anchor point. */
+    private var pauseAnchor: TimedFix? = null
 
     fun startTracking(workoutId: String, workoutSetId: String) {
         synchronized(lock) {
@@ -132,6 +186,9 @@ class ActivityTrackingController @Inject constructor(
             routeTimes.clear()
             routeDistances.clear()
             lastAccepted = null
+            lastSane = null
+            jumpCandidate = null
+            jumpStreak = 0
             pauseAnchor = null
             accuracySumMeters = 0.0
             _state.value = ActivityTrackingState(
@@ -152,6 +209,8 @@ class ActivityTrackingController @Inject constructor(
             val current = _state.value
             if (!current.isTracking || current.isPaused) return
             pauseAnchor = null
+            jumpCandidate = null
+            jumpStreak = 0
             _state.update { it.copy(isPaused = true, pausedAtMillis = clock.now().toEpochMilliseconds()) }
         }
     }
@@ -160,6 +219,14 @@ class ActivityTrackingController @Inject constructor(
      * Counts the pause into moving time's bookkeeping and re-anchors distance: to the newest fix seen
      * while paused when it is recent, else the next accepted fix starts the new stretch without
      * adding the gap. The next route point after this is the start of a new line, see [PauseRanges].
+     *
+     * With a recent paused fix the speed check starts from that re-anchor, so a person who was driven
+     * somewhere while paused does not look like an impossible hop. With no recent paused fix (a pause
+     * shorter than a fix interval, or no signal during it) the check keeps the last sane fix from
+     * before the pause and judges the first fix after Resume over the whole time since, pause
+     * included: that only widens what is allowed, and it still catches a ghost fix just after a short
+     * pause. If the person really was taken far away in that time, three agreeing fixes later the
+     * tracker re-anchors (see [HOP_RESYNC_FIXES]) and the move adds no distance.
      */
     fun resume() {
         synchronized(lock) {
@@ -167,8 +234,11 @@ class ActivityTrackingController @Inject constructor(
             val pausedAt = current.pausedAtMillis ?: return
             val startedAt = current.startedAtMillis ?: return
             val now = clock.now().toEpochMilliseconds()
-            val anchor = pauseAnchor
-            lastAccepted = anchor?.takeIf { now - it.second <= GPS_WEAK_AFTER_MS }?.first
+            val anchor = pauseAnchor?.takeIf { now - it.takenAtMillis <= GPS_WEAK_AFTER_MS }
+            lastAccepted = anchor?.fix
+            lastSane = anchor ?: lastSane
+            jumpCandidate = null
+            jumpStreak = 0
             pauseAnchor = null
             _state.update {
                 it.copy(
@@ -181,13 +251,22 @@ class ActivityTrackingController @Inject constructor(
         }
     }
 
-    /** Accuracy/stationary-drift filtering (rev. 3 plan §2.3): discard poor fixes and near-zero movement. */
+    /**
+     * Fix filtering, in this order: poor accuracy (rev. 3 plan §2.3), a stale fix ([MAX_FIX_AGE_MS]),
+     * a jump faster than [MAX_PLAUSIBLE_SPEED_MPS] from the last sane fix, then near-zero movement
+     * (stationary drift). Distance, the route, "pace now" and the splits all read only what gets
+     * through, so they cannot disagree about a fix that was dropped.
+     */
     private fun onFix(fix: LocationFix) {
         if (fix.accuracyMeters > MAX_ACCEPTABLE_ACCURACY_METERS) return
+        // A cached position is not a reading of where the person is now, so it is not even signal.
+        if (fix.ageMillis > MAX_FIX_AGE_MS) return
         synchronized(lock) {
             val current = _state.value
             val startedAt = current.startedAtMillis ?: return
             val now = clock.now().toEpochMilliseconds()
+            // When the fix was taken: a delivery delay must not stretch or shrink the time it is judged over.
+            val taken = TimedFix(fix, now - fix.ageMillis.coerceAtLeast(0L))
 
             // The GPS chip counts every fix within the accuracy limit, even one dropped below for
             // moving under 3 m (standing at a crossing is good signal) or ignored while paused.
@@ -201,10 +280,78 @@ class ActivityTrackingController @Inject constructor(
             val position = fix.latitude to fix.longitude
 
             if (current.isPaused) {
-                pauseAnchor = fix to now
+                pauseAnchor = taken
                 _state.update { it.copy(lastGoodFixMillis = now, weakRecoveryFixes = recovering, currentPosition = position) }
                 return
             }
+
+            // Speed since the last sane fix (not the last route point): a gap with no fix, like a
+            // tunnel, is judged over its real length, so only a hop faster than the limit is dropped.
+            val sane = lastSane
+            if (sane != null) {
+                if (isImpossibleHop(sane, taken)) {
+                    val candidate = jumpCandidate
+                    jumpStreak = if (candidate != null && !isImpossibleHop(candidate, taken)) jumpStreak + 1 else 1
+                    jumpCandidate = taken
+                    if (jumpStreak >= HOP_RESYNC_FIXES) {
+                        // The fixes since the jump agree with each other and not with the anchor: the anchor
+                        // was the bad one. Re-anchor here, adding no distance for the gap.
+                        lastSane = taken
+                        lastAccepted = fix
+                        jumpCandidate = null
+                        jumpStreak = 0
+                        if (routePoints.size == 1) {
+                            // The bad anchor was the whole route so far: start the route over from this fix
+                            // rather than leave a stray point (and a line to it) kilometres away.
+                            routePoints.clear()
+                            routeTimes.clear()
+                            routeDistances.clear()
+                            routePoints += position
+                            routeTimes += ((now - startedAt) / 1000).coerceAtLeast(0L)
+                            routeDistances += 0.0
+                            accuracySumMeters = fix.accuracyMeters.toDouble()
+                            _state.update {
+                                it.copy(
+                                    distanceMeters = 0.0,
+                                    routePoints = routePoints.toList(),
+                                    routeTimes = routeTimes.toList(),
+                                    routeDistances = routeDistances.toList(),
+                                    currentPosition = position,
+                                    lastGoodFixMillis = now,
+                                    weakRecoveryFixes = recovering,
+                                )
+                            }
+                        } else {
+                            // Earlier points are real, so the route keeps them, and this fix joins it as a point
+                            // with no distance of its own: the next fix's hop is measured from it, so the saved
+                            // polyline holds that hop exactly. The line from the last point to this one is the
+                            // jump. The map shows it; RouteSplitsCalculator measures a hop faster than
+                            // MAX_PLAUSIBLE_SPEED_MPS as 0 m, so splits and the pace chart skip it too.
+                            routePoints += position
+                            routeTimes += ((now - startedAt) / 1000).coerceAtLeast(0L)
+                            routeDistances += current.distanceMeters
+                            accuracySumMeters += fix.accuracyMeters
+                            _state.update {
+                                it.copy(
+                                    routePoints = routePoints.toList(),
+                                    routeTimes = routeTimes.toList(),
+                                    routeDistances = routeDistances.toList(),
+                                    currentPosition = position,
+                                    lastGoodFixMillis = now,
+                                    weakRecoveryFixes = recovering,
+                                )
+                            }
+                        }
+                    } else {
+                        // The map's dot stays where the last sane fix put it; the signal still counts.
+                        _state.update { it.copy(lastGoodFixMillis = now, weakRecoveryFixes = recovering) }
+                    }
+                    return
+                }
+            }
+            jumpCandidate = null
+            jumpStreak = 0
+            lastSane = taken
 
             val last = lastAccepted
             var distance = current.distanceMeters
@@ -237,6 +384,19 @@ class ActivityTrackingController @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * Whether [to] is further from [from] than [MAX_PLAUSIBLE_SPEED_MPS] allows in the time between
+     * them. The time is the real time between the two fixes, never less than [MIN_HOP_ELAPSED_MS],
+     * so a zero or backwards gap is neither a free pass nor a divide by zero. When [resume] had a
+     * recent paused fix the two fixes never straddle a pause; when it had none they can, and the
+     * pause only makes the allowance larger.
+     */
+    private fun isImpossibleHop(from: TimedFix, to: TimedFix): Boolean {
+        val meters = GeoDistance.metersBetween(from.fix.latitude, from.fix.longitude, to.fix.latitude, to.fix.longitude)
+        val elapsedMillis = (to.takenAtMillis - from.takenAtMillis).coerceAtLeast(MIN_HOP_ELAPSED_MS)
+        return meters > MAX_PLAUSIBLE_SPEED_MPS * elapsedMillis / 1000.0
     }
 
     /** Moving time: pauses are not counted. */
