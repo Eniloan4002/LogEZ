@@ -120,7 +120,7 @@ internal fun GpsWorkoutSummary(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().verticalScroll(scroll)) {
             if (uiState.routePoints.isNotEmpty()) {
-                HeroRouteMap(routePoints = uiState.routePoints, statusBarTop = statusBarTop, onOpenMap = onOpenMap)
+                HeroRouteMap(routePoints = uiState.routePoints, routeBreaks = uiState.routeBreaks, statusBarTop = statusBarTop, onOpenMap = onOpenMap)
             } else {
                 Spacer(Modifier.height(statusBarTop + Spacing.lg))
             }
@@ -210,11 +210,12 @@ private fun StatusBarBackdrop(scroll: ScrollState, statusBarTop: Dp) {
  * corner button, opens [FullScreenRouteMap], where it does.
  */
 @Composable
-private fun HeroRouteMap(routePoints: List<Pair<Double, Double>>, statusBarTop: Dp, onOpenMap: () -> Unit) {
+private fun HeroRouteMap(routePoints: List<Pair<Double, Double>>, routeBreaks: Set<Int>, statusBarTop: Dp, onOpenMap: () -> Unit) {
     val background = MaterialTheme.colorScheme.background
     Box(modifier = Modifier.fillMaxWidth().height(statusBarTop + HERO_MAP_HEIGHT)) {
         RouteMapView(
             routePoints = routePoints,
+            routeBreaks = routeBreaks,
             followLatest = false,
             interactive = false,
             onMapClick = onOpenMap,
@@ -241,11 +242,12 @@ private fun HeroRouteMap(routePoints: List<Pair<Double, Double>>, statusBarTop: 
 
 /** The same route, full screen, with every gesture on. Back or the close button returns. */
 @Composable
-internal fun FullScreenRouteMap(routePoints: List<Pair<Double, Double>>, onClose: () -> Unit) {
+internal fun FullScreenRouteMap(routePoints: List<Pair<Double, Double>>, routeBreaks: Set<Int>, onClose: () -> Unit) {
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         RouteMapView(
             routePoints = routePoints,
+            routeBreaks = routeBreaks,
             followLatest = false,
             interactive = true,
             fitPadding = PaddingValues(start = 40.dp, top = statusBarTop + 72.dp, end = 40.dp, bottom = 72.dp),
@@ -360,8 +362,33 @@ private fun StatsCard(uiState: WorkoutSummaryUiState, modifier: Modifier = Modif
 
 @Composable
 private fun PaceCard(uiState: WorkoutSummaryUiState, modifier: Modifier = Modifier) {
-    val km = uiState.distanceUnit == DistanceUnit.KM
-    val fullSplits = uiState.splits.filterNot { it.isPartial }
+    PaceCardContent(
+        splits = uiState.splits,
+        paceSeries = uiState.paceSeries,
+        startedAtMillis = uiState.startedAtMillis,
+        distanceUnit = uiState.distanceUnit,
+        modifier = modifier,
+    )
+}
+
+/**
+ * The PACE card: "Fastest km", the pace chart, then the splits table. Shared with the live tracking
+ * screen (2026-10-01), which shows the same card while the run is going, so the two always agree on
+ * how it reads. [footnote] sits under the splits; [emptyText] shows when there is neither a chart
+ * nor a split yet, which only the live screen can have.
+ */
+@Composable
+internal fun PaceCardContent(
+    splits: List<RouteSplit>,
+    paceSeries: List<Pair<Long, Double>>,
+    startedAtMillis: Long,
+    distanceUnit: DistanceUnit,
+    modifier: Modifier = Modifier,
+    footnote: String? = null,
+    emptyText: String? = null,
+) {
+    val km = distanceUnit == DistanceUnit.KM
+    val fullSplits = splits.filterNot { it.isPartial }
     val fastest = fullSplits.minByOrNull { it.paceSecondsPerUnit }
     LogEzCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(Spacing.md)) {
@@ -369,20 +396,36 @@ private fun PaceCard(uiState: WorkoutSummaryUiState, modifier: Modifier = Modifi
                 title = stringResource(R.string.summary_gps_pace_header),
                 meta = fastest?.let { stringResource(if (km) R.string.summary_gps_fastest_km else R.string.summary_gps_fastest_mi) + " " + formatPace(it.paceSecondsPerUnit) },
             )
-            if (uiState.paceSeries.isNotEmpty()) {
-                var selected by rememberSaveable(uiState.paceSeries) { mutableStateOf<Int?>(null) }
+            if (paceSeries.isNotEmpty()) {
+                var selected by rememberSaveable(paceSeries) { mutableStateOf<Int?>(null) }
                 LineChart(
-                    points = uiState.paceSeries.map { (at, pace) -> LineChartPoint(x = at, y = pace) },
+                    points = paceSeries.map { (at, pace) -> LineChartPoint(x = at, y = pace) },
                     yLabel = { formatPace(it) },
-                    xLabel = { formatElapsedClock(((it - uiState.startedAtMillis) / 1000).toInt()) },
+                    xLabel = { formatElapsedClock(((it - startedAtMillis) / 1000).toInt()) },
                     selectedIndex = selected,
                     onPointTap = { selected = it },
                     showPoints = false,
                     modifier = Modifier.padding(top = Spacing.sm),
                 )
             }
-            if (uiState.splits.isNotEmpty()) {
-                SplitsTable(uiState.splits, fastest, km, Modifier.padding(top = 14.dp))
+            if (splits.isNotEmpty()) {
+                SplitsTable(splits, fastest, km, Modifier.padding(top = 14.dp))
+                if (footnote != null) {
+                    Text(
+                        footnote,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = Spacing.xs),
+                    )
+                }
+            }
+            if (paceSeries.isEmpty() && splits.isEmpty() && emptyText != null) {
+                Text(
+                    emptyText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
             }
         }
     }
@@ -391,9 +434,13 @@ private fun PaceCard(uiState: WorkoutSummaryUiState, modifier: Modifier = Modifi
 @Composable
 private fun SplitsTable(splits: List<RouteSplit>, fastest: RouteSplit?, km: Boolean, modifier: Modifier = Modifier) {
     val showBpm = splits.any { it.averageBpm != null }
+    // The bar scale comes from the full splits only. A partial row (on the live screen the km you are
+    // still in) is short and noisy, so it must not move every other bar, and it is only ever drawn
+    // within the full splits' range.
     val speeds = splits.map { 1.0 / it.paceSecondsPerUnit }
-    val fastestSpeed = speeds.max()
-    val slowestSpeed = speeds.min()
+    val fullSpeeds = splits.filter { !it.isPartial }.map { 1.0 / it.paceSecondsPerUnit }
+    val fastestSpeed = fullSpeeds.maxOrNull()
+    val slowestSpeed = fullSpeeds.minOrNull()
     Column(modifier = modifier) {
         Row(modifier = Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
             CapsLabel(stringResource(if (km) R.string.summary_gps_split_col_km else R.string.summary_gps_split_col_mi), Modifier.width(44.dp))
@@ -430,16 +477,23 @@ private fun SplitsTable(splits: List<RouteSplit>, fastest: RouteSplit?, km: Bool
                 )
                 // Relative, not absolute: the slowest split gets a little over half the width and the
                 // fastest all of it, so a few seconds' difference is visible at all.
-                val fraction = if (fastestSpeed > slowestSpeed) {
-                    0.55f + 0.45f * ((speeds[i] - slowestSpeed) / (fastestSpeed - slowestSpeed)).toFloat()
-                } else {
-                    1f
+                val fraction = when {
+                    // No full split yet: one partial row has nothing to be relative to.
+                    fastestSpeed == null || slowestSpeed == null -> 0.75f
+                    fastestSpeed > slowestSpeed ->
+                        (0.55f + 0.45f * ((speeds[i] - slowestSpeed) / (fastestSpeed - slowestSpeed)).toFloat()).coerceIn(0.55f, 1f)
+                    else -> 1f
                 }
                 Box(modifier = Modifier.weight(1f).padding(end = Spacing.xs)) {
                     Box(
                         Modifier.fillMaxWidth(fraction).height(10.dp).clip(RoundedCornerShape(Radius.pill))
                             .background(
-                                if (split == fastest) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                when {
+                                    split == fastest -> MaterialTheme.colorScheme.tertiary
+                                    // The km you are still in reads dimmer, so it looks in progress.
+                                    split.isPartial -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                },
                             ),
                     )
                 }
@@ -608,7 +662,7 @@ private fun CardHeading(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CardHeadingRow(title: String, meta: String?) {
+internal fun CardHeadingRow(title: String, meta: String?) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         CardHeading(title, Modifier.weight(1f))
         if (meta != null) {
@@ -623,7 +677,7 @@ private fun CardHeadingRow(title: String, meta: String?) {
 }
 
 @Composable
-private fun CapsLabel(text: String, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
+internal fun CapsLabel(text: String, modifier: Modifier = Modifier, textAlign: TextAlign? = null) {
     Text(
         text.uppercase(currentLocale()),
         style = LogEzMono.dataSmall.copy(letterSpacing = 0.08.em),

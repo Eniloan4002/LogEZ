@@ -39,6 +39,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.enil.logez.core.domain.calc.PauseRanges
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -107,6 +108,42 @@ class WorkoutDetailViewModelTest {
         assertEquals(2, state.routePoints.size)
         assertEquals(14.5995, state.routePoints[0].first, 1e-4)
         assertEquals(120.9842, state.routePoints[0].second, 1e-4)
+    }
+
+    @Test
+    fun `a paused run's route breaks at the hop that crosses the pause, so no line is drawn across it`() = runTest {
+        // Points at clock seconds 0, 30, 90, 120; paused from 40 to 80, so the hop 30 -> 90 is the break.
+        val points = listOf(14.5995 to 120.9842, 14.5990 to 120.9842, 14.5980 to 120.9842, 14.5975 to 120.9842)
+        val paused = ActivityTrackEntity(
+            id = "track-s1", workoutSetId = "s1",
+            routePolyline = PolylineEncoding.encode(points),
+            pointCount = 4, avgAccuracyM = 5.0,
+            routeTimes = PolylineEncoding.encodeDeltas(listOf(0L, 30L, 90L, 120L)),
+            pauseRanges = PauseRanges.encode(listOf(40L to 80L)),
+        )
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 500.0)),
+            ),
+            trackRepo = FakeActivityTrackRepository(listOf(paused)),
+        )
+
+        assertEquals(setOf(2), vm.uiState.value.routeBreaks)
+    }
+
+    @Test
+    fun `a run that was never paused has no route breaks`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 500.0)),
+            ),
+            trackRepo = FakeActivityTrackRepository(listOf(track("s1"))),
+        )
+        assertTrue(vm.uiState.value.routeBreaks.isEmpty())
     }
 
     @Test

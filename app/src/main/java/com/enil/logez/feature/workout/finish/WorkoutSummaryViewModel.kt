@@ -8,6 +8,7 @@ import com.enil.logez.core.domain.calc.HeartRateSummary
 import com.enil.logez.core.domain.calc.HeartRateSummaryCalculator
 import com.enil.logez.core.domain.calc.PaceCalculator
 import com.enil.logez.core.domain.calc.RouteSplit
+import com.enil.logez.core.domain.calc.PauseRanges
 import com.enil.logez.core.domain.calc.RouteSplitsCalculator
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.WorkoutMuscleTargetCalculator
@@ -176,6 +177,10 @@ class WorkoutSummaryViewModel @Inject constructor(
             val routePoints = track?.routePolyline?.let(PolylineEncoding::decode) ?: emptyList()
             // Null for runs tracked before route times were saved (2026-09-26); those get no splits.
             val routeTimes = track?.routeTimes?.let(PolylineEncoding::decodeDeltas)?.map { it.toInt() } ?: emptyList()
+            // Null for a run that was never paused. Splits and pace leave these stretches out, and the
+            // map draws no line across the hop that crosses one.
+            val pauseRanges = PauseRanges.decode(track?.pauseRanges)
+            val routeBreaks = PauseRanges.breakIndices(routeTimes, pauseRanges)
 
             // M21f: read from the local cache WorkoutFinisher already wrote at finish time, never
             // Health Connect directly -- by the time this screen shows, the samples (if any) are
@@ -243,6 +248,7 @@ class WorkoutSummaryViewModel @Inject constructor(
                 hasDistance = included.any { it.set.distanceMeters != null },
                 totalDistanceMeters = totalDistanceMeters,
                 routePoints = routePoints,
+                routeBreaks = routeBreaks,
                 isGpsTracked = isGpsTracked,
                 gpsActivity = GpsActivity.resolve(gpsExerciseId, gpsExerciseId?.let { exercisesById[it]?.name }),
                 hasTrack = track != null,
@@ -254,12 +260,15 @@ class WorkoutSummaryViewModel @Inject constructor(
                     RouteSplitsCalculator.splits(
                         routePoints, routeTimes, settings.distanceUnit, workout.startedAt,
                         heartRateSummary?.samples.orEmpty(), trackedDistanceMeters = totalDistanceMeters,
+                        pauseRanges = pauseRanges,
                     )
                 } else {
                     emptyList()
                 },
                 paceSeries = if (isGpsTracked) {
-                    RouteSplitsCalculator.paceSeries(routePoints, routeTimes, settings.distanceUnit, workout.startedAt, totalDistanceMeters)
+                    RouteSplitsCalculator.paceSeries(
+                        routePoints, routeTimes, settings.distanceUnit, workout.startedAt, totalDistanceMeters, pauseRanges,
+                    )
                 } else {
                     emptyList()
                 },
@@ -306,6 +315,8 @@ data class WorkoutSummaryUiState(
     val totalDistanceMeters: Double = 0.0,
     /** Decoded from the workout's `ActivityTrackEntity`, if any set in it was GPS-tracked. */
     val routePoints: List<Pair<Double, Double>> = emptyList(),
+    /** Indices of [routePoints] that start a new stretch after a pause: no line is drawn into them. */
+    val routeBreaks: Set<Int> = emptySet(),
     /** M21f: (recordedAtMillis, bpm) pairs saved by `WorkoutFinisher` at finish time, oldest first; empty if no wearable data existed for this workout's window. */
     val heartRateSamples: List<Pair<Long, Long>> = emptyList(),
     val muscleIntensity: Map<com.enil.logez.core.domain.model.MuscleGroup, Float> = emptyMap(),

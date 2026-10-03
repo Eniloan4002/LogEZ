@@ -15,6 +15,10 @@ import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.core.wellness.HealthConnectAvailability
 import com.enil.logez.core.wellness.HeartRateSample
+import com.enil.logez.core.data.entity.ActivityTrackEntity
+import com.enil.logez.core.domain.calc.PauseRanges
+import com.enil.logez.core.domain.model.WorkoutKind
+import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeExerciseRepository
 import com.enil.logez.fakes.FakeHealthMetricsSource
@@ -285,6 +289,60 @@ class WorkoutFinisherTest {
         assertTrue(f.heartRateRepo.getForWorkout("w1").isEmpty())
     }
 
+    // --- Pause (v11, 2026-10-01): a GPS run's duration is moving time, its window is the clock ---
+
+    @Test
+    fun `a paused GPS run ends at its start plus moving time plus the paused time, so its heart-rate window covers the pause`() = runTest {
+        val track = ActivityTrackEntity(
+            id = "t1", workoutSetId = "s1", routePolyline = null, pointCount = 0, avgAccuracyM = null,
+            pauseRanges = PauseRanges.encode(listOf(100L to 400L)), // paused for 300 s
+        )
+        val samples = listOf(
+            HeartRateSample(time = java.time.Instant.ofEpochMilli(startedAt + 50_000L), bpm = 120L),
+            HeartRateSample(time = java.time.Instant.ofEpochMilli(startedAt + 850_000L), bpm = 150L), // 850 s in: past 600 s moving, inside 900 s on the clock
+        )
+        val healthMetricsSource = FakeHealthMetricsSource(
+            availabilityValue = HealthConnectAvailability.Available, permissionsGranted = true, heartRateSamples = samples,
+        )
+        val f = fixture(kind = WorkoutKind.GPS_TRACKED, tracks = listOf(track), healthMetricsSource = healthMetricsSource)
+
+        f.finisher.finish(
+            workout = f.workout, title = "Run", notes = null, startedAt = startedAt,
+            durationSeconds = 600, updateRoutineValues = false, structureChoice = null,
+        )
+
+        val saved = f.workoutRepo.getById("w1")!!
+        assertEquals(600, saved.durationSeconds) // moving time is what is saved
+        assertEquals(startedAt + 900_000L, saved.endedAt) // but it ended 900 s after it began
+        assertEquals(listOf(120L, 150L), f.heartRateRepo.getForWorkout("w1").map { it.bpm })
+    }
+
+    @Test
+    fun `a GPS run that was never paused ends at start plus duration, as before`() = runTest {
+        val track = ActivityTrackEntity(id = "t1", workoutSetId = "s1", routePolyline = null, pointCount = 0, avgAccuracyM = null)
+        val f = fixture(kind = WorkoutKind.GPS_TRACKED, tracks = listOf(track))
+        f.finisher.finish(
+            workout = f.workout, title = "Run", notes = null, startedAt = startedAt,
+            durationSeconds = 600, updateRoutineValues = false, structureChoice = null,
+        )
+        assertEquals(startedAt + 600_000L, f.workoutRepo.getById("w1")!!.endedAt)
+    }
+
+    @Test
+    fun `a strength workout never looks for pauses`() = runTest {
+        // A track row on a typed workout's set (it cannot happen, but the finisher must not trust it).
+        val track = ActivityTrackEntity(
+            id = "t1", workoutSetId = "s1", routePolyline = null, pointCount = 0, avgAccuracyM = null,
+            pauseRanges = PauseRanges.encode(listOf(100L to 400L)),
+        )
+        val f = fixture(tracks = listOf(track))
+        f.finisher.finish(
+            workout = f.workout, title = "Push", notes = null, startedAt = startedAt,
+            durationSeconds = 600, updateRoutineValues = false, structureChoice = null,
+        )
+        assertEquals(startedAt + 600_000L, f.workoutRepo.getById("w1")!!.endedAt)
+    }
+
     // --- fixture ---
 
     private class Fixture(
@@ -302,12 +360,14 @@ class WorkoutFinisherTest {
         sets: List<WorkoutSetEntity> = listOf(workoutSet("s1", "we1", 0, 100.0, 5, isCompleted = true)),
         healthMetricsSource: FakeHealthMetricsSource = FakeHealthMetricsSource(),
         heartRateRepo: FakeWorkoutHeartRateSampleRepository = FakeWorkoutHeartRateSampleRepository(),
+        kind: WorkoutKind = WorkoutKind.STRENGTH,
+        tracks: List<ActivityTrackEntity> = emptyList(),
     ): Fixture {
         val routineId = if (withRoutine) "r1" else null
         val workout = WorkoutEntity(
             id = "w1", routineId = routineId, title = "Original Title", notes = null,
             status = WorkoutStatus.IN_PROGRESS, startedAt = startedAt, endedAt = null,
-            durationSeconds = 0, createdAt = startedAt, updatedAt = startedAt,
+            durationSeconds = 0, createdAt = startedAt, updatedAt = startedAt, kind = kind,
         )
         val workoutRepo = FakeWorkoutRepository(
             workouts = listOf(workout),
@@ -344,7 +404,7 @@ class WorkoutFinisherTest {
             workoutRepo, exerciseRepo, recordsRepo, FakeMeasurementRepository(), FakeSettingsRepository(),
         )
         return Fixture(
-            finisher = WorkoutFinisher(workoutRepo, routineRepo, updater, FakeTransactionRunner(), healthMetricsSource, heartRateRepo, clock),
+            finisher = WorkoutFinisher(workoutRepo, routineRepo, updater, FakeTransactionRunner(), healthMetricsSource, heartRateRepo, clock, FakeActivityTrackRepository(tracks)),
             workoutRepo = workoutRepo, routineRepo = routineRepo, recordsRepo = recordsRepo, heartRateRepo = heartRateRepo, workout = workout,
         )
     }

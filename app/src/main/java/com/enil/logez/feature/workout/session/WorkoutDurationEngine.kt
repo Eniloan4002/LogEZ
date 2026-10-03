@@ -16,6 +16,14 @@ object WorkoutDurationEngine {
             accumulatedActiveSeconds + ((nowMillis - lastResumedAtMillis) / 1000).coerceAtLeast(0)
         }
 
+    /**
+     * The wall-clock instant a running notification chronometer counts up from: [nowMillis] minus the
+     * workout clock. The clock is [elapsedSeconds], not [accumulatedActiveSeconds] alone, which while a
+     * session runs is only what earlier pauses banked (it is 0 for a session that was never paused).
+     */
+    fun chronometerBaseMillis(accumulatedActiveSeconds: Long, isPaused: Boolean, lastResumedAtMillis: Long?, nowMillis: Long): Long =
+        nowMillis - elapsedSeconds(accumulatedActiveSeconds, isPaused, lastResumedAtMillis, nowMillis) * 1000
+
     /** Folds the just-finished active span into the accumulator; caller clears `lastResumedAtMillis` and sets `isPaused = true`. */
     fun accumulateOnPause(accumulatedActiveSeconds: Long, lastResumedAtMillis: Long?, nowMillis: Long): Long =
         accumulatedActiveSeconds + ((nowMillis - (lastResumedAtMillis ?: nowMillis)) / 1000).coerceAtLeast(0)

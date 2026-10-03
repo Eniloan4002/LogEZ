@@ -194,7 +194,7 @@ class FinishWorkoutViewModelTest {
             SavedStateHandle(mapOf("workoutId" to "w1")),
             repo,
             routineRepo,
-            WorkoutFinisher(repo, routineRepo, updater, runner, FakeHealthMetricsSource(), FakeWorkoutHeartRateSampleRepository(), clock),
+            WorkoutFinisher(repo, routineRepo, updater, runner, FakeHealthMetricsSource(), FakeWorkoutHeartRateSampleRepository(), clock, com.enil.logez.fakes.FakeActivityTrackRepository()),
         )
     }
 

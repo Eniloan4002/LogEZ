@@ -110,4 +110,84 @@ class RouteSplitsCalculatorTest {
         assertEquals(990.0, splits[1].distanceMeters, 1.0)
         assertEquals(1_990.0, RouteSplitsCalculator.cumulativeMeters(points, 1_990.0).last(), 1e-6)
     }
+
+    // ---- pauses (v11, 2026-10-01) ----
+
+    /**
+     * 21 points 100 m apart, 30 s each (a steady 5:00/km). The runner pauses at point 5 (150 s) for five
+     * minutes and resumes at 450 s, where point 6 is recorded. The tracker counted nothing for the hop
+     * between them, so the route is 1,900 m long.
+     */
+    private fun pausedRun(): Triple<List<Pair<Double, Double>>, List<Int>, List<Pair<Long, Long>>> {
+        val points = northbound(21)
+        val times = points.indices.map { i -> if (i <= 5) i * 30 else i * 30 + 270 }
+        return Triple(points, times, listOf(150L to 450L))
+    }
+
+    @Test
+    fun `a pause is left out of every split's time`() {
+        val (points, times, ranges) = pausedRun()
+        val splits = RouteSplitsCalculator.splits(points, times, DistanceUnit.KM, startedAt, pauseRanges = ranges)
+        // Moving at a steady 5:00/km: the 300 s pause must not make the first km 10:00.
+        assertEquals(2, splits.size)
+        assertEquals(300, splits[0].durationSeconds)
+        assertEquals(300.0, splits[0].paceSecondsPerUnit, 1.0)
+        assertTrue(splits[1].isPartial)
+        assertEquals(900.0, splits[1].distanceMeters, 2.0) // 1,900 m in all: the paused hop counted none
+        assertEquals(300.0, splits[1].paceSecondsPerUnit, 1.0)
+    }
+
+    @Test
+    fun `without the ranges the same run reads slower, which is what the column is for`() {
+        val (points, times, _) = pausedRun()
+        val splits = RouteSplitsCalculator.splits(points, times, DistanceUnit.KM, startedAt)
+        assertEquals(570, splits[0].durationSeconds) // the 300 s pause is in it
+    }
+
+    @Test
+    fun `the hop that crosses a pause counts no distance, even if the runner moved while paused`() {
+        // 400 m of walking between point 5 and 6 happened while paused, and was never counted.
+        val points = northbound(6) + (northbound(21).drop(9)) // a 400 m jump between points 5 and 6
+        val times = points.indices.map { i -> if (i <= 5) i * 30 else i * 30 + 270 }
+        val ranges = listOf(150L to 450L)
+        val breaks = PauseRanges.breakIndices(times, ranges)
+        assertEquals(setOf(6), breaks)
+        val withBreak = RouteSplitsCalculator.cumulativeMeters(points, breakIndices = breaks)
+        val without = RouteSplitsCalculator.cumulativeMeters(points)
+        assertEquals(500.0, withBreak[5], 2.0)
+        assertEquals(500.0, withBreak[6], 2.0) // no distance for the paused hop
+        assertTrue(without[6] > 800.0)
+    }
+
+    @Test
+    fun `a split's heart rate window stays on the clock, so samples taken after a pause still land in it`() {
+        val (points, times, ranges) = pausedRun()
+        // The first km ends at clock 600 s (point 11); the partial after it runs to 870 s.
+        val heartRate = listOf((startedAt + 700_000L) to 160L) // clock 700 s: inside the second split, after the pause
+        val splits = RouteSplitsCalculator.splits(points, times, DistanceUnit.KM, startedAt, heartRate, pauseRanges = ranges)
+        assertNull(splits[0].averageBpm)
+        assertEquals(160L, splits[1].averageBpm)
+    }
+
+    @Test
+    fun `a heart rate sample taken while paused is left out of the split it falls in`() {
+        val (points, times, ranges) = pausedRun()
+        // Clock 100 s and 500 s are moving; clock 300 s is inside the pause (150 to 450 s) at a resting 90.
+        val heartRate = listOf((startedAt + 100_000L) to 150L, (startedAt + 300_000L) to 90L, (startedAt + 500_000L) to 170L)
+        val splits = RouteSplitsCalculator.splits(points, times, DistanceUnit.KM, startedAt, heartRate, pauseRanges = ranges)
+        assertEquals(160L, splits[0].averageBpm)
+    }
+
+    @Test
+    fun `the pace series skips the paused minutes and keeps its x values on the clock`() {
+        val (points, times, ranges) = pausedRun()
+        val series = RouteSplitsCalculator.paceSeries(points, times, DistanceUnit.KM, startedAt, pauseRanges = ranges)
+        assertTrue(series.size >= 2)
+        // A steady 5:00/km before and after: the pause must not produce a slow stretch.
+        series.forEach { (_, pace) -> assertEquals(300.0, pace, 2.0) }
+        // No point is stamped inside the pause (clock 150 to 450 s).
+        assertTrue(series.none { (at, _) -> at > startedAt + 150_000L && at < startedAt + 450_000L })
+        // And it goes on past the pause, on the clock.
+        assertTrue(series.last().first > startedAt + 450_000L)
+    }
 }

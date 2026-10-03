@@ -45,14 +45,25 @@ object RouteSplitsCalculator {
 
     /**
      * Cumulative meters at each point, [points] being (lat, lng), scaled so the total equals
-     * [trackedDistanceMeters] when it is given and positive (see the class doc).
+     * [trackedDistanceMeters] when it is given and positive (see the class doc). A hop into a point
+     * listed in [breakIndices] (it crosses a pause, see [PauseRanges.breakIndices]) counts 0 m: the
+     * runner may have moved while paused, and the tracker never counted that stretch.
      */
-    fun cumulativeMeters(points: List<Pair<Double, Double>>, trackedDistanceMeters: Double? = null): DoubleArray {
+    fun cumulativeMeters(
+        points: List<Pair<Double, Double>>,
+        trackedDistanceMeters: Double? = null,
+        breakIndices: Set<Int> = emptySet(),
+    ): DoubleArray {
         val cumulative = DoubleArray(points.size)
         for (i in 1 until points.size) {
-            val (lat1, lng1) = points[i - 1]
-            val (lat2, lng2) = points[i]
-            cumulative[i] = cumulative[i - 1] + GeoDistance.metersBetween(lat1, lng1, lat2, lng2)
+            val hop = if (i in breakIndices) {
+                0.0
+            } else {
+                val (lat1, lng1) = points[i - 1]
+                val (lat2, lng2) = points[i]
+                GeoDistance.metersBetween(lat1, lng1, lat2, lng2)
+            }
+            cumulative[i] = cumulative[i - 1] + hop
         }
         val measured = cumulative.lastOrNull() ?: 0.0
         if (trackedDistanceMeters != null && trackedDistanceMeters > 0.0 && measured > 0.0) {
@@ -62,7 +73,11 @@ object RouteSplitsCalculator {
         return cumulative
     }
 
-    /** Empty unless [timesSeconds] has one entry per point and there are at least two points. */
+    /**
+     * Empty unless [timesSeconds] has one entry per point and there are at least two points.
+     * [pauseRanges] (clock seconds, see [PauseRanges]) are left out of every split's time, while the
+     * heart-rate window of a split stays on the clock, where the samples live, minus the samples taken during a pause.
+     */
     fun splits(
         points: List<Pair<Double, Double>>,
         timesSeconds: List<Int>,
@@ -70,37 +85,39 @@ object RouteSplitsCalculator {
         startedAtMillis: Long,
         heartRate: List<Pair<Long, Long>> = emptyList(),
         trackedDistanceMeters: Double? = null,
+        pauseRanges: List<Pair<Long, Long>> = emptyList(),
     ): List<RouteSplit> {
         if (points.size < 2 || timesSeconds.size != points.size) return emptyList()
-        val times = monotonic(timesSeconds)
-        val cumulative = cumulativeMeters(points, trackedDistanceMeters)
+        val times = monotonic(timesSeconds).map { it.toDouble() }
+        val cumulative = cumulativeMeters(points, trackedDistanceMeters, PauseRanges.breakIndices(times, pauseRanges))
         val unitMeters = DistanceDisplay.unitMeters(unit)
         val total = cumulative.last()
 
         val result = mutableListOf<RouteSplit>()
         var startDistance = 0.0
-        var startTime = times.first().toDouble()
+        var startTime = times.first()
         var number = 1
         while (startDistance + unitMeters <= total) {
             val boundary = startDistance + unitMeters
             val boundaryTime = timeAtDistance(cumulative, times, boundary)
-            result += split(number, unitMeters, startTime, boundaryTime, unitMeters, isPartial = false, startedAtMillis, heartRate)
+            result += split(number, unitMeters, startTime, boundaryTime, unitMeters, isPartial = false, startedAtMillis, heartRate, pauseRanges)
             startDistance = boundary
             startTime = boundaryTime
             number++
         }
         val remaining = total - startDistance
-        val endTime = times.last().toDouble()
+        val endTime = times.last()
         if (remaining >= MIN_PARTIAL_SPLIT_METERS && endTime > startTime) {
-            result += split(number, remaining, startTime, endTime, unitMeters, isPartial = true, startedAtMillis, heartRate)
+            result += split(number, remaining, startTime, endTime, unitMeters, isPartial = true, startedAtMillis, heartRate, pauseRanges)
         }
         return result
     }
 
     /**
      * (epochMillis, seconds per unit) every [PACE_STEP_SECONDS], each the pace over the preceding
-     * [PACE_WINDOW_SECONDS]. Empty when fewer than two points would result, so callers never draw
-     * a one-point chart.
+     * [PACE_WINDOW_SECONDS] of moving time (paused time is left out). Empty when fewer than two points
+     * would result, so callers never draw a one-point chart. The x value is on the clock, so the chart
+     * lines up with the heart-rate chart.
      */
     fun paceSeries(
         points: List<Pair<Double, Double>>,
@@ -108,18 +125,20 @@ object RouteSplitsCalculator {
         unit: DistanceUnit,
         startedAtMillis: Long,
         trackedDistanceMeters: Double? = null,
+        pauseRanges: List<Pair<Long, Long>> = emptyList(),
     ): List<Pair<Long, Double>> {
         if (points.size < 2 || timesSeconds.size != points.size) return emptyList()
-        val times = monotonic(timesSeconds)
-        val cumulative = cumulativeMeters(points, trackedDistanceMeters)
+        val clockTimes = monotonic(timesSeconds).map { it.toDouble() }
+        val cumulative = cumulativeMeters(points, trackedDistanceMeters, PauseRanges.breakIndices(clockTimes, pauseRanges))
+        val times = clockTimes.map { PauseRanges.movingSeconds(it, pauseRanges) }
         val unitMeters = DistanceDisplay.unitMeters(unit)
         val series = mutableListOf<Pair<Long, Double>>()
         var t = times.first() + PACE_WINDOW_SECONDS
         while (t <= times.last()) {
-            val covered = distanceAtTime(cumulative, times, t.toDouble()) -
-                distanceAtTime(cumulative, times, (t - PACE_WINDOW_SECONDS).toDouble())
+            val covered = distanceAtTime(cumulative, times, t) - distanceAtTime(cumulative, times, t - PACE_WINDOW_SECONDS)
             if (covered >= MIN_PACE_WINDOW_METERS) {
-                series += (startedAtMillis + t * 1000L) to PACE_WINDOW_SECONDS / (covered / unitMeters)
+                val clock = PauseRanges.clockSeconds(t, pauseRanges)
+                series += (startedAtMillis + (clock * 1000).roundToLong()) to PACE_WINDOW_SECONDS / (covered / unitMeters)
             }
             t += PACE_STEP_SECONDS
         }
@@ -135,11 +154,20 @@ object RouteSplitsCalculator {
         isPartial: Boolean,
         startedAtMillis: Long,
         heartRate: List<Pair<Long, Long>>,
+        pauseRanges: List<Pair<Long, Long>>,
     ): RouteSplit {
-        val seconds = endTime - startTime
+        // Moving time: a pause inside the split is not part of how fast it was run. The heart-rate
+        // window below stays on the clock, minus the samples that fall inside a pause.
+        val seconds = PauseRanges.movingSeconds(endTime, pauseRanges) - PauseRanges.movingSeconds(startTime, pauseRanges)
         val fromMillis = startedAtMillis + (startTime * 1000).roundToLong()
         val toMillis = startedAtMillis + (endTime * 1000).roundToLong()
-        val bpm = heartRate.filter { it.first in fromMillis until toMillis }.map { it.second }
+        // Samples taken while paused are a resting rate, not the effort of the stretch that was run.
+        val bpm = heartRate
+            .filter { (at, _) ->
+                val offset = (at - startedAtMillis) / 1000.0
+                at in fromMillis until toMillis && pauseRanges.none { (start, end) -> offset >= start && offset < end }
+            }
+            .map { it.second }
         return RouteSplit(
             number = number,
             distanceMeters = distanceMeters,
@@ -156,18 +184,27 @@ object RouteSplitsCalculator {
         return times.map { t -> maxOf(t, highest).also { highest = it } }
     }
 
-    private fun timeAtDistance(cumulative: DoubleArray, times: List<Int>, meters: Double): Double {
-        val i = (1 until cumulative.size).firstOrNull { cumulative[it] >= meters } ?: return times.last().toDouble()
+    private fun timeAtDistance(cumulative: DoubleArray, times: List<Double>, meters: Double): Double {
+        val i = (1 until cumulative.size).firstOrNull { cumulative[it] >= meters } ?: return times.last()
         val span = cumulative[i] - cumulative[i - 1]
         val fraction = if (span > 0.0) (meters - cumulative[i - 1]) / span else 1.0
         return times[i - 1] + fraction * (times[i] - times[i - 1])
     }
 
-    private fun distanceAtTime(cumulative: DoubleArray, times: List<Int>, seconds: Double): Double {
+    private fun distanceAtTime(cumulative: DoubleArray, times: List<Double>, seconds: Double): Double {
         if (seconds <= times.first()) return 0.0
         if (seconds >= times.last()) return cumulative.last()
-        val i = (1 until times.size).first { times[it] >= seconds }
-        val span = (times[i] - times[i - 1]).toDouble()
+        // The first index at or after [seconds]; times never decrease, so a binary search finds it.
+        // The pace series asks this about twice per window over the whole route, on the main thread,
+        // for every fix of a live run: a linear scan from the start made that quadratic.
+        var low = 1
+        var high = times.size - 1
+        while (low < high) {
+            val mid = (low + high) ushr 1
+            if (times[mid] >= seconds) high = mid else low = mid + 1
+        }
+        val i = low
+        val span = times[i] - times[i - 1]
         val fraction = if (span > 0.0) (seconds - times[i - 1]) / span else 1.0
         return cumulative[i - 1] + fraction * (cumulative[i] - cumulative[i - 1])
     }

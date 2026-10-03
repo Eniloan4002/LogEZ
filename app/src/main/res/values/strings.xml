@@ -431,44 +431,69 @@
     <string name="measurements_camera_denied">Camera permission is needed to take a progress photo.</string>
     <string name="measurements_camera_blocked">Camera access is off for LogEZ. Turn it on in Settings to take a progress photo.</string>
     <string name="activity_tracking_screen_title">Tracking</string>
+    <string name="activity_tracking_title_run">Run</string>
+    <string name="activity_tracking_title_walk">Walk</string>
+    <string name="activity_tracking_hide">Hide tracking screen</string>
+    <string name="activity_tracking_tab_stats">Stats</string>
+    <string name="activity_tracking_tab_map">Map</string>
+    <string name="activity_tracking_gps_good">GPS</string>
+    <string name="activity_tracking_gps_finding">Finding GPS</string>
+    <string name="activity_tracking_gps_weak">Weak GPS</string>
+    <string name="activity_tracking_gps_good_description">GPS signal good</string>
+    <string name="activity_tracking_stat_none">No value yet</string>
+    <string name="activity_tracking_note_finding">Distance starts when GPS finds you. Time is already running.</string>
+    <string name="activity_tracking_note_weak">Weak GPS signal. Distance may come up short until it\'s back.</string>
+    <string name="activity_tracking_unit_km" translatable="false">km</string>
+    <string name="activity_tracking_unit_mi" translatable="false">mi</string>
+    <string name="activity_tracking_pace_now_km">Pace now /km</string>
+    <string name="activity_tracking_pace_now_mi">Pace now /mi</string>
+    <string name="activity_tracking_paused_title">Paused</string>
+    <string name="activity_tracking_paused_detail">for %1$s · time and distance stopped</string>
+    <string name="activity_tracking_pause">Pause</string>
+    <string name="activity_tracking_resume">Resume</string>
+    <string name="activity_tracking_discard">Discard</string>
+    <string name="activity_tracking_discard_title">Discard this %1$s?</string>
+    <string name="activity_tracking_discard_body">Its time, distance and route won\'t be saved. This can\'t be undone.</string>
+    <string name="activity_tracking_discard_keep">Keep</string>
+    <string name="activity_tracking_noun_run">run</string>
+    <string name="activity_tracking_noun_walk">walk</string>
+    <string name="activity_tracking_noun_other">workout</string>
+    <string name="activity_tracking_pace_footnote_km">The last row is the km you\'re on now.</string>
+    <string name="activity_tracking_pace_footnote_mi">The last row is the mile you\'re on now.</string>
+    <string name="activity_tracking_map_loading">Loading map</string>
+    <string name="activity_tracking_map_error">Couldn\'t load the map. Check your connection. Your %1$s is still being recorded.</string>
+    <string name="activity_tracking_bpm_unit">bpm</string>
+    <string name="activity_tracking_zone_short">Z%1$d</string>
+    <string name="activity_tracking_heart_rate_set_max">Set your max heart rate in Settings to see your zone.</string>
+    <string name="activity_tracking_heart_rate_stale_as_of">As of %1$s. Watches send heart rate in batches, so it can be a few minutes behind.</string>
+    <string name="activity_tracking_heart_rate_waiting">No heart rate synced yet. Watches often send it after the workout.</string>
+    <string name="activity_tracking_heart_rate_unavailable_line">Heart rate isn\'t available on this phone.</string>
+    <string name="activity_tracking_heart_rate_not_allowed_title">LogEZ isn\'t allowed to read heart rate</string>
+    <string name="activity_tracking_heart_rate_not_allowed_body">Allow it to see your watch\'s readings here and on this %1$s\'s summary.</string>
+    <string name="activity_tracking_heart_rate_still_off_title">Heart rate is still off for LogEZ</string>
+    <string name="activity_tracking_heart_rate_still_off_body">Turn it on in Health Connect\'s settings.</string>
+    <string name="activity_tracking_heart_rate_needs_title">Heart rate needs Health Connect</string>
+    <string name="activity_tracking_heart_rate_needs_body">Install or update Health Connect so LogEZ can read your watch\'s heart rate.</string>
     <string name="activity_tracking_distance_label_km">Distance (km)</string>
     <string name="activity_tracking_distance_label_mi">Distance (mi)</string>
-    <string name="activity_tracking_zone_label">Zone</string>
-    <string name="activity_tracking_heart_rate_empty">No heart rate synced yet. Watches send heart rate to Health Connect in batches, often only after the workout. LogEZ adds it to this run when it arrives.</string>
-    <string name="activity_tracking_heart_rate_stale">This is the latest synced reading. Watches send heart rate in batches, so it can be a few minutes behind.</string>
-    <string name="activity_tracking_heart_rate_not_allowed">LogEZ isn\'t allowed to read heart rate. Allow it to see your watch\'s readings here and on this run\'s summary.</string>
     <string name="activity_tracking_heart_rate_allow">Allow heart rate</string>
-    <string name="activity_tracking_heart_rate_turn_on_in_settings">Heart rate is still off for LogEZ. Turn it on in Health Connect\'s settings.</string>
     <string name="activity_tracking_heart_rate_open_settings">Open Health Connect settings</string>
-    <string name="activity_tracking_heart_rate_needs_update">Health Connect needs to be installed or updated before LogEZ can read heart rate.</string>
     <string name="activity_tracking_heart_rate_get_health_connect">Get Health Connect</string>
-    <string name="activity_tracking_heart_rate_unavailable">Health Connect isn\'t available on this phone, so heart rate can\'t be read.</string>
-    <string name="activity_tracking_heart_rate_chart_empty">Heart rate from your watch charts here as it syncs.</string>
     <string name="activity_tracking_pace_chart_empty">Your pace trend charts here once you\'ve covered some distance.</string>
     <string name="activity_tracking_elapsed_label">Time</string>
-    <string name="activity_tracking_bpm_label">Heart Rate</string>
-    <string name="activity_tracking_bpm_as_of">as of %1$s</string>
-    <string name="activity_tracking_pace_label_km">Pace /km</string>
-    <string name="activity_tracking_pace_label_mi">Pace /mi</string>
+    <string name="activity_tracking_bpm_as_of">As of %1$s</string>
     <string name="activity_tracking_zone_value">Zone %1$d</string>
     <string name="activity_tracking_zone_1">Warm Up</string>
     <string name="activity_tracking_zone_2">Fat Burn</string>
     <string name="activity_tracking_zone_3">Cardio</string>
     <string name="activity_tracking_zone_4">Hard</string>
     <string name="activity_tracking_zone_5">Peak</string>
-    <string name="activity_tracking_vitals_header">Vitals</string>
-    <string name="activity_tracking_heart_rate_chart_header">Heart rate</string>
-    <string name="activity_tracking_pace_chart_header">Pace</string>
     <string name="activity_tracking_finish">Finish</string>
-    <string name="activity_tracking_cancel">Cancel</string>
     <string name="activity_tracking_resumed_snackbar">Tracking resumed</string>
     <string name="activity_tracking_interrupted_title">Tracking was interrupted</string>
     <string name="activity_tracking_interrupted_body">LogEZ closed while a run was being tracked, so the GPS route and distance could not be recovered.\n\nStarted %1$s · %2$s ago.</string>
     <string name="activity_tracking_interrupted_keep_time">Save time only</string>
     <string name="activity_tracking_interrupted_discard">Discard</string>
-    <string name="activity_tracking_cancel_confirm_title">Discard this run/walk?</string>
-    <string name="activity_tracking_cancel_confirm_body">Your tracked distance and route won\'t be saved.</string>
-    <string name="activity_tracking_cancel_confirm_action">Discard</string>
     <!-- 2026-09-25: OpenFreeMap tiles (was MapTiler). The credit OpenFreeMap documents is
          "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"; OpenMapTiles asks for
          "© OpenMapTiles" and OSM for "© OpenStreetMap contributors", visible without a tap.
@@ -655,6 +680,7 @@
 
     <!-- M21a: GPS run/walk tracking notification -->
     <string name="activity_tracking_notification_title">Tracking your run/walk</string>
+    <string name="activity_tracking_notification_title_paused">Your run/walk is paused</string>
     <string name="activity_tracking_notification_text">%1$s km so far</string>
     <string name="activity_tracking_notification_text_mi">%1$s mi so far</string>
 

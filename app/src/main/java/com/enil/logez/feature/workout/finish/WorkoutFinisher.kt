@@ -9,12 +9,15 @@ import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutHeartRateSampleEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.calc.LoggedSetValues
+import com.enil.logez.core.domain.calc.PauseRanges
 import com.enil.logez.core.domain.calc.RoutineSetTargets
 import com.enil.logez.core.domain.calc.RoutineValueUpdater
 import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.model.SetType
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.model.WorkoutStructure
+import com.enil.logez.core.domain.repository.ActivityTrackRepository
 import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.repository.TransactionRunner
 import com.enil.logez.core.domain.repository.WorkoutHeartRateSampleRepository
@@ -64,6 +67,7 @@ class WorkoutFinisher @Inject constructor(
     private val healthMetricsSource: HealthMetricsSource,
     private val heartRateSampleRepository: WorkoutHeartRateSampleRepository,
     private val clock: Clock,
+    private val activityTrackRepository: ActivityTrackRepository,
     private val logger: AppLogger = AppLogger.NoOp,
     private val widgetRefresher: WidgetRefresher = WidgetRefresher.NoOp,
 ) {
@@ -84,6 +88,11 @@ class WorkoutFinisher @Inject constructor(
         // Read before the transaction opens: this is DataStore, not Room, so resolving it inside
         // would pin the transaction open across unrelated I/O.
         val includeWarmups = personalRecordsUpdater.includeWarmupsInStats()
+        // Same reason: a lookup outside the transaction. A GPS run's duration is MOVING time, so the
+        // clock time it ended at (and so the heart-rate window read below) is later by however long it
+        // was paused. Without this the last paused minutes of heart rate would fall outside the window.
+        val pausedSeconds = pausedSecondsOf(workout)
+        val wallDurationMillis = (durationSeconds + pausedSeconds) * 1000L
 
         return transactionRunner.runInTransaction {
             // Captured before the purge — every block-pairing decision below (values-only update,
@@ -102,7 +111,7 @@ class WorkoutFinisher @Inject constructor(
                     notes = notes?.takeIf { it.isNotBlank() },
                     status = WorkoutStatus.COMPLETED,
                     startedAt = effectiveStartedAt,
-                    endedAt = effectiveStartedAt + durationSeconds * 1000L,
+                    endedAt = effectiveStartedAt + wallDurationMillis,
                     durationSeconds = durationSeconds,
                     updatedAt = now,
                 ),
@@ -129,7 +138,7 @@ class WorkoutFinisher @Inject constructor(
             // Room transaction open across it). A missing/denied Health Connect grant degrades
             // silently to "no samples saved," never a failed finish -- a workout must always be
             // saveable with or without a connected wearable.
-            saveHeartRateSamples(workoutId = workout.id, startedAt = effectiveStartedAt, endedAt = effectiveStartedAt + durationSeconds * 1000L)
+            saveHeartRateSamples(workoutId = workout.id, startedAt = effectiveStartedAt, endedAt = effectiveStartedAt + wallDurationMillis)
             // After the COMPLETED commit, or the widget would recount without this workout.
             widgetRefresher.refresh()
         }
@@ -142,6 +151,14 @@ class WorkoutFinisher @Inject constructor(
      */
     private suspend fun saveHeartRateSamples(workoutId: String, startedAt: Long, endedAt: Long) {
         heartRateBackfill.backfill(workoutId, startedAt, endedAt)
+    }
+
+    /** Seconds a tracked walk/run was paused for (`activity_tracks.pause_ranges`); 0 for every other workout. */
+    private suspend fun pausedSecondsOf(workout: WorkoutEntity): Long {
+        if (workout.kind != WorkoutKind.GPS_TRACKED) return 0L
+        val track = workoutRepository.getSetsWithExerciseForWorkout(workout.id)
+            .firstNotNullOfOrNull { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) }
+        return PauseRanges.totalSeconds(PauseRanges.decode(track?.pauseRanges))
     }
 
     private companion object {

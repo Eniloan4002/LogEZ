@@ -27,6 +27,7 @@ import com.enil.logez.core.wellness.WorkoutHeartRateBackfill
 import com.enil.logez.fakes.FakeHealthMetricsSource
 import com.enil.logez.fakes.FakeActivityTrackRepository
 import com.enil.logez.fakes.FakeExerciseRepository
+import com.enil.logez.core.domain.calc.PauseRanges
 import com.enil.logez.fakes.FakePersonalRecordsRepository
 import com.enil.logez.fakes.FakeSettingsRepository
 import com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository
@@ -374,6 +375,37 @@ class WorkoutSummaryViewModelTest {
         assertEquals(3, state.splits.size)
         assertTrue(state.splits.last().isPartial)
         assertTrue(state.paceSeries.isNotEmpty())
+    }
+
+    @Test
+    fun `a paused run's splits leave the pause out, and its route breaks at the paused hop`() = runTest {
+        val degreesPer100m = 100.0 / 111_195.0
+        val points = (0..25).map { (14.6 + it * degreesPer100m) to 121.06 }
+        // 5:00/km, paused at point 10 (300 s) until point 11 is recorded at 570 s. The hop between them is not counted.
+        val times = points.indices.map { if (it <= 10) it * 30L else it * 30L + 240L }
+        val track = ActivityTrackEntity(
+            id = "t1", workoutSetId = "s1", routePolyline = PolylineEncoding.encode(points), pointCount = points.size,
+            avgAccuracyM = 5.0, routeTimes = PolylineEncoding.encodeDeltas(times),
+            pauseRanges = PauseRanges.encode(listOf(300L to 570L)),
+        )
+        val state = gpsViewModel(distanceMeters = 2_400.0, durationSeconds = 720, track = track).uiState.value
+
+        assertEquals(setOf(11), state.routeBreaks)
+        assertEquals(3, state.splits.size)
+        assertEquals(300, state.splits[0].durationSeconds)
+        assertEquals(300, state.splits[1].durationSeconds) // not 570: the 270 s pause is out of it
+        assertEquals(300.0, state.splits[2].paceSecondsPerUnit, 2.0)
+        assertTrue(state.paceSeries.all { (_, pace) -> pace in 295.0..305.0 })
+    }
+
+    @Test
+    fun `a run that was never paused has no route breaks`() = runTest {
+        val points = listOf(14.6 to 121.06, 14.61 to 121.06)
+        val track = ActivityTrackEntity(
+            id = "t1", workoutSetId = "s1", routePolyline = PolylineEncoding.encode(points), pointCount = 2,
+            avgAccuracyM = 5.0, routeTimes = PolylineEncoding.encodeDeltas(listOf(0L, 300L)),
+        )
+        assertTrue(gpsViewModel(distanceMeters = 1_100.0, durationSeconds = 300, track = track).uiState.value.routeBreaks.isEmpty())
     }
 
     @Test

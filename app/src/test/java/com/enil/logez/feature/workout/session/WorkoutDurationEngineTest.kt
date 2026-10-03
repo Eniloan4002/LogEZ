@@ -37,4 +37,32 @@ class WorkoutDurationEngineTest {
         val afterSecondPause = WorkoutDurationEngine.accumulateOnPause(accumulatedActiveSeconds = afterFirstPause, lastResumedAtMillis = 50_000L, nowMillis = 80_000L)
         assertEquals(60L, afterSecondPause)
     }
+
+    @Test
+    fun `the chronometer base of a session never paused is the workout clock, not the moment of the last rebuild`() {
+        // Accumulated is 0 for a running, never-paused session; started 12 minutes ago.
+        val now = 5_000_000L
+        val base = WorkoutDurationEngine.chronometerBaseMillis(
+            accumulatedActiveSeconds = 0L, isPaused = false, lastResumedAtMillis = now - 12 * 60_000L, nowMillis = now,
+        )
+        assertEquals(now - 12 * 60_000L, base)
+    }
+
+    @Test
+    fun `the chronometer base after a pause counts the banked time plus the span since resume`() {
+        val now = 9_000_000L
+        val base = WorkoutDurationEngine.chronometerBaseMillis(
+            accumulatedActiveSeconds = 600L, isPaused = false, lastResumedAtMillis = now - 5 * 60_000L, nowMillis = now,
+        )
+        assertEquals(now - 15 * 60_000L, base)
+    }
+
+    @Test
+    fun `the chronometer base after a reset to zero while running restarts at now`() {
+        val now = 7_000_000L
+        val base = WorkoutDurationEngine.chronometerBaseMillis(
+            accumulatedActiveSeconds = 0L, isPaused = false, lastResumedAtMillis = now, nowMillis = now,
+        )
+        assertEquals(now, base)
+    }
 }

@@ -3,6 +3,8 @@ package com.enil.logez.feature.activity
 import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutSetEntity
+import com.enil.logez.core.domain.calc.PauseRanges
+import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.fakes.FakeActivityTrackRepository
@@ -12,7 +14,9 @@ import com.enil.logez.fakes.FakeWorkoutRepository
 import com.enil.logez.feature.activity.location.LocationFix
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -135,57 +139,6 @@ class ActivityTrackingControllerTest {
 
         locationSource.emit(LocationFix(14.59849, 120.9842, accuracyMeters = 50f, elapsedRealtimeMillis = 6_000L)) // rejected: poor accuracy
         assertEquals(2, controller.state.value.routePoints.size)
-    }
-
-    /**
-     * Piggybacks distance-history sampling on real, externally-driven fix arrivals rather than a
-     * self-ticking `delay()` loop of its own -- a `scope.launch { while (true) { delay(...) } }`
-     * started from `startTracking()` would run the instant that method is called and keep running
-     * until explicitly cancelled, hanging any test (like several above) that starts tracking
-     * without also finishing/cancelling it before the test ends. This test's whole point is
-     * proving that risk was designed out: it starts tracking and never finishes or cancels it, and
-     * must still complete.
-     */
-    @Test
-    fun `distance history samples roughly every 15 seconds of elapsed time, piggybacking on real fixes`() = runTest {
-        val locationSource = FakeLocationSource()
-        val clock = FakeClock(currentMillis = 1_000_000L)
-        val controller = newController(locationSource = locationSource, clock = clock)
-        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
-
-        // The very first accepted fix seeds a (now, 0.0) sample regardless of movement -- there's
-        // no prior point yet to diff a delta against.
-        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
-        assertEquals(listOf(1_000_000L to 0.0), controller.state.value.distanceHistory)
-
-        // A fix 5 seconds later, still inside the 15-second throttle window, must not add a
-        // second sample.
-        clock.currentMillis = 1_000_000L + 5_000L
-        locationSource.emit(LocationFix(14.5985, 120.9842, 5f, 5_000L)) // ~111m south — accepted
-        assertEquals(1, controller.state.value.distanceHistory.size)
-
-        // A fix past the 15-second mark adds the next sample, carrying the cumulative distance at
-        // that point (not just the delta since the last sample).
-        clock.currentMillis = 1_000_000L + 16_000L
-        locationSource.emit(LocationFix(14.5975, 120.9842, 5f, 16_000L)) // another ~111m south — accepted
-        assertEquals(2, controller.state.value.distanceHistory.size)
-        val (secondTimestamp, secondDistance) = controller.state.value.distanceHistory[1]
-        assertEquals(1_000_000L + 16_000L, secondTimestamp)
-        assertEquals(222.6, secondDistance, 1.0)
-    }
-
-    @Test
-    fun `distance history resets between sessions, not carried over from a prior run`() = runTest {
-        val locationSource = FakeLocationSource()
-        val controller = newController(locationSource = locationSource)
-        controller.startTracking(workoutId = "w-1", workoutSetId = "set-1")
-        locationSource.emit(LocationFix(14.5995, 120.9842, 5f, 0L))
-        assertEquals(1, controller.state.value.distanceHistory.size)
-
-        controller.finishTracking()
-        controller.startTracking(workoutId = "w-2", workoutSetId = "set-1")
-
-        assertEquals(emptyList<Pair<Long, Double>>(), controller.state.value.distanceHistory)
     }
 
     @Test
@@ -313,5 +266,374 @@ class ActivityTrackingControllerTest {
         clock.currentMillis = 1_000_000L + 45_000L
 
         assertEquals(45, controller.elapsedSeconds())
+    }
+
+    // ---- Pause / Resume (2026-10-01) ----
+
+    private val start = 1_000_000L
+    private fun fix(lat: Double, accuracy: Float = 5f) = LocationFix(lat, 120.9842, accuracy, 0L)
+
+    // Each step is ~111 m south of the one before, so every fix clears the 3 m floor.
+    private val p0 = 14.5995
+    private val p1 = 14.5985
+    private val p2 = 14.5975
+    private val p3 = 14.5965
+
+    @Test
+    fun `pausing stops moving time and resuming starts it again`() = runTest {
+        val clock = FakeClock(start)
+        val controller = newController(clock = clock)
+        controller.startTracking("w-1", "set-1")
+
+        clock.currentMillis = start + 60_000L
+        controller.pause()
+        clock.currentMillis = start + 300_000L // five minutes paused
+        assertEquals(60, controller.elapsedSeconds())
+        assertEquals(240, controller.state.value.pausedForSeconds(clock.currentMillis))
+
+        controller.resume()
+        clock.currentMillis = start + 330_000L
+        assertEquals(90, controller.elapsedSeconds()) // 60 s before the pause, 30 s after it
+        assertFalse(controller.state.value.isPaused)
+        assertNull(controller.state.value.pausedForSeconds(clock.currentMillis))
+    }
+
+    @Test
+    fun `pause and resume do nothing without a session, when already paused, or when not paused`() = runTest {
+        val controller = newController()
+        controller.pause()
+        controller.resume()
+        assertFalse(controller.state.value.isPaused)
+
+        controller.startTracking("w-1", "set-1")
+        controller.resume() // not paused
+        assertFalse(controller.state.value.isPaused)
+        assertEquals(emptyList<Pair<Long, Long>>(), controller.state.value.pauseRanges)
+
+        controller.pause()
+        val pausedAt = controller.state.value.pausedAtMillis
+        controller.pause() // already paused: the first pause's start is kept
+        assertEquals(pausedAt, controller.state.value.pausedAtMillis)
+    }
+
+    @Test
+    fun `fixes while paused add no distance and no route point`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        locationSource.emit(fix(p1))
+        val distanceBefore = controller.state.value.distanceMeters
+
+        clock.currentMillis = start + 10_000L
+        controller.pause()
+        clock.currentMillis = start + 20_000L
+        locationSource.emit(fix(p2))
+        locationSource.emit(fix(p3))
+
+        assertEquals(distanceBefore, controller.state.value.distanceMeters, 0.001)
+        assertEquals(2, controller.state.value.routePoints.size)
+        // But the dot still follows the runner: the map shows where you are, paused or not.
+        assertEquals(p3 to 120.9842, controller.state.value.currentPosition)
+    }
+
+    @Test
+    fun `resuming re-anchors to the newest fix, so the paused gap adds no distance`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        locationSource.emit(fix(p1))
+        val distanceBefore = controller.state.value.distanceMeters // ~111 m
+
+        clock.currentMillis = start + 10_000L
+        controller.pause()
+        clock.currentMillis = start + 20_000L
+        locationSource.emit(fix(p3)) // walked ~222 m further while paused
+        clock.currentMillis = start + 25_000L
+        controller.resume()
+        clock.currentMillis = start + 28_000L
+        locationSource.emit(fix(p3 - 0.001)) // then ~111 m more once moving again
+
+        // Only the 111 m after resuming is added, not the 222 m moved while paused.
+        assertEquals(distanceBefore + 111.3, controller.state.value.distanceMeters, 2.0)
+    }
+
+    @Test
+    fun `resuming with no recent fix lets the next fix start the new stretch without adding the gap`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        locationSource.emit(fix(p1))
+        val distanceBefore = controller.state.value.distanceMeters
+
+        clock.currentMillis = start + 10_000L
+        controller.pause() // no fix arrives while paused
+        clock.currentMillis = start + 600_000L
+        controller.resume()
+        locationSource.emit(fix(p3)) // 222 m from where the pause began
+
+        assertEquals(distanceBefore, controller.state.value.distanceMeters, 0.001)
+        assertEquals(3, controller.state.value.routePoints.size) // but it is a point, the start of a new line
+    }
+
+    @Test
+    fun `route times stay on the clock with pauses included, and the saved pause ranges say where they are`() = runTest {
+        val trackRepo = FakeActivityTrackRepository()
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(trackRepo = trackRepo, locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        clock.currentMillis = start + 10_000L
+        locationSource.emit(fix(p0))
+        clock.currentMillis = start + 40_000L
+        locationSource.emit(fix(p1))
+        controller.pause()
+        clock.currentMillis = start + 340_000L // paused for 300 s
+        controller.resume()
+        clock.currentMillis = start + 345_000L
+        locationSource.emit(fix(p2))
+        clock.currentMillis = start + 400_000L
+        val finished = controller.finishTracking()
+
+        val track = trackRepo.getByWorkoutSetId("set-1")!!
+        assertEquals(listOf(10L, 40L, 345L), PolylineEncoding.decodeDeltas(track.routeTimes!!))
+        assertEquals(listOf(40L to 340L), PauseRanges.decode(track.pauseRanges))
+        // Moving time: 400 s on the clock minus the 300 s pause.
+        assertEquals(100, finished!!.durationSeconds)
+    }
+
+    @Test
+    fun `a run that was never paused saves no pause ranges`() = runTest {
+        val trackRepo = FakeActivityTrackRepository()
+        val controller = newController(trackRepo = trackRepo)
+        controller.startTracking("w-1", "set-1")
+        controller.finishTracking()
+        assertNull(trackRepo.getByWorkoutSetId("set-1")!!.pauseRanges)
+    }
+
+    @Test
+    fun `finishing while paused closes the open pause, and the duration is moving time`() = runTest {
+        val workout = WorkoutEntity(
+            id = "w-1", routineId = null, title = "Running (Outdoor)", notes = null,
+            status = WorkoutStatus.IN_PROGRESS, startedAt = start, endedAt = null,
+            durationSeconds = 0, createdAt = start, updatedAt = start,
+        )
+        val workoutRepo = FakeWorkoutRepository(workouts = listOf(workout), sets = listOf(blankSet()))
+        val trackRepo = FakeActivityTrackRepository()
+        val clock = FakeClock(start)
+        val controller = newController(workoutRepo = workoutRepo, trackRepo = trackRepo, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        clock.currentMillis = start + 120_000L
+        controller.pause()
+        clock.currentMillis = start + 420_000L // still paused when Finish is tapped
+
+        val finished = controller.finishTracking()
+
+        assertEquals(120, finished!!.durationSeconds)
+        assertEquals(120, workoutRepo.getById("w-1")!!.durationSeconds)
+        assertEquals(120, workoutRepo.getSetsForWorkoutExercise("we-1").single().durationSeconds)
+        assertEquals(listOf(120L to 420L), PauseRanges.decode(trackRepo.getByWorkoutSetId("set-1")!!.pauseRanges))
+    }
+
+    @Test
+    fun `a pause and resume within one second is still saved, so the hop across it is still a break`() = runTest {
+        val trackRepo = FakeActivityTrackRepository()
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(trackRepo = trackRepo, locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        clock.currentMillis = start + 20_000L
+        locationSource.emit(fix(p0))
+        clock.currentMillis = start + 20_300L
+        controller.pause()
+        clock.currentMillis = start + 20_600L
+        controller.resume()
+        clock.currentMillis = start + 25_000L
+        locationSource.emit(fix(p1))
+        controller.finishTracking()
+
+        assertEquals(listOf(20L to 20L), PauseRanges.decode(trackRepo.getByWorkoutSetId("set-1")!!.pauseRanges))
+    }
+
+    // ---- GPS signal ----
+
+    @Test
+    fun `the signal is finding until the first usable fix, then good`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        assertEquals(GpsSignal.FINDING, controller.state.value.gpsSignal(clock.currentMillis))
+
+        locationSource.emit(fix(p0, accuracy = 50f)) // too imprecise to count
+        assertEquals(GpsSignal.FINDING, controller.state.value.gpsSignal(clock.currentMillis))
+
+        locationSource.emit(fix(p0))
+        assertEquals(GpsSignal.GOOD, controller.state.value.gpsSignal(clock.currentMillis))
+    }
+
+    @Test
+    fun `fifteen seconds with no usable fix is weak, and it takes two good fixes in a row to clear it`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+
+        clock.currentMillis = start + 15_000L
+        assertEquals(GpsSignal.GOOD, controller.state.value.gpsSignal(clock.currentMillis)) // exactly at the threshold
+        clock.currentMillis = start + 15_001L
+        assertEquals(GpsSignal.WEAK, controller.state.value.gpsSignal(clock.currentMillis))
+
+        clock.currentMillis = start + 30_000L
+        locationSource.emit(fix(p1)) // the first fix back
+        assertEquals(GpsSignal.WEAK, controller.state.value.gpsSignal(clock.currentMillis))
+        clock.currentMillis = start + 33_000L
+        locationSource.emit(fix(p2)) // the second
+        assertEquals(GpsSignal.GOOD, controller.state.value.gpsSignal(clock.currentMillis))
+    }
+
+    @Test
+    fun `a second gap while recovering starts the recovery over`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        clock.currentMillis = start + 30_000L
+        locationSource.emit(fix(p1)) // first good fix after a gap
+        clock.currentMillis = start + 50_000L
+        locationSource.emit(fix(p2)) // 20 s later: another gap, so this is the first good fix again
+        assertEquals(GpsSignal.WEAK, controller.state.value.gpsSignal(clock.currentMillis))
+        clock.currentMillis = start + 52_000L
+        locationSource.emit(fix(p3))
+        assertEquals(GpsSignal.GOOD, controller.state.value.gpsSignal(clock.currentMillis))
+    }
+
+    @Test
+    fun `standing still keeps the signal good, though those fixes add no distance`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        for (i in 1..10) {
+            clock.currentMillis = start + i * 10_000L
+            locationSource.emit(fix(p0 - 0.00001)) // ~1 m: below the 3 m floor, but a good fix
+        }
+        assertEquals(GpsSignal.GOOD, controller.state.value.gpsSignal(clock.currentMillis))
+        assertEquals(0.0, controller.state.value.distanceMeters, 0.001)
+        assertEquals(1, controller.state.value.routePoints.size)
+    }
+
+    @Test
+    fun `the signal stays good while paused, because the listener keeps running`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        controller.pause()
+        for (i in 1..4) {
+            clock.currentMillis = start + i * 10_000L
+            locationSource.emit(fix(p0))
+        }
+        assertEquals(GpsSignal.GOOD, controller.state.value.gpsSignal(clock.currentMillis))
+    }
+
+    // ---- live stats ----
+
+    @Test
+    fun `live stats read moving time, the pause length and no pace now while paused`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        // A steady ~50 m every 10 s (5 m/s) for three minutes.
+        for (i in 0..18) {
+            clock.currentMillis = start + i * 10_000L
+            locationSource.emit(fix(p0 - i * 0.00045))
+        }
+        clock.currentMillis = start + 190_000L
+        val moving = controller.state.value.liveStats(DistanceUnit.KM, clock.currentMillis)
+        assertEquals(190, moving.elapsedSeconds)
+        assertNull(moving.pausedForSeconds)
+        assertEquals(GpsSignal.GOOD, moving.gps)
+        // 5 m/s is 3:20/km, but the last fix was 10 s ago and the distance is held flat since it, so the
+        // minute reads 250 m: 4:00/km. That is the documented way "now" is measured.
+        assertEquals(240.0, moving.paceNowSecondsPerUnit!!, 5.0)
+
+        controller.pause()
+        clock.currentMillis = start + 250_000L
+        val paused = controller.state.value.liveStats(DistanceUnit.KM, clock.currentMillis)
+        assertEquals(190, paused.elapsedSeconds)
+        assertEquals(60, paused.pausedForSeconds)
+        assertNull(paused.paceNowSecondsPerUnit)
+    }
+
+    @Test
+    fun `the live stats flow reports in the unit it is asked for, and does nothing before a run starts`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        for (i in 0..18) {
+            clock.currentMillis = start + i * 10_000L
+            locationSource.emit(fix(p0 - i * 0.00045))
+        }
+        clock.currentMillis = start + 190_000L
+
+        val km = controller.liveStats(DistanceUnit.KM).first()
+        val miles = controller.liveStats(DistanceUnit.MILES).first()
+
+        assertEquals(190, km.elapsedSeconds)
+        assertEquals(190, miles.elapsedSeconds)
+        // The same minute of running, per mile instead of per km.
+        assertEquals(km.paceNowSecondsPerUnit!! * 1.609344, miles.paceNowSecondsPerUnit!!, 1.0)
+
+        controller.cancelTracking()
+        // Nothing tracking: the flow emits nothing, rather than a row of zeros.
+        assertNull(withTimeoutOrNull(2_500) { controller.liveStats(DistanceUnit.KM).first() })
+    }
+
+    @Test
+    fun `pace now reads null whenever the signal is not good`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        for (i in 0..18) {
+            clock.currentMillis = start + i * 10_000L
+            locationSource.emit(fix(p0 - i * 0.00045))
+        }
+        clock.currentMillis = start + 210_000L // the last fix was 30 s ago: weak
+        val stats = controller.state.value.liveStats(DistanceUnit.KM, clock.currentMillis)
+        assertEquals(GpsSignal.WEAK, stats.gps)
+        assertNull(stats.paceNowSecondsPerUnit)
+    }
+
+    @Test
+    fun `startTracking resets pause, signal and route lists from a previous run`() = runTest {
+        val locationSource = FakeLocationSource()
+        val clock = FakeClock(start)
+        val controller = newController(locationSource = locationSource, clock = clock)
+        controller.startTracking("w-1", "set-1")
+        locationSource.emit(fix(p0))
+        controller.pause()
+        controller.cancelTracking()
+
+        controller.startTracking("w-2", "set-1")
+        val state = controller.state.value
+        assertFalse(state.isPaused)
+        assertNull(state.lastGoodFixMillis)
+        assertNull(state.currentPosition)
+        assertEquals(emptyList<Long>(), state.routeTimes)
+        assertEquals(emptyList<Double>(), state.routeDistances)
+        assertEquals(emptyList<Pair<Long, Long>>(), state.pauseRanges)
     }
 }

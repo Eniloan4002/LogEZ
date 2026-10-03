@@ -108,7 +108,7 @@ fun WorkoutSummaryScreen(
                 if (showFullMap && uiState.routePoints.isNotEmpty()) {
                     // Composed after the screen's own BackHandler, so Back closes the map first.
                     BackHandler { showFullMap = false }
-                    FullScreenRouteMap(routePoints = uiState.routePoints, onClose = { showFullMap = false })
+                    FullScreenRouteMap(routePoints = uiState.routePoints, routeBreaks = uiState.routeBreaks, onClose = { showFullMap = false })
                 }
             }
         } else Column(
@@ -178,6 +178,7 @@ fun WorkoutSummaryScreen(
                 // Owner's explicit choice once the spike proved the concept (decisions.md 2026-09-10).
                 RouteMapView(
                     routePoints = uiState.routePoints,
+                    routeBreaks = uiState.routeBreaks,
                     followLatest = false,
                     modifier = Modifier.fillMaxWidth().height(180.dp).padding(top = Spacing.lg).clip(RoundedCornerShape(Radius.sm)),
                 )
@@ -236,6 +237,7 @@ fun WorkoutSummaryScreen(
                         },
                     ),
                     routePoints = uiState.routePoints,
+                    routeBreaks = uiState.routeBreaks,
                     distanceNumber = if (uiState.hasDistance) formatDistanceNumber(uiState.totalDistanceMeters, uiState.distanceUnit) else null,
                     distanceUnitLabel = if (km) "km" else "mi",
                     timeText = com.enil.logez.core.designsystem.formatElapsedClock(uiState.durationSeconds),

@@ -6,7 +6,11 @@ import com.enil.logez.core.data.entity.WorkoutSetEntity
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
+import com.enil.logez.core.domain.model.ActiveSessionSnapshot
+import com.enil.logez.feature.workout.session.WorkoutSessionController
+import com.enil.logez.fakes.FakeActiveSessionRepository
 import com.enil.logez.fakes.FakeActivityTrackRepository
+import com.enil.logez.fakes.FakeElapsedRealtimeClock
 import com.enil.logez.fakes.FakeClock
 import com.enil.logez.fakes.FakeLocationSource
 import com.enil.logez.fakes.FakeWorkoutRepository
@@ -49,12 +53,20 @@ class InterruptedTrackingRecoveryTest {
         ),
     )
 
-    private fun recovery(workoutRepo: FakeWorkoutRepository) = InterruptedTrackingRecovery(
+    private fun sessionController(session: FakeActiveSessionRepository = FakeActiveSessionRepository()) = WorkoutSessionController(
+        session, FakeClock(now), FakeElapsedRealtimeClock(), CoroutineScope(UnconfinedTestDispatcher()),
+    )
+
+    private fun recovery(
+        workoutRepo: FakeWorkoutRepository,
+        session: WorkoutSessionController = sessionController(),
+    ) = InterruptedTrackingRecovery(
         workoutRepo,
         ActivityTrackingController(
             workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), FakeClock(now),
             CoroutineScope(UnconfinedTestDispatcher()),
         ),
+        session,
         FakeClock(now),
     )
 
@@ -62,6 +74,38 @@ class InterruptedTrackingRecoveryTest {
     fun `keepElapsedTime freezes the elapsed duration onto the workout`() = runTest {
         val repo = repo()
         assertTrue(recovery(repo).keepElapsedTime("run1"))
+        assertEquals(4_320, repo.getById("run1")?.durationSeconds)
+    }
+
+    @Test
+    fun `a run killed while paused keeps its moving time, not the time since it began`() = runTest {
+        // Ran 20 minutes, paused, and the process died: the session clock saved 1,200 s and isPaused.
+        val saved = FakeActiveSessionRepository(
+            ActiveSessionSnapshot(workoutId = "run1", isPaused = true, accumulatedActiveSeconds = 1_200L, lastResumedAtMillis = null),
+        )
+        val repo = repo()
+        assertTrue(recovery(repo, sessionController(saved)).keepElapsedTime("run1"))
+        assertEquals(1_200, repo.getById("run1")?.durationSeconds)
+    }
+
+    @Test
+    fun `a run killed while moving counts the time since its last resume`() = runTest {
+        // 10 minutes accumulated, then resumed 5 minutes before now.
+        val saved = FakeActiveSessionRepository(
+            ActiveSessionSnapshot(workoutId = "run1", isPaused = false, accumulatedActiveSeconds = 600L, lastResumedAtMillis = now - 300_000L),
+        )
+        val repo = repo()
+        recovery(repo, sessionController(saved)).keepElapsedTime("run1")
+        assertEquals(900, repo.getById("run1")?.durationSeconds)
+    }
+
+    @Test
+    fun `a saved session clock for a different workout is not used`() = runTest {
+        val saved = FakeActiveSessionRepository(
+            ActiveSessionSnapshot(workoutId = "someone-else", isPaused = true, accumulatedActiveSeconds = 5L),
+        )
+        val repo = repo()
+        recovery(repo, sessionController(saved)).keepElapsedTime("run1")
         assertEquals(4_320, repo.getById("run1")?.durationSeconds)
     }
 

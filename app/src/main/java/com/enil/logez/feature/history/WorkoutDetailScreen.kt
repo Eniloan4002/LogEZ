@@ -252,7 +252,7 @@ fun WorkoutDetailScreen(
             // bounds -- only rendered for a GPS-tracked workout (uiState.hasRoute), never a strength one.
             if (uiState.hasRoute) {
                 item {
-                    RouteCard(routePoints = uiState.routePoints)
+                    RouteCard(routePoints = uiState.routePoints, routeBreaks = uiState.routeBreaks)
                 }
             }
 
@@ -479,12 +479,13 @@ private fun DetailSetRow.toTableRow() = HistorySetTableRow(
 
 /** M21b/c: the offline Metro Manila map with the recorded GPS route drawn on it, camera fit to the route's bounds. */
 @Composable
-private fun RouteCard(routePoints: List<Pair<Double, Double>>) {
+private fun RouteCard(routePoints: List<Pair<Double, Double>>, routeBreaks: Set<Int>) {
     LogEzCard(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.sm)) {
         Column(modifier = Modifier.padding(Spacing.md)) {
             Text(stringResource(R.string.workout_detail_route_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             RouteMapView(
                 routePoints = routePoints,
+                routeBreaks = routeBreaks,
                 followLatest = false,
                 modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = Spacing.sm).clip(RoundedCornerShape(Radius.sm)),
             )

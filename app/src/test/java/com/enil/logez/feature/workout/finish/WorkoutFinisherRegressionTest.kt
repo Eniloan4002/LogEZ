@@ -384,6 +384,7 @@ class WorkoutFinisherRegressionTest {
         return WorkoutFinisher(
             workoutRepo, routineRepo, updater, runner,
             FakeHealthMetricsSource(), FakeWorkoutHeartRateSampleRepository(), FakeClock(currentMillis = nowMillis),
+            com.enil.logez.fakes.FakeActivityTrackRepository(),
         )
     }
 

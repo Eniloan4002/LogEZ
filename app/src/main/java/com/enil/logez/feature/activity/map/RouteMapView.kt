@@ -3,9 +3,10 @@ package com.enil.logez.feature.activity.map
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.res.stringResource
@@ -47,12 +49,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.enil.logez.R
 import com.enil.logez.core.designsystem.Spacing
+import com.enil.logez.core.domain.calc.PauseRanges
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
@@ -64,6 +68,7 @@ import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
+import org.maplibre.geojson.MultiLineString
 import org.maplibre.geojson.Point
 
 /**
@@ -105,6 +110,8 @@ private const val ROUTE_BOUNDS_PADDING_PX = 96
 
 private const val ROUTE_SOURCE_ID = "route-source"
 private const val ROUTE_LAYER_ID = "route-layer"
+private const val POSITION_SOURCE_ID = "current-position-source"
+private const val POSITION_LAYER_ID = "current-position-layer"
 private const val ENDPOINTS_SOURCE_ID = "route-endpoints-source"
 private const val START_LAYER_ID = "route-start-layer"
 private const val FINISH_LAYER_ID = "route-finish-layer"
@@ -125,8 +132,25 @@ private fun endpointsFeatures(points: List<Pair<Double, Double>>): FeatureCollec
     return FeatureCollection.fromFeatures(features)
 }
 
-private fun routeFeature(points: List<Pair<Double, Double>>): Feature =
-    Feature.fromGeometry(LineString.fromLngLats(points.map { (lat, lng) -> Point.fromLngLat(lng, lat) }))
+/**
+ * The route as one line per continuous stretch, so no straight line crosses a paused gap
+ * ([breaks] are the point indices that start a new stretch, see [PauseRanges.breakIndices]). Null
+ * when no stretch has two points yet.
+ */
+internal fun routeFeature(points: List<Pair<Double, Double>>, breaks: Set<Int>): Feature? {
+    val segments = PauseRanges.segments(points, breaks)
+        .map { segment -> segment.map { (lat, lng) -> Point.fromLngLat(lng, lat) } }
+    return when (segments.size) {
+        0 -> null
+        1 -> Feature.fromGeometry(LineString.fromLngLats(segments.single()))
+        else -> Feature.fromGeometry(MultiLineString.fromLngLats(segments))
+    }
+}
+
+private fun positionFeatures(position: Pair<Double, Double>?): FeatureCollection =
+    FeatureCollection.fromFeatures(
+        listOfNotNull(position?.let { (lat, lng) -> Feature.fromGeometry(Point.fromLngLat(lng, lat)) }),
+    )
 
 private fun routeBounds(points: List<Pair<Double, Double>>): LatLngBounds {
     val builder = LatLngBounds.Builder()
@@ -192,6 +216,13 @@ private fun routeCentroid(points: List<Pair<Double, Double>>): LatLng =
  *   drag for itself and the page stops scrolling (the conflict ActivityTrackingScreen documents).
  *   [onMapClick] then makes a tap open something else, the summary's full-screen map.
  * - [showEndpoints] draws a start dot and a finish dot; recaps show them, live tracking doesn't.
+ *
+ * Live tracking screen (2026-10-01):
+ * - [currentPosition] draws a "you are here" dot (live tracking had none until the line had two
+ *   points), and the camera follows it, not the last route point, so it keeps following while paused
+ *   or standing still. [routeBreaks] draws one line per moving stretch. [loadErrorText] replaces the
+ *   workout recap's wording of the load error, and [loadingLabel] captions the spinner. The frame
+ *   shown while the map loads, and the panel behind the spinner and the load error, are the card surface tone, not MapLibre's light beige.
  * - [fitPadding] replaces the default bounds padding per side, so a route can clear overlays such
  *   as the summary's top scrim and bottom fade. [attributionPadding] lifts the credit line clear
  *   of them too, keeping it visible as OpenStreetMap requires.
@@ -206,6 +237,11 @@ fun RouteMapView(
     showEndpoints: Boolean = !followLatest,
     fitPadding: PaddingValues? = null,
     attributionPadding: PaddingValues = PaddingValues(0.dp),
+    currentPosition: Pair<Double, Double>? = null,
+    showCurrentPosition: Boolean = false,
+    routeBreaks: Set<Int> = emptySet(),
+    loadErrorText: String? = null,
+    loadingLabel: String? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -218,6 +254,7 @@ fun RouteMapView(
     val startColor = MaterialTheme.colorScheme.primary.toArgb()
     val finishColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val endpointStrokeColor = MaterialTheme.colorScheme.background.toArgb()
+    val loadFrameColor = MaterialTheme.colorScheme.surface.toArgb()
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val fitPaddingPx = fitPadding?.let { padding ->
@@ -249,6 +286,17 @@ fun RouteMapView(
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                 ),
             )
+            if (showCurrentPosition) {
+                style.addSource(GeoJsonSource(POSITION_SOURCE_ID))
+                style.addLayer(
+                    CircleLayer(POSITION_LAYER_ID, POSITION_SOURCE_ID).withProperties(
+                        PropertyFactory.circleRadius(6.5f),
+                        PropertyFactory.circleColor(finishColor),
+                        PropertyFactory.circleStrokeColor(endpointStrokeColor),
+                        PropertyFactory.circleStrokeWidth(3f),
+                    ),
+                )
+            }
             if (showEndpoints) {
                 style.addSource(GeoJsonSource(ENDPOINTS_SOURCE_ID))
                 // Finish first, so a start dot on top of it stays visible on a loop that ends
@@ -290,7 +338,11 @@ fun RouteMapView(
             return@Box
         }
 
-        val mapView = remember { MapView(context) }
+        // The options only set the frame shown while tiles load: the app's dark background instead of
+        // MapLibre's default light beige, which flashed on every map in a dark-only app.
+        val mapView = remember {
+            MapView(context, MapLibreMapOptions.createFromAttributes(context).foregroundLoadColor(loadFrameColor))
+        }
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
@@ -364,12 +416,14 @@ fun RouteMapView(
         // (no connectivity, a tile-server outage) shows a retry affordance instead of
         // spinning forever -- see loadStyle()'s and the failure listener's own comments above.
         if (loadError != null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        stringResource(R.string.map_load_error),
+                        loadErrorText ?: stringResource(R.string.map_load_error),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = Spacing.lg),
                     )
                     OutlinedButton(
                         onClick = { maplibreMap?.let(::loadStyle) },
@@ -380,8 +434,18 @@ fun RouteMapView(
                 }
             }
         } else if (!styleReady) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    if (loadingLabel != null) {
+                        Text(
+                            loadingLabel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Spacing.sm),
+                        )
+                    }
+                }
             }
         }
 
@@ -389,60 +453,75 @@ fun RouteMapView(
         val openFreeMap = stringResource(R.string.map_attribution_openfreemap)
         val openMapTiles = stringResource(R.string.map_attribution_openmaptiles)
         val openStreetMap = stringResource(R.string.map_attribution_osm)
-        Text(
-            buildAnnotatedString {
-                withLink(LinkAnnotation.Url(OPENFREEMAP_URL, linkStyles)) { append(openFreeMap) }
-                append(" ")
-                withLink(LinkAnnotation.Url(OPENMAPTILES_URL, linkStyles)) { append(openMapTiles) }
-                append(" ")
-                withLink(LinkAnnotation.Url(OSM_COPYRIGHT_URL, linkStyles)) { append(openStreetMap) }
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.Black,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(attributionPadding)
-                .background(Color.White.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-        )
-
-        // Only ever meaningful while actively following -- a static recap/history map has no
-        // "latest fix" to snap back to, and isn't fought by a repeating auto-follow call in the
-        // first place (its own bounds-fit only runs once, when routePoints first arrives).
-        if (followLatest && userPanned) {
-            Surface(
-                onClick = {
-                    userPanned = false
-                    val (lat, lng) = routePoints.lastOrNull() ?: return@Surface
-                    maplibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), FOLLOW_ZOOM))
-                },
-                modifier = Modifier.align(Alignment.BottomStart).padding(Spacing.sm).size(44.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 4.dp,
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        Icons.Outlined.MyLocation,
-                        contentDescription = stringResource(R.string.map_recenter),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+        // The recenter button sits above the credit line, never over it: the credit is a licence
+        // requirement and must stay fully readable.
+        Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+            // Only ever meaningful while actively following -- a static recap/history map has no
+            // "latest fix" to snap back to, and isn't fought by a repeating auto-follow call in the
+            // first place (its own bounds-fit only runs once, when routePoints first arrives).
+            if (followLatest && userPanned) {
+                Surface(
+                    onClick = {
+                        userPanned = false
+                        val (lat, lng) = currentPosition ?: routePoints.lastOrNull() ?: return@Surface
+                        maplibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), FOLLOW_ZOOM))
+                    },
+                    modifier = Modifier.padding(start = Spacing.sm, bottom = Spacing.xs).size(44.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 4.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            Icons.Outlined.MyLocation,
+                            contentDescription = stringResource(R.string.map_recenter),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
+
+            Text(
+                buildAnnotatedString {
+                    withLink(LinkAnnotation.Url(OPENFREEMAP_URL, linkStyles)) { append(openFreeMap) }
+                    append(" ")
+                    withLink(LinkAnnotation.Url(OPENMAPTILES_URL, linkStyles)) { append(openMapTiles) }
+                    append(" ")
+                    withLink(LinkAnnotation.Url(OSM_COPYRIGHT_URL, linkStyles)) { append(openStreetMap) }
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Black,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(attributionPadding)
+                    .background(Color.White.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+            )
         }
     }
 
-    // Owns every route-specific update: the initial population once styleReady flips true, and
-    // every subsequent growth during live tracking. Never touches the style-load callback above.
-    LaunchedEffect(routePoints, styleReady) {
+    // The route line and the endpoint dots only change when a point is added, so they are not keyed
+    // on [currentPosition]: that moves on every usable fix, including the stationary and paused ones
+    // that add no point, and re-serialising the whole route for those was wasted work.
+    LaunchedEffect(routePoints, routeBreaks, styleReady) {
+        if (!styleReady) return@LaunchedEffect
+        val style = maplibreMap?.style ?: return@LaunchedEffect
+        val source = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID) ?: return@LaunchedEffect
+        routeFeature(routePoints, routeBreaks)?.let { source.setGeoJson(it) }
+        if (showEndpoints && routePoints.isNotEmpty()) {
+            style.getSourceAs<GeoJsonSource>(ENDPOINTS_SOURCE_ID)?.setGeoJson(endpointsFeatures(routePoints))
+        }
+    }
+
+    // Owns the "you are here" dot and the camera: the initial framing once styleReady flips true, and
+    // every subsequent move during live tracking. Never touches the style-load callback above.
+    LaunchedEffect(routePoints, currentPosition, styleReady) {
         if (!styleReady) return@LaunchedEffect
         val map = maplibreMap ?: return@LaunchedEffect
         val style = map.style ?: return@LaunchedEffect
-        val source = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID) ?: return@LaunchedEffect
 
-        if (routePoints.size >= 2) source.setGeoJson(routeFeature(routePoints))
-        if (showEndpoints && routePoints.isNotEmpty()) {
-            style.getSourceAs<GeoJsonSource>(ENDPOINTS_SOURCE_ID)?.setGeoJson(endpointsFeatures(routePoints))
+        if (showCurrentPosition) {
+            style.getSourceAs<GeoJsonSource>(POSITION_SOURCE_ID)?.setGeoJson(positionFeatures(currentPosition))
         }
 
         // userPanned: don't fight a gesture the user is mid-way through -- see the class doc
@@ -450,8 +529,9 @@ fun RouteMapView(
         if (userPanned) return@LaunchedEffect
 
         if (followLatest) {
-            if (routePoints.isNotEmpty()) {
-                val (lat, lng) = routePoints.last()
+            val newest = currentPosition ?: routePoints.lastOrNull()
+            if (newest != null) {
+                val (lat, lng) = newest
                 map.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), FOLLOW_ZOOM))
             }
         } else if (routePoints.size == 1 || (routePoints.size >= 2 && isDegenerateRoute(routePoints))) {

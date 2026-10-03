@@ -28,6 +28,7 @@ import com.enil.logez.feature.workout.session.InlineTimerState
 import com.enil.logez.feature.workout.session.SetCompletionUseCase
 import com.enil.logez.feature.workout.session.TimedSetNotificationContent
 import com.enil.logez.feature.workout.session.TimerWakeLock
+import com.enil.logez.feature.workout.session.WorkoutDurationEngine
 import com.enil.logez.feature.workout.session.WorkoutSessionController
 import com.enil.logez.feature.workout.session.WorkoutSessionState
 import dagger.hilt.android.AndroidEntryPoint
@@ -229,7 +230,7 @@ class WorkoutSessionService : Service() {
         }
         serviceScope.launch {
             sessionController.state
-                .map { NotificationDisplayKey(it.notificationContent, it.isPaused, it.restDeadlineElapsedRealtimeMillis != null, it.accumulatedActiveSeconds, it.inlineTimer) }
+                .map { NotificationDisplayKey(it.notificationContent, it.isPaused, it.restDeadlineElapsedRealtimeMillis != null, it.accumulatedActiveSeconds, it.lastResumedAtMillis, it.inlineTimer) }
                 .distinctUntilChanged()
                 .collect { postNotification(buildNotification(sessionController.state.value)) }
         }
@@ -440,7 +441,12 @@ class WorkoutSessionService : Service() {
                 }
             }
             !state.isPaused -> {
-                val effectiveStart = System.currentTimeMillis() - state.accumulatedActiveSeconds * 1000
+                // The workout clock, not the time since this notification was last rebuilt: while a session
+                // runs `accumulatedActiveSeconds` is only what earlier pauses banked, so it is the span
+                // since the last resume that has to be added (WorkoutDurationEngine owns that rule).
+                val effectiveStart = WorkoutDurationEngine.chronometerBaseMillis(
+                    state.accumulatedActiveSeconds, state.isPaused, state.lastResumedAtMillis, System.currentTimeMillis(),
+                )
                 builder.setUsesChronometer(true).setChronometerCountDown(false).setWhen(effectiveStart)
                 val exerciseId = content?.actionableExerciseId
                 val setId = content?.actionableSetId
@@ -508,6 +514,9 @@ class WorkoutSessionService : Service() {
         val isPaused: Boolean,
         val isResting: Boolean,
         val accumulatedActiveSeconds: Long,
+        // Part of the key: a reset that keeps the session running only moves this, and the chronometer
+        // base is derived from it.
+        val lastResumedAtMillis: Long?,
         val inlineTimer: InlineTimerState?,
     )
 

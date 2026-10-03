@@ -145,7 +145,12 @@ fun LogEzNavHost(
                         popUpTo(ActivityTrackingRoutes.LIVE_TRACKING) { inclusive = true }
                     }
                 },
-                onCancelled = { navController.popBackStack() },
+                // Back and the down arrow hide the screen and leave tracking running (decision 2,
+                // 2026-10-01): the mini-bar on the tab roots brings it back. Discard is separate.
+                // Popped by route, so a double tap (the second pop finds the route gone) cannot also
+                // pop the tab the person came from.
+                onHide = { navController.popBackStack(ActivityTrackingRoutes.LIVE_TRACKING, inclusive = true) },
+                onCancelled = { navController.popBackStack(ActivityTrackingRoutes.LIVE_TRACKING, inclusive = true) },
             )
         }
         composable(LogEzDestination.Profile.route) {

@@ -2,6 +2,7 @@ package com.enil.logez.feature.activity
 
 import com.enil.logez.core.common.Clock
 import com.enil.logez.core.domain.repository.WorkoutRepository
+import com.enil.logez.feature.workout.session.WorkoutSessionController
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 class InterruptedTrackingRecovery @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val activityTrackingController: ActivityTrackingController,
+    private val sessionController: WorkoutSessionController,
     private val clock: Clock,
 ) {
     /**
@@ -27,6 +29,12 @@ class InterruptedTrackingRecovery @Inject constructor(
      * sets before rebuilding PRs, so leaving it blank would silently delete the workout's only row
      * when the user saves.
      *
+     * The elapsed time is MOVING time: the strength session clock the run shared (`accumulatedActiveSeconds`,
+     * `isPaused`, `lastResumedAtMillis`, saved with every Pause and Resume) is what the mini-bar showed,
+     * so a run killed while paused saves the time it had when paused, not the wall time since it began.
+     * Without that saved clock (it was cleared, or belongs to another workout) it falls back to the
+     * time since the run began.
+     *
      * Deliberately leaves the workout IN_PROGRESS: the Save Workout screen still owns the
      * COMPLETED flip, and its editable duration field is the correction path for a run reopened
      * long after it was interrupted.
@@ -34,7 +42,12 @@ class InterruptedTrackingRecovery @Inject constructor(
     suspend fun keepElapsedTime(workoutId: String): Boolean {
         val workout = workoutRepository.getById(workoutId) ?: return false
         val now = clock.now().toEpochMilliseconds()
-        val elapsedSeconds = ((now - workout.startedAt) / 1000).toInt().coerceAtLeast(0)
+        sessionController.rehydrate()
+        val elapsedSeconds = if (sessionController.state.value.workoutId == workoutId) {
+            sessionController.elapsedSeconds(now).toInt().coerceAtLeast(0)
+        } else {
+            ((now - workout.startedAt) / 1000).toInt().coerceAtLeast(0)
+        }
 
         val sets = workoutRepository.getExercisesForWorkout(workoutId)
             .flatMap { workoutRepository.getSetsForWorkoutExercise(it.id) }

@@ -7,6 +7,7 @@ import com.enil.logez.core.common.PolylineEncoding
 import com.enil.logez.core.data.entity.PersonalRecordEntity
 import com.enil.logez.core.data.entity.WorkoutEntity
 import com.enil.logez.core.data.entity.WorkoutExerciseEntity
+import com.enil.logez.core.domain.calc.PauseRanges
 import com.enil.logez.core.domain.calc.StatSet
 import com.enil.logez.core.domain.calc.VolumeCalculator
 import com.enil.logez.core.domain.calc.isIncluded
@@ -155,6 +156,11 @@ class WorkoutDetailViewModel @Inject constructor(
         // the identical reason, so the two screens can't disagree about whether a route exists.
         val track = rows.firstNotNullOfOrNull { row -> activityTrackRepository.getByWorkoutSetId(row.set.setId) }
         val routePoints = track?.routePolyline?.let(PolylineEncoding::decode) ?: emptyList()
+        // The route's pauses (null for a run that was never paused): no line is drawn across one.
+        val routeBreaks = PauseRanges.breakIndices(
+            track?.routeTimes?.let(PolylineEncoding::decodeDeltas).orEmpty(),
+            PauseRanges.decode(track?.pauseRanges),
+        )
 
         val heartRateSummary = HeartRateSummaryCalculator.summarize(
             samples = heartRateSampleRepository.getForWorkout(workoutId).map { it.recordedAt to it.bpm },
@@ -188,6 +194,7 @@ class WorkoutDetailViewModel @Inject constructor(
             // that GPS recorded no points instead (2026-09-26).
             hasRoute = track?.routePolyline != null,
             routePoints = routePoints,
+            routeBreaks = routeBreaks,
         )
     }
 
@@ -254,6 +261,8 @@ data class WorkoutDetailUiState(
     val hasRoute: Boolean = false,
     /** M21c: decoded from the tracked set's saved polyline -- the actual line the Route card draws. */
     val routePoints: List<Pair<Double, Double>> = emptyList(),
+    /** Indices of [routePoints] that start a new stretch after a pause. */
+    val routeBreaks: Set<Int> = emptySet(),
     /** Saved heart rate for this workout, or null with none; shows the Heart rate card (2026-09-26). */
     val heartRateSummary: HeartRateSummary? = null,
 )

@@ -101,6 +101,8 @@ data class GpsShareCardData(
     val paceLabel: String,
     val avgBpmText: String?,
     val prLines: List<Pair<String, String>>,
+    /** Indices of [routePoints] that start a new stretch after a pause: nothing is drawn into them. */
+    val routeBreaks: Set<Int> = emptySet(),
 )
 
 /**
@@ -260,7 +262,7 @@ private fun GpsShareCard(data: ShareCardData, gps: GpsShareCardData, format: Sha
             Hairline(Modifier.padding(top = Spacing.md))
 
             if (gps.routePoints.size >= 2) {
-                RouteDrawing(gps.routePoints, Modifier.fillMaxWidth().weight(1f).padding(vertical = Spacing.xs))
+                RouteDrawing(gps.routePoints, gps.routeBreaks, Modifier.fillMaxWidth().weight(1f).padding(vertical = Spacing.xs))
             } else {
                 Spacer(Modifier.weight(1f))
             }
@@ -333,7 +335,7 @@ private fun GpsCardStat(value: String, label: String, modifier: Modifier = Modif
  * matching the map's route styling.
  */
 @Composable
-private fun RouteDrawing(points: List<Pair<Double, Double>>, modifier: Modifier = Modifier) {
+private fun RouteDrawing(points: List<Pair<Double, Double>>, breaks: Set<Int>, modifier: Modifier = Modifier) {
     val line = MaterialTheme.colorScheme.primary
     val finish = MaterialTheme.colorScheme.onSurface
     val ring = MaterialTheme.colorScheme.background
@@ -352,7 +354,7 @@ private fun RouteDrawing(points: List<Pair<Double, Double>>, modifier: Modifier 
         fun at(i: Int) = Offset((offsetX + (xs[i] - minX) * scale).toFloat(), (offsetY + (ys[i] - minY) * scale).toFloat())
         val path = Path().apply {
             moveTo(at(0).x, at(0).y)
-            for (i in 1 until points.size) lineTo(at(i).x, at(i).y)
+            for (i in 1 until points.size) if (i in breaks) moveTo(at(i).x, at(i).y) else lineTo(at(i).x, at(i).y)
         }
         drawPath(path, line.copy(alpha = 0.14f), style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         drawPath(path, line, style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))

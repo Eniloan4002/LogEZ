@@ -36,6 +36,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
+ * The notification's chronometer: [running] is false while paused (the notification then shows no time at all),
+ * and [baseMillis] is the instant it counts up from, [nowMillis] minus MOVING time, so it already
+ * excludes every earlier pause.
+ */
+internal data class TrackingNotificationClock(val running: Boolean, val baseMillis: Long)
+
+internal fun trackingNotificationClock(state: ActivityTrackingState, nowMillis: Long) =
+    TrackingNotificationClock(running = !state.isPaused, baseMillis = nowMillis - state.elapsedSeconds(nowMillis) * 1000L)
+
+/**
  * M21a. Thin shell mirroring [com.enil.logez.feature.workout.service.WorkoutSessionService]'s
  * split of concerns: [ActivityTrackingController] is the testable state machine, this class only
  * wires it to the platform APIs a Service uniquely has access to (the foreground notification).
@@ -169,8 +179,10 @@ class ActivityTrackingService : Service() {
         if (!collectorStarted) {
             collectorStarted = true
             serviceScope.launch {
+                // Distance and the paused flag both change what the notification says (a pause
+                // also stops its chronometer), so either one rebuilds it.
                 combine(
-                    controller.state.map { it.distanceMeters }.distinctUntilChanged(),
+                    controller.state.map { it.distanceMeters to it.isPaused }.distinctUntilChanged(),
                     settingsRepository.settings.map { it.distanceUnit }.distinctUntilChanged(),
                 ) { _, unit -> unit }.collect { unit ->
                     distanceUnit = unit
@@ -215,6 +227,7 @@ class ActivityTrackingService : Service() {
 
     private fun buildNotification(state: ActivityTrackingState): Notification {
         val unit = distanceUnit
+        val clock = trackingNotificationClock(state, System.currentTimeMillis())
         val text = getString(
             if (unit == DistanceUnit.MILES) R.string.activity_tracking_notification_text_mi else R.string.activity_tracking_notification_text,
             formatDistanceNumber(DistanceDisplay.toDisplay(state.distanceMeters, unit)),
@@ -227,14 +240,21 @@ class ActivityTrackingService : Service() {
         )
         return NotificationCompat.Builder(this, WorkoutNotificationChannels.WORKOUT_ONGOING)
             .setSmallIcon(R.drawable.ic_stat_logez)
-            .setContentTitle(getString(R.string.activity_tracking_notification_title))
+            .setContentTitle(
+                getString(if (state.isPaused) R.string.activity_tracking_notification_title_paused else R.string.activity_tracking_notification_title),
+            )
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setUsesChronometer(true)
-            .setWhen(System.currentTimeMillis() - controller.elapsedSeconds() * 1000L)
+            // Paused: no running chronometer, so it does not look as if time is still counting. Moving:
+            // it counts MOVING time, anchored so it already excludes every earlier pause.
+            .setUsesChronometer(clock.running)
+            .setWhen(clock.baseMillis)
+            // Without the chronometer the platform would show `when` as a clock time, one that is not
+            // an event at all (now minus moving time).
+            .setShowWhen(clock.running)
             .setContentIntent(contentIntent)
             .build()
     }
