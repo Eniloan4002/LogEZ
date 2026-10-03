@@ -19,6 +19,7 @@ import com.enil.logez.core.domain.repository.RoutineRepository
 import com.enil.logez.core.domain.model.DistanceUnit
 import com.enil.logez.core.domain.model.EffortScale
 import com.enil.logez.core.domain.model.WeightUnit
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.repository.SettingsRepository
 import com.enil.logez.core.domain.repository.WorkoutRepository
 import com.enil.logez.feature.workout.InProgressWorkout
@@ -195,6 +196,9 @@ class WorkoutDetailViewModel @Inject constructor(
             hasRoute = track?.routePolyline != null,
             routePoints = routePoints,
             routeBreaks = routeBreaks,
+            // The workout's own kind catches a run saved with time only (it has no track row); a
+            // track row catches the rest, including one that recorded no point and so shows no map.
+            isGpsTracked = workout.kind == WorkoutKind.GPS_TRACKED || track != null,
         )
     }
 
@@ -265,7 +269,19 @@ data class WorkoutDetailUiState(
     val routeBreaks: Set<Int> = emptySet(),
     /** Saved heart rate for this workout, or null with none; shows the Heart rate card (2026-09-26). */
     val heartRateSummary: HeartRateSummary? = null,
-)
+    /**
+     * True for a walk or run recorded by GPS, whether or not its route drew a map (so unlike
+     * [hasRoute] it stays true for a run with no recorded point or one saved with time only).
+     */
+    val isGpsTracked: Boolean = false,
+) {
+    /**
+     * Edit rewrites the workout's sets, which deletes the recorded track and the paused seconds
+     * with them, and the editor has no way to bring either back. So a GPS-tracked run offers no
+     * Edit; strength workouts and hand-logged cardio (a treadmill run has no track) keep it.
+     */
+    val canEdit: Boolean get() = !isGpsTracked
+}
 
 data class DetailExerciseBlock(
     val workoutExercise: WorkoutExerciseEntity,

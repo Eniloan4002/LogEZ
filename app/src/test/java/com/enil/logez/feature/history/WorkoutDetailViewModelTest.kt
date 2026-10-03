@@ -12,6 +12,7 @@ import com.enil.logez.core.domain.model.ExerciseType
 import com.enil.logez.core.domain.model.MuscleGroup
 import com.enil.logez.core.domain.model.SetType
 import com.enil.logez.core.domain.model.UserSettings
+import com.enil.logez.core.domain.model.WorkoutKind
 import com.enil.logez.core.domain.model.WorkoutStatus
 import com.enil.logez.core.domain.repository.Exercise
 import com.enil.logez.fakes.FakeActiveSessionRepository
@@ -199,6 +200,122 @@ class WorkoutDetailViewModelTest {
     }
 
     @Test
+    fun `a strength workout can be edited`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = 100.0, reps = 5)),
+            ),
+        )
+
+        assertFalse(vm.uiState.value.isGpsTracked)
+        assertTrue(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a hand-logged treadmill run with a distance and no track can be edited`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1")),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 5_000.0)),
+            ),
+        )
+
+        assertFalse(vm.uiState.value.isGpsTracked)
+        assertTrue(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a GPS-tracked run with a recorded route cannot be edited`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1", kind = WorkoutKind.GPS_TRACKED)),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 500.0)),
+            ),
+            trackRepo = FakeActivityTrackRepository(listOf(track("s1"))),
+        )
+
+        assertTrue(vm.uiState.value.hasRoute)
+        assertTrue(vm.uiState.value.isGpsTracked)
+        assertFalse(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a workout restored as a plain strength kind but with a saved track still cannot be edited`() = runTest {
+        // A backup from before the GPS kind existed restores kind as STRENGTH while the track rows come back.
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1", kind = WorkoutKind.STRENGTH)),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 500.0)),
+            ),
+            trackRepo = FakeActivityTrackRepository(listOf(track("s1"))),
+        )
+
+        assertTrue(vm.uiState.value.isGpsTracked)
+        assertFalse(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a GPS run whose track recorded no point cannot be edited either, though it draws no map`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1", kind = WorkoutKind.GPS_TRACKED)),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 0.0)),
+            ),
+            trackRepo = FakeActivityTrackRepository(
+                listOf(ActivityTrackEntity("t-empty", "s1", routePolyline = null, pointCount = 0, avgAccuracyM = null)),
+            ),
+        )
+
+        assertFalse(vm.uiState.value.hasRoute)
+        assertTrue(vm.uiState.value.isGpsTracked)
+        assertFalse(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a GPS run saved with time only has no track row and still cannot be edited`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1", kind = WorkoutKind.GPS_TRACKED)),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = null)),
+            ),
+        )
+
+        assertFalse(vm.uiState.value.hasRoute)
+        assertTrue(vm.uiState.value.isGpsTracked)
+        assertFalse(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a GPS-tracked run stays uneditable when its tracked set is re-tagged as a warm-up`() = runTest {
+        val vm = viewModel(
+            workoutRepo = FakeWorkoutRepository(
+                workouts = listOf(workout("w1", kind = WorkoutKind.GPS_TRACKED)),
+                exercises = listOf(workoutExercise("we1", "w1")),
+                sets = listOf(aSet("s1", "we1", weightKg = null, reps = null, distanceMeters = 500.0, setType = SetType.WARMUP)),
+            ),
+            trackRepo = FakeActivityTrackRepository(listOf(track("s1"))),
+            settingsRepo = FakeSettingsRepository(UserSettings(includeWarmupsInStats = false)),
+        )
+
+        assertFalse(vm.uiState.value.canEdit)
+    }
+
+    @Test
+    fun `a missing workout reports no GPS track, so the UI state default can edit`() = runTest {
+        val vm = viewModel(workoutRepo = FakeWorkoutRepository())
+
+        assertFalse(vm.uiState.value.isGpsTracked)
+        assertTrue(vm.uiState.value.canEdit)
+    }
+
+    @Test
     fun `exercise lookup is batched once per distinct exercise, not once per set or per block`() = runTest {
         // 2 exercise blocks, 3 sets each, sharing between them only 2 DISTINCT exercises -- a
         // naive per-block-and-per-set lookup would call getById 2 (blocks) + 6 (sets) = 8 times;
@@ -254,41 +371,7 @@ class WorkoutDetailViewModelTest {
         exerciseRepo: FakeExerciseRepository = FakeExerciseRepository(listOf()),
         sampleRepo: com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository = com.enil.logez.fakes.FakeWorkoutHeartRateSampleRepository(),
         healthSource: com.enil.logez.fakes.FakeHealthMetricsSource = com.enil.logez.fakes.FakeHealthMetricsSource(),
-    ): WorkoutDetailViewModel {
-        val personalRecordsRepo = FakePersonalRecordsRepository()
-        val personalRecordsUpdater = PersonalRecordsUpdater(
-            workoutRepo, exerciseRepo, personalRecordsRepo, FakeMeasurementRepository(), settingsRepo,
-        )
-        return WorkoutDetailViewModel(
-            savedStateHandle = SavedStateHandle(mapOf(WorkoutDetailViewModel.WORKOUT_ID_ARG to "w1")),
-            workoutRepository = workoutRepo,
-            exerciseRepository = exerciseRepo,
-            routineRepository = FakeRoutineRepository(),
-            personalRecordsRepository = personalRecordsRepo,
-            settingsRepository = settingsRepo,
-            workoutDeleter = WorkoutDeleter(workoutRepo, personalRecordsUpdater, FakeTransactionRunner()),
-            workoutToRoutineConverter = WorkoutToRoutineConverter(workoutRepo, FakeRoutineRepository(), FakeClock()),
-            workoutStarter = WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock()),
-            sessionController = WorkoutSessionController(
-                FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(dispatcher),
-            ),
-            activityTrackRepository = trackRepo,
-            sessionDiscarder = SessionDiscarder(
-                WorkoutStarter(workoutRepo, FakeRoutineRepository(), FakeClock()),
-                WorkoutSessionController(FakeActiveSessionRepository(), FakeClock(), FakeElapsedRealtimeClock(), CoroutineScope(dispatcher)),
-                ActivityTrackingController(workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), FakeClock(), CoroutineScope(dispatcher)),
-            ),
-            inProgressWorkoutResolver = InProgressWorkoutResolver(
-                workoutRepo,
-                ActivityTrackingController(
-                    workoutRepo, FakeActivityTrackRepository(), FakeLocationSource(), FakeClock(),
-                    CoroutineScope(dispatcher),
-                ),
-            ),
-            heartRateSampleRepository = sampleRepo,
-            heartRateBackfill = com.enil.logez.core.wellness.WorkoutHeartRateBackfill(healthSource, sampleRepo, com.enil.logez.core.common.AppLogger.NoOp),
-        )
-    }
+    ): WorkoutDetailViewModel = buildWorkoutDetailViewModel(dispatcher, workoutRepo, trackRepo, settingsRepo, exerciseRepo, sampleRepo, healthSource)
 
     @Test
     fun `saved heart rate shows as a summary on the workout detail`() = runTest {
@@ -326,9 +409,9 @@ class WorkoutDetailViewModelTest {
         assertEquals(133L, vm.uiState.value.heartRateSummary!!.maxBpm)
     }
 
-    private fun workout(id: String) = WorkoutEntity(
+    private fun workout(id: String, kind: WorkoutKind = WorkoutKind.STRENGTH) = WorkoutEntity(
         id = id, routineId = null, title = "Session $id", notes = null, status = WorkoutStatus.COMPLETED,
-        startedAt = 1_000L, endedAt = 2_000L, durationSeconds = 60, createdAt = 1_000L, updatedAt = 1_000L,
+        startedAt = 1_000L, endedAt = 2_000L, durationSeconds = 60, createdAt = 1_000L, updatedAt = 1_000L, kind = kind,
     )
 
     private fun workoutExercise(id: String, workoutId: String, exerciseId: String = "ex-1", orderIndex: Int = 0) = WorkoutExerciseEntity(

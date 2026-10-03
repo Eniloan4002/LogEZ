@@ -157,10 +157,13 @@ fun WorkoutDetailScreen(
                             Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.history_detail_edit)) },
-                                onClick = { menuExpanded = false; onEdit(loadedWorkoutId) },
-                            )
+                            // A GPS run has no Edit: saving an edit deletes its track and paused seconds.
+                            if (uiState.canEdit) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.history_detail_edit)) },
+                                    onClick = { menuExpanded = false; onEdit(loadedWorkoutId) },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.history_detail_copy)) },
                                 onClick = { copyWorkout() },
